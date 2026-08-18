@@ -723,7 +723,7 @@ impl CoverageStop {
 pub struct CoverageLedgerInput {
     pub id: CoverageLedgerId,
     pub facet: CoverageFacet,
-    pub status: Coverage,
+    pub coverage: Coverage,
     pub evaluated: u64,
     pub conclusive: u64,
     pub total: TrustedTotal,
@@ -746,7 +746,7 @@ impl CoverageLedger {
             return Err(CoverageLedgerError::InvalidCounts);
         }
 
-        match input.status {
+        match input.coverage {
             Coverage::Complete => {
                 let TrustedTotal::Known(total) = input.total else {
                     return Err(CoverageLedgerError::CompleteWithoutTrustedTotal);
@@ -760,8 +760,21 @@ impl CoverageLedger {
                 }
             }
             Coverage::Partial => {
-                if input.stopped.is_none() {
+                let Some(stop) = input.stopped else {
                     return Err(CoverageLedgerError::PartialWithoutStop);
+                };
+                if let TrustedTotal::Known(total) = input.total {
+                    let expected_remainder = total
+                        .checked_sub(input.evaluated)
+                        .ok_or(CoverageLedgerError::InvalidCounts)?;
+                    if input.remainder != Remainder::Known(expected_remainder) {
+                        return Err(CoverageLedgerError::InconsistentRemainder);
+                    }
+                }
+                if stop.reason() == CoverageStopReason::ResourceLimit
+                    && input.related_diagnostics.is_empty()
+                {
+                    return Err(CoverageLedgerError::ResourceLimitWithoutDiagnostic);
                 }
             }
             Coverage::NotRequested => {
@@ -788,8 +801,8 @@ impl CoverageLedger {
     }
 
     #[must_use]
-    pub const fn status(&self) -> Coverage {
-        self.0.status
+    pub const fn coverage(&self) -> Coverage {
+        self.0.coverage
     }
 
     #[must_use]
@@ -834,6 +847,8 @@ pub enum CoverageLedgerError {
     CompleteWithoutTrustedTotal,
     InvalidCompleteState,
     PartialWithoutStop,
+    InconsistentRemainder,
+    ResourceLimitWithoutDiagnostic,
     InvalidNotRequestedState,
 }
 

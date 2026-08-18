@@ -235,7 +235,7 @@ pub fn decode_volume_header<'a>(
         ));
     }
 
-    validate_file_length(file_length, total_sectors)?;
+    validate_file_length(file_length, total_sectors, system_last_page)?;
 
     let allocation_hint = optional_sector(read_i32(&bytes, 52, "allocation hint")?)?;
     let database_creation = bytes
@@ -291,11 +291,20 @@ pub fn decode_volume_header<'a>(
     })
 }
 
-fn validate_file_length(file_length: u64, total_sectors: u32) -> Result<(), DecodeError> {
-    let required = u64::from(total_sectors)
+fn validate_file_length(
+    file_length: u64,
+    total_sectors: u32,
+    system_last_page: u32,
+) -> Result<(), DecodeError> {
+    let allocated_required = u64::from(total_sectors)
         .checked_mul(u64::from(SECTOR_PAGES))
         .and_then(|pages| pages.checked_mul(IO_PAGE_SIZE as u64))
         .ok_or_else(|| arithmetic("volume.header.file_length_arithmetic"))?;
+    let system_required = u64::from(system_last_page)
+        .checked_add(1)
+        .and_then(|pages| pages.checked_mul(IO_PAGE_SIZE as u64))
+        .ok_or_else(|| arithmetic("volume.header.file_length_arithmetic"))?;
+    let required = allocated_required.max(system_required);
     if !file_length.is_multiple_of(16_384) || file_length < required {
         return Err(DecodeError::new(
             DecodeErrorKind::FileLengthInvalid,

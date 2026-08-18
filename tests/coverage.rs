@@ -13,7 +13,7 @@ fn complete_coverage_requires_a_trusted_fully_conclusive_total() {
     let ledger = CoverageLedger::new(CoverageLedgerInput {
         id: CoverageLedgerId::new(1),
         facet: CoverageFacet::PageEnvelopes,
-        status: Coverage::Complete,
+        coverage: Coverage::Complete,
         evaluated: 10,
         conclusive: 10,
         total: TrustedTotal::Known(10),
@@ -23,7 +23,7 @@ fn complete_coverage_requires_a_trusted_fully_conclusive_total() {
     })
     .unwrap();
 
-    assert_eq!(ledger.status(), Coverage::Complete);
+    assert_eq!(ledger.coverage(), Coverage::Complete);
     assert_eq!(ledger.total(), TrustedTotal::Known(10));
 
     let invalid = CoverageLedger::new(CoverageLedgerInput {
@@ -42,7 +42,7 @@ fn partial_coverage_names_its_stopped_boundary_reason_and_remainder() {
     let ledger = CoverageLedger::new(CoverageLedgerInput {
         id: CoverageLedgerId::new(2),
         facet: CoverageFacet::OosChain,
-        status: Coverage::Partial,
+        coverage: Coverage::Partial,
         evaluated: 3,
         conclusive: 3,
         total: TrustedTotal::Unknown,
@@ -63,6 +63,39 @@ fn partial_coverage_names_its_stopped_boundary_reason_and_remainder() {
         ..ledger.into_input()
     });
     assert!(invalid.is_err());
+}
+
+#[test]
+fn partial_coverage_rejects_contradictory_remainders_and_unlinked_resource_limits() {
+    let resource_stop = CoverageStop::new(
+        ValidationBoundary::new(ValidationBoundaryKind::OosChain, None),
+        CoverageStopReason::ResourceLimit,
+    );
+    let contradictory_remainder = CoverageLedger::new(CoverageLedgerInput {
+        id: CoverageLedgerId::new(3),
+        facet: CoverageFacet::OosChain,
+        coverage: Coverage::Partial,
+        evaluated: 3,
+        conclusive: 3,
+        total: TrustedTotal::Known(10),
+        stopped: Some(resource_stop),
+        related_diagnostics: vec![DiagnosticOccurrenceId::from_bytes([7; 16])],
+        remainder: Remainder::Known(99),
+    });
+    assert!(contradictory_remainder.is_err());
+
+    let unlinked_resource_limit = CoverageLedger::new(CoverageLedgerInput {
+        id: CoverageLedgerId::new(4),
+        facet: CoverageFacet::OosChain,
+        coverage: Coverage::Partial,
+        evaluated: 3,
+        conclusive: 3,
+        total: TrustedTotal::Unknown,
+        stopped: Some(resource_stop),
+        related_diagnostics: Vec::new(),
+        remainder: Remainder::Unknown,
+    });
+    assert!(unlinked_resource_limit.is_err());
 }
 
 #[test]

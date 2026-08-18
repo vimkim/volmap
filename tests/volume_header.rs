@@ -108,6 +108,25 @@ fn volume_header_rejects_truncated_physical_volume() {
 }
 
 #[test]
+fn volume_header_rejects_bitmap_pages_beyond_the_physical_volume() {
+    let mut bytes = valid_volume_header_page();
+    let user = &mut bytes[USER_START..IO_PAGE_SIZE - 8];
+    let maximum_sectors = 2_147_483_584_i32;
+    let bitmap_pages = 16_425_i32;
+    user[48..52].copy_from_slice(&maximum_sectors.to_le_bytes());
+    user[56..60].copy_from_slice(&bitmap_pages.to_le_bytes());
+    user[64..68].copy_from_slice(&bitmap_pages.to_le_bytes());
+    let envelope = decode_page_envelope(&bytes, page_zero()).unwrap();
+
+    assert_eq!(
+        decode_volume_header(&envelope, FILE_LENGTH)
+            .unwrap_err()
+            .kind(),
+        DecodeErrorKind::FileLengthInvalid
+    );
+}
+
+#[test]
 fn volume_header_never_parses_an_encrypted_user_region() {
     let mut bytes = valid_volume_header_page();
     bytes[15] = 0x01;
