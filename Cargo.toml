@@ -1,0 +1,30 @@
+[package]
+name = "volmap"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.97.1"
+license = "Apache-2.0"
+publish = false
+
+[lib]
+name = "volmap"
+path = "src/lib.rs"
+
+[[bin]]
+name = "volmap"
+path = "src/main.rs"
+
+[profile.release]
+codegen-units = 1
+lto = true
+overflow-checks = true
+panic = "abort"
+strip = "symbols"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }
+missing_errors_doc = "allow"

@@ -1,0 +1,47 @@
+format_profile = "cubrid-feat-oos-linux-x86_64-gcc-e1e651de"
+authority_repository = "/home/vimkim/gh/cb/feat-oos"
+authority_commit = "e1e651debf6cc100172bde96603b17424f9c135a"
+abi = "Linux x86-64 ELF LSB GCC, 16384-byte I/O pages"
+license = "Apache-2.0"
+
+[[decoder]]
+module = "src/format/page.rs"
+authority_paths = [
+  "src/storage/file_io.h",
+  "src/storage/file_io.c",
+  "src/storage/storage_common.h",
+  "src/transaction/log_lsa.hpp",
+]
+facts = "FILEIO_PAGE_RESERVED/WATERMARK offsets, duplicate LSA, PAGE_TYPE ordinals, TDE flag bits, and 16344-byte user region"
+tests = ["tests/page_envelope.rs"]
+
+[[decoder]]
+module = "src/format/volume.rs"
+authority_paths = [
+  "src/storage/disk_manager.c",
+  "src/storage/storage_common.h",
+  "src/compat/dbtype_def.h",
+]
+facts = "DISK_VOLUME_HEADER x86-64/GCC offsets, variable-field offsets, volume enum values, and sector-table geometry"
+tests = ["tests/volume_header.rs"]
+
+[[decoder]]
+module = "src/format/sector.rs"
+authority_paths = ["src/storage/disk_manager.c"]
+facts = "DISK_STAB_UNIT little-endian u64 words, least-significant-bit-first sector mapping, and bitmap page geometry"
+tests = ["tests/sector_bitmap.rs"]
+
+[[generated_fixture]]
+kind = "company-generated CUBRID database volume"
+path = "/home/vimkim/.cub/db/feat-oos/commondb/demodb/demodb"
+sha256 = "bc656f23c26f2c3568603ec5b85ede316136e360b3246e10890583fc8ed2aab1"
+use = "corroborated page-envelope, volume-header, and sector-bitmap values; not copied into this repository"
+
+[[generated_fixture]]
+kind = "company-generated CUBRID extension volume"
+path = "/home/vimkim/.cub/db/feat-oos/commondb/demodb/demodb_x001"
+sha256 = "9e49c62f7fa2e60389b62800373494aa126c3eb16772bc0de986d69671a8b9a0"
+use = "corroborated multi-volume geometry; not copied into this repository"
+
+[excluded_evidence]
+recovered_artifacts = "Not read, linked, copied, executed, packaged, or used by tests."
