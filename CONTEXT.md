@@ -28,6 +28,10 @@ _Avoid_: Link URL, pointer
 An on-disk physical identity whose target is missing, invalid, or unavailable. The intended identity remains visible for evidence and diagnostics without creating a target entity.
 _Avoid_: Broken URL, null entity
 
+**Relationship claim**:
+An evidence-backed on-disk assertion that entities are related. A missing target, type mismatch, cycle, overlap, or competing claim may prevent it from becoming a valid semantic relationship without erasing the claim.
+_Avoid_: Resolved relationship, repaired link
+
 **Observed evidence**:
 A bounded volume byte range and the outcome of attempting to read it. It identifies source bytes without exposing application payload, ciphertext, or key material.
 _Avoid_: Raw value, confidence
@@ -48,13 +52,49 @@ _Avoid_: Status, validity
 Whether detail promised by the selected inspection mode is `not-requested`, `partial`, or `complete` for an entity.
 _Avoid_: Availability, scan status
 
+**Coverage ledger**:
+The evidence-backed progress record for one requested inspection facet, including evaluated counts, only trusted totals, its stopped boundary and reason, and a known or explicitly unknown remainder.
+_Avoid_: Progress bar, estimated coverage
+
+**Inspection outcome**:
+The aggregate automation result, ordered `success`, `success-limited`, `findings`, `incomplete`, then `fatal`. It summarizes but never replaces diagnostic severity, availability, coverage ledgers, or snapshot validity.
+_Avoid_: Maximum severity, HTTP status
+
 **Diagnostic**:
 An evidence-backed finding with a stable code, severity, affected entity or reference, and explanatory message.
 _Avoid_: Status string, parser error
 
+**Diagnostic code**:
+A stable lowercase namespaced identifier for one documented finding rule. Released code semantics are never repurposed, and adapters never infer behavior from human message text.
+_Avoid_: Error message, numeric errno
+
+**Diagnostic occurrence**:
+One snapshot-scoped instance of a diagnostic rule, identified independently of revision, severity, and message wording by its affected entities or references and canonical evidence or relationship locus.
+_Avoid_: Log line, duplicate finding
+
+**Diagnostic severity**:
+The finding's consequence for inspection trust and completion: `info`, `warning`, `error`, or `fatal`. It is independent of availability, coverage, containment scope, and presentation emphasis.
+_Avoid_: Log level, page status
+
+**Containment impact**:
+The validation boundary and dependent inspection facets stopped by a diagnostic occurrence, together with the independently valid scopes that remain usable.
+_Avoid_: Severity, blast radius estimate
+
 **Anomaly**:
 A diagnostic raised when readable, supported evidence violates an invariant or conflicts with other evidence. An anomaly does not erase facts that remain valid.
 _Avoid_: Unreadable data, unsupported format
+
+**Validation boundary**:
+A bounded structure or reference with named prerequisite checks. Failure blocks only interpretations and traversals that depend on that boundary; independently validated parent facts, prior chain prefixes, and sibling entities remain usable.
+_Avoid_: Trust score, parser scope
+
+**Validated prefix**:
+The ordered members of a linked structure reached through consecutively valid boundaries before its first invalid, missing, cyclic, or budget-stopped link. It does not imply that the complete structure is valid.
+_Avoid_: Recovered chain, complete prefix
+
+**Operational budget**:
+An explicit tool-resource ceiling distinct from an on-disk format limit. Reaching it is not corruption; it stops at a validation boundary, preserves a validated prefix, and makes the promised inspection scope partial.
+_Avoid_: Format maximum, silent truncation
 
 ## Storage hierarchy
 
