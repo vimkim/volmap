@@ -42,6 +42,18 @@ _Avoid_: Page status map
 Opt-in decoding of a selected page's header, slot directory, record allocation, and recognized page-type-specific metadata without exposing user values.
 _Avoid_: Deep scan
 
+**TDE inspection state**:
+The canonical visibility or failure classification for a page: `not-encrypted`, `decrypted`, `encrypted-opaque`, `key-error`, `decrypted-invalid`, or `invalid-flags`.
+_Avoid_: Encryption status
+
+**Encrypted opaque page**:
+A page whose plaintext I/O envelope validly identifies AES or ARIA encryption but whose user region is intentionally not decrypted because no key file was supplied. It remains distinct from an unreadable or corrupt page.
+_Avoid_: Encrypted error, unreadable encrypted page
+
+**Application payload**:
+Record bytes or decoded user values not required to describe physical allocation, record boundaries, record kind, or internal storage navigation. Version one never displays application payloads.
+_Avoid_: Raw metadata
+
 ## OOS storage
 
 **OOS page**:
