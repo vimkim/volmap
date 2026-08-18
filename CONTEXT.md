@@ -2,7 +2,69 @@
 
 Volmap Inspector is a read-only offline explorer of CUBRID volume allocation and page structure. This glossary separates physical storage facts from interpretations presented by its CLI, TUI, and web viewer.
 
+## Inspection model
+
+**Inspection graph**:
+The normalized, snapshot-scoped set of storage entities and explicit relationships that every CLI, JSON, TUI, HTML, and web view projects. Its meaning is independent of how entities are scanned, materialized, indexed, or cached.
+_Avoid_: Presentation tree, adapter model
+
+**Inspection revision**:
+A monotonically advancing version of one inspection graph as explicit deep-inspection targets add evidence and details. Revisions preserve the snapshot and entity identities; an export freezes one revision.
+_Avoid_: Database version, schema version
+
+**Database snapshot**:
+The read-only set of CUBRID volumes inspected together as one stable input; it scopes every other inspection-graph identity.
+_Avoid_: Live database, scan run
+
+**Invalidated snapshot**:
+A database snapshot whose input-fingerprint manifest no longer matches observed volumes. Its retained facts are diagnostic evidence only, and it cannot accept further inspection enrichment.
+_Avoid_: Partial snapshot, stale cache
+
+**Entity reference**:
+A typed, snapshot-scoped identity used by one inspection entity to name another. Adapters may render it as navigation, but URLs, paths, and CLI selectors are not part of the reference.
+_Avoid_: Link URL, pointer
+
+**Unresolved entity reference**:
+An on-disk physical identity whose target is missing, invalid, or unavailable. The intended identity remains visible for evidence and diagnostics without creating a target entity.
+_Avoid_: Broken URL, null entity
+
+**Observed evidence**:
+A bounded volume byte range and the outcome of attempting to read it. It identifies source bytes without exposing application payload, ciphertext, or key material.
+_Avoid_: Raw value, confidence
+
+**Interpreted evidence**:
+A typed fact decoded from observed evidence under the pinned format profile and a named validation rule.
+_Avoid_: Parsed guess
+
+**Derived evidence**:
+A summary or relationship calculated from named interpreted facts or entity references under a named derivation rule.
+_Avoid_: Observed value
+
+**Availability**:
+Whether requested evidence can be interpreted as `available`, `unreadable`, `unsupported`, or `encrypted-opaque`. It does not describe how much inspection was requested or completed.
+_Avoid_: Status, validity
+
+**Inspection coverage**:
+Whether detail promised by the selected inspection mode is `not-requested`, `partial`, or `complete` for an entity.
+_Avoid_: Availability, scan status
+
+**Diagnostic**:
+An evidence-backed finding with a stable code, severity, affected entity or reference, and explanatory message.
+_Avoid_: Status string, parser error
+
+**Anomaly**:
+A diagnostic raised when readable, supported evidence violates an invariant or conflicts with other evidence. An anomaly does not erase facts that remain valid.
+_Avoid_: Unreadable data, unsupported format
+
 ## Storage hierarchy
+
+**File**:
+A CUBRID logical allocation owner identified by a VFID and described by file-tracker and file-header metadata; it may allocate pages across physical sectors.
+_Avoid_: Volume file, operating-system file
+
+**Page**:
+One physical 16,384-byte page identified by a VPID. Its physical page type selects an optional recognized page-detail variant without changing the page's identity.
+_Avoid_: Page-type object
 
 **Volume**:
 A CUBRID volume file belonging to the inspected database snapshot.
@@ -16,13 +78,17 @@ _Avoid_: Block, extent
 The derived reservation, allocation, ownership, utilization, and anomaly counts for one sector.
 _Avoid_: Sector status
 
-**Page classification**:
-The tool's evidence-backed description of a page as volume metadata, unreserved, reserved but unallocated, allocated to a file, unreadable, or inconsistent.
-_Avoid_: Page status
+**Page allocation class**:
+The page's evidence-backed allocation topology: `system-metadata`, `unreserved`, `reserved-unallocated`, or `allocated`. Physical page type, ownership, availability, and diagnostics are separate dimensions.
+_Avoid_: Page classification, page status
 
 **Page ownership**:
-The file identity and logical file type associated with an allocated page by CUBRID file-allocation metadata. Ownership is distinct from the page's physical page type.
+The resolved file identity and logical file type for a page when exactly one validated file-allocation claim exists. Conflicting claims remain visible and do not produce a resolved owner; ownership is distinct from physical page type.
 _Avoid_: Page kind
+
+**Page ownership claim**:
+One evidence-backed assertion from a file's allocation metadata that it owns a page. A page may have zero, one, or conflicting multiple claims.
+_Avoid_: Page ownership
 
 ## Page inspection
 
@@ -31,15 +97,19 @@ A CUBRID page whose records are addressed through a slot directory and occupy by
 _Avoid_: Record page
 
 **Slot entry**:
-A slot-directory entry describing a record's slot identifier, byte offset, length, and record type, or describing an empty/deleted slot.
+A slot-directory entry describing a record's slot identifier, byte offset, length, and record type, or describing an empty/deleted slot. Recognized record-type details attach to this identity rather than creating another physical record entity.
 _Avoid_: Record pointer
 
 **Page byte map**:
 A physical visualization of the page header, occupied record extents, alignment waste or gaps, contiguous free area, and slot directory across the page's byte range.
 _Avoid_: Page status map
 
+**Fast inspection**:
+The snapshot-wide, unsampled pass that completely establishes volume geometry, sector reservation, file allocation, page allocation class, and plaintext page-envelope facts without decoding page bodies.
+_Avoid_: Sample scan, partial scan
+
 **Deep inspection**:
-Opt-in decoding of a selected page's header, slot directory, record allocation, and recognized page-type-specific metadata without exposing user values.
+Opt-in enrichment of selected pages or OOS value chains with validated body structure, slot allocation, page-type details, and bounded chain relationships without exposing application payloads.
 _Avoid_: Deep scan
 
 **TDE inspection state**:
@@ -65,7 +135,7 @@ One physical slotted-page record containing an OOS record header and a payload f
 _Avoid_: OOS page, OOS record
 
 **OOS value chain**:
-One or more linked OOS chunk records containing one complete serialized attribute value.
+The logical storage object addressed by a head OOS OID whose validated chunk sequence should contain one complete serialized attribute value. Inspection may retain a partial or corrupt chain without treating it as complete.
 _Avoid_: OOS chain page
 
 ## Distribution

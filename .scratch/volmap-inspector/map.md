@@ -28,6 +28,7 @@ An implementation-ready specification and decision index for a redesigned `volma
 - [Establish licensing and reverse-engineering provenance boundaries](issues/03-establish-licensing-provenance.md) — Use specifically Apache-labeled pinned sources with attribution, quarantine recovered artifacts as an authorized black-box oracle only, and require owner/counsel decisions before release.
 - [Set ownership, licensing, and recovered-oracle policy](issues/14-set-ownership-license-oracle-policy.md) — CUBRID owns an internal-first Apache-2.0 project; source and generated fixtures are authoritative, recovered artifacts require separate internal approval, and public release remains company-gated.
 - [Set the TDE-encrypted page inspection boundary](issues/15-set-tde-inspection-boundary.md) — Version one optionally decrypts AES/ARIA user pages only from an explicit local key file, otherwise reports them opaque; no interface exposes secrets, ciphertext, or application payloads.
+- [Define the canonical inspection model and evidence levels](issues/04-define-inspection-model.md) — All adapters project one normalized, revisioned inspection graph with snapshot-scoped identities, traceable evidence, orthogonal availability/coverage/diagnostics, complete fast topology, and targeted deep page/OOS enrichment.
 
 ## Not yet specified
 
