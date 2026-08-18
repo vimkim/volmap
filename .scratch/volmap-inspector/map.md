@@ -26,12 +26,12 @@ An implementation-ready specification and decision index for a redesigned `volma
 - [Choose the implementation platform for the standalone inspector](issues/01-choose-implementation-platform.md) — Use safe Rust targeting `x86_64-unknown-linux-musl`; prove static linkage on the final ELF and retain Go as the documented fallback.
 - [Reconstruct the pinned feat/oos disk-format contract](issues/02-reconstruct-pinned-disk-format.md) — Pin explicit x86-64/GCC offsets and invariants, separating native little-endian storage metadata from big-endian heap object-representation bytes.
 - [Establish licensing and reverse-engineering provenance boundaries](issues/03-establish-licensing-provenance.md) — Use specifically Apache-labeled pinned sources with attribution, quarantine recovered artifacts as an authorized black-box oracle only, and require owner/counsel decisions before release.
+- [Set ownership, licensing, and recovered-oracle policy](issues/14-set-ownership-license-oracle-policy.md) — CUBRID owns an internal-first Apache-2.0 project; source and generated fixtures are authoritative, recovered artifacts require separate internal approval, and public release remains company-gated.
 
 ## Not yet specified
 
 - Quantitative performance, memory, index-size, and latency budgets need representative database measurements and the selected scan architecture.
-- Release packaging, dependency-vendoring policy, and implementation phase sizing depend on the platform and licensing decisions.
-- The exact Rust web/TUI crate graph and embedded-asset license inventory depend on the closed interface decisions and prototypes.
+- Implementation phase sizing depends on the closed architecture, interface, prototype, and verification decisions.
 
 ## Out of scope
 

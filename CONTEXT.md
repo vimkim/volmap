@@ -61,3 +61,17 @@ _Avoid_: OOS chain page
 **Standalone executable**:
 The single Linux x86-64 `volmap` binary, with no runtime dependency on glibc, CUBRID libraries, installation assets, network services, or separately installed web assets.
 _Avoid_: Portable installation
+
+## Evidence governance
+
+**Format authority**:
+The pinned CUBRID source revision and company-generated fixtures from which supported persistent layouts and invariants are established.
+_Avoid_: Legacy implementation
+
+**Recovered artifact**:
+A legacy executable or reverse-engineering output obtained from another CUBRID employee and kept outside Volmap Inspector source and distribution.
+_Avoid_: Reference implementation, source code
+
+**Behavioral oracle**:
+An optional, explicitly authorized black-box comparison that records normalized observable facts from a recovered artifact; it is never a format authority.
+_Avoid_: Golden implementation, compatibility source
