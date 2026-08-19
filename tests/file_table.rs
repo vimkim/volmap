@@ -180,3 +180,17 @@ fn heap_file_descriptor_pins_the_header_page_role() {
     let header = decode_file_header(&envelope(&bytes)).unwrap();
     assert_eq!(header.heap_header_page().unwrap().page_id.get(), 129);
 }
+
+#[test]
+fn overflow_file_descriptor_pins_its_related_heap() {
+    let mut bytes = file_page();
+    let user = &mut bytes[32..IO_PAGE_SIZE - 8];
+    user[140..144].copy_from_slice(&3_i32.to_le_bytes());
+    user[40..44].copy_from_slice(&128_i32.to_le_bytes());
+    user[44..46].copy_from_slice(&0_i16.to_le_bytes());
+    user[48..52].copy_from_slice(&129_i32.to_le_bytes());
+    let header = decode_file_header(&envelope(&bytes)).unwrap();
+    let (heap, heap_header) = header.related_heap().unwrap();
+    assert_eq!(heap.file_id.get(), 128);
+    assert_eq!(heap_header.page_id.get(), 129);
+}

@@ -12,8 +12,9 @@ use crate::diagnostics::{InspectionOutcome, OutcomeInputs};
 use crate::format::{
     DecodeError, DroppedFilesPageFact, FileHeader, HeapPageFact, OosNext, PageContent, PageType,
     SlottedPage, TdeAlgorithm, TrackerItemFact, UserPageFact, VacuumPageFact, VolumePurpose,
-    VolumeType, decode_dropped_files_page, decode_extdata_header, decode_file_header,
-    decode_full_sectors, decode_heap_page, decode_oos_chunk, decode_page_envelope,
+    VolumeType, decode_bigone_target, decode_dropped_files_page, decode_extdata_header,
+    decode_file_header, decode_full_sectors, decode_heap_page, decode_oos_chunk,
+    decode_overflow_continuation, decode_overflow_head, decode_page_envelope,
     decode_page_envelope_parts, decode_partial_sectors, decode_sector_bitmap, decode_slotted_page,
     decode_tracker_items, decode_user_pages, decode_vacuum_page, decode_volume_header,
 };
@@ -295,6 +296,37 @@ pub struct OosChainView {
     pub diagnostic_rule: Option<&'static str>,
 }
 
+#[derive(Clone, Debug)]
+struct OverflowChainFact {
+    head: Option<Vpid>,
+    total_data_length: Option<u32>,
+    validated_payload_bytes: u64,
+    complete: bool,
+    pages: Vec<OverflowPageView>,
+    diagnostic_rule: Option<&'static str>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct OverflowPageView {
+    pub vpid: Vpid,
+    pub head: bool,
+    pub next: Option<Vpid>,
+    pub payload_offset: u16,
+    pub payload_length: u16,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OverflowChainView {
+    pub source: Oid,
+    pub revision: InspectionRevision,
+    pub head: Option<Vpid>,
+    pub total_data_length: Option<u32>,
+    pub validated_payload_bytes: u64,
+    pub complete: bool,
+    pub pages: Vec<OverflowPageView>,
+    pub diagnostic_rule: Option<&'static str>,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DeepPageView {
     pub vpid: Vpid,
@@ -319,6 +351,7 @@ struct SessionData {
     file_allocations: BTreeMap<Vpid, Vfid>,
     tracked_files: BTreeMap<Vfid, FileHeader>,
     oos_chains: BTreeMap<crate::model::Oid, OosChainFact>,
+    overflow_chains: BTreeMap<Oid, OverflowChainFact>,
 }
 
 #[derive(Clone, Copy)]
@@ -723,6 +756,7 @@ impl Inspection {
                 file_allocations: BTreeMap::new(),
                 tracked_files: BTreeMap::new(),
                 oos_chains: BTreeMap::new(),
+                overflow_chains: BTreeMap::new(),
             }),
         })
     }
@@ -1501,6 +1535,381 @@ impl GraphView {
             .collect()
     }
 
+    /// Validate the overflow chain referenced by one explicitly selected
+    /// `REC_BIGONE`. The record payload and overflow payload bytes are never
+    /// retained; only typed links and byte extents are published.
+    #[allow(clippy::too_many_lines)]
+    pub fn enrich_bigone(
+        &self,
+        source: Oid,
+        policy: ResourcePolicy,
+        cancel: &CancelToken,
+    ) -> Result<Self, OperationError> {
+        if self.data.overflow_chains.contains_key(&source) {
+            return Ok(self.clone());
+        }
+        if cancel.is_cancelled() {
+            return self.publish_overflow_chain(
+                source,
+                None,
+                None,
+                0,
+                Vec::new(),
+                Some("interrupted"),
+            );
+        }
+        if policy.max_decoded_bytes < crate::format::IO_PAGE_SIZE as u64
+            || policy.memory_limit < crate::format::IO_PAGE_SIZE as u64
+        {
+            return self.publish_overflow_chain(
+                source,
+                None,
+                None,
+                0,
+                Vec::new(),
+                Some("resource-limit"),
+            );
+        }
+        if !self
+            .data
+            .sources
+            .verify_unchanged()
+            .map_err(OperationError::Source)?
+        {
+            return self.invalidated_revision();
+        }
+        let home = Vpid::new(source.vol_id, source.page_id);
+        let Some(heap_owner) = self.data.file_allocations.get(&home).copied() else {
+            return self.publish_overflow_chain(
+                source,
+                None,
+                None,
+                0,
+                Vec::new(),
+                Some("overflow.chain.heap_owner"),
+            );
+        };
+        let Some(heap_header) = self.data.tracked_files.get(&heap_owner).copied() else {
+            return self.publish_overflow_chain(
+                source,
+                None,
+                None,
+                0,
+                Vec::new(),
+                Some("overflow.chain.heap_owner"),
+            );
+        };
+        if !matches!(
+            heap_header.file_type(),
+            crate::format::FileType::Heap | crate::format::FileType::HeapReuseSlots
+        ) {
+            return self.publish_overflow_chain(
+                source,
+                None,
+                None,
+                0,
+                Vec::new(),
+                Some("overflow.chain.heap_owner"),
+            );
+        }
+        let Some(source_page) = self.data.sources.volume(home.vol_id) else {
+            return Err(OperationError::Query(QueryError::EntityNotFound));
+        };
+        let source_bytes = source_page
+            .read_page(home.page_id)
+            .map_err(OperationError::Source)?;
+        let source_envelope = match decode_page_envelope(source_bytes.as_slice(), home) {
+            Ok(value) if value.page_type() == PageType::Heap => value,
+            Ok(_) => {
+                return self.publish_overflow_chain(
+                    source,
+                    None,
+                    None,
+                    0,
+                    Vec::new(),
+                    Some("overflow.chain.heap_page_role"),
+                );
+            }
+            Err(error) => {
+                return self.publish_overflow_chain(
+                    source,
+                    None,
+                    None,
+                    0,
+                    Vec::new(),
+                    Some(error.rule()),
+                );
+            }
+        };
+        let source_slotted = match decode_slotted_page(&source_envelope) {
+            Ok(value) => value,
+            Err(error) => {
+                return self.publish_overflow_chain(
+                    source,
+                    None,
+                    None,
+                    0,
+                    Vec::new(),
+                    Some(error.rule()),
+                );
+            }
+        };
+        let source_slot =
+            u16::try_from(source.slot_id.get()).map_err(|_| OperationError::Arithmetic)?;
+        let head = match decode_bigone_target(&source_envelope, &source_slotted, source_slot) {
+            Ok(value) => value,
+            Err(error) => {
+                return self.publish_overflow_chain(
+                    source,
+                    None,
+                    None,
+                    0,
+                    Vec::new(),
+                    Some(error.rule()),
+                );
+            }
+        };
+        let Some(overflow_owner) = self.data.file_allocations.get(&head).copied() else {
+            return self.publish_overflow_chain(
+                source,
+                Some(head),
+                None,
+                0,
+                Vec::new(),
+                Some("overflow.chain.file_owner"),
+            );
+        };
+        let valid_owner = self
+            .data
+            .tracked_files
+            .get(&overflow_owner)
+            .is_some_and(|header| {
+                header.file_type() == crate::format::FileType::MultipageObjectHeap
+                    && header.related_heap()
+                        == heap_header
+                            .heap_header_page()
+                            .map(|heap_header_page| (heap_owner, heap_header_page))
+            });
+        if !valid_owner {
+            return self.publish_overflow_chain(
+                source,
+                Some(head),
+                None,
+                0,
+                Vec::new(),
+                Some("overflow.chain.file_owner"),
+            );
+        }
+
+        let mut current = head;
+        let mut visited = BTreeSet::new();
+        let mut pages = Vec::new();
+        let mut total = None;
+        let mut remaining = 0_u32;
+        let mut validated_payload_bytes = 0_u64;
+        let mut decoded_bytes = crate::format::IO_PAGE_SIZE as u64;
+        loop {
+            if cancel.is_cancelled() {
+                return self.publish_overflow_chain(
+                    source,
+                    Some(head),
+                    total,
+                    validated_payload_bytes,
+                    pages,
+                    Some("interrupted"),
+                );
+            }
+            if u64::try_from(pages.len()).unwrap_or(u64::MAX) >= policy.max_chain_steps {
+                return self.publish_overflow_chain(
+                    source,
+                    Some(head),
+                    total,
+                    validated_payload_bytes,
+                    pages,
+                    Some("resource-limit"),
+                );
+            }
+            if !visited.insert(current) {
+                return self.publish_overflow_chain(
+                    source,
+                    Some(head),
+                    total,
+                    validated_payload_bytes,
+                    pages,
+                    Some("overflow.chain.acyclic"),
+                );
+            }
+            decoded_bytes = match decoded_bytes.checked_add(crate::format::IO_PAGE_SIZE as u64) {
+                Some(value)
+                    if value <= policy.max_decoded_bytes
+                        && value <= policy.memory_limit.saturating_mul(2) =>
+                {
+                    value
+                }
+                _ => {
+                    return self.publish_overflow_chain(
+                        source,
+                        Some(head),
+                        total,
+                        validated_payload_bytes,
+                        pages,
+                        Some("resource-limit"),
+                    );
+                }
+            };
+            let page_role_ok = self.page(current).is_ok_and(|page| {
+                page.page_type == Some(PageType::Overflow)
+                    && page.availability == Availability::Available
+            }) && self.data.file_allocations.get(&current)
+                == Some(&overflow_owner);
+            if !page_role_ok {
+                return self.publish_overflow_chain(
+                    source,
+                    Some(head),
+                    total,
+                    validated_payload_bytes,
+                    pages,
+                    Some("overflow.chain.page_role"),
+                );
+            }
+            let source_volume = self
+                .data
+                .sources
+                .volume(current.vol_id)
+                .ok_or(OperationError::Query(QueryError::EntityNotFound))?;
+            let bytes = source_volume
+                .read_page(current.page_id)
+                .map_err(OperationError::Source)?;
+            let envelope = match decode_page_envelope(bytes.as_slice(), current) {
+                Ok(value) => value,
+                Err(error) => {
+                    return self.publish_overflow_chain(
+                        source,
+                        Some(head),
+                        total,
+                        validated_payload_bytes,
+                        pages,
+                        Some(error.rule()),
+                    );
+                }
+            };
+            let is_head = pages.is_empty();
+            let page = if is_head {
+                match decode_overflow_head(&envelope) {
+                    Ok(value) => value,
+                    Err(error) => {
+                        return self.publish_overflow_chain(
+                            source,
+                            Some(head),
+                            total,
+                            validated_payload_bytes,
+                            pages,
+                            Some(error.rule()),
+                        );
+                    }
+                }
+            } else {
+                match decode_overflow_continuation(&envelope, remaining) {
+                    Ok(value) => value,
+                    Err(error) => {
+                        return self.publish_overflow_chain(
+                            source,
+                            Some(head),
+                            total,
+                            validated_payload_bytes,
+                            pages,
+                            Some(error.rule()),
+                        );
+                    }
+                }
+            };
+            if is_head {
+                let Some(head_total) = page.total_length() else {
+                    return self.publish_overflow_chain(
+                        source,
+                        Some(head),
+                        total,
+                        validated_payload_bytes,
+                        pages,
+                        Some("overflow.head.total_required"),
+                    );
+                };
+                total = Some(head_total);
+                remaining = head_total;
+            }
+            remaining = remaining
+                .checked_sub(u32::from(page.payload_length()))
+                .ok_or(OperationError::Arithmetic)?;
+            validated_payload_bytes = validated_payload_bytes
+                .checked_add(u64::from(page.payload_length()))
+                .ok_or(OperationError::Arithmetic)?;
+            let next = page.next();
+            pages.push(OverflowPageView {
+                vpid: current,
+                head: is_head,
+                next,
+                payload_offset: page.payload_offset(),
+                payload_length: page.payload_length(),
+            });
+            match next {
+                Some(next) => current = next,
+                None if remaining == 0 => break,
+                None => {
+                    return self.publish_overflow_chain(
+                        source,
+                        Some(head),
+                        total,
+                        validated_payload_bytes,
+                        pages,
+                        Some("overflow.chain.complete_length"),
+                    );
+                }
+            }
+        }
+        if !self
+            .data
+            .sources
+            .verify_unchanged()
+            .map_err(OperationError::Source)?
+        {
+            return self.invalidated_revision();
+        }
+        self.publish_overflow_chain(
+            source,
+            Some(head),
+            total,
+            validated_payload_bytes,
+            pages,
+            None,
+        )
+    }
+
+    #[must_use]
+    pub fn overflow_chain(&self, source: Oid) -> Option<OverflowChainView> {
+        self.data
+            .overflow_chains
+            .get(&source)
+            .map(|fact| OverflowChainView {
+                source,
+                revision: self.data.revision,
+                head: fact.head,
+                total_data_length: fact.total_data_length,
+                validated_payload_bytes: fact.validated_payload_bytes,
+                complete: fact.complete,
+                pages: fact.pages.clone(),
+                diagnostic_rule: fact.diagnostic_rule,
+            })
+    }
+
+    #[must_use]
+    pub fn overflow_chains(&self) -> Vec<OverflowChainView> {
+        self.data
+            .overflow_chains
+            .keys()
+            .filter_map(|source| self.overflow_chain(*source))
+            .collect()
+    }
+
     /// Validate one explicitly selected OOS chain and publish its structural
     /// prefix as a new immutable revision. Payload bytes are never retained.
     #[allow(clippy::too_many_lines)]
@@ -1781,6 +2190,61 @@ impl GraphView {
             });
         }
         refresh_oos_coverage(&mut next, failure);
+        next.outcome = classify_session_outcome(&next);
+        Ok(Self {
+            data: Arc::new(next),
+        })
+    }
+
+    fn publish_overflow_chain(
+        &self,
+        source: Oid,
+        head: Option<Vpid>,
+        total_data_length: Option<u32>,
+        validated_payload_bytes: u64,
+        pages: Vec<OverflowPageView>,
+        failure: Option<&'static str>,
+    ) -> Result<Self, OperationError> {
+        let mut next = (*self.data).clone();
+        next.revision = next
+            .revision
+            .next()
+            .map_err(|_| OperationError::Arithmetic)?;
+        next.overflow_chains.insert(
+            source,
+            OverflowChainFact {
+                head,
+                total_data_length,
+                validated_payload_bytes,
+                complete: failure.is_none(),
+                pages,
+                diagnostic_rule: failure,
+            },
+        );
+        if let Some(rule) = failure {
+            let resource = matches!(rule, "resource-limit" | "interrupted");
+            next.diagnostics.push(DiagnosticRecord {
+                code: if resource {
+                    "inspection.resource_limit"
+                } else {
+                    "overflow.chain.invalid"
+                },
+                severity: "error",
+                message: if resource {
+                    "The overflow traversal stopped at its admitted resource boundary."
+                } else {
+                    "The selected REC_BIGONE overflow chain violates its pinned structural format."
+                },
+                subject: format!(
+                    "slot:{}:{}:{}",
+                    source.vol_id.get(),
+                    source.page_id.get(),
+                    source.slot_id.get()
+                ),
+                rule,
+            });
+        }
+        refresh_overflow_coverage(&mut next, failure);
         next.outcome = classify_session_outcome(&next);
         Ok(Self {
             data: Arc::new(next),
@@ -2070,6 +2534,29 @@ fn refresh_oos_coverage(data: &mut SessionData, failure: Option<&'static str>) {
         .count() as u64;
     data.coverage.push(CoverageRecord {
         facet: "oos-chains",
+        coverage: if conclusive == total {
+            Coverage::Complete
+        } else {
+            Coverage::Partial
+        },
+        evaluated: total,
+        conclusive,
+        trusted_total: Some(total),
+        stop_reason: failure,
+    });
+}
+
+fn refresh_overflow_coverage(data: &mut SessionData, failure: Option<&'static str>) {
+    data.coverage
+        .retain(|coverage| coverage.facet != "overflow-chains");
+    let total = data.overflow_chains.len() as u64;
+    let conclusive = data
+        .overflow_chains
+        .values()
+        .filter(|chain| chain.complete)
+        .count() as u64;
+    data.coverage.push(CoverageRecord {
+        facet: "overflow-chains",
         coverage: if conclusive == total {
             Coverage::Complete
         } else {

@@ -17,8 +17,8 @@ use crate::inspection::{
 use crate::model::{FileId, Oid, PageId, SectorId, SlotId, Vfid, VolId, Vpid};
 use crate::projection::{
     DataProjection, ResultDocument, deep_page_projection, file_header_projection,
-    oos_chain_projection, page_projection, result_document, sector_projection, slot_projection,
-    summary_projection, volume_projection,
+    oos_chain_projection, overflow_chain_projection, page_projection, result_document,
+    sector_projection, slot_projection, summary_projection, volume_projection,
 };
 use crate::source::InputSpec;
 
@@ -333,6 +333,7 @@ where
     }
 }
 
+#[allow(clippy::too_many_lines)]
 fn run(cli: Cli) -> Result<i32, CliError> {
     match cli.command {
         Command::Summary(command) => run_summary(command),
@@ -385,16 +386,20 @@ fn run(cli: Cli) -> Result<i32, CliError> {
                             view = view
                                 .enrich_page(vpid, enrichment_policy, &CancelToken::new())
                                 .map_err(|error| CliError::OpenAdapter(error.to_string()))?;
-                            let exists = view
+                            let selected_slot = view
                                 .deep_page(vpid)
                                 .and_then(|deep| deep.slotted)
-                                .is_some_and(|slotted| {
-                                    usize::try_from(oid.slot_id.get())
-                                        .ok()
-                                        .is_some_and(|index| index < slotted.slots().len())
-                                });
-                            if !exists {
-                                return Err(CliError::Query(QueryError::EntityNotFound));
+                                .and_then(|slotted| {
+                                    slotted
+                                        .slots()
+                                        .get(usize::try_from(oid.slot_id.get()).ok()?)
+                                        .copied()
+                                })
+                                .ok_or(CliError::Query(QueryError::EntityNotFound))?;
+                            if selected_slot.record_type() == crate::format::RecordType::BigOne {
+                                view = view
+                                    .enrich_bigone(oid, enrichment_policy, &CancelToken::new())
+                                    .map_err(|error| CliError::OpenAdapter(error.to_string()))?;
                             }
                         }
                         EntitySelector::Oos(oid) => {
@@ -503,6 +508,7 @@ fn run_map(command: MapCommand) -> Result<i32, CliError> {
             sectors,
             deep_pages: Vec::new(),
             oos_chains: Vec::new(),
+            overflow_chains: Vec::new(),
         },
     );
     write_document(&document, command.output.format)?;
@@ -565,10 +571,20 @@ fn run_inspect(command: InspectCommand) -> Result<i32, CliError> {
                 })
                 .copied()
                 .ok_or(CliError::Query(QueryError::EntityNotFound))?;
+            let overflow_chain = if selected_slot.record_type() == crate::format::RecordType::BigOne
+            {
+                view = view
+                    .enrich_bigone(oid, enrichment_policy, &CancelToken::new())
+                    .map_err(|error| CliError::OpenAdapter(error.to_string()))?;
+                view.overflow_chain(oid).map(overflow_chain_projection)
+            } else {
+                None
+            };
             DataProjection::InspectSlot {
                 page: page_projection(view.page(vpid).map_err(CliError::Query)?),
                 deep: deep_page_projection(Some(deep)),
                 selected_slot: slot_projection(selected_slot),
+                overflow_chain,
             }
         }
         EntitySelector::Oos(oid) => {
@@ -995,6 +1011,7 @@ fn render_human(document: &ResultDocument) -> String {
             page,
             deep: _,
             selected_slot,
+            overflow_chain,
         } => {
             let _ = writeln!(
                 output,
@@ -1011,6 +1028,26 @@ fn render_human(document: &ResultDocument) -> String {
                 "extent: offset={} length={} bytes=withheld",
                 selected_slot.offset, selected_slot.length
             );
+            if let Some(chain) = overflow_chain {
+                let _ = writeln!(
+                    output,
+                    "overflow chain: complete={} validated-bytes={} pages={}",
+                    chain.complete,
+                    chain.validated_payload_bytes,
+                    chain.pages.len()
+                );
+                for overflow_page in &chain.pages {
+                    let _ = writeln!(
+                        output,
+                        "  {}:{}:{} payload-offset={} payload-length={} bytes=withheld",
+                        overflow_page.role,
+                        overflow_page.vol_id,
+                        overflow_page.page_id,
+                        overflow_page.payload_offset,
+                        overflow_page.payload_length
+                    );
+                }
+            }
         }
         DataProjection::InspectOos { chain } => {
             let _ = writeln!(

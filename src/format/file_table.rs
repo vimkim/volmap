@@ -67,6 +67,7 @@ pub struct FileHeader {
     user_table_offset: Option<u16>,
     sticky_first: Option<Vpid>,
     heap_header_page: Option<Vpid>,
+    related_heap: Option<(Vfid, Vpid)>,
 }
 
 impl FileHeader {
@@ -154,8 +155,14 @@ impl FileHeader {
     pub const fn heap_header_page(self) -> Option<Vpid> {
         self.heap_header_page
     }
+
+    #[must_use]
+    pub const fn related_heap(self) -> Option<(Vfid, Vpid)> {
+        self.related_heap
+    }
 }
 
+#[allow(clippy::too_many_lines)]
 pub fn decode_file_header(envelope: &DecodedPageEnvelope<'_>) -> Result<FileHeader, DecodeError> {
     if envelope.page_type() != PageType::FileTable {
         return Err(error(
@@ -229,6 +236,27 @@ pub fn decode_file_header(envelope: &DecodedPageEnvelope<'_>) -> Result<FileHead
     } else {
         None
     };
+    let related_heap = if matches!(file_type, FileType::MultipageObjectHeap | FileType::Oos) {
+        let related_file = read_i32(&view, 40, "file.header.related_heap")?;
+        let related_volume = read_i16(&view, 44, "file.header.related_heap")?;
+        let related_page = read_i32(&view, 48, "file.header.related_heap")?;
+        let related_volume = VolId::new(related_volume)
+            .map_err(|_| error(DecodeErrorKind::OutOfRange, "file.header.related_heap"))?;
+        Some((
+            Vfid::new(
+                related_volume,
+                FileId::new(related_file)
+                    .map_err(|_| error(DecodeErrorKind::OutOfRange, "file.header.related_heap"))?,
+            ),
+            Vpid::new(
+                related_volume,
+                PageId::new(related_page)
+                    .map_err(|_| error(DecodeErrorKind::OutOfRange, "file.header.related_heap"))?,
+            ),
+        ))
+    } else {
+        None
+    };
     Ok(FileHeader {
         vfid,
         file_type,
@@ -247,6 +275,7 @@ pub fn decode_file_header(envelope: &DecodedPageEnvelope<'_>) -> Result<FileHead
         user_table_offset: table_offset(&view, 154, "file.header.user_table")?,
         sticky_first: optional_vpid(&view, 156, "file.header.sticky_first")?,
         heap_header_page,
+        related_heap,
     })
 }
 

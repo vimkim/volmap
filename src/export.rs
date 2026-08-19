@@ -9,8 +9,8 @@ use std::path::{Path, PathBuf};
 use crate::inspection::GraphView;
 use crate::projection::{
     DataProjection, DeepPageResourceProjection, ResultDocument, SectorProjection,
-    deep_page_projection, oos_chain_projection, page_projection, result_document,
-    sector_projection, volume_projection,
+    deep_page_projection, oos_chain_projection, overflow_chain_projection, page_projection,
+    result_document, sector_projection, volume_projection,
 };
 
 pub const DEFAULT_MAX_HTML_BYTES: u64 = 64 * 1024 * 1024;
@@ -123,6 +123,11 @@ fn complete_document(view: &GraphView) -> Result<ResultDocument, ExportError> {
                 .oos_chains()
                 .into_iter()
                 .map(oos_chain_projection)
+                .collect(),
+            overflow_chains: view
+                .overflow_chains()
+                .into_iter()
+                .map(overflow_chain_projection)
                 .collect(),
         },
     ))

@@ -5,8 +5,8 @@ use serde::Serialize;
 use crate::diagnostics::InspectionOutcome;
 use crate::format::{PageType, VolumePurpose, VolumeType};
 use crate::inspection::{
-    CoverageRecord, DeepPageView, DiagnosticRecord, OosChainView, OverviewView, PageView,
-    RawPageView, SectorView, VolumeView,
+    CoverageRecord, DeepPageView, DiagnosticRecord, OosChainView, OverflowChainView, OverviewView,
+    PageView, RawPageView, SectorView, VolumeView,
 };
 use crate::model::{
     Availability, Coverage, PageAllocationClass, SnapshotId, SnapshotValidity, TdeInspectionState,
@@ -90,6 +90,7 @@ pub enum DataProjection {
         sectors: Vec<SectorProjection>,
         deep_pages: Vec<DeepPageResourceProjection>,
         oos_chains: Vec<OosChainProjection>,
+        overflow_chains: Vec<OverflowChainProjection>,
     },
     InspectVolume {
         volume: VolumeProjection,
@@ -108,6 +109,7 @@ pub enum DataProjection {
         page: PageProjection,
         deep: DeepPageProjection,
         selected_slot: SlotProjection,
+        overflow_chain: Option<OverflowChainProjection>,
     },
     InspectOos {
         chain: OosChainProjection,
@@ -336,6 +338,29 @@ pub struct OosChunkProjection {
     pub total_data_length: String,
     pub chunk_index: String,
     pub next: OosNextProjection,
+    pub payload_offset: u16,
+    pub payload_length: u16,
+    pub bytes: BytesWithheldProjection,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct OverflowChainProjection {
+    pub source: OidProjection,
+    pub head: OptionalVpidProjection,
+    pub total_data_length: OptionalCountProjection,
+    pub validated_payload_bytes: String,
+    pub complete: bool,
+    pub pages: Vec<OverflowPageProjection>,
+    pub diagnostic: OptionalTextProjection,
+    pub bytes: BytesWithheldProjection,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct OverflowPageProjection {
+    pub vol_id: i16,
+    pub page_id: i32,
+    pub role: &'static str,
+    pub next: OptionalVpidProjection,
     pub payload_offset: u16,
     pub payload_length: u16,
     pub bytes: BytesWithheldProjection,
@@ -679,6 +704,43 @@ pub fn oos_chain_projection(chain: OosChainView) -> OosChainProjection {
                 }),
                 payload_offset: chunk.payload_offset,
                 payload_length: chunk.payload_length,
+                bytes: BytesWithheldProjection {
+                    state: "bytes-withheld",
+                },
+            })
+            .collect(),
+        diagnostic: chain.diagnostic_rule.map_or(
+            OptionalTextProjection::Unknown,
+            OptionalTextProjection::Known,
+        ),
+        bytes: BytesWithheldProjection {
+            state: "bytes-withheld",
+        },
+    }
+}
+
+#[must_use]
+pub fn overflow_chain_projection(chain: OverflowChainView) -> OverflowChainProjection {
+    OverflowChainProjection {
+        source: oid_projection(chain.source),
+        head: optional_vpid_projection(chain.head),
+        total_data_length: chain
+            .total_data_length
+            .map_or(OptionalCountProjection::Unknown, |value| {
+                OptionalCountProjection::Known(value.to_string())
+            }),
+        validated_payload_bytes: chain.validated_payload_bytes.to_string(),
+        complete: chain.complete,
+        pages: chain
+            .pages
+            .into_iter()
+            .map(|page| OverflowPageProjection {
+                vol_id: page.vpid.vol_id.get(),
+                page_id: page.vpid.page_id.get(),
+                role: if page.head { "head" } else { "continuation" },
+                next: optional_vpid_projection(page.next),
+                payload_offset: page.payload_offset,
+                payload_length: page.payload_length,
                 bytes: BytesWithheldProjection {
                     state: "bytes-withheld",
                 },

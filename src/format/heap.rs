@@ -35,6 +35,44 @@ pub enum HeapPageFact {
     Chain(HeapChainFact),
 }
 
+pub fn decode_bigone_target(
+    envelope: &DecodedPageEnvelope<'_>,
+    slotted: &SlottedPage,
+    slot_id: u16,
+) -> Result<Vpid, DecodeError> {
+    if envelope.page_type() != PageType::Heap {
+        return Err(error(
+            DecodeErrorKind::WrongPageType,
+            "heap.bigone.page_type",
+        ));
+    }
+    let slot = slotted
+        .slots()
+        .get(usize::from(slot_id))
+        .ok_or_else(|| error(DecodeErrorKind::OutOfRange, "heap.bigone.slot_exists"))?;
+    if slot.record_type() != RecordType::BigOne || slot.offset() == 0 || slot.length() != 8 {
+        return Err(error(
+            DecodeErrorKind::InvalidGeometry,
+            "heap.bigone.record_shape",
+        ));
+    }
+    let view = envelope.plaintext("heap.bigone.encrypted")?;
+    let offset = usize::from(slot.offset());
+    let page = read_i32(&view, offset, "heap.bigone.target")?;
+    let target_slot = read_i16(&view, offset + 4, "heap.bigone.target")?;
+    let volume = read_i16(&view, offset + 6, "heap.bigone.target")?;
+    if target_slot != -1 {
+        return Err(error(
+            DecodeErrorKind::InvalidGeometry,
+            "heap.bigone.null_slot",
+        ));
+    }
+    Ok(Vpid::new(
+        VolId::new(volume).map_err(|_| error(DecodeErrorKind::OutOfRange, "heap.bigone.target"))?,
+        PageId::new(page).map_err(|_| error(DecodeErrorKind::OutOfRange, "heap.bigone.target"))?,
+    ))
+}
+
 pub fn decode_heap_page(
     envelope: &DecodedPageEnvelope<'_>,
     slotted: &SlottedPage,
