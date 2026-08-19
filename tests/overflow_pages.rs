@@ -1,6 +1,6 @@
 use volmap::format::{
     DB_PAGE_SIZE, IO_PAGE_SIZE, PageType, decode_bigone_target, decode_overflow_continuation,
-    decode_overflow_head, decode_page_envelope, decode_slotted_page,
+    decode_overflow_head, decode_page_envelope, decode_relocation_target, decode_slotted_page,
 };
 use volmap::model::{PageId, VolId, Vpid};
 
@@ -18,6 +18,22 @@ fn envelope(bytes: &[u8], page_id: i32) -> volmap::format::DecodedPageEnvelope<'
         Vpid::new(VolId::new(0).unwrap(), PageId::new(page_id).unwrap()),
     )
     .unwrap()
+}
+
+fn slotted_heap_page(page_id: i32, record_type: u8, length: u16) -> [u8; IO_PAGE_SIZE] {
+    let mut heap = page(page_id, PageType::Heap);
+    let user = &mut heap[32..IO_PAGE_SIZE - 8];
+    user[0..2].copy_from_slice(&1_i16.to_le_bytes());
+    user[2..4].copy_from_slice(&1_i16.to_le_bytes());
+    user[4..6].copy_from_slice(&1_i16.to_le_bytes());
+    user[6..8].copy_from_slice(&8_u16.to_le_bytes());
+    let free = i32::try_from(DB_PAGE_SIZE - 4 - 32 - usize::from(length)).unwrap();
+    user[8..12].copy_from_slice(&free.to_le_bytes());
+    user[12..16].copy_from_slice(&free.to_le_bytes());
+    user[16..20].copy_from_slice(&(32_i32 + i32::from(length)).to_le_bytes());
+    let slot = 32_u32 | (u32::from(length) << 14) | (u32::from(record_type) << 28);
+    user[DB_PAGE_SIZE - 4..DB_PAGE_SIZE].copy_from_slice(&slot.to_le_bytes());
+    heap
 }
 
 fn put_vpid(user: &mut [u8], page_id: i32, volume_id: i16) {
@@ -115,5 +131,30 @@ fn bigone_slot_decodes_only_an_exact_null_slot_overflow_target() {
             .unwrap_err()
             .rule(),
         "heap.bigone.null_slot"
+    );
+}
+
+#[test]
+fn relocation_slot_decodes_an_exact_required_oid_target() {
+    let mut bytes = slotted_heap_page(10, 4, 8);
+    bytes[32 + 32..32 + 36].copy_from_slice(&11_i32.to_le_bytes());
+    bytes[32 + 36..32 + 38].copy_from_slice(&3_i16.to_le_bytes());
+    bytes[32 + 38..32 + 40].copy_from_slice(&0_i16.to_le_bytes());
+    let decoded = envelope(&bytes, 10);
+    let slotted = decode_slotted_page(&decoded).unwrap();
+    let target = decode_relocation_target(&decoded, &slotted, 0).unwrap();
+    assert_eq!(target.page_id.get(), 11);
+    assert_eq!(target.slot_id.get(), 3);
+
+    bytes[32 + 32..32 + 36].copy_from_slice(&(-1_i32).to_le_bytes());
+    bytes[32 + 36..32 + 38].copy_from_slice(&(-1_i16).to_le_bytes());
+    bytes[32 + 38..32 + 40].copy_from_slice(&(-1_i16).to_le_bytes());
+    let decoded = envelope(&bytes, 10);
+    let slotted = decode_slotted_page(&decoded).unwrap();
+    assert_eq!(
+        decode_relocation_target(&decoded, &slotted, 0)
+            .unwrap_err()
+            .rule(),
+        "heap.relocation.target_required"
     );
 }

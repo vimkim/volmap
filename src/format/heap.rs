@@ -35,6 +35,36 @@ pub enum HeapPageFact {
     Chain(HeapChainFact),
 }
 
+pub fn decode_relocation_target(
+    envelope: &DecodedPageEnvelope<'_>,
+    slotted: &SlottedPage,
+    slot_id: u16,
+) -> Result<Oid, DecodeError> {
+    if envelope.page_type() != PageType::Heap {
+        return Err(error(
+            DecodeErrorKind::WrongPageType,
+            "heap.relocation.page_type",
+        ));
+    }
+    let slot = slotted
+        .slots()
+        .get(usize::from(slot_id))
+        .ok_or_else(|| error(DecodeErrorKind::OutOfRange, "heap.relocation.slot_exists"))?;
+    if slot.record_type() != RecordType::Relocation || slot.offset() == 0 || slot.length() != 8 {
+        return Err(error(
+            DecodeErrorKind::InvalidGeometry,
+            "heap.relocation.record_shape",
+        ));
+    }
+    let view = envelope.plaintext("heap.relocation.encrypted")?;
+    optional_oid(&view, usize::from(slot.offset()), "heap.relocation.target")?.ok_or_else(|| {
+        error(
+            DecodeErrorKind::InvalidGeometry,
+            "heap.relocation.target_required",
+        )
+    })
+}
+
 pub fn decode_bigone_target(
     envelope: &DecodedPageEnvelope<'_>,
     slotted: &SlottedPage,

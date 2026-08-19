@@ -111,5 +111,6 @@ pub use file_table::{
 };
 pub use heap::{
     HeapChainFact, HeapHeaderFact, HeapPageFact, decode_bigone_target, decode_heap_page,
+    decode_relocation_target,
 };
 pub use overflow::{OverflowPageFact, decode_overflow_continuation, decode_overflow_head};
