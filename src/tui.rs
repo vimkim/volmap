@@ -21,6 +21,7 @@ use crate::model::SectorId;
 use crate::projection::{OptionalTextProjection, PageProjection, page_projection};
 
 const GRID_TOP: u16 = 4;
+const DETAIL_TOP: u16 = GRID_TOP + 9;
 
 #[derive(Debug)]
 pub enum TuiError {
@@ -73,7 +74,9 @@ pub fn run(view: &GraphView) -> Result<(), TuiError> {
             Event::Mouse(mouse) => {
                 handle_mouse(view, &mut state, mouse.kind, mouse.column, mouse.row)?;
             }
-            Event::Resize(_, _) => "layout recomputed".clone_into(&mut state.status),
+            Event::Resize(width, height) => {
+                state.status = format!("layout recomputed for {width}x{height}");
+            }
             _ => {}
         }
         draw(terminal.stdout(), view, &state)?;
@@ -136,7 +139,8 @@ struct State {
     sector: u32,
     cell: u8,
     tab: Tab,
-    prompt: Option<String>,
+    prompt: Option<Prompt>,
+    filter: Option<String>,
     status: String,
     detail_scroll: usize,
 }
@@ -152,35 +156,76 @@ impl State {
             cell: 0,
             tab: Tab::Structure,
             prompt: None,
+            filter: None,
             status: "q quit · arrows move · [ ] sector · / jump · 1-6 tabs · ? about".to_owned(),
             detail_scroll: 0,
         })
     }
 }
 
+#[derive(Clone, Copy)]
+enum PromptKind {
+    Search,
+    Jump,
+    Filter,
+}
+
+impl PromptKind {
+    const fn label(self) -> &'static str {
+        match self {
+            Self::Search => "search",
+            Self::Jump => "jump",
+            Self::Filter => "filter",
+        }
+    }
+}
+
+struct Prompt {
+    kind: PromptKind,
+    input: String,
+}
+
+#[allow(clippy::too_many_lines)]
 fn handle_key(view: &GraphView, state: &mut State, key: KeyEvent) -> Result<bool, TuiError> {
     if let Some(prompt) = state.prompt.as_mut() {
         match key.code {
             KeyCode::Esc => state.prompt = None,
             KeyCode::Backspace => {
-                prompt.pop();
+                prompt.input.pop();
             }
             KeyCode::Enter => {
-                let selector = state.prompt.take().unwrap_or_default();
-                if jump(view, state, &selector) {
-                    state.status = format!("selected {selector}");
-                } else {
-                    "selector not found; use volume:V, sector:V:S, or page:V:P"
-                        .clone_into(&mut state.status);
+                let Some(prompt) = state.prompt.take() else {
+                    return Ok(false);
+                };
+                match prompt.kind {
+                    PromptKind::Search | PromptKind::Jump => {
+                        if jump(view, state, &prompt.input) {
+                            state.status = format!("selected {}", prompt.input);
+                        } else {
+                            "selector not found; use volume:V, sector:V:S, or page:V:P"
+                                .clone_into(&mut state.status);
+                        }
+                    }
+                    PromptKind::Filter => match normalize_filter(&prompt.input) {
+                        Some(FilterUpdate::Clear) => {
+                            state.filter = None;
+                            "filter cleared".clone_into(&mut state.status);
+                        }
+                        Some(FilterUpdate::Set(filter)) => {
+                            state.status = format!("filter {filter}");
+                            state.filter = Some(filter);
+                        }
+                        None => "invalid normalized filter".clone_into(&mut state.status),
+                    },
                 }
             }
             KeyCode::Char(value)
                 if !key.modifiers.contains(KeyModifiers::CONTROL)
-                    && prompt.len() < 64
+                    && prompt.input.len() < 64
                     && value.is_ascii()
                     && !value.is_ascii_control() =>
             {
-                prompt.push(value);
+                prompt.input.push(value);
             }
             _ => {}
         }
@@ -188,7 +233,26 @@ fn handle_key(view: &GraphView, state: &mut State, key: KeyEvent) -> Result<bool
     }
     match key.code {
         KeyCode::Char('q') => return Ok(true),
-        KeyCode::Char('/' | 'g') => state.prompt = Some(String::new()),
+        KeyCode::Char('/') => {
+            state.prompt = Some(Prompt {
+                kind: PromptKind::Search,
+                input: String::new(),
+            });
+        }
+        KeyCode::Char('g') => {
+            state.prompt = Some(Prompt {
+                kind: PromptKind::Jump,
+                input: String::new(),
+            });
+        }
+        KeyCode::Char('f') => {
+            state.prompt = Some(Prompt {
+                kind: PromptKind::Filter,
+                input: state.filter.clone().unwrap_or_else(|| "all".to_owned()),
+            });
+        }
+        KeyCode::Char('n') => move_finding(view, state, true),
+        KeyCode::Char('N') => move_finding(view, state, false),
         KeyCode::Left => state.cell = state.cell.saturating_sub(1),
         KeyCode::Right => state.cell = state.cell.saturating_add(1).min(63),
         KeyCode::Up => state.cell = state.cell.saturating_sub(8),
@@ -225,12 +289,20 @@ fn handle_key(view: &GraphView, state: &mut State, key: KeyEvent) -> Result<bool
             state.tab = Tab::About;
             state.detail_scroll = 0;
         }
-        KeyCode::Char('j') if matches!(state.tab, Tab::About) => {
+        KeyCode::Char('j') => {
             state.detail_scroll = state.detail_scroll.saturating_add(1);
         }
-        KeyCode::Char('k') if matches!(state.tab, Tab::About) => {
+        KeyCode::Char('k') => {
             state.detail_scroll = state.detail_scroll.saturating_sub(1);
         }
+        KeyCode::Enter => {
+            state.status = format!(
+                "selected page:{}:{}",
+                view.volumes()[state.volume_index].vol_id.get(),
+                state.sector.saturating_mul(64) + u32::from(state.cell)
+            );
+        }
+        KeyCode::Esc => "no active overlay".clone_into(&mut state.status),
         KeyCode::Char('?') => {
             state.tab = Tab::About;
             state.detail_scroll = 0;
@@ -257,11 +329,148 @@ fn handle_mouse(
             let grid_row = row - GRID_TOP;
             state.cell = u8::try_from(grid_row * 8 + grid_column).unwrap_or(63);
         }
+        MouseEventKind::Down(MouseButton::Left) if row == DETAIL_TOP => {
+            if let Some(tab) = tab_at_column(column) {
+                state.tab = tab;
+                state.detail_scroll = 0;
+            }
+        }
+        MouseEventKind::ScrollUp if row > DETAIL_TOP => {
+            state.detail_scroll = state.detail_scroll.saturating_sub(1);
+        }
+        MouseEventKind::ScrollDown if row > DETAIL_TOP => {
+            state.detail_scroll = state.detail_scroll.saturating_add(1);
+        }
         MouseEventKind::ScrollUp => state.sector = state.sector.saturating_sub(1),
         MouseEventKind::ScrollDown => move_sector(view, state, 1)?,
         _ => {}
     }
     Ok(())
+}
+
+const fn tab_at_column(column: u16) -> Option<Tab> {
+    match column {
+        0..=13 => Some(Tab::Structure),
+        14..=23 => Some(Tab::Slots),
+        24..=33 => Some(Tab::Chain),
+        34..=46 => Some(Tab::Findings),
+        47..=60 => Some(Tab::Coverage),
+        61..=71 => Some(Tab::About),
+        _ => None,
+    }
+}
+
+fn move_finding(view: &GraphView, state: &mut State, forward: bool) {
+    let volumes = view.volumes();
+    let mut positions = view
+        .overview()
+        .diagnostics
+        .iter()
+        .filter_map(|diagnostic| finding_position(&volumes, &diagnostic.subject))
+        .collect::<Vec<_>>();
+    positions.sort_unstable();
+    positions.dedup();
+    let current = (state.volume_index, state.sector, state.cell);
+    let Some((volume_index, sector, cell)) = select_finding(&positions, current, forward) else {
+        "no page findings in this revision".clone_into(&mut state.status);
+        return;
+    };
+    state.volume_index = volume_index;
+    state.sector = sector;
+    state.cell = cell;
+    state.tab = Tab::Findings;
+    state.detail_scroll = 0;
+    if forward {
+        "next finding"
+    } else {
+        "previous finding"
+    }
+    .clone_into(&mut state.status);
+}
+
+fn finding_position(
+    volumes: &[crate::inspection::VolumeView],
+    subject: &str,
+) -> Option<(usize, u32, u8)> {
+    let fields = subject.split(':').collect::<Vec<_>>();
+    let ["page", volume, page] = fields.as_slice() else {
+        return None;
+    };
+    let volume = volume.parse::<i16>().ok()?;
+    let page = page.parse::<u32>().ok()?;
+    let index = volumes
+        .iter()
+        .position(|candidate| candidate.vol_id.get() == volume)?;
+    (page < volumes[index].total_sectors.checked_mul(64)?).then_some((
+        index,
+        page / 64,
+        u8::try_from(page % 64).ok()?,
+    ))
+}
+
+fn select_finding(
+    positions: &[(usize, u32, u8)],
+    current: (usize, u32, u8),
+    forward: bool,
+) -> Option<(usize, u32, u8)> {
+    if forward {
+        positions
+            .iter()
+            .copied()
+            .find(|position| *position > current)
+            .or_else(|| positions.first().copied())
+    } else {
+        positions
+            .iter()
+            .rev()
+            .copied()
+            .find(|position| *position < current)
+            .or_else(|| positions.last().copied())
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+enum FilterUpdate {
+    Clear,
+    Set(String),
+}
+
+fn normalize_filter(input: &str) -> Option<FilterUpdate> {
+    if input == "all" || input.is_empty() {
+        return Some(FilterUpdate::Clear);
+    }
+    let (field, value) = input.split_once(':')?;
+    if value.is_empty()
+        || !value.bytes().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || b"-._".contains(&byte)
+        })
+    {
+        return None;
+    }
+    match field {
+        "volume" | "allocation" | "type" | "detail" | "tde" | "diagnostic" => {
+            Some(FilterUpdate::Set(format!("{field}:{value}")))
+        }
+        _ => None,
+    }
+}
+
+fn matches_filter(page: &PageProjection, filter: Option<&str>) -> bool {
+    let Some(filter) = filter else {
+        return true;
+    };
+    let Some((field, value)) = filter.split_once(':') else {
+        return false;
+    };
+    match field {
+        "volume" => page.vol_id.to_string() == value,
+        "allocation" => page.allocation == value,
+        "type" => optional_text(&page.page_type) == value,
+        "detail" => optional_text(&page.detail_support) == value,
+        "tde" => page.tde_state == value,
+        "diagnostic" => optional_text(&page.diagnostic) == value,
+        _ => false,
+    }
 }
 
 fn move_sector(view: &GraphView, state: &mut State, amount: u32) -> Result<(), TuiError> {
@@ -363,10 +572,11 @@ fn draw(stdout: &mut Stdout, view: &GraphView, state: &State) -> Result<(), TuiE
     let page = page_projection(selected);
     let fingerprint = crate::projection::snapshot_id_hex(overview.snapshot_id);
     let title = format!(
-        " VOLMAP  snapshot {}  r{}  {} ",
+        " VOLMAP  snapshot {}  r{}  {}  filter:{} ",
         &fingerprint[..12],
         overview.revision.get(),
-        crate::projection::outcome_name(overview.outcome)
+        crate::projection::outcome_name(overview.outcome),
+        state.filter.as_deref().unwrap_or("all")
     );
     queue!(
         stdout,
@@ -420,6 +630,9 @@ fn draw(stdout: &mut Stdout, view: &GraphView, state: &State) -> Result<(), TuiE
         if index == usize::from(state.cell) {
             queue!(stdout, SetAttribute(Attribute::Reverse))?;
         }
+        if !matches_filter(&projected, state.filter.as_deref()) {
+            queue!(stdout, SetAttribute(Attribute::Dim))?;
+        }
         queue!(
             stdout,
             Print(truncate(&label, cell_width)),
@@ -427,10 +640,9 @@ fn draw(stdout: &mut Stdout, view: &GraphView, state: &State) -> Result<(), TuiE
         )?;
     }
 
-    let detail_top = GRID_TOP + 9;
     line(
         stdout,
-        detail_top,
+        DETAIL_TOP,
         width,
         &format!(
             "[1 Structure] [2 Slots] [3 Chain] [4 Findings] [5 Coverage] [6 About]  active: {}",
@@ -438,7 +650,7 @@ fn draw(stdout: &mut Stdout, view: &GraphView, state: &State) -> Result<(), TuiE
         ),
     )?;
     let lines = detail_lines(view, state, &page);
-    let available = height.saturating_sub(detail_top + 3);
+    let available = height.saturating_sub(DETAIL_TOP + 3);
     for (offset, text) in lines
         .into_iter()
         .skip(state.detail_scroll)
@@ -447,13 +659,13 @@ fn draw(stdout: &mut Stdout, view: &GraphView, state: &State) -> Result<(), TuiE
     {
         line(
             stdout,
-            detail_top + 1 + u16::try_from(offset).unwrap_or(0),
+            DETAIL_TOP + 1 + u16::try_from(offset).unwrap_or(0),
             width,
             &text,
         )?;
     }
     let footer = if let Some(prompt) = &state.prompt {
-        format!("jump> {prompt}")
+        format!("{}> {}", prompt.kind.label(), prompt.input)
     } else {
         state.status.clone()
     };
@@ -541,4 +753,103 @@ fn line(stdout: &mut Stdout, row: u16, width: u16, value: &str) -> Result<(), io
 
 fn truncate(value: &str, width: u16) -> String {
     value.chars().take(usize::from(width)).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normalized_filters_reject_unbounded_or_payload_searches() {
+        assert_eq!(normalize_filter("all"), Some(FilterUpdate::Clear));
+        assert_eq!(
+            normalize_filter("allocation:allocated"),
+            Some(FilterUpdate::Set("allocation:allocated".to_owned()))
+        );
+        assert_eq!(
+            normalize_filter("diagnostic:page.envelope.invalid"),
+            Some(FilterUpdate::Set(
+                "diagnostic:page.envelope.invalid".to_owned()
+            ))
+        );
+        assert_eq!(normalize_filter("payload:secret"), None);
+        assert_eq!(normalize_filter("type:heap value"), None);
+        assert_eq!(normalize_filter("type:*"), None);
+    }
+
+    #[test]
+    fn keyboard_and_mouse_tab_orders_are_equivalent() {
+        let mut tab = Tab::Structure;
+        for expected in [
+            Tab::Slots,
+            Tab::Chain,
+            Tab::Findings,
+            Tab::Coverage,
+            Tab::About,
+        ] {
+            tab = next_tab(tab, false);
+            assert_eq!(tab.label(), expected.label());
+        }
+        for (column, expected) in [
+            (0, Tab::Structure),
+            (14, Tab::Slots),
+            (24, Tab::Chain),
+            (34, Tab::Findings),
+            (47, Tab::Coverage),
+            (61, Tab::About),
+        ] {
+            assert_eq!(
+                tab_at_column(column).map(Tab::label),
+                Some(expected.label())
+            );
+        }
+        assert!(tab_at_column(72).is_none());
+    }
+
+    #[test]
+    fn finding_navigation_uses_sparse_diagnostics_and_wraps() {
+        use crate::format::{VolumePurpose, VolumeType};
+        use crate::model::{PageId, VolId};
+
+        let volumes = [
+            crate::inspection::VolumeView {
+                vol_id: VolId::new(0).unwrap(),
+                purpose: VolumePurpose::PermanentData,
+                volume_type: VolumeType::Permanent,
+                total_sectors: 2,
+                maximum_sectors: 2,
+                system_last_page: PageId::new(1).unwrap(),
+                reserved_sectors: 1,
+            },
+            crate::inspection::VolumeView {
+                vol_id: VolId::new(1).unwrap(),
+                purpose: VolumePurpose::PermanentData,
+                volume_type: VolumeType::Permanent,
+                total_sectors: 1,
+                maximum_sectors: 1,
+                system_last_page: PageId::new(1).unwrap(),
+                reserved_sectors: 1,
+            },
+        ];
+        assert_eq!(finding_position(&volumes, "page:0:0"), Some((0, 0, 0)));
+        assert_eq!(finding_position(&volumes, "page:0:127"), Some((0, 1, 63)));
+        assert_eq!(finding_position(&volumes, "page:1:63"), Some((1, 0, 63)));
+        assert_eq!(finding_position(&volumes, "page:1:64"), None);
+        assert_eq!(finding_position(&volumes, "snapshot"), None);
+
+        let positions = [(0, 0, 2), (0, 1, 3), (1, 0, 4)];
+        assert_eq!(select_finding(&positions, (0, 0, 2), true), Some((0, 1, 3)));
+        assert_eq!(select_finding(&positions, (1, 0, 4), true), Some((0, 0, 2)));
+        assert_eq!(
+            select_finding(&positions, (0, 0, 2), false),
+            Some((1, 0, 4))
+        );
+    }
+
+    #[test]
+    fn truncation_is_character_bounded_and_never_adds_terminal_control() {
+        assert_eq!(truncate("abcdef", 3), "abc");
+        assert_eq!(truncate("가나다", 2), "가나");
+        assert!(!truncate("plain", 20).contains('\u{1b}'));
+    }
 }
