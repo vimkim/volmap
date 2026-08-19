@@ -1,0 +1,57 @@
+[package]
+name = "volmap-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "=0.4.13"
+volmap = { path = ".." }
+
+[[bin]]
+name = "byte_access"
+path = "fuzz_targets/byte_access.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "page_envelope"
+path = "fuzz_targets/page_envelope.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "volume_bitmap"
+path = "fuzz_targets/volume_bitmap.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "slotted_records"
+path = "fuzz_targets/slotted_records.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "metadata_pages"
+path = "fuzz_targets/metadata_pages.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "tde_key_info"
+path = "fuzz_targets/tde_key_info.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]
+members = ["."]
