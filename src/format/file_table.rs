@@ -66,6 +66,7 @@ pub struct FileHeader {
     full_table_offset: Option<u16>,
     user_table_offset: Option<u16>,
     sticky_first: Option<Vpid>,
+    heap_header_page: Option<Vpid>,
 }
 
 impl FileHeader {
@@ -148,6 +149,11 @@ impl FileHeader {
     pub const fn sticky_first(self) -> Option<Vpid> {
         self.sticky_first
     }
+
+    #[must_use]
+    pub const fn heap_header_page(self) -> Option<Vpid> {
+        self.heap_header_page
+    }
 }
 
 pub fn decode_file_header(envelope: &DecodedPageEnvelope<'_>) -> Result<FileHeader, DecodeError> {
@@ -205,6 +211,24 @@ pub fn decode_file_header(envelope: &DecodedPageEnvelope<'_>) -> Result<FileHead
     if flags & !0x0f != 0 || flags & 0x0c == 0x0c {
         return Err(error(DecodeErrorKind::InvalidFlags, "file.header.flags"));
     }
+    let heap_header_page = if matches!(file_type, FileType::Heap | FileType::HeapReuseSlots) {
+        let descriptor_file = read_i32(&view, 48, "file.header.heap_hfid")?;
+        let descriptor_volume = read_i16(&view, 52, "file.header.heap_hfid")?;
+        if descriptor_file != file_id || descriptor_volume != vol_id {
+            return Err(error(
+                DecodeErrorKind::IdentityMismatch,
+                "file.header.heap_hfid",
+            ));
+        }
+        let page_id = read_i32(&view, 56, "file.header.heap_header_page")?;
+        Some(Vpid::new(
+            vfid.vol_id,
+            PageId::new(page_id)
+                .map_err(|_| error(DecodeErrorKind::OutOfRange, "file.header.heap_header_page"))?,
+        ))
+    } else {
+        None
+    };
     Ok(FileHeader {
         vfid,
         file_type,
@@ -222,6 +246,7 @@ pub fn decode_file_header(envelope: &DecodedPageEnvelope<'_>) -> Result<FileHead
         full_table_offset: table_offset(&view, 152, "file.header.full_table")?,
         user_table_offset: table_offset(&view, 154, "file.header.user_table")?,
         sticky_first: optional_vpid(&view, 156, "file.header.sticky_first")?,
+        heap_header_page,
     })
 }
 

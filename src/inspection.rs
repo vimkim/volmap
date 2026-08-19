@@ -10,12 +10,12 @@ use sha2::{Digest, Sha256};
 
 use crate::diagnostics::{InspectionOutcome, OutcomeInputs};
 use crate::format::{
-    DecodeError, DroppedFilesPageFact, FileHeader, OosNext, PageContent, PageType, SlottedPage,
-    TdeAlgorithm, TrackerItemFact, UserPageFact, VacuumPageFact, VolumePurpose, VolumeType,
-    decode_dropped_files_page, decode_extdata_header, decode_file_header, decode_full_sectors,
-    decode_oos_chunk, decode_page_envelope, decode_page_envelope_parts, decode_partial_sectors,
-    decode_sector_bitmap, decode_slotted_page, decode_tracker_items, decode_user_pages,
-    decode_vacuum_page, decode_volume_header,
+    DecodeError, DroppedFilesPageFact, FileHeader, HeapPageFact, OosNext, PageContent, PageType,
+    SlottedPage, TdeAlgorithm, TrackerItemFact, UserPageFact, VacuumPageFact, VolumePurpose,
+    VolumeType, decode_dropped_files_page, decode_extdata_header, decode_file_header,
+    decode_full_sectors, decode_heap_page, decode_oos_chunk, decode_page_envelope,
+    decode_page_envelope_parts, decode_partial_sectors, decode_sector_bitmap, decode_slotted_page,
+    decode_tracker_items, decode_user_pages, decode_vacuum_page, decode_volume_header,
 };
 use crate::model::{
     Availability, Coverage, InspectionRevision, Oid, PageAllocationClass, PageId, SectorId,
@@ -260,6 +260,7 @@ struct DeepPageFact {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RawPageView {
+    Heap(HeapPageFact),
     Vacuum(VacuumPageFact),
     DroppedFiles(DroppedFilesPageFact),
 }
@@ -872,6 +873,7 @@ impl GraphView {
 
     /// Decode one page body into a new immutable revision. The prior view is
     /// retained unchanged and remains queryable by its caller.
+    #[allow(clippy::too_many_lines)]
     pub fn enrich_page(
         &self,
         vpid: Vpid,
@@ -929,26 +931,55 @@ impl GraphView {
                 } else {
                     None
                 };
+                let raw = match envelope.page_type() {
+                    PageType::Heap => {
+                        let role = self
+                            .data
+                            .file_allocations
+                            .get(&vpid)
+                            .and_then(|owner| self.data.tracked_files.get(owner))
+                            .and_then(|header| {
+                                header
+                                    .heap_header_page()
+                                    .map(|heap_header| (heap_header == vpid, header.file_type()))
+                            });
+                        match (role, slotted.as_ref()) {
+                            (
+                                Some((
+                                    is_header,
+                                    crate::format::FileType::Heap
+                                    | crate::format::FileType::HeapReuseSlots,
+                                )),
+                                Some(slotted),
+                            ) => match decode_heap_page(&envelope, slotted, is_header) {
+                                Ok(value) => Some(RawPageView::Heap(value)),
+                                Err(error) => {
+                                    return self.page_decode_failure(vpid, error.rule());
+                                }
+                            },
+                            _ => None,
+                        }
+                    }
+                    PageType::VacuumData => match decode_vacuum_page(&envelope) {
+                        Ok(value) => Some(RawPageView::Vacuum(value)),
+                        Err(error) => {
+                            return self.page_decode_failure(vpid, error.rule());
+                        }
+                    },
+                    PageType::DroppedFiles => match decode_dropped_files_page(&envelope) {
+                        Ok(value) => Some(RawPageView::DroppedFiles(value)),
+                        Err(error) => {
+                            return self.page_decode_failure(vpid, error.rule());
+                        }
+                    },
+                    _ => None,
+                };
                 DeepPageFact {
                     slotted,
                     // PAGE_FTAB is role-ambiguous without its owning VFID: only
                     // an explicit file selector may interpret one as a header.
                     file_header: None,
-                    raw: match envelope.page_type() {
-                        PageType::VacuumData => match decode_vacuum_page(&envelope) {
-                            Ok(value) => Some(RawPageView::Vacuum(value)),
-                            Err(error) => {
-                                return self.page_decode_failure(vpid, error.rule());
-                            }
-                        },
-                        PageType::DroppedFiles => match decode_dropped_files_page(&envelope) {
-                            Ok(value) => Some(RawPageView::DroppedFiles(value)),
-                            Err(error) => {
-                                return self.page_decode_failure(vpid, error.rule());
-                            }
-                        },
-                        _ => None,
-                    },
+                    raw,
                     diagnostic_rule: None,
                 }
             }

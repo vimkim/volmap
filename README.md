@@ -7,10 +7,11 @@ payloads or raw page bytes.
 
 The implementation is under active development. Plaintext fast scans, volume
 and sector maps, explicit file allocation maps, slotted-page inspection, OOS
-chain validation, terminal browsing, deterministic HTML export, and the
-authenticated web viewer are usable. TDE decryption, the remaining deep page
-families, the immutable acceptance corpus, and measured production resource
-defaults are still release gates.
+chain validation, heap header/chain metadata, vacuum metadata, terminal
+browsing, deterministic HTML export, and the authenticated web viewer are
+usable. TDE decryption, the remaining deep page families, the immutable
+acceptance corpus, and measured production resource defaults are still release
+gates.
 
 ## Build
 

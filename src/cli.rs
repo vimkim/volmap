@@ -936,6 +936,23 @@ fn render_human(document: &ResultDocument) -> String {
                         structure.page_total
                     );
                 }
+                crate::projection::DeepPageProjection::HeapHeader { structure } => {
+                    let _ = writeln!(
+                        output,
+                        "heap header: pages={} records={} record-bytes={} unfill={}",
+                        structure.estimated_pages,
+                        structure.estimated_records,
+                        structure.estimated_record_bytes,
+                        structure.unfill_space
+                    );
+                }
+                crate::projection::DeepPageProjection::HeapChain { structure } => {
+                    let _ = writeln!(
+                        output,
+                        "heap chain: max-mvccid={} flags={}",
+                        structure.max_mvccid, structure.flags
+                    );
+                }
                 crate::projection::DeepPageProjection::Vacuum { structure } => {
                     let _ = writeln!(
                         output,

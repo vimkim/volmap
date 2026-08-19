@@ -6,6 +6,7 @@
 //! `disk_manager.c`; it does not reproduce a C/C++ memory layout.
 
 mod file_table;
+mod heap;
 mod page;
 mod sector;
 mod slotted;
@@ -101,3 +102,4 @@ pub use file_table::{
     decode_extdata_header, decode_file_header, decode_full_sectors, decode_partial_sectors,
     decode_tracker_items, decode_user_pages,
 };
+pub use heap::{HeapChainFact, HeapHeaderFact, HeapPageFact, decode_heap_page};

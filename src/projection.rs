@@ -176,6 +176,12 @@ pub enum DeepPageProjection {
     Slotted {
         structure: SlottedPageProjection,
     },
+    HeapHeader {
+        structure: HeapHeaderProjection,
+    },
+    HeapChain {
+        structure: HeapChainProjection,
+    },
     Vacuum {
         structure: VacuumPageProjection,
     },
@@ -185,6 +191,42 @@ pub enum DeepPageProjection {
     Invalid {
         rule: &'static str,
     },
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct HeapHeaderProjection {
+    pub class_oid: OptionalOidProjection,
+    pub overflow_file: OptionalVfidProjection,
+    pub next: OptionalVpidProjection,
+    pub last: OptionalVpidProjection,
+    pub oos_file: OptionalVfidProjection,
+    pub unfill_space: String,
+    pub estimated_pages: String,
+    pub estimated_records: String,
+    pub estimated_record_bytes: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct HeapChainProjection {
+    pub class_oid: OptionalOidProjection,
+    pub previous: OptionalVpidProjection,
+    pub next: OptionalVpidProjection,
+    pub max_mvccid: String,
+    pub flags: String,
+}
+
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(tag = "state", rename_all = "kebab-case")]
+pub enum OptionalVfidProjection {
+    Absent,
+    Present { vol_id: i16, file_id: i32 },
+}
+
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(tag = "state", rename_all = "kebab-case")]
+pub enum OptionalOidProjection {
+    Absent,
+    Present { oid: OidProjection },
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -461,6 +503,32 @@ pub fn deep_page_projection(deep: Option<DeepPageView>) -> DeepPageProjection {
     }
     if let Some(raw) = deep.raw {
         return match raw {
+            RawPageView::Heap(crate::format::HeapPageFact::Header(header)) => {
+                DeepPageProjection::HeapHeader {
+                    structure: HeapHeaderProjection {
+                        class_oid: optional_oid_projection(header.class_oid),
+                        overflow_file: optional_vfid_projection(header.overflow_vfid),
+                        next: optional_vpid_projection(header.next),
+                        last: optional_vpid_projection(Some(header.last)),
+                        oos_file: optional_vfid_projection(header.oos_vfid),
+                        unfill_space: header.unfill_space.to_string(),
+                        estimated_pages: header.estimated_pages.to_string(),
+                        estimated_records: header.estimated_records.to_string(),
+                        estimated_record_bytes: header.estimated_record_bytes.to_string(),
+                    },
+                }
+            }
+            RawPageView::Heap(crate::format::HeapPageFact::Chain(chain)) => {
+                DeepPageProjection::HeapChain {
+                    structure: HeapChainProjection {
+                        class_oid: optional_oid_projection(chain.class_oid),
+                        previous: optional_vpid_projection(chain.previous),
+                        next: optional_vpid_projection(chain.next),
+                        max_mvccid: chain.max_mvccid.to_string(),
+                        flags: chain.flags.to_string(),
+                    },
+                }
+            }
             RawPageView::Vacuum(page) => DeepPageProjection::Vacuum {
                 structure: VacuumPageProjection {
                     next: optional_vpid_projection(page.next),
@@ -518,6 +586,25 @@ pub fn deep_page_projection(deep: Option<DeepPageView>) -> DeepPageProjection {
                 .map(slot_projection)
                 .collect(),
         },
+    }
+}
+
+const fn optional_vfid_projection(vfid: Option<crate::model::Vfid>) -> OptionalVfidProjection {
+    match vfid {
+        Some(vfid) => OptionalVfidProjection::Present {
+            vol_id: vfid.vol_id.get(),
+            file_id: vfid.file_id.get(),
+        },
+        None => OptionalVfidProjection::Absent,
+    }
+}
+
+const fn optional_oid_projection(oid: Option<crate::model::Oid>) -> OptionalOidProjection {
+    match oid {
+        Some(oid) => OptionalOidProjection::Present {
+            oid: oid_projection(oid),
+        },
+        None => OptionalOidProjection::Absent,
     }
 }
 
