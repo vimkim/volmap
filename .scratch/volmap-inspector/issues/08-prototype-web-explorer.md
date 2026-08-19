@@ -40,13 +40,21 @@ Under the standing disposition, the accepted production direction is **Atlas as 
 
 The selected interaction contract is revision-pinned. A navigation or enrichment response may advance only through an explicit returned revision token; stale selections remain viewable against their original revision and never silently mix facts from another revision. Every details request advertises detail support, availability, coverage, and canonical diagnostics independently.
 
+### Follow-up full-volume mosaic decision
+
+On 2026-08-20 the user replaced the single-sector center workspace with a full-volume requirement: multiple sectors must be visible together, every sector must retain all 64 pages as small squares, and allocation meaning such as `unreserved` must be conveyed by color.
+
+Three follow-up variants are captured on branch `prototype/full-volume-mosaic` at commit `1205cdb` in `prototype/full-volume-mosaic.html`: responsive 8×8 sector cards, dense 64-cell sector rows, and a zoomed-out atlas field. The accepted production direction is the responsive sector-card mosaic. It preserves sector shape, shows many sectors and hundreds of pages in one viewport, and keeps page hit targets usable longer than the atlas. Dense rows remain appropriate for deterministic HTML export but are not the primary live explorer.
+
+The live viewer exposes the complete selected volume through bounded, revision-bound continuation. It fetches 24 sector cards initially and progressively appends bounded windows while the user scrolls; the API caps one response at 64 sectors. This preserves the full-volume navigation space without constructing one unbounded response. Each sector card contains exactly 64 page cells in physical order. Allocation class supplies the base color (`system-metadata`, `unreserved`, `reserved-unallocated`, or `allocated`), while findings remain an independent outline and accessible text label.
+
 ## Answer
 
 The production web explorer uses a responsive Atlas shell:
 
 - a persistent header identifies the snapshot fingerprint prefix, immutable revision, selected volume/sector, outcome, and authentication/session state;
-- a left rail contains an expandable snapshot/volume tree and a windowed sector list backed by cursor/range API calls, never one DOM node per database page or sector;
-- the center workspace renders exactly one sector as 64 keyboard-focusable page cells, with allocation, physical type, ownership conflict, encryption, support level, and diagnostic state conveyed by text/icon labels as well as color;
+- a left rail contains an expandable snapshot/volume tree; bounded sector continuation drives the center mosaic rather than duplicating sectors in a second navigation list;
+- the center workspace renders the selected volume as a progressively loaded mosaic of sector cards, each containing exactly 64 keyboard-focusable page cells, with allocation, physical type, ownership conflict, encryption, support level, and diagnostic state conveyed by accessible labels as well as color;
 - the right inspector shows selected-page identity, support/availability/coverage, safe physical extents, typed slots, structural relationships, OOS/overflow links, and contained diagnostics; and
 - a typed selector/command palette jumps to snapshot-scoped volume, sector, page, file, slot, and OOS-value identities without accepting paths, offsets, or arbitrary query expressions.
 

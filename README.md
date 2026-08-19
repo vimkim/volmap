@@ -99,6 +99,9 @@ volmap serve --vinf /snapshot/db_vinf \
 This mode provides authentication, not transport confidentiality or integrity.
 Use SSH, a VPN, or a trusted TLS reverse proxy when the network is not trusted.
 The token is never accepted in a URL and the browser keeps it only in memory.
+The volume workspace renders a progressively loaded full-volume mosaic: every
+sector is an 8×8 grid of its 64 pages, colored by allocation class with findings
+shown as a separate outline.
 
 ## Safety and scope
 

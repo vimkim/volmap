@@ -43,6 +43,8 @@ const MAX_JSON_BYTES: usize = 64 * 1024;
 const MAX_CONCURRENT_REQUESTS: usize = 32;
 const DEFAULT_COLLECTION_LIMIT: usize = 100;
 const MAX_COLLECTION_LIMIT: usize = 512;
+const DEFAULT_SECTOR_COLLECTION_LIMIT: usize = 24;
+const MAX_SECTOR_COLLECTION_LIMIT: usize = 64;
 
 #[derive(Clone, Debug)]
 pub struct ServeOptions {
@@ -188,6 +190,10 @@ fn build_router(state: WebState) -> Router {
         .route("/api/v1/licenses", get(licenses))
         .route("/api/v1/s/{snapshot}/r/{revision}/overview", get(overview))
         .route("/api/v1/s/{snapshot}/r/{revision}/volumes", get(volumes))
+        .route(
+            "/api/v1/s/{snapshot}/r/{revision}/sectors/{vol}",
+            get(sectors),
+        )
         .route(
             "/api/v1/s/{snapshot}/r/{revision}/relationships",
             get(relationships),
@@ -549,6 +555,84 @@ async fn volumes(
     let overview = projected_overview(&state, &view);
     let data = view.volumes().into_iter().map(volume_projection).collect();
     collection_response(&state, &overview, "volumes", query, data)
+}
+
+async fn sectors(
+    State(state): State<WebState>,
+    Path((snapshot, revision, vol)): Path<(String, u64, i16)>,
+    query: Result<Query<CollectionQuery>, QueryRejection>,
+) -> Response {
+    let view = match revision_view(&state, &snapshot, revision) {
+        Ok(value) => value,
+        Err(error) => return error_response(error.status, error.code),
+    };
+    let Some(vol_id) = VolId::new(vol).ok() else {
+        return error_response(StatusCode::NOT_FOUND, "entity-not-found");
+    };
+    let Some(volume) = view
+        .volumes()
+        .into_iter()
+        .find(|volume| volume.vol_id == vol_id)
+    else {
+        return error_response(StatusCode::NOT_FOUND, "entity-not-found");
+    };
+    let Ok(Query(query)) = query else {
+        return error_response(StatusCode::BAD_REQUEST, "invalid-collection-query");
+    };
+    let overview = projected_overview(&state, &view);
+    let cursor_kind = format!("sectors:{vol}");
+    let offset = match query.cursor {
+        Some(cursor) => match decode_cursor(&state, &overview, &cursor_kind, &cursor) {
+            Some(value) => value,
+            None => return error_response(StatusCode::BAD_REQUEST, "invalid-cursor"),
+        },
+        None => 0,
+    };
+    let limit = query.limit.unwrap_or(DEFAULT_SECTOR_COLLECTION_LIMIT);
+    let Ok(total) = usize::try_from(volume.total_sectors) else {
+        return error_response(StatusCode::INTERNAL_SERVER_ERROR, "session-unavailable");
+    };
+    if limit == 0 || limit > MAX_SECTOR_COLLECTION_LIMIT {
+        return error_response(StatusCode::BAD_REQUEST, "invalid-collection-limit");
+    }
+    if offset > total {
+        return error_response(StatusCode::BAD_REQUEST, "invalid-cursor");
+    }
+    let Some((start, end)) = sector_collection_window(total, offset, limit) else {
+        return error_response(StatusCode::BAD_REQUEST, "invalid-collection-limit");
+    };
+    let mut items = Vec::with_capacity(end - start);
+    for raw_sector in start..end {
+        let Ok(raw_sector) = i32::try_from(raw_sector) else {
+            return error_response(StatusCode::INTERNAL_SERVER_ERROR, "session-unavailable");
+        };
+        let Ok(sector_id) = SectorId::new(raw_sector) else {
+            return error_response(StatusCode::INTERNAL_SERVER_ERROR, "session-unavailable");
+        };
+        let Ok(sector) = view.sector(vol_id, sector_id) else {
+            return error_response(StatusCode::INTERNAL_SERVER_ERROR, "session-unavailable");
+        };
+        items.push(sector_projection(sector));
+    }
+    let next_cursor = if end < total {
+        NextCursorProjection::Present {
+            value: encode_cursor(&state, &overview, &cursor_kind, end),
+        }
+    } else {
+        NextCursorProjection::End
+    };
+    Json(api_envelope(
+        &overview,
+        CollectionProjection { items, next_cursor },
+    ))
+    .into_response()
+}
+
+fn sector_collection_window(total: usize, offset: usize, limit: usize) -> Option<(usize, usize)> {
+    if limit == 0 || limit > MAX_SECTOR_COLLECTION_LIMIT || offset > total {
+        return None;
+    }
+    Some((offset, offset.saturating_add(limit).min(total)))
 }
 
 #[derive(Deserialize)]
@@ -1315,14 +1399,14 @@ const INDEX_HTML: &str = r#"<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Volmap Inspector</title><link rel="stylesheet" href="/app.css"></head>
 <body><header><strong>VOLMAP</strong><span id="crumb">locked session</span><span class="spacer"></span><button id="licenses" hidden>About &amp; licenses</button><span id="outcome">locked</span></header>
 <section id="unlock"><h1>Unlock inspection</h1><p>Enter the one-time bearer token printed by the server. It remains only in this page's memory and is lost on refresh.</p><form id="unlockForm"><label>Bearer token <input id="token" type="password" autocomplete="off" spellcheck="false"></label><button>Unlock</button><p id="unlockError" role="alert"></p></form></section>
-<main id="app" hidden><aside><h2>Snapshot hierarchy</h2><div id="volumes"></div><h2>Sector window</h2><div id="sectors"></div></aside><section class="workspace"><div class="workspace-title"><div><h1 id="sectorTitle">Sector</h1><p id="sectorNote"></p></div><div id="legend">S system · r reserved · . unreserved · ! finding</div></div><div id="grid" role="grid"></div></section><aside id="details"><h2>Selected page</h2><div id="pageDetail">Select a page.</div></aside></main>
+<main id="app" hidden><aside><h2>Snapshot hierarchy</h2><div id="volumes"></div></aside><section class="workspace"><div class="workspace-title"><div><h1 id="volumeTitle">Volume map</h1><p id="volumeNote"></p></div><div id="legend" aria-label="Page allocation legend"><span><i class="swatch unreserved"></i>Unreserved</span><span><i class="swatch reserved-unallocated"></i>Reserved, unallocated</span><span><i class="swatch allocated"></i>Allocated</span><span><i class="swatch system-metadata"></i>System metadata</span><span><i class="swatch finding"></i>Finding outline</span></div></div><div id="volumeMap" aria-label="Full volume sector map"></div><p id="mapStatus" role="status"></p></section><aside id="details"><h2>Selected page</h2><div id="pageDetail">Select a page square.</div></aside></main>
 <script src="/app.js"></script></body></html>"#;
 
 #[allow(clippy::needless_raw_string_hashes)]
-const APP_CSS: &str = r#":root{color-scheme:dark;--bg:#071014;--panel:#0d1820;--line:#29404b;--text:#dce8ec;--muted:#8fa5ae;--cyan:#68d8d0;--blue:#244c66;--green:#205444;--purple:#3b3761;--red:#6b2939}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,sans-serif}button,input{font:inherit}header{height:54px;display:flex;align-items:center;gap:18px;padding:0 18px;border-bottom:1px solid var(--line);background:#0a1319}header strong{letter-spacing:.08em}.spacer{flex:1}#unlock{max-width:620px;margin:12vh auto;padding:28px;border:1px solid var(--line);background:var(--panel)}#unlock label{display:grid;gap:7px}#unlock input{padding:10px;background:#071014;color:var(--text);border:1px solid var(--line)}button{padding:8px 11px;margin-top:10px;background:var(--cyan);color:#071014;border:0;font-weight:700;cursor:pointer}button:focus-visible,input:focus-visible,[role=gridcell]:focus-visible{outline:2px solid #ffd376;outline-offset:2px}main{min-height:calc(100vh - 54px);display:grid;grid-template-columns:250px minmax(560px,1fr) 340px}aside,.workspace{border-right:1px solid var(--line);min-width:0}aside:last-child{border:0}h1,h2,p{margin:0}h2{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);padding:14px;border-bottom:1px solid var(--line)}#volumes,#sectors,#pageDetail{padding:10px}.nav{display:block;width:100%;text-align:left;background:transparent;color:var(--text);border:0;padding:7px;margin:0}.nav.active{background:#16303b;color:var(--cyan)}.workspace-title{display:flex;gap:18px;align-items:end;padding:18px}.workspace-title p,#legend{color:var(--muted);font-size:12px}#legend{margin-left:auto}#grid{display:grid;grid-template-columns:repeat(8,minmax(52px,1fr));gap:5px;padding:0 18px 18px}.page{height:62px;margin:0;padding:6px;text-align:left;color:var(--text);border:1px solid transparent;background:#263740}.page.system-metadata{background:var(--purple)}.page.reserved-unallocated{background:var(--blue)}.page.allocated{background:var(--green)}.page.finding{background:var(--red);border-color:#ff7690}.page.selected{border-color:var(--cyan);box-shadow:inset 0 0 0 1px var(--cyan)}.page small{display:block;color:#b3c3c9;margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}dl{display:grid;grid-template-columns:115px 1fr;gap:7px}dt{color:var(--muted)}dd{margin:0;overflow-wrap:anywhere}.withheld{padding:8px;border:1px solid var(--line);color:var(--muted);font-family:ui-monospace,monospace}@media(max-width:1050px){main{grid-template-columns:210px 1fr}#details{grid-column:1/-1;border-top:1px solid var(--line)}}@media(max-width:720px){main{display:block}aside,.workspace{border:0;border-bottom:1px solid var(--line)}#grid{overflow-x:auto;grid-template-columns:repeat(8,62px)}}"#;
+const APP_CSS: &str = r#":root{color-scheme:dark;--bg:#071014;--panel:#0d1820;--line:#29404b;--text:#dce8ec;--muted:#8fa5ae;--cyan:#68d8d0;--unreserved:#24323a;--reserved:#315f8a;--allocated:#2f845e;--system:#7658a5;--finding:#d25569}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,sans-serif}button,input{font:inherit}header{position:sticky;top:0;z-index:4;height:54px;display:flex;align-items:center;gap:18px;padding:0 18px;border-bottom:1px solid var(--line);background:#0a1319}header strong{letter-spacing:.08em}.spacer{flex:1}#unlock{max-width:620px;margin:12vh auto;padding:28px;border:1px solid var(--line);background:var(--panel)}#unlock label{display:grid;gap:7px}#unlock input{padding:10px;background:#071014;color:var(--text);border:1px solid var(--line)}button{padding:8px 11px;margin-top:10px;background:var(--cyan);color:#071014;border:0;font-weight:700;cursor:pointer}button:focus-visible,input:focus-visible,[role=gridcell]:focus-visible{outline:2px solid #ffd376;outline-offset:2px}main{min-height:calc(100vh - 54px);display:grid;grid-template-columns:220px minmax(560px,1fr) 330px}aside,.workspace{border-right:1px solid var(--line);min-width:0}aside{position:sticky;top:54px;height:calc(100vh - 54px);align-self:start;overflow:auto}aside:last-child{border:0}h1,h2,p{margin:0}h2{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);padding:14px;border-bottom:1px solid var(--line)}#volumes,#pageDetail{padding:10px}.nav{display:block;width:100%;text-align:left;background:transparent;color:var(--text);border:0;padding:7px;margin:0}.nav.active{background:#16303b;color:var(--cyan)}.workspace-title{display:flex;gap:18px;align-items:end;padding:18px}.workspace-title p,#legend,#mapStatus{color:var(--muted);font-size:12px}#legend{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:5px 12px;margin-left:auto;max-width:540px}.swatch{display:inline-block;width:9px;height:9px;margin-right:5px;border-radius:2px;background:var(--unreserved)}.swatch.reserved-unallocated{background:var(--reserved)}.swatch.allocated{background:var(--allocated)}.swatch.system-metadata{background:var(--system)}.swatch.finding{background:transparent;border:2px solid var(--finding)}#volumeMap{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;padding:0 18px 18px}.sector-card{scroll-margin-top:72px;border:1px solid var(--line);background:var(--panel)}.sector-heading{display:flex;gap:7px;padding:6px 7px;color:var(--muted);font-size:11px}.sector-heading strong{color:var(--text)}.sector-heading span{margin-left:auto}.sector-pages{display:grid;grid-template-columns:repeat(8,1fr);gap:2px;padding:0 7px 7px}.page{aspect-ratio:1;min-width:0;margin:0;padding:0;border:1px solid transparent;border-radius:1px;background:var(--unreserved)}.page.unreserved{background:var(--unreserved)}.page.reserved-unallocated{background:var(--reserved)}.page.allocated{background:var(--allocated)}.page.system-metadata{background:var(--system)}.page.finding{outline:2px solid var(--finding);outline-offset:-2px}.page.selected{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan),0 0 8px var(--cyan);z-index:1}#mapStatus{padding:0 18px 24px}#mapSentinel{height:1px;grid-column:1/-1}dl{display:grid;grid-template-columns:115px 1fr;gap:7px}dt{color:var(--muted)}dd{margin:0;overflow-wrap:anywhere}.withheld{padding:8px;border:1px solid var(--line);color:var(--muted);font-family:ui-monospace,monospace}@media(max-width:1050px){main{grid-template-columns:190px 1fr}#details{position:static;height:auto;grid-column:1/-1;border-top:1px solid var(--line)}}@media(max-width:720px){header{position:static;height:auto;min-height:54px;flex-wrap:wrap;padding:10px 14px}main{display:block}.workspace-title{display:block}.workspace-title #legend{justify-content:flex-start;margin:10px 0 0}aside{position:static;height:auto}.workspace,aside{border:0;border-bottom:1px solid var(--line)}#volumeMap{grid-template-columns:repeat(2,minmax(135px,1fr));gap:8px;padding:0 12px 16px}}"#;
 
 const APP_JS: &str = r"(()=>{'use strict';
-let token='',session=null,currentVolume=null,currentSector=0,selectedPage=null;
+let token='',session=null,currentVolume=null,selectedPage=null,sectorCursor='end',loadedSectors=0,loadingGeneration=null,loadGeneration=0;
 const $=id=>document.getElementById(id);
 function button(label,action,className=''){const node=document.createElement('button');node.textContent=label;node.className=className;node.onclick=action;return node}
 function fieldList(fields){const list=document.createElement('dl');for(const [name,value] of fields){const term=document.createElement('dt'),detail=document.createElement('dd');term.textContent=name;detail.textContent=String(value);list.append(term,detail)}return list}
@@ -1330,17 +1414,19 @@ async function api(path,options={}){const headers={Authorization:`Bearer ${token
 function base(){return `/api/v1/s/${session.snapshot.id}/r/${session.snapshot.revision}`}
 function updateSession(payload){session.snapshot=payload.snapshot;session.outcome=payload.outcome;$('outcome').textContent=payload.outcome;$('crumb').textContent=`snapshot ${payload.snapshot.id.slice(0,12)} · revision ${payload.snapshot.revision}`}
 async function unlock(event){event.preventDefault();token=$('token').value;$('token').value='';try{session=await api('/api/v1/session');$('unlock').hidden=true;$('app').hidden=false;$('licenses').hidden=false;updateSession(session);await loadVolumes()}catch(error){token='';$('unlockError').textContent=error.message}}
-async function loadVolumes(){const payload=await api(`${base()}/volumes`),root=$('volumes');root.replaceChildren();payload.data.items.forEach((volume,index)=>{const node=button(`volume ${volume.vol_id} · ${volume.total_sectors} sectors`,()=>selectVolume(volume),'nav');node.dataset.volume=String(volume.vol_id);root.append(node);if(index===0)selectVolume(volume)})}
-async function selectVolume(volume){currentVolume=volume;currentSector=0;document.querySelectorAll('#volumes .nav').forEach(node=>node.classList.toggle('active',node.dataset.volume===String(volume.vol_id)));renderSectorWindow();await loadSector()}
-function renderSectorWindow(){const root=$('sectors');root.replaceChildren();const start=Math.max(0,currentSector-4),end=Math.min(currentVolume.total_sectors,start+10);for(let sector=start;sector<end;sector++){root.append(button(`sector ${sector}`,async()=>{currentSector=sector;renderSectorWindow();await loadSector()},`nav ${sector===currentSector?'active':''}`))}}
-async function loadSector(){const payload=await api(`${base()}/sector/${currentVolume.vol_id}/${currentSector}`);$('sectorTitle').textContent=`Sector ${currentSector}`;$('sectorNote').textContent=payload.data.reserved?'reserved by volume bitmap':'unreserved';const grid=$('grid');grid.replaceChildren();payload.data.pages.forEach((page,index)=>{const node=button(String(page.page_id),()=>loadPage(page.page_id),`page ${page.allocation}${page.diagnostic.state==='known'?' finding':''}${page.page_id===selectedPage?' selected':''}`);node.setAttribute('role','gridcell');node.dataset.index=String(index);const small=document.createElement('small');small.textContent=page.page_type.state==='known'?page.page_type.value:'not inspected';node.append(small);node.onkeydown=event=>moveGrid(event,index);grid.append(node)})}
-function moveGrid(event,index){let next=index;if(event.key==='ArrowLeft')next--;else if(event.key==='ArrowRight')next++;else if(event.key==='ArrowUp')next-=8;else if(event.key==='ArrowDown')next+=8;else return;if(next>=0&&next<64){event.preventDefault();$('grid').children[next].focus()}}
+async function loadVolumes(){const payload=await api(`${base()}/volumes`),root=$('volumes'),volumes=payload.data.items;root.replaceChildren();for(const volume of volumes){const node=button(`volume ${volume.vol_id} · ${volume.total_sectors} sectors`,()=>selectVolume(volume),'nav');node.dataset.volume=String(volume.vol_id);root.append(node)}if(volumes.length)await selectVolume(volumes[0])}
+async function selectVolume(volume,preservePage=null,restoreCount=24){currentVolume=volume;selectedPage=preservePage;sectorCursor=null;loadedSectors=0;const generation=++loadGeneration;document.querySelectorAll('#volumes .nav').forEach(node=>node.classList.toggle('active',node.dataset.volume===String(volume.vol_id)));$('volumeTitle').textContent=`Volume ${volume.vol_id} · full map`;$('volumeNote').textContent=`${volume.total_sectors} sectors · 64 pages per sector · revision ${session.snapshot.revision}`;$('volumeMap').replaceChildren();$('mapStatus').textContent='Loading sector maps…';do{await loadSectorBatch(generation)}while(generation===loadGeneration&&sectorCursor!=='end'&&loadedSectors<restoreCount);observeMapEnd()}
+async function loadSectorBatch(generation=loadGeneration){if(loadingGeneration===generation||sectorCursor==='end'||generation!==loadGeneration)return;loadingGeneration=generation;try{const query=sectorCursor===null?'?limit=24':`?limit=24&cursor=${encodeURIComponent(sectorCursor)}`,payload=await api(`${base()}/sectors/${currentVolume.vol_id}${query}`);if(generation!==loadGeneration)return;for(const sector of payload.data.items)appendSector(sector);loadedSectors+=payload.data.items.length;sectorCursor=payload.data.next_cursor.state==='present'?payload.data.next_cursor.value:'end';$('mapStatus').textContent=sectorCursor==='end'?`All ${loadedSectors} sectors shown · ${loadedSectors*64} pages`:`Showing ${loadedSectors} of ${currentVolume.total_sectors} sectors · scroll to continue`;}catch(error){if(generation===loadGeneration){sectorCursor='end';$('mapStatus').textContent=error.message}}finally{if(loadingGeneration===generation)loadingGeneration=null}}
+function appendSector(sector){if(sector.pages.length!==64)throw new Error(`sector ${sector.sector_id} did not contain 64 pages`);const card=document.createElement('section');card.className='sector-card';card.id=`sector-${sector.sector_id}`;const heading=document.createElement('div');heading.className='sector-heading';const title=document.createElement('strong');title.textContent=`Sector ${sector.sector_id}`;const state=document.createElement('span');state.textContent=sector.reserved?'reserved':'unreserved';heading.append(title,state);const pages=document.createElement('div');pages.className='sector-pages';pages.setAttribute('role','grid');pages.setAttribute('aria-label',`Sector ${sector.sector_id}, 64 pages`);sector.pages.forEach((page,index)=>{const finding=page.diagnostic.state==='known',node=button('',()=>loadPage(page.page_id),`page ${page.allocation}${finding?' finding':''}${page.page_id===selectedPage?' selected':''}`);node.setAttribute('role','gridcell');node.dataset.page=String(page.page_id);node.setAttribute('aria-label',`Page ${page.page_id}, ${page.allocation}${finding?', finding':''}`);node.title=`page ${page.page_id} · ${page.page_type.state==='known'?page.page_type.value:'not inspected'} · ${page.allocation}`;node.onkeydown=event=>moveSectorGrid(event,pages,index);pages.append(node)});card.append(heading,pages);$('volumeMap').append(card)}
+function moveSectorGrid(event,grid,index){let next=index;if(event.key==='ArrowLeft')next--;else if(event.key==='ArrowRight')next++;else if(event.key==='ArrowUp')next-=8;else if(event.key==='ArrowDown')next+=8;else return;if(next>=0&&next<64){event.preventDefault();grid.children[next].focus()}}
+const mapObserver=new IntersectionObserver(entries=>{if(entries.some(entry=>entry.isIntersecting)){mapObserver.disconnect();loadSectorBatch().then(observeMapEnd)}});
+function observeMapEnd(){mapObserver.disconnect();const old=$('mapSentinel');if(old)old.remove();if(sectorCursor==='end')return;const sentinel=document.createElement('div');sentinel.id='mapSentinel';$('volumeMap').append(sentinel);mapObserver.observe(sentinel)}
 function withheld(identity){const note=document.createElement('p');note.className='withheld';note.textContent=`evidence ${identity} · structural ranges only · bytes withheld`;return note}
 function renderPage(payload){const p=payload.data.page,deep=payload.data.deep,root=$('pageDetail');root.replaceChildren(fieldList([['Identity',`page:${p.vol_id}:${p.page_id}`],['Physical type',p.page_type.state==='known'?p.page_type.value:'not inspected'],['Allocation',p.allocation],['Availability',p.availability],['Detail support',p.detail_support.state==='known'?p.detail_support.value:p.detail_support.state],['Deep revision',deep.state],['TDE',p.tde_state]]));if(deep.state==='not-enriched')root.append(button('Enrich structural metadata',()=>enrich(`page:${p.vol_id}:${p.page_id}`,()=>loadPage(p.page_id))));if(deep.state==='slotted'){const title=document.createElement('h3');title.textContent=`Slots (${deep.structure.slots.length})`;root.append(title);for(const slot of deep.structure.slots){root.append(button(`slot ${slot.slot_id} · ${slot.record_type} · ${slot.length} bytes`,()=>loadSlot(p,slot.slot_id),'nav'))}}root.append(withheld(`page:${p.vol_id}:${p.page_id}`))}
-async function loadPage(pageId){selectedPage=pageId;const payload=await api(`${base()}/page/${currentVolume.vol_id}/${pageId}`);renderPage(payload);await loadSector()}
+async function loadPage(pageId){selectedPage=pageId;document.querySelectorAll('.page').forEach(node=>node.classList.toggle('selected',node.dataset.page===String(pageId)));const payload=await api(`${base()}/page/${currentVolume.vol_id}/${pageId}`);renderPage(payload)}
 async function loadSlot(page,slotId){const payload=await api(`${base()}/slot/${page.vol_id}/${page.page_id}/${slotId}`),slot=payload.data.selected_slot,root=$('pageDetail');root.replaceChildren(fieldList([['Identity',`slot:${page.vol_id}:${page.page_id}:${slot.slot_id}`],['Record type',`${slot.record_type} (${slot.record_type_ordinal})`],['Offset',slot.offset],['Length',slot.length]]));if(page.page_type.state==='known'&&page.page_type.value==='oos')root.append(button('Validate OOS chain',()=>enrich(`oos:${page.vol_id}:${page.page_id}:${slot.slot_id}`,()=>loadOos(page,slot.slot_id))));root.append(withheld(`slot:${page.vol_id}:${page.page_id}:${slot.slot_id}`))}
 async function loadOos(page,slotId){const payload=await api(`${base()}/oos/${page.vol_id}/${page.page_id}/${slotId}`),chain=payload.data.chain,root=$('pageDetail');root.replaceChildren(fieldList([['Identity',`oos:${page.vol_id}:${page.page_id}:${slotId}`],['Complete',chain.complete],['Validated bytes',chain.validated_payload_bytes],['Chunks',chain.chunks.length],['Diagnostic',chain.diagnostic.state==='known'?chain.diagnostic.value:'none']]));for(const chunk of chain.chunks){root.append(fieldList([['Chunk',chunk.chunk_index],['OID',`${chunk.oid.vol_id}:${chunk.oid.page_id}:${chunk.oid.slot_id}`],['Payload length',chunk.payload_length]]))}root.append(withheld(`oos:${page.vol_id}:${page.page_id}:${slotId}`))}
-async function enrich(selector,done){try{const payload=await api(`${base()}/enrichments`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selector})});updateSession(payload);await done()}catch(error){$('pageDetail').append(document.createTextNode(` ${error.message}`))}}
+async function enrich(selector,done){try{const restoreCount=loadedSectors,pageId=selectedPage,payload=await api(`${base()}/enrichments`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selector})});updateSession(payload);await selectVolume(currentVolume,pageId,restoreCount);await done()}catch(error){$('pageDetail').append(document.createTextNode(` ${error.message}`))}}
 async function showLicenses(){const payload=await api('/api/v1/licenses'),root=$('pageDetail'),text=document.createElement('pre');text.textContent=payload.notice;text.className='withheld';root.replaceChildren(text)}
 $('licenses').addEventListener('click',showLicenses);$('unlockForm').addEventListener('submit',unlock)})();";
 
@@ -1572,6 +1658,38 @@ mod tests {
         assert!(!APP_JS.contains("&token="));
         assert!(APP_JS.contains("Authorization:`Bearer ${token}`"));
         assert!(INDEX_HTML.contains("remains only in this page's memory"));
+    }
+
+    #[test]
+    fn browser_contract_exposes_full_volume_sector_mosaic() {
+        assert!(INDEX_HTML.contains("id=\"volumeMap\""));
+        assert!(INDEX_HTML.contains("Unreserved"));
+        assert!(INDEX_HTML.contains("Reserved, unallocated"));
+        assert!(INDEX_HTML.contains("Allocated"));
+        assert!(INDEX_HTML.contains("System metadata"));
+        assert!(INDEX_HTML.contains("Finding outline"));
+        assert!(APP_CSS.contains("grid-template-columns:repeat(8,1fr)"));
+        assert!(APP_CSS.contains(".page.unreserved"));
+        assert!(APP_CSS.contains(".page.reserved-unallocated"));
+        assert!(APP_CSS.contains(".page.allocated"));
+        assert!(APP_CSS.contains(".page.system-metadata"));
+        assert!(APP_CSS.contains(".page.finding"));
+        assert!(APP_JS.contains("/sectors/${currentVolume.vol_id}"));
+        assert!(APP_JS.contains("next_cursor"));
+        assert!(APP_JS.contains("pages.length!==64"));
+    }
+
+    #[test]
+    fn sector_collection_window_is_bounded_and_complete() {
+        assert_eq!(sector_collection_window(130, 0, 24), Some((0, 24)));
+        assert_eq!(sector_collection_window(130, 120, 24), Some((120, 130)));
+        assert_eq!(sector_collection_window(130, 130, 24), Some((130, 130)));
+        assert_eq!(sector_collection_window(130, 131, 24), None);
+        assert_eq!(sector_collection_window(130, 0, 0), None);
+        assert_eq!(
+            sector_collection_window(130, 0, MAX_SECTOR_COLLECTION_LIMIT + 1),
+            None
+        );
     }
 
     #[test]

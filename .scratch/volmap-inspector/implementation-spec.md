@@ -75,6 +75,7 @@ Each decoder must name its prerequisite context. Reserved enum values are report
 - CLI grammar, selectors, schema, channel separation, and exit statuses are fixed by ticket 06.
 - The TUI uses the accepted 64-page grid, hierarchy, tab, jump, keyboard/mouse parity, and terminal-restoration behavior from ticket 09.
 - HTML export freezes exactly one revision, is deterministic and self-contained, refuses overwrite, writes privately via atomic publication, and performs no network requests.
+- The live browser presents the selected full volume as bounded, progressively loaded sector cards. Every card projects exactly 64 physical-order page squares; allocation class is the base color and findings use an independent outline/text treatment. Continuation is snapshot/revision/volume-bound and one response is capped at 64 sectors.
 - HTTP defaults to numeric loopback. Plain HTTP on a non-loopback numeric listener is allowed only with `--allow-remote-http`; wildcard binding additionally requires an exact externally visible origin. This supports SSH forwarding and explicitly accepted trusted internal `0.0.0.0` operation without claiming transport security.
 - HTTP API requests require the per-run bearer token. Mutable work requests additionally require exact JSON content type and exact Origin; no CORS headers are emitted. Host authority, URI/header/body size, and concurrency are bounded. Security headers apply to every response.
 - Browser tokens live only in memory. No URL, fragment, local/session storage, export, log, or response contains them.
