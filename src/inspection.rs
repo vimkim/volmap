@@ -951,14 +951,13 @@ impl GraphView {
         let decoded = decode_page_envelope(bytes.as_slice(), vpid);
         let fact = match decoded {
             Ok(envelope) => {
-                let slotted = if matches!(
-                    envelope.page_type(),
-                    PageType::Heap
-                        | PageType::Oos
-                        | PageType::Btree
-                        | PageType::ExtensibleHash
-                        | PageType::Catalog
-                ) {
+                let owner_file_type = self
+                    .data
+                    .file_allocations
+                    .get(&vpid)
+                    .and_then(|owner| self.data.tracked_files.get(owner))
+                    .map(|header| header.file_type());
+                let slotted = if page_uses_slotted_layout(envelope.page_type(), owner_file_type) {
                     match decode_slotted_page(&envelope) {
                         Ok(value) => Some(value),
                         Err(error) => {
@@ -2681,6 +2680,21 @@ fn page_detail_support(page_type: PageType) -> PageDetailSupport {
     }
 }
 
+fn page_uses_slotted_layout(
+    page_type: PageType,
+    owner_file_type: Option<crate::format::FileType>,
+) -> bool {
+    match page_type {
+        // PAGE_EHASH is shared by raw directory pages and slotted bucket
+        // pages. Only tracker-proven bucket-file ownership resolves the role.
+        PageType::ExtensibleHash => {
+            owner_file_type == Some(crate::format::FileType::ExtensibleHash)
+        }
+        PageType::Heap | PageType::Oos | PageType::Btree | PageType::Catalog => true,
+        _ => false,
+    }
+}
+
 fn page_diagnostic_code(error: &DecodeError) -> &'static str {
     match error.rule() {
         "page.envelope.identity_match" => "page.envelope.identity_mismatch",
@@ -2717,5 +2731,25 @@ pub const fn tde_algorithm_name(algorithm: TdeAlgorithm) -> &'static str {
     match algorithm {
         TdeAlgorithm::Aes => "aes",
         TdeAlgorithm::Aria => "aria",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::page_uses_slotted_layout;
+    use crate::format::{FileType, PageType};
+
+    #[test]
+    fn ehash_slotted_layout_requires_bucket_file_ownership() {
+        assert!(page_uses_slotted_layout(
+            PageType::ExtensibleHash,
+            Some(FileType::ExtensibleHash)
+        ));
+        assert!(!page_uses_slotted_layout(
+            PageType::ExtensibleHash,
+            Some(FileType::HashDirectory)
+        ));
+        assert!(!page_uses_slotted_layout(PageType::ExtensibleHash, None));
+        assert!(page_uses_slotted_layout(PageType::Heap, None));
     }
 }
