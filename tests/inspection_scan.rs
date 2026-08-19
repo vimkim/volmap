@@ -153,6 +153,7 @@ fn inspection_opens_sparse_volume_and_scans_only_reserved_sector_envelopes() {
             path: vinf,
             volume_root: None,
         },
+        tde_keys_file: None,
     };
     let inspection =
         Inspection::open(&request, policy(4 * 1024 * 1024), &CancelToken::new(), None).unwrap();
@@ -191,6 +192,7 @@ fn resource_refusal_publishes_partial_coverage_without_silent_sampling() {
             path: vinf,
             volume_root: None,
         },
+        tde_keys_file: None,
     };
     let inspection = Inspection::open(&request, policy(1), &CancelToken::new(), None).unwrap();
     let overview = inspection
@@ -222,6 +224,7 @@ fn stable_projection_omits_manifest_and_volume_paths() {
             path: vinf.clone(),
             volume_root: None,
         },
+        tde_keys_file: None,
     };
     let view = Inspection::open(&request, policy(4 * 1024 * 1024), &CancelToken::new(), None)
         .unwrap()
@@ -250,6 +253,7 @@ fn html_export_is_deterministic_private_atomic_and_path_free() {
             path: vinf.clone(),
             volume_root: None,
         },
+        tde_keys_file: None,
     };
     let view = Inspection::open(&request, policy(4 * 1024 * 1024), &CancelToken::new(), None)
         .unwrap()
@@ -293,6 +297,7 @@ fn deep_page_enrichment_publishes_a_new_revision_without_rewriting_the_old_view(
             path: vinf,
             volume_root: None,
         },
+        tde_keys_file: None,
     };
     let original = Inspection::open(&request, policy(4 * 1024 * 1024), &CancelToken::new(), None)
         .unwrap()
@@ -328,6 +333,7 @@ fn oos_enrichment_validates_a_chain_and_retains_no_payload_bytes() {
             path: vinf,
             volume_root: None,
         },
+        tde_keys_file: None,
     };
     let original = Inspection::open(&request, policy(4 * 1024 * 1024), &CancelToken::new(), None)
         .unwrap()
@@ -359,6 +365,7 @@ fn oos_enrichment_publishes_a_validated_prefix_at_the_chain_budget() {
             path: vinf,
             volume_root: None,
         },
+        tde_keys_file: None,
     };
     let original = Inspection::open(&request, policy(4 * 1024 * 1024), &CancelToken::new(), None)
         .unwrap()

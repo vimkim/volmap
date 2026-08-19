@@ -272,6 +272,7 @@ fn open_with_relocation(
             path: vinf,
             volume_root: None,
         },
+        tde_keys_file: None,
     };
     let view = Inspection::open(&request, policy(32), &CancelToken::new(), None)
         .unwrap()

@@ -3,6 +3,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::mem::size_of;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -10,22 +11,28 @@ use sha2::{Digest, Sha256};
 
 use crate::diagnostics::{InspectionOutcome, OutcomeInputs};
 use crate::format::{
-    BtreePageFact, CatalogClassInfoFact, CatalogPageFact, CatalogRepresentationHeaderFact,
-    DecodeError, DroppedFilesPageFact, FileHeader, HeapPageFact, OosNext, PageContent, PageType,
-    RecordType, SlottedPage, TdeAlgorithm, TrackerItemFact, UserPageFact, VacuumPageFact,
-    VolumePurpose, VolumeType, decode_bigone_target, decode_btree_page, decode_catalog_class_info,
+    BOOT_DB_PARM_SIZE, BtreePageFact, CatalogClassInfoFact, CatalogPageFact,
+    CatalogRepresentationHeaderFact, DecodeError, DroppedFilesPageFact, FileHeader, HeapPageFact,
+    OosNext, PageContent, PageType, RecordType, SlottedPage, TDE_KEY_INFO_RECORD_SIZE,
+    TdeAlgorithm, TrackerItemFact, UserPageFact, VacuumPageFact, VolumePurpose, VolumeType,
+    decode_bigone_target, decode_boot_db_parm, decode_btree_page, decode_catalog_class_info,
     decode_catalog_directory, decode_catalog_page, decode_catalog_representation_header,
-    decode_dropped_files_page, decode_extdata_header, decode_file_header, decode_full_sectors,
-    decode_heap_page, decode_oos_chunk, decode_overflow_continuation, decode_overflow_head,
-    decode_page_envelope, decode_page_envelope_parts, decode_partial_sectors,
-    decode_relocation_target, decode_sector_bitmap, decode_slotted_page, decode_tracker_items,
-    decode_user_pages, decode_vacuum_page, decode_volume_header,
+    decode_decrypted_page_envelope, decode_dropped_files_page, decode_extdata_header,
+    decode_file_header, decode_full_sectors, decode_heap_page, decode_oos_chunk,
+    decode_overflow_continuation, decode_overflow_head, decode_page_envelope,
+    decode_page_envelope_parts, decode_partial_sectors, decode_relocation_target,
+    decode_sector_bitmap, decode_slotted_page, decode_tracker_items, decode_user_pages,
+    decode_vacuum_page, decode_volume_header,
 };
 use crate::model::{
-    Availability, Coverage, InspectionRevision, Oid, PageAllocationClass, PageId, SectorId, SlotId,
-    SnapshotId, SnapshotValidity, TdeInspectionState, Vfid, VolId, Vpid,
+    Availability, Coverage, Hfid, InspectionRevision, Oid, PageAllocationClass, PageId, SectorId,
+    SlotId, SnapshotId, SnapshotValidity, TdeInspectionState, Vfid, VolId, Vpid,
 };
 use crate::source::{InputSpec, SourceError, SourceSet, discover};
+use crate::tde::{
+    PermanentDataKey, TdeError, decode_key_info_record, decrypt_page_user_region,
+    load_permanent_key,
+};
 
 const FORMAT_PROFILE: &str = "cubrid-feat-oos-linux-x86_64-gcc-e1e651de";
 const SECTOR_PAGES: u32 = 64;
@@ -81,6 +88,7 @@ impl std::error::Error for ResourcePolicyError {}
 #[derive(Clone, Debug)]
 pub struct OpenRequest {
     pub input: InputSpec,
+    pub tde_keys_file: Option<PathBuf>,
 }
 
 #[derive(Clone, Debug)]
@@ -368,6 +376,7 @@ pub struct DeepPageView {
 #[derive(Clone, Debug)]
 struct SessionData {
     sources: Arc<SourceSet>,
+    tde_key: Option<Arc<PermanentDataKey>>,
     snapshot_id: SnapshotId,
     revision: InspectionRevision,
     validity: SnapshotValidity,
@@ -414,6 +423,69 @@ enum FileTraversalError {
     Operation(OperationError),
 }
 
+fn read_special_heap_record<const N: usize>(
+    sources: &SourceSet,
+    hfid: Hfid,
+    policy: ResourcePolicy,
+    cancel: &CancelToken,
+) -> Result<[u8; N], OpenFailure> {
+    if policy.memory_limit < crate::format::IO_PAGE_SIZE as u64
+        || policy.max_decoded_bytes < crate::format::IO_PAGE_SIZE as u64
+    {
+        return Err(OpenFailure::TdeBootstrap);
+    }
+    let header = Vpid::new(hfid.vfid.vol_id, hfid.header_page_id);
+    let mut current = header;
+    let mut previous = None;
+    let mut visited = BTreeSet::new();
+    let mut steps = 0_u64;
+    let mut decoded_bytes = 0_u64;
+    loop {
+        if cancel.is_cancelled() {
+            return Err(OpenFailure::Interrupted);
+        }
+        steps = steps.checked_add(1).ok_or(OpenFailure::Arithmetic)?;
+        decoded_bytes = decoded_bytes
+            .checked_add(crate::format::IO_PAGE_SIZE as u64)
+            .ok_or(OpenFailure::Arithmetic)?;
+        if steps > policy.max_chain_steps || decoded_bytes > policy.max_decoded_bytes {
+            return Err(OpenFailure::TdeBootstrap);
+        }
+        if !visited.insert(current) {
+            return Err(OpenFailure::TdeBootstrap);
+        }
+        let source = sources
+            .volume(current.vol_id)
+            .ok_or(OpenFailure::TdeBootstrap)?;
+        let bytes = source.read_page(current.page_id)?;
+        let envelope =
+            decode_page_envelope(bytes.as_slice(), current).map_err(OpenFailure::Format)?;
+        let slotted = decode_slotted_page(&envelope).map_err(OpenFailure::Format)?;
+        let page = decode_heap_page(&envelope, &slotted, current == header)
+            .map_err(OpenFailure::Format)?;
+        let next = match page {
+            HeapPageFact::Header(fact)
+                if current == header && fact.class_oid.is_none() && previous.is_none() =>
+            {
+                fact.next
+            }
+            HeapPageFact::Chain(fact)
+                if current != header && fact.class_oid.is_none() && fact.previous == previous =>
+            {
+                fact.next
+            }
+            _ => return Err(OpenFailure::TdeBootstrap),
+        };
+        if let Some(record) = crate::format::copy_special_heap_record::<N>(&envelope, &slotted)
+            .map_err(OpenFailure::Format)?
+        {
+            return Ok(record);
+        }
+        previous = Some(current);
+        current = next.ok_or(OpenFailure::TdeBootstrap)?;
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Inspection {
     data: Arc<SessionData>,
@@ -449,6 +521,7 @@ impl Inspection {
         hasher.update(FORMAT_PROFILE.as_bytes());
         hasher.update(sources.input_kind().as_bytes());
         let mut physical_page_count = 0_u64;
+        let mut primary_boot_hfid = None;
 
         for (index, source) in sources.volumes().iter().enumerate() {
             if cancel.is_cancelled() {
@@ -462,6 +535,9 @@ impl Inspection {
             .map_err(OpenFailure::Format)?;
             let header = decode_volume_header(&envelope, source.stamp().length)
                 .map_err(OpenFailure::Format)?;
+            if header.vol_id().get() == 0 {
+                primary_boot_hfid = header.boot_hfid();
+            }
             let total_pages = u64::from(header.total_sectors())
                 .checked_mul(u64::from(SECTOR_PAGES))
                 .ok_or(OpenFailure::Arithmetic)?;
@@ -552,7 +628,36 @@ impl Inspection {
             ),
         );
 
+        let (tde_key, insecure_tde_key_permissions) = if let Some(key_path) =
+            request.tde_keys_file.as_deref()
+        {
+            let boot_hfid = primary_boot_hfid.ok_or(OpenFailure::TdeBootstrap)?;
+            let boot_record =
+                read_special_heap_record::<BOOT_DB_PARM_SIZE>(&sources, boot_hfid, policy, cancel)?;
+            let boot = decode_boot_db_parm(&boot_record, boot_hfid).map_err(OpenFailure::Format)?;
+            let key_info_record = read_special_heap_record::<TDE_KEY_INFO_RECORD_SIZE>(
+                &sources,
+                boot.tde_keyinfo_hfid,
+                policy,
+                cancel,
+            )?;
+            let key_info = decode_key_info_record(&key_info_record).map_err(OpenFailure::Tde)?;
+            let loaded = load_permanent_key(key_path, &key_info).map_err(OpenFailure::Tde)?;
+            (Some(Arc::new(loaded.key)), loaded.insecure_permissions)
+        } else {
+            (None, false)
+        };
+
         let mut diagnostics = Vec::new();
+        if insecure_tde_key_permissions {
+            diagnostics.push(DiagnosticRecord {
+                code: "tde.key_file.insecure_permissions",
+                severity: "warning",
+                message: "The supplied key file permissions are insecure.",
+                subject: "tde-key-file".to_owned(),
+                rule: "tde.key_file.owner_only_permissions",
+            });
+        }
         let mut envelope_total = 0_u64;
         for volume in &volumes {
             let system_pages = u64::try_from(volume.view.system_last_page.get())
@@ -639,8 +744,16 @@ impl Inspection {
                                         (Availability::Available, TdeInspectionState::NotEncrypted)
                                     }
                                     PageContent::EncryptedOpaque { .. } => (
-                                        Availability::EncryptedOpaque,
-                                        TdeInspectionState::EncryptedOpaque,
+                                        if tde_key.is_some() {
+                                            Availability::Available
+                                        } else {
+                                            Availability::EncryptedOpaque
+                                        },
+                                        if tde_key.is_some() {
+                                            TdeInspectionState::Decrypted
+                                        } else {
+                                            TdeInspectionState::EncryptedOpaque
+                                        },
                                     ),
                                     PageContent::Decrypted { .. } => unreachable!(
                                         "fast envelope decoding cannot produce decrypted content"
@@ -784,6 +897,7 @@ impl Inspection {
         Ok(Self {
             data: Arc::new(SessionData {
                 sources,
+                tde_key,
                 snapshot_id: SnapshotId::from_bytes(snapshot_bytes),
                 revision: InspectionRevision::new(0),
                 validity,
@@ -985,7 +1099,29 @@ impl GraphView {
         if cancel.is_cancelled() {
             return Err(OperationError::Interrupted);
         }
-        let decoded = decode_page_envelope(bytes.as_slice(), vpid);
+        let encrypted = match decode_page_envelope(bytes.as_slice(), vpid) {
+            Ok(envelope) => envelope.tde_algorithm(),
+            Err(error) => return self.page_decode_failure(vpid, error.rule()),
+        };
+        let decrypted = match encrypted {
+            Some(algorithm) => {
+                let key = self
+                    .data
+                    .tde_key
+                    .as_deref()
+                    .ok_or(OperationError::Unsupported)?;
+                Some(
+                    decrypt_page_user_region(bytes.as_slice(), algorithm, key)
+                        .map_err(|_| OperationError::Structural("tde.page.decrypt".to_owned()))?,
+                )
+            }
+            None => None,
+        };
+        let decoded = if let Some(plaintext) = decrypted.as_deref() {
+            decode_decrypted_page_envelope(bytes.as_slice(), plaintext, vpid)
+        } else {
+            decode_page_envelope(bytes.as_slice(), vpid)
+        };
         let fact = match decoded {
             Ok(envelope) => {
                 let owner_file_type = self
@@ -2901,6 +3037,8 @@ impl GraphView {
 pub enum OpenFailure {
     Source(SourceError),
     Format(DecodeError),
+    Tde(TdeError),
+    TdeBootstrap,
     Interrupted,
     Arithmetic,
 }
@@ -2916,6 +3054,8 @@ impl fmt::Display for OpenFailure {
         match self {
             Self::Source(error) => write!(formatter, "{error}"),
             Self::Format(error) => write!(formatter, "{error}"),
+            Self::Tde(error) => write!(formatter, "{error}"),
+            Self::TdeBootstrap => formatter.write_str("TDE key bootstrap failed"),
             Self::Interrupted => formatter.write_str("inspection interrupted before publication"),
             Self::Arithmetic => formatter.write_str("inspection arithmetic overflow"),
         }

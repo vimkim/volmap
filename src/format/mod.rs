@@ -5,6 +5,7 @@
 //! offsets from `src/storage/file_io.h`, `storage_common.h`, and
 //! `disk_manager.c`; it does not reproduce a C/C++ memory layout.
 
+mod boot;
 mod btree;
 mod catalog;
 mod file_table;
@@ -100,6 +101,8 @@ impl fmt::Display for DecodeError {
 }
 
 impl std::error::Error for DecodeError {}
+pub use boot::{BOOT_DB_PARM_SIZE, BootDbParmFact, decode_boot_db_parm};
+pub(crate) use boot::{TDE_KEY_INFO_RECORD_SIZE, copy_special_heap_record};
 pub use btree::{
     BtreeNodeFact, BtreeOidOverflowFact, BtreePageFact, BtreeRootFact, decode_btree_page,
 };

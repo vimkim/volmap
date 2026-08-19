@@ -160,11 +160,6 @@ struct InputArgs {
 
 impl InputArgs {
     fn input_spec(&self) -> Result<InputSpec, CliError> {
-        if self.tde_keys_file.is_some() {
-            return Err(CliError::Usage(
-                "--tde-keys-file is gated until the pinned key fixtures are installed".to_owned(),
-            ));
-        }
         match (&self.database, &self.vinf) {
             (Some(name), None) => Ok(InputSpec::Database {
                 name: name.clone(),
@@ -662,7 +657,10 @@ fn open_view(
     let progress_choice = resources.progress;
     let policy = resources.policy()?;
     let cancel = CancelToken::new();
-    let request = OpenRequest { input: input_spec };
+    let request = OpenRequest {
+        input: input_spec,
+        tde_keys_file: input.tde_keys_file.clone(),
+    };
     let show_progress = match progress_choice {
         ProgressChoice::Never => false,
         ProgressChoice::Always => true,
