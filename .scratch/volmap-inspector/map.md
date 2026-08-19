@@ -1,4 +1,5 @@
 Label: wayfinder:map
+Status: resolved
 
 # Chart an implementation-ready route to Volmap Inspector
 
@@ -21,6 +22,7 @@ An implementation-ready specification and decision index for a redesigned `volma
 - Prefer evidence-backed classifications over a single overloaded “status”; use the glossary in `CONTEXT.md`.
 - This repository had no commits when the map was charted, so the initial research reports were isolated by distinct files under `research/` instead of unusable throwaway Git branches.
 - Durable work-tracker item: `1`.
+- Wayfinding completed on 2026-08-20. [The implementation specification](implementation-spec.md) is the handoff; implementation defects and release-gate execution do not reopen this decision map unless the destination itself changes.
 
 ## Decisions so far
 
@@ -40,10 +42,11 @@ An implementation-ready specification and decision index for a redesigned `volma
 - [Evaluate the final Rust dependency and reproducible-release graph](issues/16-evaluate-rust-release-graph.md) — Pin Rust 1.97.1 and a permissive pure-Rust musl graph, keep adapters behind one inspection seam, embed all assets/notices, vendor release sources, and require byte-identical static offline builds plus SBOM/license gates.
 - [Define validation oracles, fixtures, and acceptance gates](issues/11-define-validation-oracles.md) — Treat pinned layout probes and immutable generated fixtures as authority, add deterministic corruptions/property/fuzz and cross-adapter non-disclosure tests, restrict recovered parity to approved legacy facts, and gate release on static reproducible cross-distribution execution.
 - [Assemble the implementation-ready specification and delivery sequence](issues/12-assemble-implementation-spec.md) — Use one referenced specification and dependency-ordered delivery checklist; distinguish closed product decisions from measurement and external-approval release gates.
+- [Measure representative scan performance and set resource-budget defaults](issues/17-measure-scan-resource-budgets.md) — Use measured internal defaults of 256 MiB resident memory, 2 GiB private spill, four workers, 16,384 chain steps, and 256 MiB decoded input while keeping host/distribution confirmation as release gates rather than universal SLOs.
 
 ## Not yet specified
 
-- Numeric production resource defaults remain measurement-gated by ticket 17; the benchmark procedure is fixed, but the required immutable representative corpus is not yet installed.
+None.
 
 ## Out of scope
 
