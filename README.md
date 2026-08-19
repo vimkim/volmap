@@ -8,7 +8,8 @@ payloads or raw page bytes.
 The implementation is under active development. Plaintext fast scans, volume
 and sector maps, explicit file allocation maps, slotted-page inspection
 (including role-gated E-hash buckets), OOS and `REC_BIGONE` overflow-chain
-validation, heap header/chain metadata, vacuum metadata, structural B-tree
+validation, heap header/chain metadata, caller-proven value-free heap object
+envelopes (including MVCC header structure), vacuum metadata, structural B-tree
 root/node/OID-overflow metadata, validated catalog directory/class/representation
 metadata, terminal browsing,
 deterministic HTML export, and the authenticated web viewer are usable. TDE

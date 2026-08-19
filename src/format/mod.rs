@@ -114,7 +114,7 @@ pub use file_table::{
     decode_tracker_items, decode_user_pages,
 };
 pub use heap::{
-    HeapChainFact, HeapHeaderFact, HeapPageFact, decode_bigone_target, decode_heap_page,
-    decode_relocation_target,
+    HeapChainFact, HeapHeaderFact, HeapPageFact, HeapRecordEnvelopeFact, decode_bigone_target,
+    decode_heap_page, decode_heap_record_envelope, decode_relocation_target,
 };
 pub use overflow::{OverflowPageFact, decode_overflow_continuation, decode_overflow_head};
