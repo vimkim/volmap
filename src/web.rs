@@ -25,7 +25,7 @@ use subtle::ConstantTimeEq;
 use tokio::net::TcpListener;
 use tokio::sync::{Mutex, Semaphore};
 
-use crate::inspection::{CancelToken, GraphView, QueryError, ResourcePolicy};
+use crate::inspection::{CancelToken, DiagnosticRecord, GraphView, QueryError, ResourcePolicy};
 use crate::model::{FileId, Oid, PageId, SectorId, SlotId, Vfid, VolId, Vpid};
 use crate::projection::{
     CoverageProjection, DeepPageProjection, DiagnosticProjection, OosChainProjection,
@@ -407,7 +407,7 @@ async fn session(State(state): State<WebState>) -> Response {
         Ok(value) => value,
         Err(error) => return error_response(error.status, error.code),
     };
-    let overview = view.overview();
+    let overview = projected_overview(&state, &view);
     Json(api_envelope(
         &overview,
         SessionProjection {
@@ -455,6 +455,40 @@ fn revision_view(state: &WebState, snapshot: &str, revision: u64) -> Result<Grap
     Ok(view)
 }
 
+fn projected_overview(state: &WebState, view: &GraphView) -> crate::inspection::OverviewView {
+    let mut overview = view.overview();
+    let terminally_invalidated = state.session.read().map_or(true, |session| {
+        session.views.get(&session.latest).is_some_and(|latest| {
+            latest.overview().validity == crate::model::SnapshotValidity::Invalidated
+        })
+    });
+    apply_terminal_invalidation(&mut overview, terminally_invalidated);
+    overview
+}
+
+fn apply_terminal_invalidation(
+    overview: &mut crate::inspection::OverviewView,
+    terminally_invalidated: bool,
+) {
+    if terminally_invalidated && overview.validity != crate::model::SnapshotValidity::Invalidated {
+        overview.validity = crate::model::SnapshotValidity::Invalidated;
+        overview.outcome = crate::diagnostics::InspectionOutcome::Fatal;
+        if !overview
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "snapshot.modified")
+        {
+            overview.diagnostics.push(DiagnosticRecord {
+                code: "snapshot.modified",
+                severity: "fatal",
+                message: "The source changed after this revision was published; retained facts are diagnostic-only.",
+                subject: "snapshot".to_owned(),
+                rule: "snapshot.file_stamp.stable",
+            });
+        }
+    }
+}
+
 async fn overview(
     State(state): State<WebState>,
     Path((snapshot, revision)): Path<(String, u64)>,
@@ -463,7 +497,7 @@ async fn overview(
         Ok(value) => value,
         Err(error) => return error_response(error.status, error.code),
     };
-    let canonical = view.overview();
+    let canonical = projected_overview(&state, &view);
     Json(api_envelope(&canonical, summary_projection(&canonical))).into_response()
 }
 
@@ -475,7 +509,7 @@ async fn volumes(
         Ok(value) => value,
         Err(error) => return error_response(error.status, error.code),
     };
-    let overview = view.overview();
+    let overview = projected_overview(&state, &view);
     let data: Vec<VolumeProjection> = view.volumes().into_iter().map(volume_projection).collect();
     Json(api_envelope(&overview, data)).into_response()
 }
@@ -505,7 +539,7 @@ async fn file(
     else {
         return error_response(StatusCode::NOT_FOUND, "entity-not-found");
     };
-    let overview = view.overview();
+    let overview = projected_overview(&state, &view);
     Json(api_envelope(&overview, file_header_projection(header))).into_response()
 }
 
@@ -517,7 +551,7 @@ async fn sector(
         Ok(value) => value,
         Err(error) => return error_response(error.status, error.code),
     };
-    let overview = view.overview();
+    let overview = projected_overview(&state, &view);
     let result = VolId::new(vol)
         .ok()
         .zip(SectorId::new(sector).ok())
@@ -537,7 +571,7 @@ async fn page(
         Ok(value) => value,
         Err(error) => return error_response(error.status, error.code),
     };
-    let overview = view.overview();
+    let overview = projected_overview(&state, &view);
     let result = VolId::new(vol)
         .ok()
         .and_then(|vol_id| {
@@ -591,7 +625,7 @@ async fn slot(
     let (Ok(page), Some(selected)) = (view.page(vpid), selected) else {
         return error_response(StatusCode::NOT_FOUND, "entity-not-found");
     };
-    let overview = view.overview();
+    let overview = projected_overview(&state, &view);
     Json(api_envelope(
         &overview,
         SlotResourceProjection {
@@ -624,7 +658,7 @@ async fn oos(
     let Some(chain) = view.oos_chain(oid) else {
         return error_response(StatusCode::NOT_FOUND, "entity-not-found");
     };
-    let overview = view.overview();
+    let overview = projected_overview(&state, &view);
     Json(api_envelope(
         &overview,
         OosResourceProjection {
@@ -786,7 +820,7 @@ async fn job(State(state): State<WebState>, Path(job): Path<u64>) -> Response {
     let Some(view) = view else {
         return error_response(StatusCode::NOT_FOUND, "job-not-found");
     };
-    let overview = view.overview();
+    let overview = projected_overview(&state, &view);
     Json(api_envelope(
         &overview,
         EnrichmentProjection {
@@ -1256,5 +1290,47 @@ mod tests {
         assert!(!APP_JS.contains("&token="));
         assert!(APP_JS.contains("Authorization:`Bearer ${token}`"));
         assert!(INDEX_HTML.contains("remains only in this page's memory"));
+    }
+
+    #[test]
+    fn terminal_invalidation_overlays_old_revision_facts_once() {
+        let mut overview = crate::inspection::OverviewView {
+            snapshot_id: crate::model::SnapshotId::from_bytes([7; 16]),
+            revision: crate::model::InspectionRevision::new(0),
+            validity: crate::model::SnapshotValidity::Valid,
+            format_profile: "test",
+            input_kind: "test",
+            outcome: crate::diagnostics::InspectionOutcome::SuccessLimited,
+            volume_count: 1,
+            sector_count: 1,
+            reserved_sector_count: 1,
+            physical_page_count: 64,
+            inspected_page_envelopes: 64,
+            page_type_counts: Vec::new(),
+            tde_opaque_pages: 0,
+            coverage: Vec::new(),
+            diagnostics: Vec::new(),
+        };
+        apply_terminal_invalidation(&mut overview, false);
+        assert_eq!(overview.validity, crate::model::SnapshotValidity::Valid);
+
+        apply_terminal_invalidation(&mut overview, true);
+        apply_terminal_invalidation(&mut overview, true);
+        assert_eq!(
+            overview.validity,
+            crate::model::SnapshotValidity::Invalidated
+        );
+        assert_eq!(
+            overview.outcome,
+            crate::diagnostics::InspectionOutcome::Fatal
+        );
+        assert_eq!(
+            overview
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic.code == "snapshot.modified")
+                .count(),
+            1
+        );
     }
 }

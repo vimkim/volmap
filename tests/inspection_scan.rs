@@ -483,6 +483,53 @@ fn html_export_is_deterministic_private_atomic_and_path_free() {
 }
 
 #[test]
+fn source_mutation_terminally_invalidates_new_work_without_rewriting_old_view() {
+    let (_directory, volume, vinf) = fixture();
+    let request = OpenRequest {
+        input: InputSpec::Vinf {
+            path: vinf,
+            volume_root: None,
+        },
+        tde_keys_file: None,
+        spill_directory: None,
+    };
+    let inspection =
+        Inspection::open(&request, policy(4 * 1024 * 1024), &CancelToken::new(), None).unwrap();
+    let original = inspection.view(RevisionSelector::Latest).unwrap();
+    let target = Vpid::new(VolId::new(0).unwrap(), PageId::new(10).unwrap());
+
+    let file = OpenOptions::new().write(true).open(&volume).unwrap();
+    file.write_all_at(b"changed!", u64::try_from(IO_PAGE_SIZE).unwrap() * 10 + 64)
+        .unwrap();
+    file.sync_all().unwrap();
+    assert!(!inspection.verify_snapshot().unwrap());
+
+    let invalidated = original
+        .enrich_page(target, policy(4 * 1024 * 1024), &CancelToken::new())
+        .unwrap();
+    assert_eq!(invalidated.overview().revision.get(), 1);
+    assert_eq!(
+        invalidated.overview().validity,
+        volmap::model::SnapshotValidity::Invalidated
+    );
+    assert_eq!(invalidated.overview().outcome, InspectionOutcome::Fatal);
+    assert!(
+        invalidated
+            .overview()
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "snapshot.modified")
+    );
+    assert!(invalidated.deep_page(target).is_none());
+
+    assert_eq!(original.overview().revision.get(), 0);
+    assert_eq!(
+        original.overview().validity,
+        volmap::model::SnapshotValidity::Valid
+    );
+}
+
+#[test]
 fn deep_page_enrichment_publishes_a_new_revision_without_rewriting_the_old_view() {
     let (_directory, _volume, vinf) = fixture();
     let request = OpenRequest {
