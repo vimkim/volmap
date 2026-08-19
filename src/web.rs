@@ -11,8 +11,8 @@ use std::sync::{Arc, RwLock};
 use axum::Json;
 use axum::Router;
 use axum::extract::DefaultBodyLimit;
-use axum::extract::rejection::JsonRejection;
-use axum::extract::{Path, Request, State};
+use axum::extract::rejection::{JsonRejection, QueryRejection};
+use axum::extract::{Path, Query, Request, State};
 use axum::http::header::{
     AUTHORIZATION, CACHE_CONTROL, CONTENT_SECURITY_POLICY, CONTENT_TYPE, HOST, ORIGIN,
 };
@@ -21,6 +21,7 @@ use axum::middleware::{Next, from_fn_with_state};
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{get, post};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use subtle::ConstantTimeEq;
 use tokio::net::TcpListener;
 use tokio::sync::{Mutex, Semaphore};
@@ -30,9 +31,9 @@ use crate::model::{FileId, Oid, PageId, SectorId, SlotId, Vfid, VolId, Vpid};
 use crate::projection::{
     CoverageProjection, DeepPageProjection, DiagnosticProjection, OosChainProjection,
     PageProjection, SCHEMA_NAME, SCHEMA_VERSION, SlotProjection, SnapshotProjection,
-    VolumeProjection, coverage_projection, deep_page_projection, diagnostic_projection,
-    file_header_projection, oos_chain_projection, outcome_name, page_projection, sector_projection,
-    slot_projection, snapshot_id_hex, summary_projection, volume_projection,
+    coverage_projection, deep_page_projection, diagnostic_projection, file_header_projection,
+    oos_chain_projection, outcome_name, page_projection, sector_projection, slot_projection,
+    snapshot_id_hex, summary_projection, volume_projection,
 };
 
 const MAX_URI_BYTES: usize = 8192;
@@ -40,6 +41,8 @@ const MAX_HEADER_BYTES: usize = 32 * 1024;
 const MAX_HEADER_FIELDS: usize = 64;
 const MAX_JSON_BYTES: usize = 64 * 1024;
 const MAX_CONCURRENT_REQUESTS: usize = 32;
+const DEFAULT_COLLECTION_LIMIT: usize = 100;
+const MAX_COLLECTION_LIMIT: usize = 512;
 
 #[derive(Clone, Debug)]
 pub struct ServeOptions {
@@ -148,7 +151,21 @@ async fn serve_async(view: GraphView, options: ServeOptions) -> Result<(), Serve
         origin: Arc::from(origin.origin.as_str()),
         semaphore: Arc::new(Semaphore::new(MAX_CONCURRENT_REQUESTS)),
     };
-    let router = Router::new()
+    let router = build_router(state);
+    eprintln!("Volmap web origin: {}", origin.origin);
+    if !options.listen.ip().is_loopback() {
+        eprintln!(
+            "WARNING: plain HTTP on a non-loopback listener; bearer authentication does not provide transport confidentiality or integrity. Use only on a trusted internal network, SSH, VPN, or a trusted TLS proxy."
+        );
+    }
+    axum::serve(listener, router)
+        .with_graceful_shutdown(shutdown_signal())
+        .await
+        .map_err(|error| ServeError::Runtime(error.to_string()))
+}
+
+fn build_router(state: WebState) -> Router {
+    Router::new()
         .route("/", get(index))
         .route("/app.css", get(css))
         .route("/app.js", get(javascript))
@@ -171,6 +188,15 @@ async fn serve_async(view: GraphView, options: ServeOptions) -> Result<(), Serve
         .route("/api/v1/licenses", get(licenses))
         .route("/api/v1/s/{snapshot}/r/{revision}/overview", get(overview))
         .route("/api/v1/s/{snapshot}/r/{revision}/volumes", get(volumes))
+        .route(
+            "/api/v1/s/{snapshot}/r/{revision}/relationships",
+            get(relationships),
+        )
+        .route(
+            "/api/v1/s/{snapshot}/r/{revision}/diagnostics",
+            get(diagnostics),
+        )
+        .route("/api/v1/s/{snapshot}/r/{revision}/coverage", get(coverage))
         .route(
             "/api/v1/s/{snapshot}/r/{revision}/file/{vol}/{file}",
             get(file),
@@ -196,19 +222,10 @@ async fn serve_async(view: GraphView, options: ServeOptions) -> Result<(), Serve
             post(enrich),
         )
         .route("/api/v1/jobs/{job}", get(job))
+        .fallback(not_found)
         .with_state(state.clone())
         .layer(DefaultBodyLimit::max(MAX_JSON_BYTES))
-        .layer(from_fn_with_state(state, request_guard));
-    eprintln!("Volmap web origin: {}", origin.origin);
-    if !options.listen.ip().is_loopback() {
-        eprintln!(
-            "WARNING: plain HTTP on a non-loopback listener; bearer authentication does not provide transport confidentiality or integrity. Use only on a trusted internal network, SSH, VPN, or a trusted TLS proxy."
-        );
-    }
-    axum::serve(listener, router)
-        .with_graceful_shutdown(shutdown_signal())
-        .await
-        .map_err(|error| ServeError::Runtime(error.to_string()))
+        .layer(from_fn_with_state(state, request_guard))
 }
 
 async fn shutdown_signal() {
@@ -296,6 +313,21 @@ fn guard(state: &WebState, request: &Request) -> Result<(), GuardError> {
             });
         }
     }
+    let enrichment_post = request.uri().path().ends_with("/enrichments");
+    let method_allowed = if enrichment_post {
+        request.method() == axum::http::Method::POST
+    } else {
+        matches!(
+            *request.method(),
+            axum::http::Method::GET | axum::http::Method::HEAD
+        )
+    };
+    if !method_allowed {
+        return Err(GuardError {
+            status: StatusCode::METHOD_NOT_ALLOWED,
+            code: "method-not-allowed",
+        });
+    }
     if request.method() == axum::http::Method::POST {
         let content_type = request.headers().get_all(CONTENT_TYPE);
         let mut content_types = content_type.iter();
@@ -373,6 +405,10 @@ async fn javascript() -> impl IntoResponse {
         )],
         APP_JS,
     )
+}
+
+async fn not_found() -> Response {
+    error_response(StatusCode::NOT_FOUND, "resource-not-found")
 }
 
 #[derive(Serialize)]
@@ -504,14 +540,247 @@ async fn overview(
 async fn volumes(
     State(state): State<WebState>,
     Path((snapshot, revision)): Path<(String, u64)>,
+    query: Result<Query<CollectionQuery>, QueryRejection>,
 ) -> Response {
     let view = match revision_view(&state, &snapshot, revision) {
         Ok(value) => value,
         Err(error) => return error_response(error.status, error.code),
     };
     let overview = projected_overview(&state, &view);
-    let data: Vec<VolumeProjection> = view.volumes().into_iter().map(volume_projection).collect();
-    Json(api_envelope(&overview, data)).into_response()
+    let data = view.volumes().into_iter().map(volume_projection).collect();
+    collection_response(&state, &overview, "volumes", query, data)
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CollectionQuery {
+    cursor: Option<String>,
+    limit: Option<usize>,
+}
+
+#[derive(Serialize)]
+struct CollectionProjection<T: Serialize> {
+    items: Vec<T>,
+    next_cursor: NextCursorProjection,
+}
+
+#[derive(Serialize)]
+#[serde(tag = "state", rename_all = "kebab-case")]
+enum NextCursorProjection {
+    Present { value: String },
+    End,
+}
+
+#[derive(Serialize)]
+#[serde(tag = "kind", rename_all = "kebab-case")]
+enum RelationshipProjection {
+    OosChain {
+        chain: OosChainProjection,
+    },
+    OverflowChain {
+        chain: crate::projection::OverflowChainProjection,
+    },
+    RelocationEdge {
+        edge: crate::projection::RelocationEdgeProjection,
+    },
+}
+
+async fn relationships(
+    State(state): State<WebState>,
+    Path((snapshot, revision)): Path<(String, u64)>,
+    query: Result<Query<CollectionQuery>, QueryRejection>,
+) -> Response {
+    let view = match revision_view(&state, &snapshot, revision) {
+        Ok(value) => value,
+        Err(error) => return error_response(error.status, error.code),
+    };
+    let overview = projected_overview(&state, &view);
+    let mut data = view
+        .oos_chains()
+        .into_iter()
+        .map(|chain| RelationshipProjection::OosChain {
+            chain: oos_chain_projection(chain),
+        })
+        .collect::<Vec<_>>();
+    data.extend(view.overflow_chains().into_iter().map(|chain| {
+        RelationshipProjection::OverflowChain {
+            chain: crate::projection::overflow_chain_projection(chain),
+        }
+    }));
+    data.extend(view.relocation_edges().into_iter().map(|edge| {
+        RelationshipProjection::RelocationEdge {
+            edge: crate::projection::relocation_edge_projection(edge),
+        }
+    }));
+    collection_response(&state, &overview, "relationships", query, data)
+}
+
+async fn diagnostics(
+    State(state): State<WebState>,
+    Path((snapshot, revision)): Path<(String, u64)>,
+    query: Result<Query<CollectionQuery>, QueryRejection>,
+) -> Response {
+    let view = match revision_view(&state, &snapshot, revision) {
+        Ok(value) => value,
+        Err(error) => return error_response(error.status, error.code),
+    };
+    let overview = projected_overview(&state, &view);
+    let data = overview
+        .diagnostics
+        .iter()
+        .cloned()
+        .map(diagnostic_projection)
+        .collect();
+    collection_response(&state, &overview, "diagnostics", query, data)
+}
+
+async fn coverage(
+    State(state): State<WebState>,
+    Path((snapshot, revision)): Path<(String, u64)>,
+    query: Result<Query<CollectionQuery>, QueryRejection>,
+) -> Response {
+    let view = match revision_view(&state, &snapshot, revision) {
+        Ok(value) => value,
+        Err(error) => return error_response(error.status, error.code),
+    };
+    let overview = projected_overview(&state, &view);
+    let data = overview
+        .coverage
+        .iter()
+        .copied()
+        .map(coverage_projection)
+        .collect();
+    collection_response(&state, &overview, "coverage", query, data)
+}
+
+fn collection_response<T: Serialize>(
+    state: &WebState,
+    overview: &crate::inspection::OverviewView,
+    kind: &'static str,
+    query: Result<Query<CollectionQuery>, QueryRejection>,
+    items: Vec<T>,
+) -> Response {
+    let Ok(Query(query)) = query else {
+        return error_response(StatusCode::BAD_REQUEST, "invalid-collection-query");
+    };
+    let limit = query.limit.unwrap_or(DEFAULT_COLLECTION_LIMIT);
+    if limit == 0 || limit > MAX_COLLECTION_LIMIT {
+        return error_response(StatusCode::BAD_REQUEST, "invalid-collection-limit");
+    }
+    let offset = match query.cursor {
+        Some(cursor) => match decode_cursor(state, overview, kind, &cursor) {
+            Some(value) => value,
+            None => return error_response(StatusCode::BAD_REQUEST, "invalid-cursor"),
+        },
+        None => 0,
+    };
+    if offset > items.len() {
+        return error_response(StatusCode::BAD_REQUEST, "invalid-cursor");
+    }
+    let total = items.len();
+    let end = offset.saturating_add(limit).min(total);
+    let page = items.into_iter().skip(offset).take(end - offset).collect();
+    let next_cursor = if end < total {
+        NextCursorProjection::Present {
+            value: encode_cursor(state, overview, kind, end),
+        }
+    } else {
+        NextCursorProjection::End
+    };
+    Json(api_envelope(
+        overview,
+        CollectionProjection {
+            items: page,
+            next_cursor,
+        },
+    ))
+    .into_response()
+}
+
+fn encode_cursor(
+    state: &WebState,
+    overview: &crate::inspection::OverviewView,
+    kind: &str,
+    offset: usize,
+) -> String {
+    let payload = u64::try_from(offset).unwrap_or(u64::MAX).to_le_bytes();
+    let mac = cursor_mac(state, overview, kind, &payload);
+    hex_encode(&payload.into_iter().chain(mac).collect::<Vec<_>>())
+}
+
+fn decode_cursor(
+    state: &WebState,
+    overview: &crate::inspection::OverviewView,
+    kind: &str,
+    cursor: &str,
+) -> Option<usize> {
+    let bytes = hex_decode(cursor)?;
+    let (payload, supplied_mac) = bytes.split_at_checked(8)?;
+    if supplied_mac.len() != 32 {
+        return None;
+    }
+    let expected_mac = cursor_mac(state, overview, kind, payload);
+    if !bool::from(supplied_mac.ct_eq(expected_mac.as_slice())) {
+        return None;
+    }
+    let offset = u64::from_le_bytes(payload.try_into().ok()?);
+    usize::try_from(offset).ok()
+}
+
+fn cursor_mac(
+    state: &WebState,
+    overview: &crate::inspection::OverviewView,
+    kind: &str,
+    payload: &[u8],
+) -> [u8; 32] {
+    let mut key = [0_u8; 64];
+    if state.token_header.len() > key.len() {
+        key[..32].copy_from_slice(&Sha256::digest(state.token_header.as_ref()));
+    } else {
+        key[..state.token_header.len()].copy_from_slice(state.token_header.as_ref());
+    }
+    let mut inner_pad = [0x36_u8; 64];
+    let mut outer_pad = [0x5c_u8; 64];
+    for ((inner, outer), key_byte) in inner_pad.iter_mut().zip(outer_pad.iter_mut()).zip(key) {
+        *inner ^= key_byte;
+        *outer ^= key_byte;
+    }
+    let mut inner = Sha256::new();
+    inner.update(inner_pad);
+    inner.update(b"volmap.cursor.v1\0");
+    inner.update(kind.as_bytes());
+    inner.update([0]);
+    inner.update(snapshot_id_hex(overview.snapshot_id).as_bytes());
+    inner.update(overview.revision.get().to_le_bytes());
+    inner.update(payload);
+    let inner = inner.finalize();
+    let mut outer = Sha256::new();
+    outer.update(outer_pad);
+    outer.update(inner);
+    outer.finalize().into()
+}
+
+fn hex_encode(bytes: &[u8]) -> String {
+    let mut output = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        use std::fmt::Write as _;
+        write!(&mut output, "{byte:02x}").expect("writing to a string cannot fail");
+    }
+    output
+}
+
+fn hex_decode(value: &str) -> Option<Vec<u8>> {
+    if value.len() != 80 || !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return None;
+    }
+    value
+        .as_bytes()
+        .chunks_exact(2)
+        .map(|digits| {
+            let digits = std::str::from_utf8(digits).ok()?;
+            u8::from_str_radix(digits, 16).ok()
+        })
+        .collect()
 }
 
 async fn file(
@@ -1061,7 +1330,7 @@ async function api(path,options={}){const headers={Authorization:`Bearer ${token
 function base(){return `/api/v1/s/${session.snapshot.id}/r/${session.snapshot.revision}`}
 function updateSession(payload){session.snapshot=payload.snapshot;session.outcome=payload.outcome;$('outcome').textContent=payload.outcome;$('crumb').textContent=`snapshot ${payload.snapshot.id.slice(0,12)} · revision ${payload.snapshot.revision}`}
 async function unlock(event){event.preventDefault();token=$('token').value;$('token').value='';try{session=await api('/api/v1/session');$('unlock').hidden=true;$('app').hidden=false;$('licenses').hidden=false;updateSession(session);await loadVolumes()}catch(error){token='';$('unlockError').textContent=error.message}}
-async function loadVolumes(){const payload=await api(`${base()}/volumes`),root=$('volumes');root.replaceChildren();payload.data.forEach((volume,index)=>{const node=button(`volume ${volume.vol_id} · ${volume.total_sectors} sectors`,()=>selectVolume(volume),'nav');node.dataset.volume=String(volume.vol_id);root.append(node);if(index===0)selectVolume(volume)})}
+async function loadVolumes(){const payload=await api(`${base()}/volumes`),root=$('volumes');root.replaceChildren();payload.data.items.forEach((volume,index)=>{const node=button(`volume ${volume.vol_id} · ${volume.total_sectors} sectors`,()=>selectVolume(volume),'nav');node.dataset.volume=String(volume.vol_id);root.append(node);if(index===0)selectVolume(volume)})}
 async function selectVolume(volume){currentVolume=volume;currentSector=0;document.querySelectorAll('#volumes .nav').forEach(node=>node.classList.toggle('active',node.dataset.volume===String(volume.vol_id)));renderSectorWindow();await loadSector()}
 function renderSectorWindow(){const root=$('sectors');root.replaceChildren();const start=Math.max(0,currentSector-4),end=Math.min(currentVolume.total_sectors,start+10);for(let sector=start;sector<end;sector++){root.append(button(`sector ${sector}`,async()=>{currentSector=sector;renderSectorWindow();await loadSector()},`nav ${sector===currentSector?'active':''}`))}}
 async function loadSector(){const payload=await api(`${base()}/sector/${currentVolume.vol_id}/${currentSector}`);$('sectorTitle').textContent=`Sector ${currentSector}`;$('sectorNote').textContent=payload.data.reserved?'reserved by volume bitmap':'unreserved';const grid=$('grid');grid.replaceChildren();payload.data.pages.forEach((page,index)=>{const node=button(String(page.page_id),()=>loadPage(page.page_id),`page ${page.allocation}${page.diagnostic.state==='known'?' finding':''}${page.page_id===selectedPage?' selected':''}`);node.setAttribute('role','gridcell');node.dataset.index=String(index);const small=document.createElement('small');small.textContent=page.page_type.state==='known'?page.page_type.value:'not inspected';node.append(small);node.onkeydown=event=>moveGrid(event,index);grid.append(node)})}
@@ -1203,6 +1472,19 @@ mod tests {
     }
 
     #[test]
+    fn unsupported_methods_are_rejected_before_routing() {
+        let state = state();
+        let request = authenticated(Method::POST, "/api/v1/session");
+        let error = guard(&state, &request).unwrap_err();
+        assert_eq!(error.status, StatusCode::METHOD_NOT_ALLOWED);
+        assert_eq!(error.code, "method-not-allowed");
+
+        let request = authenticated(Method::GET, "/api/v1/s/id/r/0/enrichments");
+        let error = guard(&state, &request).unwrap_err();
+        assert_eq!(error.status, StatusCode::METHOD_NOT_ALLOWED);
+    }
+
+    #[test]
     fn request_bounds_and_security_headers_fail_closed() {
         let state = state();
         let long_uri = format!("/{}", "x".repeat(MAX_URI_BYTES));
@@ -1293,8 +1575,95 @@ mod tests {
     }
 
     #[test]
-    fn terminal_invalidation_overlays_old_revision_facts_once() {
-        let mut overview = crate::inspection::OverviewView {
+    fn collection_cursor_is_opaque_authenticated_and_revision_bound() {
+        let state = state();
+        let mut overview = test_overview();
+        let cursor = encode_cursor(&state, &overview, "volumes", 100);
+
+        assert_eq!(cursor.len(), 80);
+        assert_eq!(
+            decode_cursor(&state, &overview, "volumes", &cursor),
+            Some(100)
+        );
+        assert_eq!(decode_cursor(&state, &overview, "coverage", &cursor), None);
+
+        overview.revision = crate::model::InspectionRevision::new(1);
+        assert_eq!(decode_cursor(&state, &overview, "volumes", &cursor), None);
+
+        let mut tampered = cursor.into_bytes();
+        tampered[0] = if tampered[0] == b'0' { b'1' } else { b'0' };
+        let tampered = String::from_utf8(tampered).unwrap();
+        assert_eq!(
+            decode_cursor(&state, &test_overview(), "volumes", &tampered),
+            None
+        );
+        assert_eq!(DEFAULT_COLLECTION_LIMIT, 100);
+        assert_eq!(MAX_COLLECTION_LIMIT, 512);
+    }
+
+    #[test]
+    fn collection_projection_enforces_limits_and_continuation() {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        runtime.block_on(async {
+            let state = state();
+            let overview = test_overview();
+            let response = collection_response(
+                &state,
+                &overview,
+                "test",
+                Ok(Query(CollectionQuery {
+                    cursor: None,
+                    limit: None,
+                })),
+                (0_u16..101).collect(),
+            );
+            assert_eq!(response.status(), StatusCode::OK);
+            let bytes = axum::body::to_bytes(response.into_body(), 64 * 1024)
+                .await
+                .unwrap();
+            let document: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+            assert_eq!(document["data"]["items"].as_array().unwrap().len(), 100);
+            let cursor = document["data"]["next_cursor"]["value"]
+                .as_str()
+                .unwrap()
+                .to_owned();
+
+            let response = collection_response(
+                &state,
+                &overview,
+                "test",
+                Ok(Query(CollectionQuery {
+                    cursor: Some(cursor),
+                    limit: None,
+                })),
+                (0_u16..101).collect(),
+            );
+            let bytes = axum::body::to_bytes(response.into_body(), 64 * 1024)
+                .await
+                .unwrap();
+            let document: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+            assert_eq!(document["data"]["items"].as_array().unwrap().len(), 1);
+            assert_eq!(document["data"]["next_cursor"]["state"], "end");
+
+            let response = collection_response(
+                &state,
+                &overview,
+                "test",
+                Ok(Query(CollectionQuery {
+                    cursor: None,
+                    limit: Some(MAX_COLLECTION_LIMIT + 1),
+                })),
+                Vec::<u8>::new(),
+            );
+            assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        });
+    }
+
+    fn test_overview() -> crate::inspection::OverviewView {
+        crate::inspection::OverviewView {
             snapshot_id: crate::model::SnapshotId::from_bytes([7; 16]),
             revision: crate::model::InspectionRevision::new(0),
             validity: crate::model::SnapshotValidity::Valid,
@@ -1310,7 +1679,12 @@ mod tests {
             tde_opaque_pages: 0,
             coverage: Vec::new(),
             diagnostics: Vec::new(),
-        };
+        }
+    }
+
+    #[test]
+    fn terminal_invalidation_overlays_old_revision_facts_once() {
+        let mut overview = test_overview();
         apply_terminal_invalidation(&mut overview, false);
         assert_eq!(overview.validity, crate::model::SnapshotValidity::Valid);
 
