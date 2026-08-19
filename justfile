@@ -67,3 +67,7 @@ release-artifacts:
 # Run the clean-commit offline reproducibility and supply-chain audit.
 release-audit:
     release/check.sh
+
+# Run the deterministic full resource matrix; emits one JSON object per result.
+resource-benchmark samples="30":
+    VOLMAP_BENCH_SCALE=full VOLMAP_BENCH_SAMPLES={{samples}} cargo test --release --locked --offline --test resource_benchmark -- --ignored --nocapture

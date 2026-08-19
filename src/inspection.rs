@@ -245,6 +245,21 @@ pub struct OverviewView {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct FastScanResources {
+    pub memory_limit: u64,
+    pub spill_limit: u64,
+    pub requested_workers: u32,
+    pub admitted_workers: u32,
+    pub max_chain_steps: u64,
+    pub max_decoded_bytes: u64,
+    pub admitted_resident_bytes: u64,
+    pub spill_bytes: u64,
+    pub packed_fact_bytes: u64,
+    pub envelope_read_attempts: u64,
+    pub envelope_requested_bytes: u64,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct PageFastFact {
     page_id: PageId,
     page_type: Option<PageType>,
@@ -849,6 +864,7 @@ struct SessionData {
     coverage: Vec<CoverageRecord>,
     diagnostics: Vec<DiagnosticRecord>,
     fast_summary: PageFactSummary,
+    fast_scan_resources: FastScanResources,
     page_overrides: BTreeMap<Vpid, PageFastFact>,
     deep_pages: BTreeMap<Vpid, DeepPageFact>,
     file_allocations: BTreeMap<Vpid, Vfid>,
@@ -1252,6 +1268,7 @@ impl Inspection {
             .ok_or(OpenFailure::Arithmetic)?;
         let wave_capacity_u64 =
             u64::try_from(wave_capacity).map_err(|_| OpenFailure::Arithmetic)?;
+        let mut envelope_read_attempts = 0_u64;
         'volume_scan: for (volume_index, source) in sources.volumes().iter().enumerate() {
             let Some(volume) = volumes.get_mut(volume_index) else {
                 return Err(OpenFailure::Arithmetic);
@@ -1293,6 +1310,11 @@ impl Inspection {
                     };
                     page_ids.push(page_id);
                 }
+                envelope_read_attempts = envelope_read_attempts
+                    .checked_add(
+                        u64::try_from(page_ids.len()).map_err(|_| OpenFailure::Arithmetic)?,
+                    )
+                    .ok_or(OpenFailure::Arithmetic)?;
                 let scanned = thread::scope(|scope| {
                     let handles = page_ids
                         .chunks(WORKER_PAGE_BATCH)
@@ -1467,6 +1489,24 @@ impl Inspection {
         let digest = hasher.finalize();
         let mut snapshot_bytes = [0_u8; 16];
         snapshot_bytes.copy_from_slice(&digest[..16]);
+        let fast_scan_resources = FastScanResources {
+            memory_limit: policy.memory_limit,
+            spill_limit: policy.spill_limit,
+            requested_workers: policy.workers,
+            admitted_workers: u32::try_from(worker_count).map_err(|_| OpenFailure::Arithmetic)?,
+            max_chain_steps: policy.max_chain_steps,
+            max_decoded_bytes: policy.max_decoded_bytes,
+            admitted_resident_bytes: resident_used,
+            spill_bytes: spill_used,
+            packed_fact_bytes: fast_summary
+                .inspected
+                .checked_mul(PACKED_PAGE_FACT_SIZE)
+                .ok_or(OpenFailure::Arithmetic)?,
+            envelope_read_attempts,
+            envelope_requested_bytes: envelope_read_attempts
+                .checked_mul(40)
+                .ok_or(OpenFailure::Arithmetic)?,
+        };
         report(&mut progress, ScanPhase::Reconciliation, 1, Some(1));
         Ok(Self {
             data: Arc::new(SessionData {
@@ -1480,6 +1520,7 @@ impl Inspection {
                 coverage,
                 diagnostics,
                 fast_summary,
+                fast_scan_resources,
                 page_overrides: BTreeMap::new(),
                 deep_pages: BTreeMap::new(),
                 file_allocations: BTreeMap::new(),
@@ -1513,6 +1554,11 @@ impl Inspection {
 }
 
 impl GraphView {
+    #[must_use]
+    pub fn fast_scan_resources(&self) -> FastScanResources {
+        self.data.fast_scan_resources
+    }
+
     #[must_use]
     pub fn overview(&self) -> OverviewView {
         let sector_count = self

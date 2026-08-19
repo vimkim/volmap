@@ -253,6 +253,14 @@ fn packed_facts_spill_privately_and_preserve_the_graph_projection() {
     .unwrap();
 
     assert_eq!(spilled.overview(), resident.overview());
+    assert_eq!(resident.fast_scan_resources().packed_fact_bytes, 64 * 16);
+    assert_eq!(resident.fast_scan_resources().spill_bytes, 0);
+    assert_eq!(spilled.fast_scan_resources().spill_bytes, 64 * 16);
+    assert_eq!(spilled.fast_scan_resources().envelope_read_attempts, 64);
+    assert_eq!(
+        spilled.fast_scan_resources().envelope_requested_bytes,
+        64 * 40
+    );
     let heap = Vpid::new(VolId::new(0).unwrap(), PageId::new(10).unwrap());
     assert_eq!(spilled.page(heap).unwrap(), resident.page(heap).unwrap());
     assert_eq!(
@@ -323,6 +331,10 @@ fn worker_counts_merge_to_the_same_canonical_snapshot() {
     .unwrap();
 
     assert_eq!(parallel.overview(), serial.overview());
+    assert_eq!(serial.fast_scan_resources().requested_workers, 1);
+    assert_eq!(parallel.fast_scan_resources().requested_workers, 4);
+    assert_eq!(serial.fast_scan_resources().packed_fact_bytes, 64 * 16);
+    assert_eq!(parallel.fast_scan_resources().packed_fact_bytes, 64 * 16);
     assert_eq!(
         parallel
             .sector(VolId::new(0).unwrap(), SectorId::new(0).unwrap())
