@@ -166,6 +166,15 @@ fn inspection_opens_sparse_volume_and_scans_only_reserved_sector_envelopes() {
     assert_eq!(overview.inspected_page_envelopes, 64);
     assert_eq!(overview.reserved_sector_count, 1);
     assert!(overview.diagnostics.is_empty());
+    let file_inventory = overview
+        .coverage
+        .iter()
+        .find(|coverage| coverage.facet == "file-inventory")
+        .unwrap();
+    assert_eq!(file_inventory.coverage, volmap::model::Coverage::Complete);
+    assert_eq!(file_inventory.evaluated, 0);
+    assert_eq!(file_inventory.trusted_total, Some(0));
+    assert_eq!(file_inventory.stop_reason, None);
 
     let heap = view
         .page(Vpid::new(VolId::new(0).unwrap(), PageId::new(10).unwrap()))

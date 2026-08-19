@@ -1462,14 +1462,6 @@ impl Inspection {
                 stop_reason: None,
             },
             CoverageRecord {
-                facet: "file-inventory",
-                coverage: Coverage::NotRequested,
-                evaluated: 0,
-                conclusive: 0,
-                trusted_total: None,
-                stop_reason: Some("implementation-pending"),
-            },
-            CoverageRecord {
                 facet: "page-envelopes",
                 coverage: page_coverage,
                 evaluated,
@@ -1508,7 +1500,7 @@ impl Inspection {
                 .ok_or(OpenFailure::Arithmetic)?,
         };
         report(&mut progress, ScanPhase::Reconciliation, 1, Some(1));
-        Ok(Self {
+        let inspection = Self {
             data: Arc::new(SessionData {
                 sources,
                 tde_key,
@@ -1529,7 +1521,164 @@ impl Inspection {
                 overflow_chains: BTreeMap::new(),
                 relocation_edges: BTreeMap::new(),
             }),
-        })
+        };
+        inspection.bootstrap_file_inventory(policy, cancel)
+    }
+
+    #[allow(clippy::too_many_lines)]
+    fn bootstrap_file_inventory(
+        self,
+        policy: ResourcePolicy,
+        cancel: &CancelToken,
+    ) -> Result<Self, OpenFailure> {
+        let page_coverage = self
+            .data
+            .coverage
+            .iter()
+            .find(|coverage| coverage.facet == "page-envelopes")
+            .copied()
+            .ok_or(OpenFailure::FactStore)?;
+        if page_coverage.coverage != Coverage::Complete {
+            return Ok(self.with_initial_inventory_result(
+                Coverage::Partial,
+                0,
+                None,
+                page_coverage.stop_reason,
+                None,
+            ));
+        }
+
+        let mut has_file_table = false;
+        for volume in &self.data.volumes {
+            for index in 0..volume.pages.len() {
+                let fact = volume
+                    .pages
+                    .fact_at(index)
+                    .map_err(|_| OpenFailure::FactStore)?
+                    .ok_or(OpenFailure::FactStore)?;
+                has_file_table |= fact.page_type == Some(PageType::FileTable);
+            }
+        }
+        if !has_file_table {
+            return Ok(self.with_initial_inventory_result(
+                Coverage::Complete,
+                0,
+                Some(0),
+                None,
+                None,
+            ));
+        }
+
+        let base = GraphView {
+            data: Arc::clone(&self.data),
+        };
+        match base.enrich_file_inventory(policy, cancel) {
+            Ok(enriched) => {
+                let mut data = (*enriched.data).clone();
+                data.revision = InspectionRevision::new(0);
+                Ok(Self {
+                    data: Arc::new(data),
+                })
+            }
+            Err(OperationError::FactStore) => Err(OpenFailure::FactStore),
+            Err(OperationError::Arithmetic) => Err(OpenFailure::Arithmetic),
+            Err(OperationError::Interrupted) => Ok(self.with_initial_inventory_result(
+                Coverage::Partial,
+                0,
+                None,
+                Some("interrupted"),
+                Some(DiagnosticRecord {
+                    code: "inspection.interrupted",
+                    severity: "warning",
+                    message: "File inventory stopped after cancellation.",
+                    subject: "snapshot".to_owned(),
+                    rule: "inspection.cancellation.boundary",
+                }),
+            )),
+            Err(OperationError::ResourceLimit) => Ok(self.with_initial_inventory_result(
+                Coverage::Partial,
+                0,
+                None,
+                Some("resource-limit"),
+                Some(DiagnosticRecord {
+                    code: "inspection.resource_limit",
+                    severity: "warning",
+                    message: "File inventory exceeded the configured resource policy.",
+                    subject: "snapshot".to_owned(),
+                    rule: "inspection.resource_policy.file_inventory",
+                }),
+            )),
+            Err(OperationError::Unsupported) => Ok(self.with_initial_inventory_result(
+                Coverage::Partial,
+                0,
+                None,
+                Some("unsupported"),
+                Some(DiagnosticRecord {
+                    code: "file.inventory.unavailable",
+                    severity: "warning",
+                    message: "Authoritative file metadata is unavailable for structural inspection.",
+                    subject: "snapshot".to_owned(),
+                    rule: "file.tracker.required_metadata",
+                }),
+            )),
+            Err(OperationError::Source(_)) => Ok(self.with_initial_inventory_result(
+                Coverage::Partial,
+                0,
+                None,
+                Some("unreadable"),
+                Some(DiagnosticRecord {
+                    code: "input.volume_unreadable",
+                    severity: "error",
+                    message: "A volume could not be read completely during file inventory.",
+                    subject: "snapshot".to_owned(),
+                    rule: "source.positional_read.complete",
+                }),
+            )),
+            Err(OperationError::Structural(_)) => Ok(self.with_initial_inventory_result(
+                Coverage::Partial,
+                0,
+                None,
+                Some("structural"),
+                Some(DiagnosticRecord {
+                    code: "file.inventory.invalid",
+                    severity: "error",
+                    message: "Authoritative file metadata violates the pinned format.",
+                    subject: "snapshot".to_owned(),
+                    rule: "file.inventory.structural_validation",
+                }),
+            )),
+            Err(OperationError::RevisionNotFound | OperationError::Query(_)) => {
+                Err(OpenFailure::FactStore)
+            }
+        }
+    }
+
+    fn with_initial_inventory_result(
+        &self,
+        coverage: Coverage,
+        evaluated: u64,
+        trusted_total: Option<u64>,
+        stop_reason: Option<&'static str>,
+        diagnostic: Option<DiagnosticRecord>,
+    ) -> Self {
+        let mut data = (*self.data).clone();
+        data.coverage
+            .retain(|record| record.facet != "file-inventory");
+        data.coverage.push(CoverageRecord {
+            facet: "file-inventory",
+            coverage,
+            evaluated,
+            conclusive: evaluated,
+            trusted_total,
+            stop_reason,
+        });
+        if let Some(diagnostic) = diagnostic {
+            data.diagnostics.push(diagnostic);
+        }
+        data.outcome = classify_session_outcome(&data);
+        Self {
+            data: Arc::new(data),
+        }
     }
 
     pub fn view(&self, selector: RevisionSelector) -> Result<GraphView, OperationError> {

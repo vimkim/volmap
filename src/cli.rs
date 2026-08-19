@@ -672,11 +672,6 @@ fn open_view(
     let view = inspection
         .view(RevisionSelector::Latest)
         .map_err(|error| CliError::Internal(error.to_string()))?;
-    let view = match view.enrich_file_inventory(policy, &cancel) {
-        Ok(enriched) => enriched,
-        Err(crate::inspection::OperationError::Unsupported) => view,
-        Err(error) => return Err(CliError::OpenAdapter(error.to_string())),
-    };
     let overview = view.overview();
     Ok((view, overview))
 }

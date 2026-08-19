@@ -278,9 +278,21 @@ fn open_with_relocation(
     let view = Inspection::open(&request, policy(32), &CancelToken::new(), None)
         .unwrap()
         .view(RevisionSelector::Latest)
-        .unwrap()
+        .unwrap();
+    assert_eq!(view.overview().revision.get(), 0);
+    assert_eq!(
+        view.overview()
+            .coverage
+            .iter()
+            .find(|coverage| coverage.facet == "file-inventory")
+            .unwrap()
+            .coverage,
+        volmap::model::Coverage::Complete
+    );
+    let idempotent = view
         .enrich_file_inventory(policy(32), &CancelToken::new())
         .unwrap();
+    assert_eq!(idempotent.overview().revision.get(), 0);
     (directory, view)
 }
 
