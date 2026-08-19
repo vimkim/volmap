@@ -18,8 +18,9 @@ decryption is available from an explicit local key file and applies to every
 deep page read. The pinned source-derived acceptance corpus covers the current
 semantic page families. Fast page facts use an exact 16-byte canonical form and
 automatically move to private, unlinked spill storage under the resident-memory
-budget. Bounded worker execution, the remaining fixture matrix, and measured
-production resource defaults are still release gates.
+budget. Bounded envelope workers merge facts and findings back into canonical
+physical order. The remaining fixture matrix and measured production resource
+defaults are still release gates.
 
 ## Build
 

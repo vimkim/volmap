@@ -293,6 +293,47 @@ fn exhausted_spill_budget_publishes_an_explicit_partial_prefix() {
 }
 
 #[test]
+fn worker_counts_merge_to_the_same_canonical_snapshot() {
+    let (_directory, _volume, vinf) = fixture();
+    let request = OpenRequest {
+        input: InputSpec::Vinf {
+            path: vinf,
+            volume_root: None,
+        },
+        tde_keys_file: None,
+        spill_directory: None,
+    };
+    let serial = Inspection::open(
+        &request,
+        ResourcePolicy::new(4 * 1024 * 1024, 1024 * 1024, 1, 32, 1024 * 1024).unwrap(),
+        &CancelToken::new(),
+        None,
+    )
+    .unwrap()
+    .view(RevisionSelector::Latest)
+    .unwrap();
+    let parallel = Inspection::open(
+        &request,
+        ResourcePolicy::new(4 * 1024 * 1024, 1024 * 1024, 4, 32, 1024 * 1024).unwrap(),
+        &CancelToken::new(),
+        None,
+    )
+    .unwrap()
+    .view(RevisionSelector::Latest)
+    .unwrap();
+
+    assert_eq!(parallel.overview(), serial.overview());
+    assert_eq!(
+        parallel
+            .sector(VolId::new(0).unwrap(), SectorId::new(0).unwrap())
+            .unwrap(),
+        serial
+            .sector(VolId::new(0).unwrap(), SectorId::new(0).unwrap())
+            .unwrap()
+    );
+}
+
+#[test]
 fn stable_projection_omits_manifest_and_volume_paths() {
     let (_directory, volume, vinf) = fixture();
     let request = OpenRequest {

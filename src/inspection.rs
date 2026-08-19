@@ -9,6 +9,7 @@ use std::os::unix::fs::{DirBuilderExt, FileExt, OpenOptionsExt};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use sha2::{Digest, Sha256};
@@ -33,7 +34,7 @@ use crate::model::{
     Availability, Coverage, Hfid, InspectionRevision, Oid, PageAllocationClass, PageId, SectorId,
     SlotId, SnapshotId, SnapshotValidity, TdeInspectionState, Vfid, VolId, Vpid,
 };
-use crate::source::{InputSpec, SourceError, SourceSet, discover};
+use crate::source::{InputSpec, SourceError, SourceSet, VolumeHandle, discover};
 use crate::tde::{
     PermanentDataKey, TdeError, decode_key_info_record, decrypt_page_user_region,
     load_permanent_key,
@@ -44,6 +45,7 @@ const SECTOR_PAGES: u32 = 64;
 const PACKED_PAGE_FACT_SIZE: u64 = 16;
 const PACKED_PAGE_FACT_SIZE_USIZE: usize = 16;
 const PACKED_FACT_LSA_PRESENT: u8 = 0x80;
+const WORKER_PAGE_BATCH: usize = 16;
 static NEXT_SPILL_DIRECTORY: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -527,6 +529,51 @@ struct PageFactSummary {
     tde_opaque_pages: u64,
 }
 
+#[derive(Clone, Copy, Debug)]
+enum EnvelopeScanResult {
+    Fact {
+        fact: PageFastFact,
+        diagnostic: Option<(&'static str, &'static str)>,
+    },
+    Unreadable,
+    Cancelled,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct EligiblePageCursor {
+    sector: u32,
+    within: u32,
+}
+
+impl EligiblePageCursor {
+    fn next(&mut self, volume: &VolumeRecord) -> Result<Option<PageId>, OpenFailure> {
+        let system_last = u32::try_from(volume.view.system_last_page.get())
+            .map_err(|_| OpenFailure::Arithmetic)?;
+        while self.sector < volume.view.total_sectors {
+            let first_page = self
+                .sector
+                .checked_mul(SECTOR_PAGES)
+                .ok_or(OpenFailure::Arithmetic)?;
+            if self.within == 0 && !volume.is_reserved(self.sector) && first_page > system_last {
+                self.sector = self.sector.checked_add(1).ok_or(OpenFailure::Arithmetic)?;
+                continue;
+            }
+            let raw_page = first_page
+                .checked_add(self.within)
+                .ok_or(OpenFailure::Arithmetic)?;
+            self.within = self.within.checked_add(1).ok_or(OpenFailure::Arithmetic)?;
+            if self.within == SECTOR_PAGES {
+                self.within = 0;
+                self.sector = self.sector.checked_add(1).ok_or(OpenFailure::Arithmetic)?;
+            }
+            return PageId::new(i32::try_from(raw_page).map_err(|_| OpenFailure::Arithmetic)?)
+                .map(Some)
+                .map_err(|_| OpenFailure::Arithmetic);
+        }
+        Ok(None)
+    }
+}
+
 impl PageFactSummary {
     fn observe(&mut self, fact: PageFastFact) -> Result<(), OpenFailure> {
         self.inspected = self
@@ -547,6 +594,73 @@ impl PageFactSummary {
                 .ok_or(OpenFailure::Arithmetic)?;
         }
         Ok(())
+    }
+}
+
+fn scan_page_envelope(
+    source: &VolumeHandle,
+    page_id: PageId,
+    has_tde_key: bool,
+    cancel: &CancelToken,
+) -> EnvelopeScanResult {
+    if cancel.is_cancelled() {
+        return EnvelopeScanResult::Cancelled;
+    }
+    let Ok((prefix, watermark)) = source.read_envelope(page_id) else {
+        return EnvelopeScanResult::Unreadable;
+    };
+    match decode_page_envelope_parts(&prefix, &watermark, source.vpid(page_id)) {
+        Ok(summary) => {
+            let (availability, tde_state) = match summary.content() {
+                PageContent::Plaintext => {
+                    (Availability::Available, TdeInspectionState::NotEncrypted)
+                }
+                PageContent::EncryptedOpaque { .. } => (
+                    if has_tde_key {
+                        Availability::Available
+                    } else {
+                        Availability::EncryptedOpaque
+                    },
+                    if has_tde_key {
+                        TdeInspectionState::Decrypted
+                    } else {
+                        TdeInspectionState::EncryptedOpaque
+                    },
+                ),
+                PageContent::Decrypted { .. } => {
+                    unreachable!("fast envelope decoding cannot produce decrypted content")
+                }
+            };
+            EnvelopeScanResult::Fact {
+                fact: PageFastFact {
+                    page_id,
+                    page_type: Some(summary.page_type()),
+                    availability,
+                    tde_state,
+                    lsa_word: Some(summary.lsa_word()),
+                    diagnostic_code: None,
+                },
+                diagnostic: None,
+            }
+        }
+        Err(error) => {
+            let code = page_diagnostic_code(&error);
+            EnvelopeScanResult::Fact {
+                fact: PageFastFact {
+                    page_id,
+                    page_type: None,
+                    availability: Availability::Unreadable,
+                    tde_state: if error.rule() == "page.envelope.tde_flags" {
+                        TdeInspectionState::InvalidFlags
+                    } else {
+                        TdeInspectionState::NotEncrypted
+                    },
+                    lsa_word: None,
+                    diagnostic_code: Some(code),
+                },
+                diagnostic: Some((code, error.rule())),
+            }
+        }
     }
 }
 
@@ -1069,6 +1183,16 @@ impl Inspection {
         }
         let mut spill_used = 0_u64;
         let mut fast_summary = PageFactSummary::default();
+        let has_tde_key = tde_key.is_some();
+        let requested_workers =
+            usize::try_from(policy.workers).map_err(|_| OpenFailure::Arithmetic)?;
+        let available_workers = thread::available_parallelism().map_or(1, usize::from);
+        let worker_count = requested_workers.min(available_workers).max(1);
+        let wave_capacity = worker_count
+            .checked_mul(WORKER_PAGE_BATCH)
+            .ok_or(OpenFailure::Arithmetic)?;
+        let wave_capacity_u64 =
+            u64::try_from(wave_capacity).map_err(|_| OpenFailure::Arithmetic)?;
         'volume_scan: for (volume_index, source) in sources.volumes().iter().enumerate() {
             let Some(volume) = volumes.get_mut(volume_index) else {
                 return Err(OpenFailure::Arithmetic);
@@ -1076,133 +1200,99 @@ impl Inspection {
             if let Some(file) = spill.as_ref() {
                 volume.pages = PageFactStore::spilled(Arc::clone(file), spill_used);
             }
-            for sector in 0..volume.view.total_sectors {
-                let first_page = sector
-                    .checked_mul(SECTOR_PAGES)
-                    .ok_or(OpenFailure::Arithmetic)?;
-                let system_intersection = first_page
-                    <= u32::try_from(volume.view.system_last_page.get())
-                        .map_err(|_| OpenFailure::Arithmetic)?;
-                if !volume.is_reserved(sector) && !system_intersection {
-                    continue;
+            let mut cursor = EligiblePageCursor::default();
+            while let Some(first_page) = cursor.next(volume)? {
+                let spill_slots = if spill.is_some() {
+                    policy
+                        .spill_limit
+                        .saturating_sub(spill_used)
+                        .checked_div(PACKED_PAGE_FACT_SIZE)
+                        .ok_or(OpenFailure::Arithmetic)?
+                } else {
+                    u64::MAX
+                };
+                if memory_used > policy.memory_limit || spill_slots == 0 {
+                    stopped_reason = Some("resource-limit");
+                    diagnostics.push(DiagnosticRecord {
+                        code: "inspection.resource_limit",
+                        severity: "error",
+                        message: "The admitted fact budget stopped page-envelope inspection.",
+                        subject: format!("page:{}:{}", volume.view.vol_id.get(), first_page.get()),
+                        rule: if memory_used > policy.memory_limit {
+                            "inspection.resource_policy.resident"
+                        } else {
+                            "inspection.resource_policy.spill"
+                        },
+                    });
+                    break 'volume_scan;
                 }
-                for within in 0..SECTOR_PAGES {
-                    if cancel.is_cancelled() {
+                let admitted = usize::try_from(spill_slots.min(wave_capacity_u64))
+                    .map_err(|_| OpenFailure::Arithmetic)?;
+                let mut page_ids = Vec::with_capacity(admitted);
+                page_ids.push(first_page);
+                while page_ids.len() < admitted {
+                    let Some(page_id) = cursor.next(volume)? else {
+                        break;
+                    };
+                    page_ids.push(page_id);
+                }
+                let scanned = thread::scope(|scope| {
+                    let handles = page_ids
+                        .chunks(WORKER_PAGE_BATCH)
+                        .map(|chunk| {
+                            scope.spawn(move || {
+                                chunk
+                                    .iter()
+                                    .copied()
+                                    .map(|page_id| {
+                                        scan_page_envelope(source, page_id, has_tde_key, cancel)
+                                    })
+                                    .collect::<Vec<_>>()
+                            })
+                        })
+                        .collect::<Vec<_>>();
+                    handles
+                        .into_iter()
+                        .map(|handle| handle.join().map_err(|_| OpenFailure::Worker))
+                        .collect::<Result<Vec<_>, _>>()
+                })?;
+                for result in scanned.into_iter().flatten() {
+                    if cancel.is_cancelled() || matches!(result, EnvelopeScanResult::Cancelled) {
                         stopped_reason = Some("interrupted");
                         break 'volume_scan;
                     }
-                    let raw_page = first_page
-                        .checked_add(within)
-                        .ok_or(OpenFailure::Arithmetic)?;
-                    if raw_page >= volume.view.total_sectors.saturating_mul(SECTOR_PAGES) {
-                        continue;
-                    }
-                    let page_id =
-                        PageId::new(i32::try_from(raw_page).map_err(|_| OpenFailure::Arithmetic)?)
-                            .map_err(|_| OpenFailure::Arithmetic)?;
-                    let spill_exhausted = spill.is_some()
-                        && spill_used
-                            .checked_add(PACKED_PAGE_FACT_SIZE)
-                            .is_none_or(|next| next > policy.spill_limit);
-                    if memory_used > policy.memory_limit || spill_exhausted {
-                        stopped_reason = Some("resource-limit");
+                    evaluated = evaluated.checked_add(1).ok_or(OpenFailure::Arithmetic)?;
+                    let EnvelopeScanResult::Fact { fact, diagnostic } = result else {
+                        stopped_reason = Some("unreadable");
                         diagnostics.push(DiagnosticRecord {
-                            code: "inspection.resource_limit",
+                            code: "input.volume_unreadable",
                             severity: "error",
-                            message: "The admitted fact budget stopped page-envelope inspection.",
-                            subject: format!("page:{}:{}", volume.view.vol_id.get(), page_id.get()),
-                            rule: if memory_used > policy.memory_limit {
-                                "inspection.resource_policy.resident"
-                            } else {
-                                "inspection.resource_policy.spill"
-                            },
+                            message: "A volume could not be read completely.",
+                            subject: format!("volume:{}", volume.view.vol_id.get()),
+                            rule: "source.positional_read.complete",
                         });
                         break 'volume_scan;
-                    }
-                    evaluated = evaluated.checked_add(1).ok_or(OpenFailure::Arithmetic)?;
-                    let fact = match source.read_envelope(page_id) {
-                        Ok((prefix, watermark)) => match decode_page_envelope_parts(
-                            &prefix,
-                            &watermark,
-                            source.vpid(page_id),
-                        ) {
-                            Ok(summary) => {
-                                conclusive =
-                                    conclusive.checked_add(1).ok_or(OpenFailure::Arithmetic)?;
-                                hasher.update(summary.id().vol_id.get().to_le_bytes());
-                                hasher.update(summary.id().page_id.get().to_le_bytes());
-                                hasher.update([summary.page_type().ordinal()]);
-                                hasher.update(summary.lsa_word().to_le_bytes());
-                                let (availability, tde_state) = match summary.content() {
-                                    PageContent::Plaintext => {
-                                        (Availability::Available, TdeInspectionState::NotEncrypted)
-                                    }
-                                    PageContent::EncryptedOpaque { .. } => (
-                                        if tde_key.is_some() {
-                                            Availability::Available
-                                        } else {
-                                            Availability::EncryptedOpaque
-                                        },
-                                        if tde_key.is_some() {
-                                            TdeInspectionState::Decrypted
-                                        } else {
-                                            TdeInspectionState::EncryptedOpaque
-                                        },
-                                    ),
-                                    PageContent::Decrypted { .. } => unreachable!(
-                                        "fast envelope decoding cannot produce decrypted content"
-                                    ),
-                                };
-                                PageFastFact {
-                                    page_id,
-                                    page_type: Some(summary.page_type()),
-                                    availability,
-                                    tde_state,
-                                    lsa_word: Some(summary.lsa_word()),
-                                    diagnostic_code: None,
-                                }
-                            }
-                            Err(error) => {
-                                conclusive =
-                                    conclusive.checked_add(1).ok_or(OpenFailure::Arithmetic)?;
-                                let code = page_diagnostic_code(&error);
-                                diagnostics.push(DiagnosticRecord {
-                                    code,
-                                    severity: "error",
-                                    message: "The page envelope violates the pinned format.",
-                                    subject: format!(
-                                        "page:{}:{}",
-                                        volume.view.vol_id.get(),
-                                        page_id.get()
-                                    ),
-                                    rule: error.rule(),
-                                });
-                                PageFastFact {
-                                    page_id,
-                                    page_type: None,
-                                    availability: Availability::Unreadable,
-                                    tde_state: if error.rule() == "page.envelope.tde_flags" {
-                                        TdeInspectionState::InvalidFlags
-                                    } else {
-                                        TdeInspectionState::NotEncrypted
-                                    },
-                                    lsa_word: None,
-                                    diagnostic_code: Some(code),
-                                }
-                            }
-                        },
-                        Err(_) => {
-                            stopped_reason = Some("unreadable");
-                            diagnostics.push(DiagnosticRecord {
-                                code: "input.volume_unreadable",
-                                severity: "error",
-                                message: "A volume could not be read completely.",
-                                subject: format!("volume:{}", volume.view.vol_id.get()),
-                                rule: "source.positional_read.complete",
-                            });
-                            break 'volume_scan;
-                        }
                     };
+                    conclusive = conclusive.checked_add(1).ok_or(OpenFailure::Arithmetic)?;
+                    if let (Some(page_type), Some(lsa_word)) = (fact.page_type, fact.lsa_word) {
+                        hasher.update(volume.view.vol_id.get().to_le_bytes());
+                        hasher.update(fact.page_id.get().to_le_bytes());
+                        hasher.update([page_type.ordinal()]);
+                        hasher.update(lsa_word.to_le_bytes());
+                    }
+                    if let Some((code, rule)) = diagnostic {
+                        diagnostics.push(DiagnosticRecord {
+                            code,
+                            severity: "error",
+                            message: "The page envelope violates the pinned format.",
+                            subject: format!(
+                                "page:{}:{}",
+                                volume.view.vol_id.get(),
+                                fact.page_id.get()
+                            ),
+                            rule,
+                        });
+                    }
                     volume
                         .pages
                         .push(fact)
@@ -3596,6 +3686,7 @@ pub enum OpenFailure {
     Tde(TdeError),
     Spill,
     FactStore,
+    Worker,
     TdeBootstrap,
     Interrupted,
     Arithmetic,
@@ -3615,6 +3706,7 @@ impl fmt::Display for OpenFailure {
             Self::Tde(error) => write!(formatter, "{error}"),
             Self::Spill => formatter.write_str("private spill storage could not be created"),
             Self::FactStore => formatter.write_str("packed page facts could not be stored"),
+            Self::Worker => formatter.write_str("page-envelope worker failed"),
             Self::TdeBootstrap => formatter.write_str("TDE key bootstrap failed"),
             Self::Interrupted => formatter.write_str("inspection interrupted before publication"),
             Self::Arithmetic => formatter.write_str("inspection arithmetic overflow"),
