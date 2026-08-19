@@ -193,6 +193,9 @@ pub enum DeepPageProjection {
     BtreeOidOverflow {
         structure: BtreeOidOverflowProjection,
     },
+    Catalog {
+        structure: CatalogPageProjection,
+    },
     Vacuum {
         structure: VacuumPageProjection,
     },
@@ -262,6 +265,16 @@ pub struct BtreeNodeProjection {
 #[derive(Clone, Debug, Serialize)]
 pub struct BtreeOidOverflowProjection {
     pub next: OptionalVpidProjection,
+    pub record_count: u16,
+    pub record_bytes: String,
+    pub bytes: BytesWithheldProjection,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct CatalogPageProjection {
+    pub next_overflow: OptionalVpidProjection,
+    pub directory_count: String,
+    pub role: &'static str,
     pub record_count: u16,
     pub record_bytes: String,
     pub bytes: BytesWithheldProjection,
@@ -618,6 +631,22 @@ pub fn deep_page_projection(deep: Option<DeepPageView>) -> DeepPageProjection {
                     },
                 }
             }
+            RawPageView::Catalog(page) => DeepPageProjection::Catalog {
+                structure: CatalogPageProjection {
+                    next_overflow: optional_vpid_projection(page.next_overflow),
+                    directory_count: page.directory_count.to_string(),
+                    role: if page.is_overflow {
+                        "overflow"
+                    } else {
+                        "primary"
+                    },
+                    record_count: page.record_count,
+                    record_bytes: page.record_bytes.to_string(),
+                    bytes: BytesWithheldProjection {
+                        state: "bytes-withheld",
+                    },
+                },
+            },
             RawPageView::Heap(crate::format::HeapPageFact::Header(header)) => {
                 DeepPageProjection::HeapHeader {
                     structure: HeapHeaderProjection {

@@ -1002,6 +1002,16 @@ fn render_human(document: &ResultDocument) -> String {
                         structure.record_count, structure.record_bytes
                     );
                 }
+                crate::projection::DeepPageProjection::Catalog { structure } => {
+                    let _ = writeln!(
+                        output,
+                        "catalog page: role={} directories={} records={} record-bytes={} bytes=withheld",
+                        structure.role,
+                        structure.directory_count,
+                        structure.record_count,
+                        structure.record_bytes
+                    );
+                }
                 crate::projection::DeepPageProjection::Vacuum { structure } => {
                     let _ = writeln!(
                         output,

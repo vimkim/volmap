@@ -8,10 +8,11 @@ payloads or raw page bytes.
 The implementation is under active development. Plaintext fast scans, volume
 and sector maps, explicit file allocation maps, slotted-page inspection, OOS
 and `REC_BIGONE` overflow-chain validation, heap header/chain metadata, vacuum
-metadata, structural B-tree root/node/OID-overflow metadata, terminal browsing,
-deterministic HTML export, and the authenticated web viewer are usable. TDE
-decryption, the remaining deep page families, the immutable acceptance corpus,
-and measured production resource defaults are still release gates.
+metadata, structural B-tree root/node/OID-overflow and catalog page metadata,
+terminal browsing, deterministic HTML export, and the authenticated web viewer
+are usable. TDE decryption, the remaining deep page families, the immutable
+acceptance corpus, and measured production resource defaults are still release
+gates.
 
 ## Build
 

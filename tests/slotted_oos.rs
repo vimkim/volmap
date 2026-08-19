@@ -40,18 +40,22 @@ fn envelope(bytes: &[u8]) -> volmap::format::DecodedPageEnvelope<'_> {
 #[test]
 fn common_slot_geometry_decodes_without_exposing_record_bytes() {
     let mut bytes = page(PageType::Heap);
-    put_header(&mut bytes, 2, 1);
+    put_header(&mut bytes, 3, 1);
     put_slot(&mut bytes, 0, 32, 24, 2);
     put_slot(&mut bytes, 1, 0, 0, 9);
+    put_slot(&mut bytes, 2, 0, 48, 6);
     let decoded = decode_slotted_page(&envelope(&bytes)).unwrap();
 
     assert_eq!(decoded.alignment(), 8);
-    assert_eq!(decoded.slots().len(), 2);
+    assert_eq!(decoded.slots().len(), 3);
     assert_eq!(decoded.slots()[0].record_type(), RecordType::Home);
     assert_eq!(decoded.slots()[0].offset(), 32);
     assert_eq!(decoded.slots()[0].length(), 24);
     assert_eq!(decoded.slots()[1].record_type(), RecordType::Reserved(9));
     assert!(decoded.slots()[1].is_empty());
+    assert_eq!(decoded.slots()[2].record_type(), RecordType::MarkDeleted);
+    assert_eq!(decoded.slots()[2].length(), 48);
+    assert!(decoded.slots()[2].is_empty());
 }
 
 #[test]
@@ -71,6 +75,16 @@ fn overlapping_records_and_forged_counts_fail_closed() {
     assert_eq!(
         decode_slotted_page(&envelope(&count)).unwrap_err().rule(),
         "slotted.header.record_count_match"
+    );
+
+    let mut stale_live_length = page(PageType::Heap);
+    put_header(&mut stale_live_length, 1, 0);
+    put_slot(&mut stale_live_length, 0, 0, 24, 2);
+    assert_eq!(
+        decode_slotted_page(&envelope(&stale_live_length))
+            .unwrap_err()
+            .rule(),
+        "slotted.slot.empty_length"
     );
 }
 

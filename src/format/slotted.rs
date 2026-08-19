@@ -282,7 +282,15 @@ pub fn decode_slotted_page(envelope: &DecodedPageEnvelope<'_>) -> Result<Slotted
         })?;
         let record_type = record_type(record_ordinal);
         if record_offset == 0 {
-            if record_length != 0 {
+            // CUBRID clears only the offset when an anchored slot is deleted;
+            // the old length remains in the slot word. It is not a live byte
+            // range and is valid only for the two engine-defined tombstones.
+            if record_length != 0
+                && !matches!(
+                    record_type,
+                    RecordType::MarkDeleted | RecordType::DeletedWillReuse
+                )
+            {
                 return Err(DecodeError::new(
                     DecodeErrorKind::InvalidGeometry,
                     "slotted.slot.empty_length",
