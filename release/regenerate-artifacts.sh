@@ -34,9 +34,9 @@ env SOURCE_DATE_EPOCH="$SOURCE_DATE_EPOCH" cargo cyclonedx \
 # only that root identity with its canonical package URL so the SBOM is both
 # relocatable and reproducible across the mandatory independent checkouts.
 sed -i -E \
-  -e 's|"bom-ref": "path\+file://[^"]+#0\.0\.0"|"bom-ref": "pkg:cargo/volmap@0.0.0"|' \
-  -e 's|"bom-ref": "path\+file://[^"]+#0\.0\.0 bin-target-([0-9]+)"|"bom-ref": "pkg:cargo/volmap@0.0.0#target-\1"|' \
-  -e 's|"ref": "path\+file://[^"]+#0\.0\.0"|"ref": "pkg:cargo/volmap@0.0.0"|' \
+  -e 's|"bom-ref": "path\+file://[^"]+#(volmap@)?0\.0\.0"|"bom-ref": "pkg:cargo/volmap@0.0.0"|' \
+  -e 's|"bom-ref": "path\+file://[^"]+#(volmap@)?0\.0\.0 bin-target-([0-9]+)"|"bom-ref": "pkg:cargo/volmap@0.0.0#target-\2"|' \
+  -e 's|"ref": "path\+file://[^"]+#(volmap@)?0\.0\.0"|"ref": "pkg:cargo/volmap@0.0.0"|' \
   -e 's|"purl": "pkg:cargo/volmap@0\.0\.0\?download_url=file://\.(#src/[^"]+)?"|"purl": "pkg:cargo/volmap@0.0.0\1"|' \
   SBOM.cdx.json
 

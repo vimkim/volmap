@@ -62,9 +62,9 @@ cmp THIRD_PARTY_NOTICES.txt "$audit_root/THIRD_PARTY_NOTICES.txt"
     --license-accept-named 'Apache-2.0/MIT' \
     --override-filename SBOM.cdx
   sed -i -E \
-    -e 's|"bom-ref": "path\+file://[^"]+#0\.0\.0"|"bom-ref": "pkg:cargo/volmap@0.0.0"|' \
-    -e 's|"bom-ref": "path\+file://[^"]+#0\.0\.0 bin-target-([0-9]+)"|"bom-ref": "pkg:cargo/volmap@0.0.0#target-\1"|' \
-    -e 's|"ref": "path\+file://[^"]+#0\.0\.0"|"ref": "pkg:cargo/volmap@0.0.0"|' \
+    -e 's|"bom-ref": "path\+file://[^"]+#(volmap@)?0\.0\.0"|"bom-ref": "pkg:cargo/volmap@0.0.0"|' \
+    -e 's|"bom-ref": "path\+file://[^"]+#(volmap@)?0\.0\.0 bin-target-([0-9]+)"|"bom-ref": "pkg:cargo/volmap@0.0.0#target-\2"|' \
+    -e 's|"ref": "path\+file://[^"]+#(volmap@)?0\.0\.0"|"ref": "pkg:cargo/volmap@0.0.0"|' \
     -e 's|"purl": "pkg:cargo/volmap@0\.0\.0\?download_url=file://\.(#src/[^"]+)?"|"purl": "pkg:cargo/volmap@0.0.0\1"|' \
     SBOM.cdx.json
 )
