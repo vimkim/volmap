@@ -116,12 +116,20 @@ impl<'a> ByteView<'a> {
         Ok(i16::from_le_bytes(self.array(offset, field)?))
     }
 
+    pub fn read_i16_be(&self, offset: usize, field: &'static str) -> Result<i16, ByteAccessError> {
+        Ok(i16::from_be_bytes(self.array(offset, field)?))
+    }
+
     pub fn read_u32_le(&self, offset: usize, field: &'static str) -> Result<u32, ByteAccessError> {
         Ok(u32::from_le_bytes(self.array(offset, field)?))
     }
 
     pub fn read_i32_le(&self, offset: usize, field: &'static str) -> Result<i32, ByteAccessError> {
         Ok(i32::from_le_bytes(self.array(offset, field)?))
+    }
+
+    pub fn read_i32_be(&self, offset: usize, field: &'static str) -> Result<i32, ByteAccessError> {
+        Ok(i32::from_be_bytes(self.array(offset, field)?))
     }
 
     pub fn read_u64_le(&self, offset: usize, field: &'static str) -> Result<u64, ByteAccessError> {

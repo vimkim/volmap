@@ -184,6 +184,15 @@ pub enum DeepPageProjection {
     HeapChain {
         structure: HeapChainProjection,
     },
+    BtreeRoot {
+        structure: BtreeRootProjection,
+    },
+    BtreeNode {
+        structure: BtreeNodeProjection,
+    },
+    BtreeOidOverflow {
+        structure: BtreeOidOverflowProjection,
+    },
     Vacuum {
         structure: VacuumPageProjection,
     },
@@ -215,6 +224,47 @@ pub struct HeapChainProjection {
     pub next: OptionalVpidProjection,
     pub max_mvccid: String,
     pub flags: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct BtreeRootProjection {
+    pub node: BtreeNodeProjection,
+    pub oid_count: String,
+    pub null_count: String,
+    pub key_count: String,
+    pub top_class: OidProjection,
+    pub constraint_flags: String,
+    pub revision_level: i16,
+    pub deduplicate_key_encoded: i16,
+    pub overflow_key_file: OptionalVfidProjection,
+    pub creator_mvccid: String,
+    pub domain_offset: u16,
+    pub domain_length: u16,
+    pub domain_bytes: BytesWithheldProjection,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct BtreeNodeProjection {
+    pub role: &'static str,
+    pub previous: OptionalVpidProjection,
+    pub next: OptionalVpidProjection,
+    pub level: u16,
+    pub max_key_length: u16,
+    pub common_prefix: OptionalCountProjection,
+    pub split_pivot_bits: String,
+    pub split_index: String,
+    pub record_count: u16,
+    pub record_bytes: String,
+    pub child_count: u16,
+    pub overflow_key_count: u16,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct BtreeOidOverflowProjection {
+    pub next: OptionalVpidProjection,
+    pub record_count: u16,
+    pub record_bytes: String,
+    pub bytes: BytesWithheldProjection,
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -514,6 +564,7 @@ pub fn page_projection(page: PageView) -> PageProjection {
 }
 
 #[must_use]
+#[allow(clippy::too_many_lines)]
 pub fn deep_page_projection(deep: Option<DeepPageView>) -> DeepPageProjection {
     let Some(deep) = deep else {
         return DeepPageProjection::NotEnriched;
@@ -528,6 +579,45 @@ pub fn deep_page_projection(deep: Option<DeepPageView>) -> DeepPageProjection {
     }
     if let Some(raw) = deep.raw {
         return match raw {
+            RawPageView::Btree(crate::format::BtreePageFact::Root(root)) => {
+                DeepPageProjection::BtreeRoot {
+                    structure: BtreeRootProjection {
+                        node: btree_node_projection(root.node),
+                        oid_count: root.oid_count.to_string(),
+                        null_count: root.null_count.to_string(),
+                        key_count: root.key_count.to_string(),
+                        top_class: oid_projection(root.top_class),
+                        constraint_flags: root.constraint_flags.to_string(),
+                        revision_level: root.revision_level,
+                        deduplicate_key_encoded: root.deduplicate_key_encoded,
+                        overflow_key_file: optional_vfid_projection(root.overflow_key_file),
+                        creator_mvccid: root.creator_mvccid.to_string(),
+                        domain_offset: root.domain_offset,
+                        domain_length: root.domain_length,
+                        domain_bytes: BytesWithheldProjection {
+                            state: "bytes-withheld",
+                        },
+                    },
+                }
+            }
+            RawPageView::Btree(
+                crate::format::BtreePageFact::Leaf(node)
+                | crate::format::BtreePageFact::NonLeaf(node),
+            ) => DeepPageProjection::BtreeNode {
+                structure: btree_node_projection(node),
+            },
+            RawPageView::Btree(crate::format::BtreePageFact::OidOverflow(overflow)) => {
+                DeepPageProjection::BtreeOidOverflow {
+                    structure: BtreeOidOverflowProjection {
+                        next: optional_vpid_projection(overflow.next),
+                        record_count: overflow.record_count,
+                        record_bytes: overflow.record_bytes.to_string(),
+                        bytes: BytesWithheldProjection {
+                            state: "bytes-withheld",
+                        },
+                    },
+                }
+            }
             RawPageView::Heap(crate::format::HeapPageFact::Header(header)) => {
                 DeepPageProjection::HeapHeader {
                     structure: HeapHeaderProjection {
@@ -611,6 +701,27 @@ pub fn deep_page_projection(deep: Option<DeepPageView>) -> DeepPageProjection {
                 .map(slot_projection)
                 .collect(),
         },
+    }
+}
+
+fn btree_node_projection(node: crate::format::BtreeNodeFact) -> BtreeNodeProjection {
+    BtreeNodeProjection {
+        role: if node.level == 1 { "leaf" } else { "nonleaf" },
+        previous: optional_vpid_projection(node.previous),
+        next: optional_vpid_projection(node.next),
+        level: node.level,
+        max_key_length: node.max_key_length,
+        common_prefix: node
+            .common_prefix
+            .map_or(OptionalCountProjection::Unknown, |value| {
+                OptionalCountProjection::Known(value.to_string())
+            }),
+        split_pivot_bits: node.split_pivot_bits.to_string(),
+        split_index: node.split_index.to_string(),
+        record_count: node.record_count,
+        record_bytes: node.record_bytes.to_string(),
+        child_count: node.child_count,
+        overflow_key_count: node.overflow_key_count,
     }
 }
 

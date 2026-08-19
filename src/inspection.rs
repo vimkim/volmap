@@ -10,13 +10,14 @@ use sha2::{Digest, Sha256};
 
 use crate::diagnostics::{InspectionOutcome, OutcomeInputs};
 use crate::format::{
-    DecodeError, DroppedFilesPageFact, FileHeader, HeapPageFact, OosNext, PageContent, PageType,
-    SlottedPage, TdeAlgorithm, TrackerItemFact, UserPageFact, VacuumPageFact, VolumePurpose,
-    VolumeType, decode_bigone_target, decode_dropped_files_page, decode_extdata_header,
-    decode_file_header, decode_full_sectors, decode_heap_page, decode_oos_chunk,
-    decode_overflow_continuation, decode_overflow_head, decode_page_envelope,
-    decode_page_envelope_parts, decode_partial_sectors, decode_sector_bitmap, decode_slotted_page,
-    decode_tracker_items, decode_user_pages, decode_vacuum_page, decode_volume_header,
+    BtreePageFact, DecodeError, DroppedFilesPageFact, FileHeader, HeapPageFact, OosNext,
+    PageContent, PageType, SlottedPage, TdeAlgorithm, TrackerItemFact, UserPageFact,
+    VacuumPageFact, VolumePurpose, VolumeType, decode_bigone_target, decode_btree_page,
+    decode_dropped_files_page, decode_extdata_header, decode_file_header, decode_full_sectors,
+    decode_heap_page, decode_oos_chunk, decode_overflow_continuation, decode_overflow_head,
+    decode_page_envelope, decode_page_envelope_parts, decode_partial_sectors, decode_sector_bitmap,
+    decode_slotted_page, decode_tracker_items, decode_user_pages, decode_vacuum_page,
+    decode_volume_header,
 };
 use crate::model::{
     Availability, Coverage, InspectionRevision, Oid, PageAllocationClass, PageId, SectorId,
@@ -261,6 +262,7 @@ struct DeepPageFact {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RawPageView {
+    Btree(BtreePageFact),
     Heap(HeapPageFact),
     Vacuum(VacuumPageFact),
     DroppedFiles(DroppedFilesPageFact),
@@ -991,6 +993,28 @@ impl GraphView {
                                     return self.page_decode_failure(vpid, error.rule());
                                 }
                             },
+                            _ => None,
+                        }
+                    }
+                    PageType::Btree => {
+                        let role = self
+                            .data
+                            .file_allocations
+                            .get(&vpid)
+                            .and_then(|owner| self.data.tracked_files.get(owner))
+                            .and_then(|header| {
+                                (header.file_type() == crate::format::FileType::Btree)
+                                    .then_some(header.sticky_first() == Some(vpid))
+                            });
+                        match (role, slotted.as_ref()) {
+                            (Some(is_root), Some(slotted)) => {
+                                match decode_btree_page(&envelope, slotted, is_root) {
+                                    Ok(value) => Some(RawPageView::Btree(value)),
+                                    Err(error) => {
+                                        return self.page_decode_failure(vpid, error.rule());
+                                    }
+                                }
+                            }
                             _ => None,
                         }
                     }
@@ -2618,7 +2642,7 @@ fn estimate_base_bytes(volumes: &[VolumeRecord]) -> Result<u64, OpenFailure> {
 
 fn page_detail_support(page_type: PageType) -> PageDetailSupport {
     match page_type {
-        PageType::ExtensibleHash => PageDetailSupport::StructuralOnly,
+        PageType::ExtensibleHash | PageType::Btree => PageDetailSupport::StructuralOnly,
         PageType::Unknown | PageType::QueryResult | PageType::Area | PageType::Log => {
             PageDetailSupport::Opaque
         }
@@ -2629,7 +2653,6 @@ fn page_detail_support(page_type: PageType) -> PageDetailSupport {
         | PageType::Overflow
         | PageType::Oos
         | PageType::Catalog
-        | PageType::Btree
         | PageType::DroppedFiles
         | PageType::VacuumData => PageDetailSupport::Semantic,
     }

@@ -12,6 +12,14 @@ fn bounded_view_reads_explicit_little_endian_values() {
 }
 
 #[test]
+fn bounded_view_reads_explicit_big_endian_values() {
+    let bytes = [0x12, 0x34, 0x56, 0x78];
+    let view = ByteView::new(&bytes, 0);
+    assert_eq!(view.read_i16_be(0, "be16").unwrap(), 0x1234);
+    assert_eq!(view.read_i32_be(0, "be32").unwrap(), 0x1234_5678);
+}
+
+#[test]
 fn bounded_view_rejects_a_range_past_its_container() {
     let view = ByteView::new(&[0; 8], 4096);
 

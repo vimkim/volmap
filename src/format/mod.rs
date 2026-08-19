@@ -5,6 +5,7 @@
 //! offsets from `src/storage/file_io.h`, `storage_common.h`, and
 //! `disk_manager.c`; it does not reproduce a C/C++ memory layout.
 
+mod btree;
 mod file_table;
 mod heap;
 mod overflow;
@@ -98,6 +99,9 @@ impl fmt::Display for DecodeError {
 }
 
 impl std::error::Error for DecodeError {}
+pub use btree::{
+    BtreeNodeFact, BtreeOidOverflowFact, BtreePageFact, BtreeRootFact, decode_btree_page,
+};
 pub use file_table::{
     ExtDataHeader, FileHeader, FileType, PartialSectorFact, TrackerItemFact, UserPageFact,
     decode_extdata_header, decode_file_header, decode_full_sectors, decode_partial_sectors,

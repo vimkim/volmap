@@ -969,6 +969,39 @@ fn render_human(document: &ResultDocument) -> String {
                         structure.max_mvccid, structure.flags
                     );
                 }
+                crate::projection::DeepPageProjection::BtreeRoot { structure } => {
+                    let _ = writeln!(
+                        output,
+                        "btree root: level={} role={} records={} keys={} oids={} nulls={} domain-offset={} domain-length={} bytes=withheld",
+                        structure.node.level,
+                        structure.node.role,
+                        structure.node.record_count,
+                        structure.key_count,
+                        structure.oid_count,
+                        structure.null_count,
+                        structure.domain_offset,
+                        structure.domain_length
+                    );
+                }
+                crate::projection::DeepPageProjection::BtreeNode { structure } => {
+                    let _ = writeln!(
+                        output,
+                        "btree node: level={} role={} records={} record-bytes={} children={} overflow-keys={}",
+                        structure.level,
+                        structure.role,
+                        structure.record_count,
+                        structure.record_bytes,
+                        structure.child_count,
+                        structure.overflow_key_count
+                    );
+                }
+                crate::projection::DeepPageProjection::BtreeOidOverflow { structure } => {
+                    let _ = writeln!(
+                        output,
+                        "btree OID overflow: records={} record-bytes={} bytes=withheld",
+                        structure.record_count, structure.record_bytes
+                    );
+                }
                 crate::projection::DeepPageProjection::Vacuum { structure } => {
                     let _ = writeln!(
                         output,
