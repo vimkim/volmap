@@ -46,6 +46,7 @@ const PACKED_PAGE_FACT_SIZE: u64 = 16;
 const PACKED_PAGE_FACT_SIZE_USIZE: usize = 16;
 const PACKED_FACT_LSA_PRESENT: u8 = 0x80;
 const WORKER_PAGE_BATCH: usize = 16;
+const TERMINAL_DIAGNOSTIC_RESERVE: u64 = 512;
 static NEXT_SPILL_DIRECTORY: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -535,7 +536,7 @@ enum EnvelopeScanResult {
         fact: PageFastFact,
         diagnostic: Option<(&'static str, &'static str)>,
     },
-    Unreadable,
+    Unreadable(PageId),
     Cancelled,
 }
 
@@ -607,7 +608,7 @@ fn scan_page_envelope(
         return EnvelopeScanResult::Cancelled;
     }
     let Ok((prefix, watermark)) = source.read_envelope(page_id) else {
-        return EnvelopeScanResult::Unreadable;
+        return EnvelopeScanResult::Unreadable(page_id);
     };
     match decode_page_envelope_parts(&prefix, &watermark, source.vpid(page_id)) {
         Ok(summary) => {
@@ -661,6 +662,48 @@ fn scan_page_envelope(
                 diagnostic: Some((code, error.rule())),
             }
         }
+    }
+}
+
+fn retained_diagnostic_bytes(diagnostic: &DiagnosticRecord) -> Result<u64, OpenFailure> {
+    let records = u64::try_from(size_of::<DiagnosticRecord>())
+        .ok()
+        .and_then(|size| size.checked_mul(2))
+        .ok_or(OpenFailure::Arithmetic)?;
+    records
+        .checked_add(u64::try_from(diagnostic.subject.len()).map_err(|_| OpenFailure::Arithmetic)?)
+        .and_then(|size| size.checked_add(32))
+        .ok_or(OpenFailure::Arithmetic)
+}
+
+fn admit_diagnostic(
+    resident_used: &mut u64,
+    memory_limit: u64,
+    diagnostic: &DiagnosticRecord,
+) -> Result<bool, OpenFailure> {
+    let bytes = retained_diagnostic_bytes(diagnostic)?;
+    let admitted = resident_used
+        .checked_add(bytes)
+        .is_some_and(|next| next <= memory_limit);
+    if admitted {
+        *resident_used = resident_used
+            .checked_add(bytes)
+            .ok_or(OpenFailure::Arithmetic)?;
+    }
+    Ok(admitted)
+}
+
+fn resource_limit_diagnostic(
+    vol_id: VolId,
+    page_id: PageId,
+    rule: &'static str,
+) -> DiagnosticRecord {
+    DiagnosticRecord {
+        code: "inspection.resource_limit",
+        severity: "error",
+        message: "The admitted fact budget stopped page-envelope inspection.",
+        subject: format!("page:{}:{}", vol_id.get(), page_id.get()),
+        rule,
     }
 }
 
@@ -1161,14 +1204,23 @@ impl Inspection {
         let mut evaluated = 0_u64;
         let mut conclusive = 0_u64;
         let mut stopped_reason = None;
-        let memory_used = estimate_base_bytes(&volumes)?;
+        let base_memory = estimate_base_bytes(&volumes)?;
+        let retained_diagnostics = diagnostics.iter().try_fold(0_u64, |total, diagnostic| {
+            total
+                .checked_add(retained_diagnostic_bytes(diagnostic)?)
+                .ok_or(OpenFailure::Arithmetic)
+        })?;
+        let admitted_base = base_memory
+            .checked_add(retained_diagnostics)
+            .and_then(|value| value.checked_add(TERMINAL_DIAGNOSTIC_RESERVE))
+            .ok_or(OpenFailure::Arithmetic)?;
         let fact_bytes = envelope_total
             .checked_mul(PACKED_PAGE_FACT_SIZE)
             .ok_or(OpenFailure::Arithmetic)?;
-        let use_spill = memory_used
+        let use_spill = admitted_base
             .checked_add(fact_bytes)
             .is_none_or(|required| required > policy.memory_limit);
-        let spill = if use_spill && memory_used <= policy.memory_limit {
+        let spill = if use_spill && admitted_base <= policy.memory_limit {
             Some(Arc::new(
                 SpillFile::create(request.spill_directory.as_deref())
                     .map_err(|_| OpenFailure::Spill)?,
@@ -1176,12 +1228,19 @@ impl Inspection {
         } else {
             None
         };
-        if spill.is_none() && memory_used <= policy.memory_limit {
+        if spill.is_none() && admitted_base <= policy.memory_limit {
             for (volume, count) in volumes.iter_mut().zip(&envelope_counts) {
                 volume.pages = PageFactStore::memory_with_capacity(*count)?;
             }
         }
         let mut spill_used = 0_u64;
+        let mut resident_used = if spill.is_some() {
+            admitted_base
+        } else {
+            admitted_base
+                .checked_add(fact_bytes)
+                .ok_or(OpenFailure::Arithmetic)?
+        };
         let mut fast_summary = PageFactSummary::default();
         let has_tde_key = tde_key.is_some();
         let requested_workers =
@@ -1211,19 +1270,17 @@ impl Inspection {
                 } else {
                     u64::MAX
                 };
-                if memory_used > policy.memory_limit || spill_slots == 0 {
+                if admitted_base > policy.memory_limit || spill_slots == 0 {
                     stopped_reason = Some("resource-limit");
-                    diagnostics.push(DiagnosticRecord {
-                        code: "inspection.resource_limit",
-                        severity: "error",
-                        message: "The admitted fact budget stopped page-envelope inspection.",
-                        subject: format!("page:{}:{}", volume.view.vol_id.get(), first_page.get()),
-                        rule: if memory_used > policy.memory_limit {
+                    diagnostics.push(resource_limit_diagnostic(
+                        volume.view.vol_id,
+                        first_page,
+                        if admitted_base > policy.memory_limit {
                             "inspection.resource_policy.resident"
                         } else {
                             "inspection.resource_policy.spill"
                         },
-                    });
+                    ));
                     break 'volume_scan;
                 }
                 let admitted = usize::try_from(spill_slots.min(wave_capacity_u64))
@@ -1261,27 +1318,33 @@ impl Inspection {
                         stopped_reason = Some("interrupted");
                         break 'volume_scan;
                     }
-                    evaluated = evaluated.checked_add(1).ok_or(OpenFailure::Arithmetic)?;
                     let EnvelopeScanResult::Fact { fact, diagnostic } = result else {
-                        stopped_reason = Some("unreadable");
-                        diagnostics.push(DiagnosticRecord {
+                        let EnvelopeScanResult::Unreadable(unreadable_page) = result else {
+                            unreachable!("cancelled scan results stop before interpretation")
+                        };
+                        let finding = DiagnosticRecord {
                             code: "input.volume_unreadable",
                             severity: "error",
                             message: "A volume could not be read completely.",
                             subject: format!("volume:{}", volume.view.vol_id.get()),
                             rule: "source.positional_read.complete",
-                        });
+                        };
+                        if admit_diagnostic(&mut resident_used, policy.memory_limit, &finding)? {
+                            evaluated = evaluated.checked_add(1).ok_or(OpenFailure::Arithmetic)?;
+                            diagnostics.push(finding);
+                            stopped_reason = Some("unreadable");
+                        } else {
+                            diagnostics.push(resource_limit_diagnostic(
+                                volume.view.vol_id,
+                                unreadable_page,
+                                "inspection.resource_policy.diagnostics",
+                            ));
+                            stopped_reason = Some("resource-limit");
+                        }
                         break 'volume_scan;
                     };
-                    conclusive = conclusive.checked_add(1).ok_or(OpenFailure::Arithmetic)?;
-                    if let (Some(page_type), Some(lsa_word)) = (fact.page_type, fact.lsa_word) {
-                        hasher.update(volume.view.vol_id.get().to_le_bytes());
-                        hasher.update(fact.page_id.get().to_le_bytes());
-                        hasher.update([page_type.ordinal()]);
-                        hasher.update(lsa_word.to_le_bytes());
-                    }
                     if let Some((code, rule)) = diagnostic {
-                        diagnostics.push(DiagnosticRecord {
+                        let finding = DiagnosticRecord {
                             code,
                             severity: "error",
                             message: "The page envelope violates the pinned format.",
@@ -1291,7 +1354,25 @@ impl Inspection {
                                 fact.page_id.get()
                             ),
                             rule,
-                        });
+                        };
+                        if !admit_diagnostic(&mut resident_used, policy.memory_limit, &finding)? {
+                            diagnostics.push(resource_limit_diagnostic(
+                                volume.view.vol_id,
+                                fact.page_id,
+                                "inspection.resource_policy.diagnostics",
+                            ));
+                            stopped_reason = Some("resource-limit");
+                            break 'volume_scan;
+                        }
+                        diagnostics.push(finding);
+                    }
+                    evaluated = evaluated.checked_add(1).ok_or(OpenFailure::Arithmetic)?;
+                    conclusive = conclusive.checked_add(1).ok_or(OpenFailure::Arithmetic)?;
+                    if let (Some(page_type), Some(lsa_word)) = (fact.page_type, fact.lsa_word) {
+                        hasher.update(volume.view.vol_id.get().to_le_bytes());
+                        hasher.update(fact.page_id.get().to_le_bytes());
+                        hasher.update([page_type.ordinal()]);
+                        hasher.update(lsa_word.to_le_bytes());
                     }
                     volume
                         .pages

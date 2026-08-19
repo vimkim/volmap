@@ -334,6 +334,57 @@ fn worker_counts_merge_to_the_same_canonical_snapshot() {
 }
 
 #[test]
+fn corruption_heavy_scan_stops_at_the_resident_diagnostic_boundary() {
+    let (_directory, volume, vinf) = fixture();
+    let file = OpenOptions::new().write(true).open(volume).unwrap();
+    let corrupt = [0_u8; IO_PAGE_SIZE];
+    for page_id in 2_u64..64 {
+        file.write_all_at(&corrupt, page_id * IO_PAGE_SIZE as u64)
+            .unwrap();
+    }
+    drop(file);
+    let request = OpenRequest {
+        input: InputSpec::Vinf {
+            path: vinf,
+            volume_root: None,
+        },
+        tde_keys_file: None,
+        spill_directory: None,
+    };
+    let parallel = Inspection::open(
+        &request,
+        ResourcePolicy::new(1024, 1024 * 1024, 4, 32, 1024 * 1024).unwrap(),
+        &CancelToken::new(),
+        None,
+    )
+    .unwrap()
+    .view(RevisionSelector::Latest)
+    .unwrap()
+    .overview();
+    let serial = Inspection::open(
+        &request,
+        ResourcePolicy::new(1024, 1024 * 1024, 1, 32, 1024 * 1024).unwrap(),
+        &CancelToken::new(),
+        None,
+    )
+    .unwrap()
+    .view(RevisionSelector::Latest)
+    .unwrap()
+    .overview();
+
+    assert_eq!(parallel, serial);
+    assert!(parallel.inspected_page_envelopes < 64);
+    assert_eq!(parallel.outcome, InspectionOutcome::Incomplete);
+    assert!(parallel.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == "inspection.resource_limit"
+            && diagnostic.rule == "inspection.resource_policy.diagnostics"
+    }));
+    assert!(parallel.coverage.iter().any(|coverage| {
+        coverage.facet == "page-envelopes" && coverage.stop_reason == Some("resource-limit")
+    }));
+}
+
+#[test]
 fn stable_projection_omits_manifest_and_volume_paths() {
     let (_directory, volume, vinf) = fixture();
     let request = OpenRequest {
