@@ -174,11 +174,27 @@ fn heap_file_descriptor_pins_the_header_page_role() {
     let mut bytes = file_page();
     let user = &mut bytes[32..IO_PAGE_SIZE - 8];
     user[140..144].copy_from_slice(&1_i32.to_le_bytes());
+    user[40..44].copy_from_slice(&77_i32.to_le_bytes());
+    user[44..46].copy_from_slice(&3_i16.to_le_bytes());
+    user[46..48].copy_from_slice(&1_i16.to_le_bytes());
     user[48..52].copy_from_slice(&5_i32.to_le_bytes());
     user[52..54].copy_from_slice(&1_i16.to_le_bytes());
     user[56..60].copy_from_slice(&129_i32.to_le_bytes());
     let header = decode_file_header(&envelope(&bytes)).unwrap();
+    assert_eq!(header.class_oid().unwrap().page_id.get(), 77);
+    assert_eq!(header.class_oid().unwrap().slot_id.get(), 3);
     assert_eq!(header.heap_header_page().unwrap().page_id.get(), 129);
+
+    let mut partial_null = bytes;
+    let user = &mut partial_null[32..IO_PAGE_SIZE - 8];
+    user[40..44].copy_from_slice(&(-1_i32).to_le_bytes());
+    user[44..46].copy_from_slice(&(-1_i16).to_le_bytes());
+    assert_eq!(
+        decode_file_header(&envelope(&partial_null))
+            .unwrap_err()
+            .rule(),
+        "file.header.heap_class"
+    );
 }
 
 #[test]

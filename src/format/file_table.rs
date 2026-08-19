@@ -1,5 +1,5 @@
 use crate::bytes::ByteView;
-use crate::model::{FileId, PageId, SectorId, Vfid, VolId, Vpid};
+use crate::model::{FileId, Oid, PageId, SectorId, SlotId, Vfid, VolId, Vpid};
 
 use super::{DB_PAGE_SIZE, DecodeError, DecodeErrorKind, DecodedPageEnvelope, PageType};
 
@@ -66,6 +66,7 @@ pub struct FileHeader {
     full_table_offset: Option<u16>,
     user_table_offset: Option<u16>,
     sticky_first: Option<Vpid>,
+    class_oid: Option<Oid>,
     heap_header_page: Option<Vpid>,
     related_heap: Option<(Vfid, Vpid)>,
 }
@@ -152,6 +153,11 @@ impl FileHeader {
     }
 
     #[must_use]
+    pub const fn class_oid(self) -> Option<Oid> {
+        self.class_oid
+    }
+
+    #[must_use]
     pub const fn heap_header_page(self) -> Option<Vpid> {
         self.heap_header_page
     }
@@ -218,6 +224,11 @@ pub fn decode_file_header(envelope: &DecodedPageEnvelope<'_>) -> Result<FileHead
     if flags & !0x0f != 0 || flags & 0x0c == 0x0c {
         return Err(error(DecodeErrorKind::InvalidFlags, "file.header.flags"));
     }
+    let class_oid = if matches!(file_type, FileType::Heap | FileType::HeapReuseSlots) {
+        optional_oid(&view, 40, "file.header.heap_class")?
+    } else {
+        None
+    };
     let heap_header_page = if matches!(file_type, FileType::Heap | FileType::HeapReuseSlots) {
         let descriptor_file = read_i32(&view, 48, "file.header.heap_hfid")?;
         let descriptor_volume = read_i16(&view, 52, "file.header.heap_hfid")?;
@@ -274,6 +285,7 @@ pub fn decode_file_header(envelope: &DecodedPageEnvelope<'_>) -> Result<FileHead
         full_table_offset: table_offset(&view, 152, "file.header.full_table")?,
         user_table_offset: table_offset(&view, 154, "file.header.user_table")?,
         sticky_first: optional_vpid(&view, 156, "file.header.sticky_first")?,
+        class_oid,
         heap_header_page,
         related_heap,
     })
@@ -567,6 +579,27 @@ fn optional_vpid(
     Ok(Some(Vpid::new(
         VolId::new(volume).map_err(|_| error(DecodeErrorKind::OutOfRange, rule))?,
         PageId::new(page).map_err(|_| error(DecodeErrorKind::OutOfRange, rule))?,
+    )))
+}
+
+fn optional_oid(
+    view: &ByteView<'_>,
+    offset: usize,
+    rule: &'static str,
+) -> Result<Option<Oid>, DecodeError> {
+    let page = read_i32(view, offset, rule)?;
+    let slot = read_i16(view, offset + 4, rule)?;
+    let volume = read_i16(view, offset + 6, rule)?;
+    if page == -1 && slot == -1 && volume == -1 {
+        return Ok(None);
+    }
+    if page < 0 || slot < 0 || volume < 0 {
+        return Err(error(DecodeErrorKind::InvalidGeometry, rule));
+    }
+    Ok(Some(Oid::new(
+        VolId::new(volume).map_err(|_| error(DecodeErrorKind::OutOfRange, rule))?,
+        PageId::new(page).map_err(|_| error(DecodeErrorKind::OutOfRange, rule))?,
+        SlotId::new(slot).map_err(|_| error(DecodeErrorKind::OutOfRange, rule))?,
     )))
 }
 
