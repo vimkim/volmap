@@ -12,5 +12,6 @@ pub mod inspection;
 pub mod model;
 pub mod projection;
 pub mod source;
+pub mod tde;
 pub mod tui;
 pub mod web;
