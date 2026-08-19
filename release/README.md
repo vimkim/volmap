@@ -23,6 +23,12 @@ The fixed epoch is the pinned CUBRID format-authority commit time. Path remaps
 remove checkout and Cargo-home locations from compiled artifacts.
 
 Passing this local audit does not authorize public distribution. Cross-distro
-execution, the complete fixture/fuzz/resource matrix, source and binary bundle
-checksums, and written CUBRID ownership/legal approval remain mandatory gates
-in the implementation specification.
+execution is checked separately with `release/check-distributions.sh`. That
+gate runs the same static binary, with runtime networking disabled, through
+canonical summary/map/page/export operations on a deterministic sparse smoke
+snapshot in digest-pinned Debian 13, Rocky 9, and Alpine 3.24 containers and
+requires byte-identical projections.
+
+The complete fixture/fuzz/resource matrix, source and binary bundle checksums,
+and written CUBRID ownership/legal approval remain mandatory gates in the
+implementation specification.
