@@ -14,8 +14,10 @@ edges, vacuum metadata, structural B-tree
 root/node/OID-overflow metadata, validated catalog directory/class/representation
 metadata, terminal browsing,
 deterministic HTML export, and the authenticated web viewer are usable. TDE
-decryption, the remaining deep page families, the immutable acceptance corpus,
-and measured production resource defaults are still release gates.
+decryption is available from an explicit local key file and applies to every
+deep page read. The pinned source-derived acceptance corpus covers the current
+semantic page families. Packed spill/worker execution, the remaining fixture
+matrix, and measured production resource defaults are still release gates.
 
 ## Build
 

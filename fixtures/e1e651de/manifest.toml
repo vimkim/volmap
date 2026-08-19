@@ -1,0 +1,246 @@
+schema = "volmap.fixture-corpus"
+schema_version = 1
+profile = "cubrid-feat-oos-linux-x86_64-gcc-e1e651de"
+engine_commit = "e1e651debf6cc100172bde96603b17424f9c135a"
+cci_commit = "2fb8d6d02c41386be0d56c3cfc6a14ad7e17ac15"
+page_size = 16384
+clean_standalone_shutdown = true
+synthetic_content_only = true
+
+[generator]
+cubrid_version = "11.5.0.2540 debug"
+compiler = "gcc 16.1.1 20260515 (Red Hat 16.1.1-2)"
+cmake = "3.31.12"
+ninja = "1.13.2"
+kernel = "Linux 6.19.10-300.fc44.x86_64 x86_64"
+locale = "en_US.utf8"
+database_name = "volmap_e1e651de"
+createdb_arguments = "--db-page-size=16K --db-volume-size=32M --log-volume-size=20M"
+load_script = "generate.sql"
+
+[[source_volume]]
+vol_id = 0
+size = 67108864
+sha256 = "e81465303c7da9614976dedc0f78a02adef428a7d85c492643b46d4f33bbc6a4"
+
+[[source_volume]]
+vol_id = 1
+size = 134217728
+sha256 = "22f99aabd5f65d6ae04776b968f191e83922a6635b06b000de3c5f53cd0958ec"
+
+[[page]]
+file = "pages/vol0-page0.bin"
+vol_id = 0
+page_id = 0
+role = "primary-volume-header"
+sha256 = "4afa4e92ea5760fcc1d08295b41f2a6ea3a8e7e7c4ef47bf48ac9263c0ce2c9a"
+
+[[page]]
+file = "pages/vol0-page1.bin"
+vol_id = 0
+page_id = 1
+role = "primary-sector-bitmap"
+sha256 = "57cb8c610f34c26c818cb51f4a2b6cc22647fbf243926b5b455bdff884cad319"
+
+[[page]]
+file = "pages/vol0-page64.bin"
+vol_id = 0
+page_id = 64
+role = "file-tracker-header"
+sha256 = "56703d76f09a0777374ab3ffa1c5a1f57a53c303db4b4b4d1474a7c599df14b7"
+
+[[page]]
+file = "pages/vol0-page321.bin"
+vol_id = 0
+page_id = 321
+role = "extendible-hash"
+sha256 = "f6544cc4da208dc4ebddfc98c9f7571ef75993d21c26d6c7743bf3d67282f7d4"
+
+[[page]]
+file = "pages/vol0-page577.bin"
+vol_id = 0
+page_id = 577
+role = "system-catalog"
+sha256 = "42ea3bd54ade6e96db49e61b97bc5442576006e91409d0fd47e5c44e4af8810e"
+
+[[page]]
+file = "pages/vol0-page641.bin"
+vol_id = 0
+page_id = 641
+role = "vacuum-data"
+sha256 = "e3b296f75298ec33e16dfbbfc5cf8fec9b8d85153fb4f010a4962ce95c091e9b"
+
+[[page]]
+file = "pages/vol0-page705.bin"
+vol_id = 0
+page_id = 705
+role = "dropped-files"
+sha256 = "69c40bcc8d53cab6fb3f8789d4c0421eec7695ddbc7d40ba129c30ded5a634a1"
+
+[[page]]
+file = "pages/vol1-page0.bin"
+vol_id = 1
+page_id = 0
+role = "extension-volume-header"
+sha256 = "6442c6aaa9edebb794b203b97f63b071c84e62e154c557a986b8e2f56f26de62"
+
+[[page]]
+file = "pages/vol1-page1.bin"
+vol_id = 1
+page_id = 1
+role = "extension-sector-bitmap"
+sha256 = "b2dc2cd64a2f5d1a290c9362cf9404e0ff60e5f7121cf91d853e88dc2357e08b"
+
+[[page]]
+file = "pages/vol1-page640.bin"
+vol_id = 1
+page_id = 640
+role = "fixture-rows-heap-file-header"
+sha256 = "e4bc46effe9422a007946b8a7b6037e15740d3169e729f98847b6c3314e32639"
+
+[[page]]
+file = "pages/vol1-page641.bin"
+vol_id = 1
+page_id = 641
+role = "fixture-rows-heap-header"
+sha256 = "e5f4860d9a8e69fb9d120c7f50ac2cc538ca63a9b3803dd9f436a7cb191e9cc4"
+
+[[page]]
+file = "pages/vol1-page642.bin"
+vol_id = 1
+page_id = 642
+role = "fixture-rows-heap-data"
+sha256 = "2c66a157e098b9c8effdf321f935220e1785327e145ea408697b9e7bcc4e328a"
+
+[[page]]
+file = "pages/vol1-page704.bin"
+vol_id = 1
+page_id = 704
+role = "fixture-rows-primary-btree-file-header"
+sha256 = "a8c9f3e77527edd0a00d28a93288a04de6a5c6667f09a98349e44bc4f9efdf53"
+
+[[page]]
+file = "pages/vol1-page705.bin"
+vol_id = 1
+page_id = 705
+role = "fixture-rows-primary-btree-root-leaf"
+sha256 = "7e5400c25da1d37cde2715e2816dc21f085a2cbdd656eb88b6182956980347ab"
+
+[[page]]
+file = "pages/vol1-page768.bin"
+vol_id = 1
+page_id = 768
+role = "fixture-rows-oos-file-header"
+sha256 = "4cc62d4689ef20c1b1897ccb6153295816e4a0d231fd74c4cba4c702264361f7"
+
+[[page]]
+file = "pages/vol1-page769.bin"
+vol_id = 1
+page_id = 769
+role = "fixture-rows-oos-stats"
+sha256 = "1412f5726b34b28fd568bb10a16304b8ab394bc9e81fda01a676f8f60e237cb7"
+
+[[page]]
+file = "pages/vol1-page770.bin"
+vol_id = 1
+page_id = 770
+role = "fixture-rows-oos-single-and-multichunk-tail"
+sha256 = "d6dba688583be079bd096cba6510d9001a9dd98124e85f323a05b62af9c263bf"
+
+[[page]]
+file = "pages/vol1-page771.bin"
+vol_id = 1
+page_id = 771
+role = "fixture-rows-oos-multichunk-middle"
+sha256 = "5ad84c862bf0aa60ead99c12f9c647ef8820142bc41772793870b5b44fd35bb7"
+
+[[page]]
+file = "pages/vol1-page772.bin"
+vol_id = 1
+page_id = 772
+role = "fixture-rows-oos-multichunk-head"
+sha256 = "f164bbe425f564bfee4550d8575dcd2ab82734d31f96110adc45695a873c8252"
+
+[[page]]
+file = "pages/vol1-page832.bin"
+vol_id = 1
+page_id = 832
+role = "fixture-rows-secondary-btree-file-header"
+sha256 = "c9163c1a74de9716a6566b3e1598d6e8b3e6a2338bc5ae23449e1bee3e5686be"
+
+[[page]]
+file = "pages/vol1-page833.bin"
+vol_id = 1
+page_id = 833
+role = "fixture-rows-secondary-btree-root-leaf"
+sha256 = "aebf419b4d249fa169c9145fac3f3cc66df618ad728f8e359dcd286ede8ac8c2"
+
+[[page]]
+file = "pages/vol1-page896.bin"
+vol_id = 1
+page_id = 896
+role = "fixture-bigone-heap-file-header"
+sha256 = "004588c0ed0e27b237b23f16837d31905eda93a8396623c886431bae7616b319"
+
+[[page]]
+file = "pages/vol1-page897.bin"
+vol_id = 1
+page_id = 897
+role = "fixture-bigone-heap-header"
+sha256 = "3cd85812e9f7a1afc2e47d5193115aa1aa4bf1761dca2cba016e8b40c878775a"
+
+[[page]]
+file = "pages/vol1-page898.bin"
+vol_id = 1
+page_id = 898
+role = "fixture-bigone-heap-data"
+sha256 = "b25b0856d2938f2c60fd5a8537d1face372bdf08e6997d665a52aaa5cb60269a"
+
+[[page]]
+file = "pages/vol1-page960.bin"
+vol_id = 1
+page_id = 960
+role = "fixture-bigone-overflow-file-header"
+sha256 = "83234dd0c1012ce8b61359b9db7842b23817f026b28c2d49205ad833430e0cf9"
+
+[[page]]
+file = "pages/vol1-page961.bin"
+vol_id = 1
+page_id = 961
+role = "fixture-bigone-overflow-head"
+sha256 = "65aa4d2a5207d2f98ed753ee781ffa41ee7a3787682ac34bb146d3a713100c38"
+
+[[page]]
+file = "pages/vol1-page962.bin"
+vol_id = 1
+page_id = 962
+role = "fixture-bigone-overflow-continuation"
+sha256 = "c20524c0b1f95a7a0b8b44819b0e9c9eb0601ea5206bff764d59d09a77ee7df8"
+
+[[page]]
+file = "pages/vol1-page1088.bin"
+vol_id = 1
+page_id = 1088
+role = "fixture-dense-heap-file-header"
+sha256 = "f60944af78e2b670b0e5f72a256d78b623a6625a8b23122583afcb80c5281085"
+
+[[page]]
+file = "pages/vol1-page1089.bin"
+vol_id = 1
+page_id = 1089
+role = "fixture-dense-heap-header"
+sha256 = "0c2c28be58ae74f269d28c5bae2cd3394664ce1b86b493a3a9dded4e70c8c82e"
+
+[[page]]
+file = "pages/vol1-page1152.bin"
+vol_id = 1
+page_id = 1152
+role = "fixture-dense-btree-file-header"
+sha256 = "f2394f4600506f4963e753eb66635aede1a89c3659b1a67f784262e12d571090"
+
+[[page]]
+file = "pages/vol1-page1153.bin"
+vol_id = 1
+page_id = 1153
+role = "fixture-dense-btree-root-leaf"
+sha256 = "405a4e12d06d89d67d37efce3de5ebe592542d7aa782656dbf5e3672bab137f9"

@@ -32,16 +32,24 @@ facts = "DISK_STAB_UNIT little-endian u64 words, least-significant-bit-first sec
 tests = ["tests/sector_bitmap.rs"]
 
 [[generated_fixture]]
-kind = "company-generated CUBRID database volume"
-path = "/home/vimkim/.cub/db/feat-oos/commondb/demodb/demodb"
-sha256 = "bc656f23c26f2c3568603ec5b85ede316136e360b3246e10890583fc8ed2aab1"
-use = "corroborated page-envelope, volume-header, and sector-bitmap values; not copied into this repository"
+kind = "immutable synthetic page corpus"
+path = "fixtures/e1e651de"
+sha256_manifest = "fixtures/e1e651de/manifest.toml"
+engine_commit = "e1e651debf6cc100172bde96603b17424f9c135a"
+use = "acceptance pages for volume, bitmap, tracker, E-hash, catalog, vacuum, dropped-file, heap, B-tree, OOS, and overflow decoders"
+tests = ["tests/pinned_fixture_corpus.rs"]
 
 [[generated_fixture]]
-kind = "company-generated CUBRID extension volume"
-path = "/home/vimkim/.cub/db/feat-oos/commondb/demodb/demodb_x001"
-sha256 = "9e49c62f7fa2e60389b62800373494aa126c3eb16772bc0de986d69671a8b9a0"
-use = "corroborated multi-volume geometry; not copied into this repository"
+kind = "synthetic source volume identity"
+path = "not retained; reproducible from fixtures/e1e651de/generate.sql"
+sha256 = "e81465303c7da9614976dedc0f78a02adef428a7d85c492643b46d4f33bbc6a4"
+use = "source volume 0 for the extracted immutable corpus"
+
+[[generated_fixture]]
+kind = "synthetic source extension-volume identity"
+path = "not retained; reproducible from fixtures/e1e651de/generate.sql"
+sha256 = "22f99aabd5f65d6ae04776b968f191e83922a6635b06b000de3c5f53cd0958ec"
+use = "source volume 1 for the extracted immutable corpus"
 
 [excluded_evidence]
 recovered_artifacts = "Not read, linked, copied, executed, packaged, or used by tests."

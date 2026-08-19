@@ -26,6 +26,10 @@ The accepted evidence order is strict:
 
 No lower oracle may override a higher one. Mutable local volumes, production data, comments, current `feat/oos` HEAD, the recovered UI/output text, and Volmap's own prior output are not format authorities. The current mutable `demodb` hashes do not match the recorded provenance and are explicitly excluded from acceptance.
 
+### Implementation checkpoint
+
+The first immutable generated slice now lives under `fixtures/e1e651de/`. Its manifest records the exact engine/CCI commits, build tools, source-volume geometry and hashes, clean standalone shutdown, 31 full-page hashes, and page/file roles. Tests validate every page hash and envelope identity, then directly decode volume/bitmap, tracker and file descriptors, heap header/chain, B-tree roots, E-hash slots, catalog, vacuum, dropped-file, a single-chunk OOS value, a three-chunk OOS value chain, and a two-page overflow chain. This closes the earlier absence of any pinned generated page corpus, but not the broader mutation/fuzz, layout-probe, TDE-generation, scale, cross-adapter, or distribution gates below.
+
 ## Answer
 
 Version one is accepted only through the following layered corpus and gates.
