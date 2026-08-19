@@ -103,7 +103,11 @@ impl std::error::Error for DecodeError {}
 pub use btree::{
     BtreeNodeFact, BtreeOidOverflowFact, BtreePageFact, BtreeRootFact, decode_btree_page,
 };
-pub use catalog::{CatalogPageFact, decode_catalog_page};
+pub use catalog::{
+    CatalogDirectoryFact, CatalogPageFact, CatalogRepresentationHeaderFact,
+    CatalogRepresentationItemFact, decode_catalog_directory, decode_catalog_page,
+    decode_catalog_representation_header,
+};
 pub use file_table::{
     ExtDataHeader, FileHeader, FileType, PartialSectorFact, TrackerItemFact, UserPageFact,
     decode_extdata_header, decode_file_header, decode_full_sectors, decode_partial_sectors,

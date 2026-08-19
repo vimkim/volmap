@@ -1,5 +1,5 @@
 use crate::bytes::ByteView;
-use crate::model::{PageId, VolId, Vpid};
+use crate::model::{Oid, PageId, SlotId, VolId, Vpid};
 
 use super::{DecodeError, DecodeErrorKind, DecodedPageEnvelope, PageType, RecordType, SlottedPage};
 
@@ -12,6 +12,100 @@ pub struct CatalogPageFact {
     pub is_overflow: bool,
     pub record_count: u16,
     pub record_bytes: u32,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CatalogRepresentationItemFact {
+    pub target: Oid,
+    pub representation_id: i16,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CatalogDirectoryFact {
+    pub items: Vec<CatalogRepresentationItemFact>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CatalogRepresentationHeaderFact {
+    pub representation_id: i32,
+    pub fixed_count: u32,
+    pub fixed_length: u32,
+    pub variable_count: u32,
+}
+
+pub fn decode_catalog_directory(
+    envelope: &DecodedPageEnvelope<'_>,
+    slotted: &SlottedPage,
+    slot_id: u16,
+) -> Result<CatalogDirectoryFact, DecodeError> {
+    let (view, base, length) = catalog_record(envelope, slotted, slot_id, "catalog.directory")?;
+    if length != 32 {
+        return Err(error(
+            DecodeErrorKind::InvalidLength,
+            "catalog.directory.length",
+        ));
+    }
+    let count = view
+        .read_u8(base + 12, "catalog.directory.count")
+        .map_err(|_| error(DecodeErrorKind::ByteAccess, "catalog.directory.count"))?;
+    if !matches!(count, 1 | 2) {
+        return Err(error(
+            DecodeErrorKind::InvalidGeometry,
+            "catalog.directory.count",
+        ));
+    }
+    let items = (0..count)
+        .map(|index| {
+            let offset = base + usize::from(index) * 16;
+            let page = read_i32_be(&view, offset, "catalog.directory.target")?;
+            let volume = read_i16_be(&view, offset + 4, "catalog.directory.target")?;
+            let representation_id =
+                read_i16_be(&view, offset + 8, "catalog.directory.representation_id")?;
+            let slot = read_i16_be(&view, offset + 10, "catalog.directory.target")?;
+            Ok(CatalogRepresentationItemFact {
+                target: required_oid(page, slot, volume, "catalog.directory.target")?,
+                representation_id,
+            })
+        })
+        .collect::<Result<Vec<_>, DecodeError>>()?;
+    Ok(CatalogDirectoryFact { items })
+}
+
+pub fn decode_catalog_representation_header(
+    envelope: &DecodedPageEnvelope<'_>,
+    slotted: &SlottedPage,
+    slot_id: u16,
+) -> Result<CatalogRepresentationHeaderFact, DecodeError> {
+    let (view, base, length) =
+        catalog_record(envelope, slotted, slot_id, "catalog.representation")?;
+    if length < 56 {
+        return Err(error(
+            DecodeErrorKind::InvalidLength,
+            "catalog.representation.length",
+        ));
+    }
+    let representation_id = read_i32_be(&view, base, "catalog.representation.representation_id")?;
+    if representation_id < 0 {
+        return Err(error(
+            DecodeErrorKind::NegativeValue,
+            "catalog.representation.representation_id",
+        ));
+    }
+    Ok(CatalogRepresentationHeaderFact {
+        representation_id,
+        fixed_count: non_negative_i32(
+            read_i32_be(&view, base + 4, "catalog.representation.fixed_count")?,
+            "catalog.representation.fixed_count",
+        )?,
+        fixed_length: non_negative_i32(
+            read_i32_be(&view, base + 8, "catalog.representation.fixed_length")?,
+            "catalog.representation.fixed_length",
+        )?,
+        variable_count: non_negative_i32(
+            read_i32_be(&view, base + 12, "catalog.representation.variable_count")?,
+            "catalog.representation.variable_count",
+        )?,
+    })
 }
 
 pub fn decode_catalog_page(
@@ -111,12 +205,49 @@ fn optional_disk_vpid(
     )))
 }
 
+fn catalog_record<'a>(
+    envelope: &'a DecodedPageEnvelope<'a>,
+    slotted: &SlottedPage,
+    slot_id: u16,
+    rule: &'static str,
+) -> Result<(ByteView<'a>, usize, u16), DecodeError> {
+    if envelope.page_type() != PageType::Catalog {
+        return Err(error(DecodeErrorKind::WrongPageType, rule));
+    }
+    let slot = slotted
+        .slots()
+        .get(usize::from(slot_id))
+        .filter(|slot| slot.record_type() == RecordType::Home && !slot.is_empty())
+        .ok_or_else(|| error(DecodeErrorKind::InvalidGeometry, rule))?;
+    Ok((
+        envelope.plaintext("catalog.record.encrypted")?,
+        usize::from(slot.offset()),
+        slot.length(),
+    ))
+}
+
+fn required_oid(page: i32, slot: i16, volume: i16, rule: &'static str) -> Result<Oid, DecodeError> {
+    if page < 0 || slot < 0 || volume < 0 {
+        return Err(error(DecodeErrorKind::InvalidGeometry, rule));
+    }
+    Ok(Oid::new(
+        VolId::new(volume).map_err(|_| error(DecodeErrorKind::OutOfRange, rule))?,
+        PageId::new(page).map_err(|_| error(DecodeErrorKind::OutOfRange, rule))?,
+        SlotId::new(slot).map_err(|_| error(DecodeErrorKind::OutOfRange, rule))?,
+    ))
+}
+
 fn non_negative_i32(value: i32, rule: &'static str) -> Result<u32, DecodeError> {
     u32::try_from(value).map_err(|_| error(DecodeErrorKind::NegativeValue, rule))
 }
 
 fn read_i32_be(view: &ByteView<'_>, offset: usize, rule: &'static str) -> Result<i32, DecodeError> {
     view.read_i32_be(offset, rule)
+        .map_err(|_| error(DecodeErrorKind::ByteAccess, rule))
+}
+
+fn read_i16_be(view: &ByteView<'_>, offset: usize, rule: &'static str) -> Result<i16, DecodeError> {
+    view.read_i16_be(offset, rule)
         .map_err(|_| error(DecodeErrorKind::ByteAccess, rule))
 }
 

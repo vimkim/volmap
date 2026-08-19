@@ -1,6 +1,7 @@
 use volmap::format::{
-    CatalogPageFact, DB_PAGE_SIZE, IO_PAGE_SIZE, PageType, decode_catalog_page,
-    decode_page_envelope, decode_slotted_page,
+    CatalogPageFact, DB_PAGE_SIZE, IO_PAGE_SIZE, PageType, decode_catalog_directory,
+    decode_catalog_page, decode_catalog_representation_header, decode_page_envelope,
+    decode_slotted_page,
 };
 use volmap::model::{PageId, VolId, Vpid};
 
@@ -114,5 +115,65 @@ fn assert_rule(bytes: &[u8], page_id: i32, expected: &str) {
     assert_eq!(
         decode_catalog_page(&envelope, &slotted).unwrap_err().rule(),
         expected
+    );
+}
+
+#[test]
+fn caller_proven_catalog_records_decode_directory_and_representation_prefixes() {
+    let mut page = catalog_page(30, &[(32, 16, 2), (48, 32, 2), (80, 56, 2)]);
+    put_header(&mut page, -1, -1, 1, 0);
+    let user = &mut page[32..IO_PAGE_SIZE - 8];
+    user[48..52].copy_from_slice(&31_i32.to_be_bytes());
+    user[52..54].copy_from_slice(&0_i16.to_be_bytes());
+    user[56..58].copy_from_slice(&7_i16.to_be_bytes());
+    user[58..60].copy_from_slice(&2_i16.to_be_bytes());
+    user[60] = 1;
+    user[80..84].copy_from_slice(&7_i32.to_be_bytes());
+    user[84..88].copy_from_slice(&3_i32.to_be_bytes());
+    user[88..92].copy_from_slice(&24_i32.to_be_bytes());
+    user[92..96].copy_from_slice(&2_i32.to_be_bytes());
+
+    let envelope = decode_page_envelope(
+        &page,
+        Vpid::new(VolId::new(0).unwrap(), PageId::new(30).unwrap()),
+    )
+    .unwrap();
+    let slotted = decode_slotted_page(&envelope).unwrap();
+    let directory = decode_catalog_directory(&envelope, &slotted, 1).unwrap();
+    assert_eq!(directory.items.len(), 1);
+    assert_eq!(directory.items[0].target.page_id.get(), 31);
+    assert_eq!(directory.items[0].representation_id, 7);
+    let representation = decode_catalog_representation_header(&envelope, &slotted, 2).unwrap();
+    assert_eq!(representation.representation_id, 7);
+    assert_eq!(representation.fixed_count, 3);
+    assert_eq!(representation.fixed_length, 24);
+    assert_eq!(representation.variable_count, 2);
+}
+
+#[test]
+fn catalog_record_decoders_reject_unproven_shapes_and_hostile_counts() {
+    let mut page = catalog_page(30, &[(32, 16, 2), (48, 32, 2), (80, 56, 2)]);
+    put_header(&mut page, -1, -1, 1, 0);
+    let user = &mut page[32..IO_PAGE_SIZE - 8];
+    user[60] = 3;
+    user[80..84].copy_from_slice(&7_i32.to_be_bytes());
+    user[84..88].copy_from_slice(&(-1_i32).to_be_bytes());
+    let envelope = decode_page_envelope(
+        &page,
+        Vpid::new(VolId::new(0).unwrap(), PageId::new(30).unwrap()),
+    )
+    .unwrap();
+    let slotted = decode_slotted_page(&envelope).unwrap();
+    assert_eq!(
+        decode_catalog_directory(&envelope, &slotted, 1)
+            .unwrap_err()
+            .rule(),
+        "catalog.directory.count"
+    );
+    assert_eq!(
+        decode_catalog_representation_header(&envelope, &slotted, 2)
+            .unwrap_err()
+            .rule(),
+        "catalog.representation.fixed_count"
     );
 }
