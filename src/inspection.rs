@@ -11,11 +11,11 @@ use sha2::{Digest, Sha256};
 use crate::diagnostics::{InspectionOutcome, OutcomeInputs};
 use crate::format::{
     DecodeError, DroppedFilesPageFact, FileHeader, OosNext, PageContent, PageType, SlottedPage,
-    TdeAlgorithm, UserPageFact, VacuumPageFact, VolumePurpose, VolumeType,
+    TdeAlgorithm, TrackerItemFact, UserPageFact, VacuumPageFact, VolumePurpose, VolumeType,
     decode_dropped_files_page, decode_extdata_header, decode_file_header, decode_full_sectors,
     decode_oos_chunk, decode_page_envelope, decode_page_envelope_parts, decode_partial_sectors,
-    decode_sector_bitmap, decode_slotted_page, decode_user_pages, decode_vacuum_page,
-    decode_volume_header,
+    decode_sector_bitmap, decode_slotted_page, decode_tracker_items, decode_user_pages,
+    decode_vacuum_page, decode_volume_header,
 };
 use crate::model::{
     Availability, Coverage, InspectionRevision, Oid, PageAllocationClass, PageId, SectorId,
@@ -316,6 +316,7 @@ struct SessionData {
     diagnostics: Vec<DiagnosticRecord>,
     deep_pages: BTreeMap<Vpid, DeepPageFact>,
     file_allocations: BTreeMap<Vpid, Vfid>,
+    tracked_files: BTreeMap<Vfid, FileHeader>,
     oos_chains: BTreeMap<crate::model::Oid, OosChainFact>,
 }
 
@@ -324,6 +325,7 @@ enum FileTableKind {
     Partial,
     Full,
     User,
+    Tracker,
 }
 
 #[derive(Default)]
@@ -332,6 +334,7 @@ struct FileTraversal {
     partial_sectors: Vec<crate::format::PartialSectorFact>,
     full_sectors: Vec<(VolId, SectorId)>,
     user_pages: Vec<UserPageFact>,
+    tracker_items: Vec<TrackerItemFact>,
     decoded_bytes: u64,
     steps: u64,
 }
@@ -717,6 +720,7 @@ impl Inspection {
                 diagnostics,
                 deep_pages: BTreeMap::new(),
                 file_allocations: BTreeMap::new(),
+                tracked_files: BTreeMap::new(),
                 oos_chains: BTreeMap::new(),
             }),
         })
@@ -1042,6 +1046,181 @@ impl GraphView {
         self.publish_file(header_page, file_header, allocations)
     }
 
+    /// Validate the permanent-file tracker and every referenced file header.
+    /// Tracker items are the authority for assigning file roles; arbitrary
+    /// `PAGE_FTAB` pages are never promoted by self-looking bytes alone.
+    #[allow(clippy::too_many_lines)]
+    pub fn enrich_file_inventory(
+        &self,
+        policy: ResourcePolicy,
+        cancel: &CancelToken,
+    ) -> Result<Self, OperationError> {
+        if !self.data.tracked_files.is_empty() {
+            return Ok(self.clone());
+        }
+        let mut tracker = None;
+        let mut decoded_bytes = 0_u64;
+        for (volume, fact) in self.data.volumes.iter().flat_map(|volume| {
+            volume
+                .pages
+                .iter()
+                .filter(|fact| fact.page_type == Some(PageType::FileTable))
+                .map(move |fact| (volume, fact))
+        }) {
+            if cancel.is_cancelled() {
+                return Err(OperationError::Interrupted);
+            }
+            let vpid = Vpid::new(volume.view.vol_id, fact.page_id);
+            decoded_bytes = decoded_bytes
+                .checked_add(crate::format::IO_PAGE_SIZE as u64)
+                .ok_or(OperationError::Arithmetic)?;
+            if decoded_bytes > policy.max_decoded_bytes {
+                return Err(OperationError::ResourceLimit);
+            }
+            let source = self
+                .data
+                .sources
+                .volume(vpid.vol_id)
+                .ok_or(OperationError::Arithmetic)?;
+            let bytes = source
+                .read_page(vpid.page_id)
+                .map_err(OperationError::Source)?;
+            let Ok(envelope) = decode_page_envelope(bytes.as_slice(), vpid) else {
+                continue;
+            };
+            let Ok(header) = decode_file_header(&envelope) else {
+                continue;
+            };
+            if header.file_type() == crate::format::FileType::Tracker
+                && tracker.replace(header).is_some()
+            {
+                return self.page_decode_failure(vpid, "file.tracker.unique_header");
+            }
+        }
+        let tracker = tracker
+            .ok_or_else(|| OperationError::Structural("file.tracker.header_missing".to_owned()))?;
+        let tracker_page = tracker.sticky_first().ok_or_else(|| {
+            OperationError::Structural("file.tracker.first_page_missing".to_owned())
+        })?;
+        let mut traversal = FileTraversal::default();
+        traversal.table_pages.insert(tracker_page);
+        self.walk_file_table(
+            tracker_page,
+            0,
+            FileTableKind::Tracker,
+            policy,
+            cancel,
+            &mut traversal,
+        )
+        .map_err(|error| match error {
+            FileTraversalError::Decode(rule) => OperationError::Structural(rule.to_owned()),
+            FileTraversalError::Operation(error) => error,
+        })?;
+        let mut headers = BTreeMap::new();
+        headers.insert(tracker.vfid(), tracker);
+        for item in traversal.tracker_items {
+            if headers.contains_key(&item.vfid) {
+                return Err(OperationError::Structural(
+                    "file.tracker.item_unique".to_owned(),
+                ));
+            }
+            let vpid = Vpid::new(
+                item.vfid.vol_id,
+                PageId::new(item.vfid.file_id.get()).map_err(|_| OperationError::Arithmetic)?,
+            );
+            let source = self.data.sources.volume(vpid.vol_id).ok_or_else(|| {
+                OperationError::Structural("file.tracker.volume_exists".to_owned())
+            })?;
+            let bytes = source
+                .read_page(vpid.page_id)
+                .map_err(OperationError::Source)?;
+            let envelope = decode_page_envelope(bytes.as_slice(), vpid)
+                .map_err(|error| OperationError::Structural(error.rule().to_owned()))?;
+            let header = decode_file_header(&envelope)
+                .map_err(|error| OperationError::Structural(error.rule().to_owned()))?;
+            if header.vfid() != item.vfid || header.file_type() != item.file_type {
+                return Err(OperationError::Structural(
+                    "file.tracker.header_match".to_owned(),
+                ));
+            }
+            headers.insert(item.vfid, header);
+        }
+        let mut allocations = BTreeMap::new();
+        for header in headers.values().copied() {
+            let owned = self
+                .collect_file_allocations(header, policy, cancel)
+                .map_err(|error| match error {
+                    FileTraversalError::Decode(rule) => OperationError::Structural(format!(
+                        "{rule} for file:{}:{}",
+                        header.vfid().vol_id.get(),
+                        header.vfid().file_id.get()
+                    )),
+                    FileTraversalError::Operation(error) => error,
+                })?;
+            for vpid in owned {
+                if allocations.insert(vpid, header.vfid()).is_some() {
+                    return Err(OperationError::Structural(format!(
+                        "file.table.owner_unique at page:{}:{}",
+                        vpid.vol_id.get(),
+                        vpid.page_id.get()
+                    )));
+                }
+            }
+        }
+        let retained = (allocations.len() as u64)
+            .checked_mul(size_of::<(Vpid, Vfid)>() as u64)
+            .ok_or(OperationError::Arithmetic)?;
+        if retained > policy.memory_limit {
+            return Err(OperationError::ResourceLimit);
+        }
+        if !self
+            .data
+            .sources
+            .verify_unchanged()
+            .map_err(OperationError::Source)?
+        {
+            return self.invalidated_revision();
+        }
+        let mut next = (*self.data).clone();
+        next.revision = next
+            .revision
+            .next()
+            .map_err(|_| OperationError::Arithmetic)?;
+        next.tracked_files = headers;
+        next.file_allocations = allocations;
+        for header in next.tracked_files.values().copied() {
+            let header_page = Vpid::new(
+                header.vfid().vol_id,
+                PageId::new(header.vfid().file_id.get()).map_err(|_| OperationError::Arithmetic)?,
+            );
+            next.deep_pages.insert(
+                header_page,
+                DeepPageFact {
+                    slotted: None,
+                    file_header: Some(header),
+                    raw: None,
+                    diagnostic_rule: None,
+                },
+            );
+        }
+        refresh_deep_coverage(&mut next, None);
+        let total = next.tracked_files.len() as u64;
+        next.coverage
+            .retain(|coverage| coverage.facet != "file-inventory");
+        next.coverage.push(CoverageRecord {
+            facet: "file-inventory",
+            coverage: Coverage::Complete,
+            evaluated: total,
+            conclusive: total,
+            trusted_total: Some(total),
+            stop_reason: None,
+        });
+        next.outcome = classify_session_outcome(&next);
+        Ok(Self {
+            data: Arc::new(next),
+        })
+    }
+
     #[allow(clippy::too_many_lines)]
     fn collect_file_allocations(
         &self,
@@ -1232,7 +1411,7 @@ impl GraphView {
                 return Err(FileTraversalError::Decode("file.extdata.page_type"));
             }
             let item_size = match kind {
-                FileTableKind::Partial => 16,
+                FileTableKind::Partial | FileTableKind::Tracker => 16,
                 FileTableKind::Full | FileTableKind::User => 8,
             };
             let component = decode_extdata_header(&envelope, offset, item_size)
@@ -1248,6 +1427,10 @@ impl GraphView {
                 ),
                 FileTableKind::User => traversal.user_pages.extend(
                     decode_user_pages(&envelope, component)
+                        .map_err(|error| FileTraversalError::Decode(error.rule()))?,
+                ),
+                FileTableKind::Tracker => traversal.tracker_items.extend(
+                    decode_tracker_items(&envelope, component)
                         .map_err(|error| FileTraversalError::Decode(error.rule()))?,
                 ),
             }
@@ -1777,6 +1960,7 @@ pub enum OperationError {
     Query(QueryError),
     Interrupted,
     Unsupported,
+    Structural(String),
     ResourceLimit,
     Arithmetic,
 }
@@ -1789,6 +1973,7 @@ impl fmt::Display for OperationError {
             Self::Query(error) => write!(formatter, "{error}"),
             Self::Interrupted => formatter.write_str("inspection enrichment interrupted"),
             Self::Unsupported => formatter.write_str("page body is unavailable for enrichment"),
+            Self::Structural(rule) => write!(formatter, "structural validation failed: {rule}"),
             Self::ResourceLimit => formatter.write_str("page enrichment exceeds resource policy"),
             Self::Arithmetic => formatter.write_str("inspection enrichment arithmetic overflow"),
         }

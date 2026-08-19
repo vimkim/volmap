@@ -1,6 +1,6 @@
 use volmap::format::{
     IO_PAGE_SIZE, PageType, decode_extdata_header, decode_file_header, decode_full_sectors,
-    decode_page_envelope, decode_partial_sectors, decode_user_pages,
+    decode_page_envelope, decode_partial_sectors, decode_tracker_items, decode_user_pages,
 };
 use volmap::model::{PageId, VolId, Vpid};
 
@@ -94,7 +94,8 @@ fn extdata_rejects_untrusted_item_width_and_count_arithmetic() {
 fn allocation_items_decode_ids_bitmaps_and_marked_user_pages_without_payloads() {
     let mut partial_bytes = file_page();
     let user = &mut partial_bytes[32..IO_PAGE_SIZE - 8];
-    user[224..226].copy_from_slice(&32_i16.to_le_bytes());
+    // max_size is item capacity and deliberately excludes the 16-byte header.
+    user[224..226].copy_from_slice(&16_i16.to_le_bytes());
     user[226..228].copy_from_slice(&16_i16.to_le_bytes());
     user[228..230].copy_from_slice(&1_i16.to_le_bytes());
     user[232..236].copy_from_slice(&7_i32.to_le_bytes());
@@ -137,4 +138,33 @@ fn user_page_at(
     let raw = page_id | if marked { 0x8000_0000 } else { 0 };
     user[table_offset + 16..table_offset + 20].copy_from_slice(&raw.to_le_bytes());
     user[table_offset + 20..table_offset + 22].copy_from_slice(&vol_id.to_le_bytes());
+}
+
+#[test]
+fn tracker_items_decode_typed_file_identity_and_constrained_metadata() {
+    let mut bytes = file_page();
+    let user = &mut bytes[32..IO_PAGE_SIZE - 8];
+    user[224..226].copy_from_slice(&32_i16.to_le_bytes());
+    user[226..228].copy_from_slice(&16_i16.to_le_bytes());
+    user[228..230].copy_from_slice(&1_i16.to_le_bytes());
+    user[232..236].copy_from_slice(&128_i32.to_le_bytes());
+    user[236..238].copy_from_slice(&1_i16.to_le_bytes());
+    user[238..240].copy_from_slice(&2_i16.to_le_bytes());
+    user[240..248].copy_from_slice(&1_u64.to_le_bytes());
+    let decoded = envelope(&bytes);
+    let header = decode_extdata_header(&decoded, 216, 16).unwrap();
+    let items = decode_tracker_items(&decoded, header).unwrap();
+
+    assert_eq!(items[0].vfid.file_id.get(), 128);
+    assert_eq!(items[0].file_type.as_str(), "heap-reuse-slots");
+    assert!(items[0].heap_marked_deleted);
+
+    let mut invalid = bytes;
+    invalid[32 + 240..32 + 248].copy_from_slice(&2_u64.to_le_bytes());
+    let envelope = envelope(&invalid);
+    let header = decode_extdata_header(&envelope, 216, 16).unwrap();
+    assert_eq!(
+        decode_tracker_items(&envelope, header).unwrap_err().rule(),
+        "file.tracker.heap_metadata"
+    );
 }

@@ -97,6 +97,7 @@ impl fmt::Display for DecodeError {
 
 impl std::error::Error for DecodeError {}
 pub use file_table::{
-    ExtDataHeader, FileHeader, FileType, PartialSectorFact, UserPageFact, decode_extdata_header,
-    decode_file_header, decode_full_sectors, decode_partial_sectors, decode_user_pages,
+    ExtDataHeader, FileHeader, FileType, PartialSectorFact, TrackerItemFact, UserPageFact,
+    decode_extdata_header, decode_file_header, decode_full_sectors, decode_partial_sectors,
+    decode_tracker_items, decode_user_pages,
 };

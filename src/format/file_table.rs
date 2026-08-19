@@ -247,6 +247,13 @@ pub struct UserPageFact {
     pub marked_deleted: bool,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct TrackerItemFact {
+    pub vfid: Vfid,
+    pub file_type: FileType,
+    pub heap_marked_deleted: bool,
+}
+
 pub fn decode_extdata_header(
     envelope: &DecodedPageEnvelope<'_>,
     offset: u16,
@@ -273,18 +280,24 @@ pub fn decode_extdata_header(
         read_i16(&view, offset + 12, "file.extdata.item_count")?,
         "file.extdata.item_count",
     )?;
-    let used = usize::from(item_count)
+    let item_bytes = usize::from(item_count)
         .checked_mul(usize::from(item_size))
-        .and_then(|bytes| bytes.checked_add(EXTDATA_HEADER_SIZE))
         .ok_or_else(|| {
             error(
                 DecodeErrorKind::ArithmeticOverflow,
                 "file.extdata.used_size",
             )
         })?;
+    let used = item_bytes.checked_add(EXTDATA_HEADER_SIZE).ok_or_else(|| {
+        error(
+            DecodeErrorKind::ArithmeticOverflow,
+            "file.extdata.used_size",
+        )
+    })?;
     if item_size != expected_item_size
         || max_size == 0
-        || used > usize::from(max_size)
+        || usize::from(max_size) % usize::from(item_size) != 0
+        || item_bytes > usize::from(max_size)
         || offset
             .checked_add(used)
             .is_none_or(|end| end > DB_PAGE_SIZE)
@@ -391,6 +404,55 @@ pub fn decode_user_pages(
                         .map_err(|_| error(DecodeErrorKind::OutOfRange, "file.user.page"))?,
                 ),
                 marked_deleted,
+            })
+        })
+        .collect()
+}
+
+pub fn decode_tracker_items(
+    envelope: &DecodedPageEnvelope<'_>,
+    header: ExtDataHeader,
+) -> Result<Vec<TrackerItemFact>, DecodeError> {
+    if header.item_size != 16 {
+        return Err(error(
+            DecodeErrorKind::InvalidGeometry,
+            "file.tracker.item_size",
+        ));
+    }
+    let view = envelope.plaintext("file.tracker.encrypted")?;
+    (0..header.item_count)
+        .map(|index| {
+            let offset = usize::from(header.items_offset) + usize::from(index) * 16;
+            let file_id = read_i32(&view, offset, "file.tracker.file")?;
+            let vol_id = read_i16(&view, offset + 4, "file.tracker.volume")?;
+            let file_type =
+                decode_file_type(i32::from(read_i16(&view, offset + 6, "file.tracker.type")?))?;
+            let metadata = view
+                .read_u64_le(offset + 8, "file.tracker.metadata")
+                .map_err(|_| error(DecodeErrorKind::ByteAccess, "file.tracker.metadata"))?;
+            let is_heap = matches!(file_type, FileType::Heap | FileType::HeapReuseSlots);
+            if is_heap {
+                if metadata & !0xff != 0 || metadata & 0xff > 1 {
+                    return Err(error(
+                        DecodeErrorKind::InvalidFlags,
+                        "file.tracker.heap_metadata",
+                    ));
+                }
+            } else if metadata != 0 {
+                return Err(error(
+                    DecodeErrorKind::InvalidFlags,
+                    "file.tracker.metadata",
+                ));
+            }
+            Ok(TrackerItemFact {
+                vfid: Vfid::new(
+                    VolId::new(vol_id)
+                        .map_err(|_| error(DecodeErrorKind::OutOfRange, "file.tracker.volume"))?,
+                    FileId::new(file_id)
+                        .map_err(|_| error(DecodeErrorKind::OutOfRange, "file.tracker.file"))?,
+                ),
+                file_type,
+                heap_marked_deleted: is_heap && metadata == 1,
             })
         })
         .collect()
