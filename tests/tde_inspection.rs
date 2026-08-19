@@ -1,6 +1,6 @@
 use std::fs::{File, OpenOptions};
 use std::io::Write;
-use std::os::unix::fs::{FileExt, OpenOptionsExt};
+use std::os::unix::fs::{FileExt, OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -142,14 +142,14 @@ fn special_heap_page<const N: usize>(page_id: i32, record: &[u8; N]) -> [u8; IO_
     page
 }
 
-fn encrypted_heap_page(page_id: i32) -> [u8; IO_PAGE_SIZE] {
+fn encrypted_heap_page(page_id: i32, valid: bool) -> [u8; IO_PAGE_SIZE] {
     let mut page = envelope_page(page_id, PageType::Heap);
     page[15] = 0x01;
     page[24..32].copy_from_slice(&0x1122_3344_5566_7788_u64.to_le_bytes());
     let mut nonce = [0_u8; 16];
     nonce[..8].copy_from_slice(&page[24..32]);
     let user = &mut page[32..32 + DB_PAGE_SIZE];
-    user[4..6].copy_from_slice(&1_i16.to_le_bytes());
+    user[4..6].copy_from_slice(&i16::from(valid).to_le_bytes());
     user[6..8].copy_from_slice(&8_u16.to_le_bytes());
     user[8..12].copy_from_slice(&16_312_i32.to_le_bytes());
     user[12..16].copy_from_slice(&16_312_i32.to_le_bytes());
@@ -158,7 +158,7 @@ fn encrypted_heap_page(page_id: i32) -> [u8; IO_PAGE_SIZE] {
     page
 }
 
-fn fixture() -> (TestDirectory, PathBuf, PathBuf) {
+fn fixture(valid_encrypted_page: bool) -> (TestDirectory, PathBuf, PathBuf) {
     let directory = TestDirectory::new();
     let volume = directory.path().join("fixture");
     let vinf = directory.path().join("fixture_vinf");
@@ -177,7 +177,7 @@ fn fixture() -> (TestDirectory, PathBuf, PathBuf) {
         let page = match page_id {
             2 => special_heap_page(page_id, &boot_record()),
             3 => special_heap_page(page_id, &key_info_record()),
-            10 => encrypted_heap_page(page_id),
+            10 => encrypted_heap_page(page_id, valid_encrypted_page),
             _ => envelope_page(page_id, PageType::Unknown),
         };
         file.write_all_at(&page, u64::try_from(page_id).unwrap() * IO_PAGE_SIZE as u64)
@@ -205,7 +205,7 @@ fn policy() -> ResourcePolicy {
 
 #[test]
 fn explicit_key_file_bootstraps_and_enriches_an_encrypted_page() {
-    let (_directory, vinf, key_file) = fixture();
+    let (_directory, vinf, key_file) = fixture(true);
     let request = OpenRequest {
         input: InputSpec::Vinf {
             path: vinf,
@@ -230,8 +230,64 @@ fn explicit_key_file_bootstraps_and_enriches_an_encrypted_page() {
 }
 
 #[test]
+fn invalid_decrypted_structure_is_not_retried_as_ciphertext() {
+    let (_directory, vinf, key_file) = fixture(false);
+    let request = OpenRequest {
+        input: InputSpec::Vinf {
+            path: vinf,
+            volume_root: None,
+        },
+        tde_keys_file: Some(key_file),
+    };
+    let view = Inspection::open(&request, policy(), &CancelToken::new(), None)
+        .unwrap()
+        .view(RevisionSelector::Latest)
+        .unwrap();
+    let encrypted = Vpid::new(VolId::new(0).unwrap(), PageId::new(10).unwrap());
+    let failed = view
+        .enrich_page(encrypted, policy(), &CancelToken::new())
+        .unwrap();
+    assert_eq!(
+        failed.page(encrypted).unwrap().tde_state,
+        TdeInspectionState::DecryptedInvalid
+    );
+    assert!(failed.overview().diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == "tde.decrypted_invalid" && diagnostic.rule == "slotted.header.anchor"
+    }));
+}
+
+#[test]
+fn insecure_key_permissions_are_reported_without_disclosing_the_path() {
+    let (_directory, vinf, key_file) = fixture(true);
+    std::fs::set_permissions(&key_file, std::fs::Permissions::from_mode(0o644)).unwrap();
+    let request = OpenRequest {
+        input: InputSpec::Vinf {
+            path: vinf,
+            volume_root: None,
+        },
+        tde_keys_file: Some(key_file.clone()),
+    };
+    let overview = Inspection::open(&request, policy(), &CancelToken::new(), None)
+        .unwrap()
+        .view(RevisionSelector::Latest)
+        .unwrap()
+        .overview();
+    let warning = overview
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code == "tde.key_file.insecure_permissions")
+        .unwrap();
+    assert_eq!(warning.severity, "warning");
+    assert!(
+        !warning
+            .subject
+            .contains(key_file.to_string_lossy().as_ref())
+    );
+}
+
+#[test]
 fn key_failures_do_not_disclose_the_explicit_path() {
-    let (_directory, vinf, key_file) = fixture();
+    let (_directory, vinf, key_file) = fixture(true);
     let mut file = OpenOptions::new().write(true).open(&key_file).unwrap();
     file.write_all(b"not-a-key").unwrap();
     let request = OpenRequest {

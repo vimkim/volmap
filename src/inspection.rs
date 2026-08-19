@@ -8,6 +8,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use sha2::{Digest, Sha256};
+use zeroize::Zeroizing;
 
 use crate::diagnostics::{InspectionOutcome, OutcomeInputs};
 use crate::format::{
@@ -421,6 +422,69 @@ struct FileTraversal {
 enum FileTraversalError {
     Decode(&'static str),
     Operation(OperationError),
+}
+
+struct OwnedInspectionPage {
+    physical: Box<[u8; crate::format::IO_PAGE_SIZE]>,
+    decrypted_user: Option<Zeroizing<Vec<u8>>>,
+}
+
+enum InspectionPageError {
+    Source(SourceError),
+    Format(&'static str),
+    EncryptedOpaque,
+    Decrypt,
+}
+
+impl InspectionPageError {
+    fn into_operation(self) -> OperationError {
+        match self {
+            Self::Source(error) => OperationError::Source(error),
+            Self::Format(rule) => OperationError::Structural(rule.to_owned()),
+            Self::EncryptedOpaque => OperationError::Unsupported,
+            Self::Decrypt => OperationError::Structural("tde.page.decrypt".to_owned()),
+        }
+    }
+}
+
+impl OwnedInspectionPage {
+    fn read(data: &SessionData, vpid: Vpid) -> Result<Self, InspectionPageError> {
+        let source = data
+            .sources
+            .volume(vpid.vol_id)
+            .ok_or(InspectionPageError::Format("page.volume.exists"))?;
+        let physical = source
+            .read_page(vpid.page_id)
+            .map_err(InspectionPageError::Source)?;
+        let algorithm = decode_page_envelope(physical.as_slice(), vpid)
+            .map_err(|error| InspectionPageError::Format(error.rule()))?
+            .tde_algorithm();
+        let decrypted_user = match algorithm {
+            Some(algorithm) => {
+                let key = data
+                    .tde_key
+                    .as_deref()
+                    .ok_or(InspectionPageError::EncryptedOpaque)?;
+                Some(
+                    decrypt_page_user_region(physical.as_slice(), algorithm, key)
+                        .map_err(|_| InspectionPageError::Decrypt)?,
+                )
+            }
+            None => None,
+        };
+        Ok(Self {
+            physical,
+            decrypted_user,
+        })
+    }
+
+    fn envelope(&self, vpid: Vpid) -> Result<crate::format::DecodedPageEnvelope<'_>, DecodeError> {
+        if let Some(plaintext) = self.decrypted_user.as_deref() {
+            decode_decrypted_page_envelope(self.physical.as_slice(), plaintext, vpid)
+        } else {
+            decode_page_envelope(self.physical.as_slice(), vpid)
+        }
+    }
 }
 
 fn read_special_heap_record<const N: usize>(
@@ -1083,45 +1147,32 @@ impl GraphView {
         if page_view.availability != Availability::Available {
             return Err(OperationError::Unsupported);
         }
-        if policy.max_decoded_bytes < crate::format::IO_PAGE_SIZE as u64
-            || policy.memory_limit < crate::format::IO_PAGE_SIZE as u64
-        {
+        let required_bytes = crate::format::IO_PAGE_SIZE as u64
+            + if page_view.tde_state == TdeInspectionState::Decrypted {
+                crate::format::DB_PAGE_SIZE as u64
+            } else {
+                0
+            };
+        if policy.max_decoded_bytes < required_bytes || policy.memory_limit < required_bytes {
             return Err(OperationError::ResourceLimit);
         }
-        let source = self
-            .data
-            .sources
-            .volume(vpid.vol_id)
-            .ok_or(OperationError::Query(QueryError::EntityNotFound))?;
-        let bytes = source
-            .read_page(vpid.page_id)
-            .map_err(OperationError::Source)?;
+        let owned = match OwnedInspectionPage::read(&self.data, vpid) {
+            Ok(page) => page,
+            Err(InspectionPageError::Source(error)) => return Err(OperationError::Source(error)),
+            Err(InspectionPageError::Format(rule)) => {
+                return self.page_decode_failure(vpid, rule);
+            }
+            Err(InspectionPageError::EncryptedOpaque) => {
+                return Err(OperationError::Unsupported);
+            }
+            Err(InspectionPageError::Decrypt) => {
+                return self.page_decode_failure(vpid, "tde.page.decrypt");
+            }
+        };
         if cancel.is_cancelled() {
             return Err(OperationError::Interrupted);
         }
-        let encrypted = match decode_page_envelope(bytes.as_slice(), vpid) {
-            Ok(envelope) => envelope.tde_algorithm(),
-            Err(error) => return self.page_decode_failure(vpid, error.rule()),
-        };
-        let decrypted = match encrypted {
-            Some(algorithm) => {
-                let key = self
-                    .data
-                    .tde_key
-                    .as_deref()
-                    .ok_or(OperationError::Unsupported)?;
-                Some(
-                    decrypt_page_user_region(bytes.as_slice(), algorithm, key)
-                        .map_err(|_| OperationError::Structural("tde.page.decrypt".to_owned()))?,
-                )
-            }
-            None => None,
-        };
-        let decoded = if let Some(plaintext) = decrypted.as_deref() {
-            decode_decrypted_page_envelope(bytes.as_slice(), plaintext, vpid)
-        } else {
-            decode_page_envelope(bytes.as_slice(), vpid)
-        };
+        let decoded = owned.envelope(vpid);
         let fact = match decoded {
             Ok(envelope) => {
                 let owner_file_type = self
@@ -1309,15 +1360,17 @@ impl GraphView {
         {
             return Err(OperationError::Unsupported);
         }
-        let source = self
-            .data
-            .sources
-            .volume(vfid.vol_id)
-            .ok_or(OperationError::Query(QueryError::EntityNotFound))?;
-        let bytes = source
-            .read_page(header_page.page_id)
-            .map_err(OperationError::Source)?;
-        let envelope = match decode_page_envelope(bytes.as_slice(), header_page) {
+        let owned = match OwnedInspectionPage::read(&self.data, header_page) {
+            Ok(page) => page,
+            Err(InspectionPageError::Source(error)) => return Err(OperationError::Source(error)),
+            Err(InspectionPageError::Format(rule)) => {
+                return self.page_decode_failure(header_page, rule);
+            }
+            Err(InspectionPageError::EncryptedOpaque | InspectionPageError::Decrypt) => {
+                return self.page_decode_failure(header_page, "tde.file_header.invalid_state");
+            }
+        };
+        let envelope = match owned.envelope(header_page) {
             Ok(value) => value,
             Err(error) => return self.page_decode_failure(header_page, error.rule()),
         };
@@ -1378,15 +1431,18 @@ impl GraphView {
             if decoded_bytes > policy.max_decoded_bytes {
                 return Err(OperationError::ResourceLimit);
             }
-            let source = self
-                .data
-                .sources
-                .volume(vpid.vol_id)
-                .ok_or(OperationError::Arithmetic)?;
-            let bytes = source
-                .read_page(vpid.page_id)
-                .map_err(OperationError::Source)?;
-            let Ok(envelope) = decode_page_envelope(bytes.as_slice(), vpid) else {
+            let owned = match OwnedInspectionPage::read(&self.data, vpid) {
+                Ok(page) => page,
+                Err(InspectionPageError::Source(error)) => {
+                    return Err(OperationError::Source(error));
+                }
+                Err(
+                    InspectionPageError::Format(_)
+                    | InspectionPageError::EncryptedOpaque
+                    | InspectionPageError::Decrypt,
+                ) => continue,
+            };
+            let Ok(envelope) = owned.envelope(vpid) else {
                 continue;
             };
             let Ok(header) = decode_file_header(&envelope) else {
@@ -1429,13 +1485,10 @@ impl GraphView {
                 item.vfid.vol_id,
                 PageId::new(item.vfid.file_id.get()).map_err(|_| OperationError::Arithmetic)?,
             );
-            let source = self.data.sources.volume(vpid.vol_id).ok_or_else(|| {
-                OperationError::Structural("file.tracker.volume_exists".to_owned())
-            })?;
-            let bytes = source
-                .read_page(vpid.page_id)
-                .map_err(OperationError::Source)?;
-            let envelope = decode_page_envelope(bytes.as_slice(), vpid)
+            let owned = OwnedInspectionPage::read(&self.data, vpid)
+                .map_err(InspectionPageError::into_operation)?;
+            let envelope = owned
+                .envelope(vpid)
                 .map_err(|error| OperationError::Structural(error.rule().to_owned()))?;
             let header = decode_file_header(&envelope)
                 .map_err(|error| OperationError::Structural(error.rule().to_owned()))?;
@@ -1698,15 +1751,19 @@ impl GraphView {
             if current != start && !traversal.table_pages.insert(current) {
                 return Err(FileTraversalError::Decode("file.extdata.page_shared"));
             }
-            let source = self
-                .data
-                .sources
-                .volume(current.vol_id)
-                .ok_or(FileTraversalError::Decode("file.extdata.page_range"))?;
-            let bytes = source
-                .read_page(current.page_id)
-                .map_err(|error| FileTraversalError::Operation(OperationError::Source(error)))?;
-            let envelope = decode_page_envelope(bytes.as_slice(), current)
+            let owned =
+                OwnedInspectionPage::read(&self.data, current).map_err(|error| match error {
+                    InspectionPageError::Source(error) => {
+                        FileTraversalError::Operation(OperationError::Source(error))
+                    }
+                    InspectionPageError::Format(rule) => FileTraversalError::Decode(rule),
+                    InspectionPageError::EncryptedOpaque => {
+                        FileTraversalError::Decode("file.extdata.encrypted")
+                    }
+                    InspectionPageError::Decrypt => FileTraversalError::Decode("tde.page.decrypt"),
+                })?;
+            let envelope = owned
+                .envelope(current)
                 .map_err(|error| FileTraversalError::Decode(error.rule()))?;
             if envelope.page_type() != PageType::FileTable {
                 return Err(FileTraversalError::Decode("file.extdata.page_type"));
@@ -1879,16 +1936,19 @@ impl GraphView {
         if self.data.file_allocations.get(&vpid) != Some(&catalog_owner) {
             return Err("catalog.record.owner");
         }
-        let source = self
-            .data
-            .sources
-            .volume(vpid.vol_id)
-            .ok_or("catalog.record.volume")?;
-        let bytes = source
-            .read_page(vpid.page_id)
-            .map_err(|_| "catalog.record.unreadable")?;
-        let envelope =
-            decode_page_envelope(bytes.as_slice(), vpid).map_err(|error| error.rule())?;
+        let owned = OwnedInspectionPage::read(&self.data, vpid).map_err(|error| match error {
+            InspectionPageError::Source(_) => "catalog.record.unreadable",
+            InspectionPageError::Format(rule) => rule,
+            InspectionPageError::EncryptedOpaque => "catalog.record.encrypted",
+            InspectionPageError::Decrypt => "tde.page.decrypt",
+        })?;
+        if owned.decrypted_user.is_some() {
+            *decoded_bytes = decoded_bytes
+                .checked_add(crate::format::DB_PAGE_SIZE as u64)
+                .filter(|bytes| *bytes <= policy.max_decoded_bytes)
+                .ok_or("resource-limit")?;
+        }
+        let envelope = owned.envelope(vpid).map_err(|error| error.rule())?;
         if envelope.page_type() != PageType::Catalog {
             return Err("catalog.record.page_type");
         }
@@ -1971,15 +2031,24 @@ impl GraphView {
         if !valid_heap_owner {
             return self.publish_relocation_edge(source, None, Some("heap.relocation.heap_owner"));
         }
-        let source_volume = self
-            .data
-            .sources
-            .volume(source_vpid.vol_id)
-            .ok_or(OperationError::Query(QueryError::EntityNotFound))?;
-        let source_bytes = source_volume
-            .read_page(source_vpid.page_id)
-            .map_err(OperationError::Source)?;
-        let source_envelope = match decode_page_envelope(source_bytes.as_slice(), source_vpid) {
+        let source_owned = match OwnedInspectionPage::read(&self.data, source_vpid) {
+            Ok(page) => page,
+            Err(InspectionPageError::Source(error)) => return Err(OperationError::Source(error)),
+            Err(InspectionPageError::Format(rule)) => {
+                return self.publish_relocation_edge(source, None, Some(rule));
+            }
+            Err(InspectionPageError::EncryptedOpaque) => {
+                return self.publish_relocation_edge(
+                    source,
+                    None,
+                    Some("heap.relocation.encrypted"),
+                );
+            }
+            Err(InspectionPageError::Decrypt) => {
+                return self.publish_relocation_edge(source, None, Some("tde.page.decrypt"));
+            }
+        };
+        let source_envelope = match source_owned.envelope(source_vpid) {
             Ok(value) if value.page_type() == PageType::Heap => value,
             Ok(_) => {
                 return self.publish_relocation_edge(
@@ -2008,7 +2077,7 @@ impl GraphView {
             }
         };
         drop(source_slotted);
-        drop(source_bytes);
+        drop(source_owned);
         let target_vpid = Vpid::new(target.vol_id, target.page_id);
         if policy.max_decoded_bytes < 2 * crate::format::IO_PAGE_SIZE as u64 {
             return self.publish_relocation_edge(source, Some(target), Some("resource-limit"));
@@ -2025,15 +2094,28 @@ impl GraphView {
                 Some("heap.relocation.target_page_role"),
             );
         }
-        let target_volume = self
-            .data
-            .sources
-            .volume(target_vpid.vol_id)
-            .ok_or(OperationError::Query(QueryError::EntityNotFound))?;
-        let target_bytes = target_volume
-            .read_page(target_vpid.page_id)
-            .map_err(OperationError::Source)?;
-        let target_envelope = match decode_page_envelope(target_bytes.as_slice(), target_vpid) {
+        let target_owned = match OwnedInspectionPage::read(&self.data, target_vpid) {
+            Ok(page) => page,
+            Err(InspectionPageError::Source(error)) => return Err(OperationError::Source(error)),
+            Err(InspectionPageError::Format(rule)) => {
+                return self.publish_relocation_edge(source, Some(target), Some(rule));
+            }
+            Err(InspectionPageError::EncryptedOpaque) => {
+                return self.publish_relocation_edge(
+                    source,
+                    Some(target),
+                    Some("heap.relocation.encrypted"),
+                );
+            }
+            Err(InspectionPageError::Decrypt) => {
+                return self.publish_relocation_edge(
+                    source,
+                    Some(target),
+                    Some("tde.page.decrypt"),
+                );
+            }
+        };
+        let target_envelope = match target_owned.envelope(target_vpid) {
             Ok(value) if value.page_type() == PageType::Heap => value,
             Ok(_) => {
                 return self.publish_relocation_edge(
@@ -2175,13 +2257,34 @@ impl GraphView {
                 Some("overflow.chain.heap_owner"),
             );
         }
-        let Some(source_page) = self.data.sources.volume(home.vol_id) else {
-            return Err(OperationError::Query(QueryError::EntityNotFound));
+        let source_owned = match OwnedInspectionPage::read(&self.data, home) {
+            Ok(page) => page,
+            Err(InspectionPageError::Source(error)) => return Err(OperationError::Source(error)),
+            Err(InspectionPageError::Format(rule)) => {
+                return self.publish_overflow_chain(source, None, None, 0, Vec::new(), Some(rule));
+            }
+            Err(InspectionPageError::EncryptedOpaque) => {
+                return self.publish_overflow_chain(
+                    source,
+                    None,
+                    None,
+                    0,
+                    Vec::new(),
+                    Some("overflow.chain.encrypted"),
+                );
+            }
+            Err(InspectionPageError::Decrypt) => {
+                return self.publish_overflow_chain(
+                    source,
+                    None,
+                    None,
+                    0,
+                    Vec::new(),
+                    Some("tde.page.decrypt"),
+                );
+            }
         };
-        let source_bytes = source_page
-            .read_page(home.page_id)
-            .map_err(OperationError::Source)?;
-        let source_envelope = match decode_page_envelope(source_bytes.as_slice(), home) {
+        let source_envelope = match source_owned.envelope(home) {
             Ok(value) if value.page_type() == PageType::Heap => value,
             Ok(_) => {
                 return self.publish_overflow_chain(
@@ -2232,6 +2335,8 @@ impl GraphView {
                 );
             }
         };
+        drop(source_slotted);
+        drop(source_owned);
         let Some(overflow_owner) = self.data.file_allocations.get(&head).copied() else {
             return self.publish_overflow_chain(
                 source,
@@ -2335,15 +2440,59 @@ impl GraphView {
                     Some("overflow.chain.page_role"),
                 );
             }
-            let source_volume = self
-                .data
-                .sources
-                .volume(current.vol_id)
-                .ok_or(OperationError::Query(QueryError::EntityNotFound))?;
-            let bytes = source_volume
-                .read_page(current.page_id)
-                .map_err(OperationError::Source)?;
-            let envelope = match decode_page_envelope(bytes.as_slice(), current) {
+            let owned = match OwnedInspectionPage::read(&self.data, current) {
+                Ok(page) => page,
+                Err(InspectionPageError::Source(error)) => {
+                    return Err(OperationError::Source(error));
+                }
+                Err(InspectionPageError::Format(rule)) => {
+                    return self.publish_overflow_chain(
+                        source,
+                        Some(head),
+                        total,
+                        validated_payload_bytes,
+                        pages,
+                        Some(rule),
+                    );
+                }
+                Err(InspectionPageError::EncryptedOpaque) => {
+                    return self.publish_overflow_chain(
+                        source,
+                        Some(head),
+                        total,
+                        validated_payload_bytes,
+                        pages,
+                        Some("overflow.chain.encrypted"),
+                    );
+                }
+                Err(InspectionPageError::Decrypt) => {
+                    return self.publish_overflow_chain(
+                        source,
+                        Some(head),
+                        total,
+                        validated_payload_bytes,
+                        pages,
+                        Some("tde.page.decrypt"),
+                    );
+                }
+            };
+            if owned.decrypted_user.is_some() {
+                decoded_bytes = match decoded_bytes.checked_add(crate::format::DB_PAGE_SIZE as u64)
+                {
+                    Some(value) if value <= policy.max_decoded_bytes => value,
+                    _ => {
+                        return self.publish_overflow_chain(
+                            source,
+                            Some(head),
+                            total,
+                            validated_payload_bytes,
+                            pages,
+                            Some("resource-limit"),
+                        );
+                    }
+                };
+            }
+            let envelope = match owned.envelope(current) {
                 Ok(value) => value,
                 Err(error) => {
                     return self.publish_overflow_chain(
@@ -2565,18 +2714,56 @@ impl GraphView {
                     Some("oos.chain.page_role"),
                 );
             }
-            let source = self
-                .data
-                .sources
-                .volume(current.vol_id)
-                .ok_or(OperationError::Query(QueryError::EntityNotFound))?;
-            let bytes = source
-                .read_page(current.page_id)
-                .map_err(OperationError::Source)?;
-            let envelope = match decode_page_envelope(
-                bytes.as_slice(),
-                Vpid::new(current.vol_id, current.page_id),
-            ) {
+            let current_vpid = Vpid::new(current.vol_id, current.page_id);
+            let owned = match OwnedInspectionPage::read(&self.data, current_vpid) {
+                Ok(page) => page,
+                Err(InspectionPageError::Source(error)) => {
+                    return Err(OperationError::Source(error));
+                }
+                Err(InspectionPageError::Format(rule)) => {
+                    return self.publish_oos_chain(
+                        head,
+                        expected_total,
+                        validated_payload_bytes,
+                        chunks,
+                        Some(rule),
+                    );
+                }
+                Err(InspectionPageError::EncryptedOpaque) => {
+                    return self.publish_oos_chain(
+                        head,
+                        expected_total,
+                        validated_payload_bytes,
+                        chunks,
+                        Some("oos.chain.encrypted"),
+                    );
+                }
+                Err(InspectionPageError::Decrypt) => {
+                    return self.publish_oos_chain(
+                        head,
+                        expected_total,
+                        validated_payload_bytes,
+                        chunks,
+                        Some("tde.page.decrypt"),
+                    );
+                }
+            };
+            if owned.decrypted_user.is_some() {
+                decoded_bytes = match decoded_bytes.checked_add(crate::format::DB_PAGE_SIZE as u64)
+                {
+                    Some(value) if value <= policy.max_decoded_bytes => value,
+                    _ => {
+                        return self.publish_oos_chain(
+                            head,
+                            expected_total,
+                            validated_payload_bytes,
+                            chunks,
+                            Some("resource-limit"),
+                        );
+                    }
+                };
+            }
+            let envelope = match owned.envelope(current_vpid) {
                 Ok(value) => value,
                 Err(error) => {
                     return self.publish_oos_chain(
@@ -2878,10 +3065,37 @@ impl GraphView {
                 diagnostic_rule: Some(rule),
             },
         );
+        let decrypted = next
+            .volumes
+            .iter_mut()
+            .find(|volume| volume.view.vol_id == vpid.vol_id)
+            .and_then(|volume| {
+                volume
+                    .pages
+                    .iter_mut()
+                    .find(|fact| fact.page_id == vpid.page_id)
+            })
+            .is_some_and(|fact| {
+                if fact.tde_state == TdeInspectionState::Decrypted {
+                    fact.tde_state = TdeInspectionState::DecryptedInvalid;
+                    fact.diagnostic_code = Some("tde.decrypted_invalid");
+                    true
+                } else {
+                    false
+                }
+            });
         next.diagnostics.push(DiagnosticRecord {
-            code: "page.structure.invalid",
+            code: if decrypted {
+                "tde.decrypted_invalid"
+            } else {
+                "page.body.invalid"
+            },
             severity: "error",
-            message: "The requested page body violates its pinned structural format.",
+            message: if decrypted {
+                "Decrypted page structure is invalid."
+            } else {
+                "The requested page body violates its pinned structural format."
+            },
             subject: format!("page:{}:{}", vpid.vol_id.get(), vpid.page_id.get()),
             rule,
         });
