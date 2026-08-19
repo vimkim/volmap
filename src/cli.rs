@@ -26,7 +26,10 @@ const DEFAULT_MEMORY_LIMIT: &str = "256MiB";
 const DEFAULT_SPILL_LIMIT: &str = "2GiB";
 const DEFAULT_MAX_DECODED_BYTES: &str = "256MiB";
 const DEFAULT_WORKERS: u32 = 4;
-const DEFAULT_MAX_CHAIN_STEPS: u64 = 65_536;
+
+// One physical page per step reaches the decoded-byte limit at this boundary.
+const DEFAULT_MAX_CHAIN_STEPS: u64 = 16_384;
+
 #[derive(Debug, Parser)]
 #[command(name = "volmap", version, about = "Read-only CUBRID volume inspector")]
 pub struct Cli {

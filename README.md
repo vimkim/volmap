@@ -19,8 +19,8 @@ deep page read. The pinned source-derived acceptance corpus covers the current
 semantic page families. Fast page facts use an exact 16-byte canonical form and
 automatically move to private, unlinked spill storage under the resident-memory
 budget. Bounded envelope workers merge facts and findings back into canonical
-physical order. The remaining fixture matrix and measured production resource
-defaults are still release gates.
+physical order. The remaining mutation/fuzz, distribution, and company release
+approval matrices are still release gates.
 
 ## Build
 
@@ -109,6 +109,20 @@ The token is never accepted in a URL and the browser keeps it only in memory.
   represented in coverage and diagnostics rather than silently sampled.
 - Application payload bytes, decoded values, ciphertext, and TDE secrets are
   outside every output surface.
+
+## Resource defaults
+
+Version-one internal defaults are a 256 MiB admitted resident limit, 2 GiB
+private spill limit, four envelope workers, 16,384 chain steps, and 256 MiB of
+decoded input per explicit operation. The limits are hard admission boundaries,
+not preallocations. Reaching one publishes the validated prefix with partial
+coverage and never silently samples.
+
+The deterministic reference-host matrix covers small, medium, large, 4 GiB
+sparse, fully reserved, corruption-heavy, resident/spilled, cancellation, query,
+and 512-chunk OOS profiles. Run it with `just resource-benchmark`. Its timings
+are engineering evidence, not a device-independent performance SLO; cold-cache,
+constrained-host, and cross-distribution runs remain release checks.
 
 Run `volmap licenses` for the embedded project notice. The complete decision
 and acceptance specification is in

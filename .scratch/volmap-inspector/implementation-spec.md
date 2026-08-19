@@ -56,7 +56,7 @@ stable projections -> CLI/JSON/JSONL | TUI | HTML export | HTTP API/browser
 6. Traverse file tables and OOS/overflow links with cycle, target-role, step, decoded-byte, and memory checks. Publish validated prefixes when the contract permits partial results.
 7. Recheck file stamps before publishing every later immutable revision. Older revisions remain queryable for the session lifetime.
 
-The packed store, worker count, and spill behavior follow ticket 05. Numeric defaults are not a product-decision gap: ticket 17 deliberately gates them on measurements from the required immutable corpus.
+The packed store, worker count, and spill behavior follow ticket 05. Ticket 17's measured internal defaults are 256 MiB admitted resident memory, 2 GiB private spill, four workers, 16,384 chain steps, and 256 MiB decoded input. Limits publish an explicit partial prefix rather than sampling; cold-cache, constrained-host, and cross-distribution confirmation remains a release gate.
 
 ## Page-family delivery boundary
 
