@@ -108,7 +108,12 @@ exhaustive 16,344-byte content distribution: the slotted header, every allocated
 record extent, every fragmented or contiguous free interval, and the complete
 slot directory. Directory entries are colored and labeled as allocated,
 unallocated, or deleted, with record and directory offsets and sizes shown
-separately. Breadcrumb and Back controls return to the preceding level.
+separately. Every volume, sector, page, slot, and OOS view has a canonical URL
+that pins both the snapshot and immutable inspection revision. Browser Back and
+Forward restore those exact views and revisions; reloading a deep URL restores
+the same view after the in-memory bearer token is entered again. Enrichment
+publishes a new revision URL, so the previous revision remains reachable in
+browser history. Breadcrumb and Back controls return to the preceding level.
 
 ## Safety and scope
 
