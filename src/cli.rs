@@ -1011,6 +1011,16 @@ fn render_human(document: &ResultDocument) -> String {
                         structure.record_count,
                         structure.record_bytes
                     );
+                    for directory in &structure.directories {
+                        let _ = writeln!(
+                            output,
+                            "  directory:{} pages={} objects={} representations={}",
+                            directory.slot_id,
+                            directory.total_pages,
+                            directory.total_objects,
+                            directory.representations.len()
+                        );
+                    }
                 }
                 crate::projection::DeepPageProjection::Vacuum { structure } => {
                     let _ = writeln!(

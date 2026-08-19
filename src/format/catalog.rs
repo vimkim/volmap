@@ -1,5 +1,5 @@
 use crate::bytes::ByteView;
-use crate::model::{Oid, PageId, SlotId, VolId, Vpid};
+use crate::model::{FileId, Oid, PageId, SlotId, Vfid, VolId, Vpid};
 
 use super::{DecodeError, DecodeErrorKind, DecodedPageEnvelope, PageType, RecordType, SlottedPage};
 
@@ -31,6 +31,80 @@ pub struct CatalogRepresentationHeaderFact {
     pub fixed_count: u32,
     pub fixed_length: u32,
     pub variable_count: u32,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CatalogClassInfoFact {
+    pub heap_file: Option<Vfid>,
+    pub heap_header: Option<Vpid>,
+    pub total_pages: u32,
+    pub total_objects: u32,
+    pub representation_directory: Oid,
+}
+
+pub fn decode_catalog_class_info(
+    envelope: &DecodedPageEnvelope<'_>,
+    slotted: &SlottedPage,
+    slot_id: u16,
+) -> Result<CatalogClassInfoFact, DecodeError> {
+    let (view, base, length) = catalog_record(envelope, slotted, slot_id, "catalog.class_info")?;
+    if length != 56 {
+        return Err(error(
+            DecodeErrorKind::InvalidLength,
+            "catalog.class_info.length",
+        ));
+    }
+    let heap_page = read_i32_be(&view, base, "catalog.class_info.heap")?;
+    let heap_file = read_i32_be(&view, base + 4, "catalog.class_info.heap")?;
+    let heap_volume = read_i32_be(&view, base + 8, "catalog.class_info.heap")?;
+    let heap = if heap_file == -1 {
+        if heap_page != -1 {
+            return Err(error(
+                DecodeErrorKind::InvalidGeometry,
+                "catalog.class_info.heap",
+            ));
+        }
+        // HFID_IS_NULL is defined by NULL_FILEID. CUBRID's null setter also
+        // clears hpgid but deliberately leaves the unused volume word alone.
+        None
+    } else {
+        if heap_page < 0 || heap_file < 0 || heap_volume < 0 {
+            return Err(error(
+                DecodeErrorKind::InvalidGeometry,
+                "catalog.class_info.heap",
+            ));
+        }
+        let heap_volume = i16::try_from(heap_volume)
+            .map_err(|_| error(DecodeErrorKind::OutOfRange, "catalog.class_info.heap"))?;
+        let heap_volume = VolId::new(heap_volume)
+            .map_err(|_| error(DecodeErrorKind::OutOfRange, "catalog.class_info.heap"))?;
+        let heap_file = FileId::new(heap_file)
+            .map_err(|_| error(DecodeErrorKind::OutOfRange, "catalog.class_info.heap"))?;
+        let heap_page = PageId::new(heap_page)
+            .map_err(|_| error(DecodeErrorKind::OutOfRange, "catalog.class_info.heap"))?;
+        Some((
+            Vfid::new(heap_volume, heap_file),
+            Vpid::new(heap_volume, heap_page),
+        ))
+    };
+    Ok(CatalogClassInfoFact {
+        heap_file: heap.map(|value| value.0),
+        heap_header: heap.map(|value| value.1),
+        total_pages: non_negative_i32(
+            read_i32_be(&view, base + 12, "catalog.class_info.total_pages")?,
+            "catalog.class_info.total_pages",
+        )?,
+        total_objects: non_negative_i32(
+            read_i32_be(&view, base + 16, "catalog.class_info.total_objects")?,
+            "catalog.class_info.total_objects",
+        )?,
+        representation_directory: required_oid(
+            read_i32_be(&view, base + 24, "catalog.class_info.directory")?,
+            read_i16_be(&view, base + 28, "catalog.class_info.directory")?,
+            read_i16_be(&view, base + 30, "catalog.class_info.directory")?,
+            "catalog.class_info.directory",
+        )?,
+    })
 }
 
 pub fn decode_catalog_directory(

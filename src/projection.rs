@@ -277,7 +277,27 @@ pub struct CatalogPageProjection {
     pub role: &'static str,
     pub record_count: u16,
     pub record_bytes: String,
+    pub directories: Vec<CatalogDirectoryProjection>,
     pub bytes: BytesWithheldProjection,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct CatalogDirectoryProjection {
+    pub slot_id: u16,
+    pub class_oid: OptionalOidProjection,
+    pub heap_file: OptionalVfidProjection,
+    pub heap_header: OptionalVpidProjection,
+    pub total_pages: String,
+    pub total_objects: String,
+    pub representations: Vec<CatalogRepresentationProjection>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct CatalogRepresentationProjection {
+    pub representation_id: i32,
+    pub fixed_count: String,
+    pub fixed_length: String,
+    pub variable_count: String,
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -634,15 +654,37 @@ pub fn deep_page_projection(deep: Option<DeepPageView>) -> DeepPageProjection {
             }
             RawPageView::Catalog(page) => DeepPageProjection::Catalog {
                 structure: CatalogPageProjection {
-                    next_overflow: optional_vpid_projection(page.next_overflow),
-                    directory_count: page.directory_count.to_string(),
-                    role: if page.is_overflow {
+                    next_overflow: optional_vpid_projection(page.page.next_overflow),
+                    directory_count: page.page.directory_count.to_string(),
+                    role: if page.page.is_overflow {
                         "overflow"
                     } else {
                         "primary"
                     },
-                    record_count: page.record_count,
-                    record_bytes: page.record_bytes.to_string(),
+                    record_count: page.page.record_count,
+                    record_bytes: page.page.record_bytes.to_string(),
+                    directories: page
+                        .directories
+                        .into_iter()
+                        .map(|directory| CatalogDirectoryProjection {
+                            slot_id: directory.slot_id,
+                            class_oid: optional_oid_projection(directory.class_oid),
+                            heap_file: optional_vfid_projection(directory.class_info.heap_file),
+                            heap_header: optional_vpid_projection(directory.class_info.heap_header),
+                            total_pages: directory.class_info.total_pages.to_string(),
+                            total_objects: directory.class_info.total_objects.to_string(),
+                            representations: directory
+                                .representations
+                                .into_iter()
+                                .map(|representation| CatalogRepresentationProjection {
+                                    representation_id: representation.representation_id,
+                                    fixed_count: representation.fixed_count.to_string(),
+                                    fixed_length: representation.fixed_length.to_string(),
+                                    variable_count: representation.variable_count.to_string(),
+                                })
+                                .collect(),
+                        })
+                        .collect(),
                     bytes: BytesWithheldProjection {
                         state: "bytes-withheld",
                     },

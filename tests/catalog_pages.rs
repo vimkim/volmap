@@ -1,7 +1,7 @@
 use volmap::format::{
-    CatalogPageFact, DB_PAGE_SIZE, IO_PAGE_SIZE, PageType, decode_catalog_directory,
-    decode_catalog_page, decode_catalog_representation_header, decode_page_envelope,
-    decode_slotted_page,
+    CatalogPageFact, DB_PAGE_SIZE, IO_PAGE_SIZE, PageType, decode_catalog_class_info,
+    decode_catalog_directory, decode_catalog_page, decode_catalog_representation_header,
+    decode_page_envelope, decode_slotted_page,
 };
 use volmap::model::{PageId, VolId, Vpid};
 
@@ -175,5 +175,59 @@ fn catalog_record_decoders_reject_unproven_shapes_and_hostile_counts() {
             .unwrap_err()
             .rule(),
         "catalog.representation.fixed_count"
+    );
+}
+
+#[test]
+fn caller_proven_class_info_links_heap_and_representation_directory() {
+    let mut page = catalog_page(30, &[(32, 16, 2), (48, 56, 2)]);
+    put_header(&mut page, -1, -1, 0, 0);
+    let user = &mut page[32..IO_PAGE_SIZE - 8];
+    user[48..52].copy_from_slice(&70_i32.to_be_bytes());
+    user[52..56].copy_from_slice(&64_i32.to_be_bytes());
+    user[56..60].copy_from_slice(&0_i32.to_be_bytes());
+    user[60..64].copy_from_slice(&12_i32.to_be_bytes());
+    user[64..68].copy_from_slice(&34_i32.to_be_bytes());
+    user[72..76].copy_from_slice(&30_i32.to_be_bytes());
+    user[76..78].copy_from_slice(&4_i16.to_be_bytes());
+    user[78..80].copy_from_slice(&0_i16.to_be_bytes());
+    let envelope = decode_page_envelope(
+        &page,
+        Vpid::new(VolId::new(0).unwrap(), PageId::new(30).unwrap()),
+    )
+    .unwrap();
+    let slotted = decode_slotted_page(&envelope).unwrap();
+    let info = decode_catalog_class_info(&envelope, &slotted, 1).unwrap();
+    assert_eq!(info.heap_file.unwrap().file_id.get(), 64);
+    assert_eq!(info.heap_header.unwrap().page_id.get(), 70);
+    assert_eq!(info.total_pages, 12);
+    assert_eq!(info.total_objects, 34);
+    assert_eq!(info.representation_directory.slot_id.get(), 4);
+
+    page[32 + 48..32 + 52].copy_from_slice(&(-1_i32).to_be_bytes());
+    page[32 + 52..32 + 56].copy_from_slice(&(-1_i32).to_be_bytes());
+    page[32 + 56..32 + 60].copy_from_slice(&0_i32.to_be_bytes());
+    let envelope = decode_page_envelope(
+        &page,
+        Vpid::new(VolId::new(0).unwrap(), PageId::new(30).unwrap()),
+    )
+    .unwrap();
+    let slotted = decode_slotted_page(&envelope).unwrap();
+    let info = decode_catalog_class_info(&envelope, &slotted, 1).unwrap();
+    assert_eq!(info.heap_file, None);
+    assert_eq!(info.heap_header, None);
+
+    page[32 + 48..32 + 52].copy_from_slice(&70_i32.to_be_bytes());
+    let envelope = decode_page_envelope(
+        &page,
+        Vpid::new(VolId::new(0).unwrap(), PageId::new(30).unwrap()),
+    )
+    .unwrap();
+    let slotted = decode_slotted_page(&envelope).unwrap();
+    assert_eq!(
+        decode_catalog_class_info(&envelope, &slotted, 1)
+            .unwrap_err()
+            .rule(),
+        "catalog.class_info.heap"
     );
 }

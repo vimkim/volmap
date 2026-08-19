@@ -10,17 +10,19 @@ use sha2::{Digest, Sha256};
 
 use crate::diagnostics::{InspectionOutcome, OutcomeInputs};
 use crate::format::{
-    BtreePageFact, CatalogPageFact, DecodeError, DroppedFilesPageFact, FileHeader, HeapPageFact,
-    OosNext, PageContent, PageType, SlottedPage, TdeAlgorithm, TrackerItemFact, UserPageFact,
-    VacuumPageFact, VolumePurpose, VolumeType, decode_bigone_target, decode_btree_page,
-    decode_catalog_page, decode_dropped_files_page, decode_extdata_header, decode_file_header,
-    decode_full_sectors, decode_heap_page, decode_oos_chunk, decode_overflow_continuation,
-    decode_overflow_head, decode_page_envelope, decode_page_envelope_parts, decode_partial_sectors,
-    decode_sector_bitmap, decode_slotted_page, decode_tracker_items, decode_user_pages,
-    decode_vacuum_page, decode_volume_header,
+    BtreePageFact, CatalogClassInfoFact, CatalogPageFact, CatalogRepresentationHeaderFact,
+    DecodeError, DroppedFilesPageFact, FileHeader, HeapPageFact, OosNext, PageContent, PageType,
+    SlottedPage, TdeAlgorithm, TrackerItemFact, UserPageFact, VacuumPageFact, VolumePurpose,
+    VolumeType, decode_bigone_target, decode_btree_page, decode_catalog_class_info,
+    decode_catalog_directory, decode_catalog_page, decode_catalog_representation_header,
+    decode_dropped_files_page, decode_extdata_header, decode_file_header, decode_full_sectors,
+    decode_heap_page, decode_oos_chunk, decode_overflow_continuation, decode_overflow_head,
+    decode_page_envelope, decode_page_envelope_parts, decode_partial_sectors, decode_sector_bitmap,
+    decode_slotted_page, decode_tracker_items, decode_user_pages, decode_vacuum_page,
+    decode_volume_header,
 };
 use crate::model::{
-    Availability, Coverage, InspectionRevision, Oid, PageAllocationClass, PageId, SectorId,
+    Availability, Coverage, InspectionRevision, Oid, PageAllocationClass, PageId, SectorId, SlotId,
     SnapshotId, SnapshotValidity, TdeInspectionState, Vfid, VolId, Vpid,
 };
 use crate::source::{InputSpec, SourceError, SourceSet, discover};
@@ -263,10 +265,24 @@ struct DeepPageFact {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RawPageView {
     Btree(BtreePageFact),
-    Catalog(CatalogPageFact),
+    Catalog(CatalogPageView),
     Heap(HeapPageFact),
     Vacuum(VacuumPageFact),
     DroppedFiles(DroppedFilesPageFact),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CatalogPageView {
+    pub page: CatalogPageFact,
+    pub directories: Vec<CatalogDirectoryView>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CatalogDirectoryView {
+    pub slot_id: u16,
+    pub class_oid: Option<Oid>,
+    pub class_info: CatalogClassInfoFact,
+    pub representations: Vec<CatalogRepresentationHeaderFact>,
 }
 
 #[derive(Clone, Debug)]
@@ -1030,7 +1046,25 @@ impl GraphView {
                         match (owned_by_catalog, slotted.as_ref()) {
                             (true, Some(slotted)) => {
                                 match decode_catalog_page(&envelope, slotted) {
-                                    Ok(value) => Some(RawPageView::Catalog(value)),
+                                    Ok(page) => match self.catalog_directories(
+                                        vpid, &envelope, slotted, page, policy, cancel,
+                                    ) {
+                                        Ok(directories) => {
+                                            Some(RawPageView::Catalog(CatalogPageView {
+                                                page,
+                                                directories,
+                                            }))
+                                        }
+                                        Err("resource-limit") => {
+                                            return Err(OperationError::ResourceLimit);
+                                        }
+                                        Err("interrupted") => {
+                                            return Err(OperationError::Interrupted);
+                                        }
+                                        Err(rule) => {
+                                            return self.page_decode_failure(vpid, rule);
+                                        }
+                                    },
                                     Err(error) => {
                                         return self.page_decode_failure(vpid, error.rule());
                                     }
@@ -1550,6 +1584,160 @@ impl GraphView {
             current = next;
             offset = 0;
         }
+    }
+
+    fn catalog_directories(
+        &self,
+        vpid: Vpid,
+        envelope: &crate::format::DecodedPageEnvelope<'_>,
+        slotted: &SlottedPage,
+        page: CatalogPageFact,
+        policy: ResourcePolicy,
+        cancel: &CancelToken,
+    ) -> Result<Vec<CatalogDirectoryView>, &'static str> {
+        if page.is_overflow {
+            return Ok(Vec::new());
+        }
+        let catalog_owner = self
+            .data
+            .file_allocations
+            .get(&vpid)
+            .copied()
+            .ok_or("catalog.directory.owner")?;
+        let mut decoded_bytes = crate::format::IO_PAGE_SIZE as u64;
+        let mut directories = Vec::new();
+        for slot in slotted.slots().iter().skip(1).filter(|slot| {
+            !slot.is_empty()
+                && slot.record_type() == crate::format::RecordType::Home
+                && slot.length() == 32
+        }) {
+            let Ok(directory) = decode_catalog_directory(envelope, slotted, slot.slot_id()) else {
+                continue;
+            };
+            let mut class_items = directory
+                .items
+                .iter()
+                .filter(|item| item.representation_id == -1);
+            let Some(class_item) = class_items.next() else {
+                continue;
+            };
+            if class_items.next().is_some()
+                || directory
+                    .items
+                    .iter()
+                    .any(|item| item.representation_id < -1)
+            {
+                continue;
+            }
+            let class_info = self.decode_catalog_target(
+                class_item.target,
+                catalog_owner,
+                &mut decoded_bytes,
+                policy,
+                cancel,
+                decode_catalog_class_info,
+            )?;
+            let source = Oid::new(
+                vpid.vol_id,
+                vpid.page_id,
+                SlotId::new(i16::try_from(slot.slot_id()).map_err(|_| "catalog.directory.slot")?)
+                    .map_err(|_| "catalog.directory.slot")?,
+            );
+            if class_info.representation_directory != source {
+                continue;
+            }
+            let heap_header = match (class_info.heap_file, class_info.heap_header) {
+                (Some(heap_file), Some(heap_page)) => {
+                    let Some(header) = self.data.tracked_files.get(&heap_file) else {
+                        continue;
+                    };
+                    if !matches!(
+                        header.file_type(),
+                        crate::format::FileType::Heap | crate::format::FileType::HeapReuseSlots
+                    ) || header.heap_header_page() != Some(heap_page)
+                    {
+                        continue;
+                    }
+                    Some(header)
+                }
+                (None, None) => None,
+                _ => return Err("catalog.class_info.heap_pair"),
+            };
+            let mut representations = Vec::new();
+            for item in directory
+                .items
+                .iter()
+                .filter(|item| item.representation_id >= 0)
+            {
+                let representation = self.decode_catalog_target(
+                    item.target,
+                    catalog_owner,
+                    &mut decoded_bytes,
+                    policy,
+                    cancel,
+                    decode_catalog_representation_header,
+                )?;
+                if representation.representation_id != i32::from(item.representation_id) {
+                    return Err("catalog.representation.id_match");
+                }
+                representations.push(representation);
+            }
+            directories.push(CatalogDirectoryView {
+                slot_id: slot.slot_id(),
+                class_oid: heap_header.and_then(|header| header.class_oid()),
+                class_info,
+                representations,
+            });
+        }
+        if directories.len() != usize::try_from(page.directory_count).unwrap_or(usize::MAX) {
+            return Err("catalog.page.directory_roles");
+        }
+        Ok(directories)
+    }
+
+    fn decode_catalog_target<T, F>(
+        &self,
+        oid: Oid,
+        catalog_owner: Vfid,
+        decoded_bytes: &mut u64,
+        policy: ResourcePolicy,
+        cancel: &CancelToken,
+        decoder: F,
+    ) -> Result<T, &'static str>
+    where
+        F: FnOnce(
+            &crate::format::DecodedPageEnvelope<'_>,
+            &SlottedPage,
+            u16,
+        ) -> Result<T, DecodeError>,
+    {
+        if cancel.is_cancelled() {
+            return Err("interrupted");
+        }
+        *decoded_bytes = decoded_bytes
+            .checked_add(crate::format::IO_PAGE_SIZE as u64)
+            .filter(|bytes| *bytes <= policy.max_decoded_bytes)
+            .ok_or("resource-limit")?;
+        let vpid = Vpid::new(oid.vol_id, oid.page_id);
+        if self.data.file_allocations.get(&vpid) != Some(&catalog_owner) {
+            return Err("catalog.record.owner");
+        }
+        let source = self
+            .data
+            .sources
+            .volume(vpid.vol_id)
+            .ok_or("catalog.record.volume")?;
+        let bytes = source
+            .read_page(vpid.page_id)
+            .map_err(|_| "catalog.record.unreadable")?;
+        let envelope =
+            decode_page_envelope(bytes.as_slice(), vpid).map_err(|error| error.rule())?;
+        if envelope.page_type() != PageType::Catalog {
+            return Err("catalog.record.page_type");
+        }
+        let slotted = decode_slotted_page(&envelope).map_err(|error| error.rule())?;
+        let slot_id = u16::try_from(oid.slot_id.get()).map_err(|_| "catalog.record.slot")?;
+        decoder(&envelope, &slotted, slot_id).map_err(|error| error.rule())
     }
 
     #[must_use]
