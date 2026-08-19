@@ -48,14 +48,22 @@ Three follow-up variants are captured on branch `prototype/full-volume-mosaic` a
 
 The live viewer exposes the complete selected volume through bounded, revision-bound continuation. It fetches 24 sector cards initially and progressively appends bounded windows while the user scrolls; the API caps one response at 64 sectors. This preserves the full-volume navigation space without constructing one unbounded response. Each sector card contains exactly 64 page cells in physical order. Allocation class supplies the base color (`system-metadata`, `unreserved`, `reserved-unallocated`, or `allocated`), while findings remain an independent outline and accessible text label.
 
+### Follow-up replacement drill-down decision
+
+On 2026-08-20 the user selected replacement navigation rather than a modal: selecting a sector replaces the volume mosaic with an enlarged 8×8 view of all 64 pages; selecting a page then replaces the sector with a page workspace. Explicit Back and breadcrumb controls restore the preceding level.
+
+Three replacement variants are captured on branch `prototype/drilldown-workspace` at commit `f63a99b` in `prototype/drilldown-workspace.html`: a breadcrumb stage, a persistent context rail, and a vertically stacked technical sheet. The accepted production direction is the breadcrumb stage. It gives page cells enough room for identity/type labels, makes the hierarchy explicit, and gives page detail a two-column structure without duplicating the volume map beside it.
+
+Page selection is an explicit deep-inspection target. When supported detail has not yet been requested, the browser automatically submits one bounded enrichment and advances to the returned immutable revision before showing structural detail. A slotted page exposes its safe slot directory independently of specialized page metadata: every validated slot row shows slot ID, record type, byte offset, and byte size, alongside a proportional structural extent canvas. Source bytes and payload remain withheld.
+
 ## Answer
 
 The production web explorer uses a responsive Atlas shell:
 
 - a persistent header identifies the snapshot fingerprint prefix, immutable revision, selected volume/sector, outcome, and authentication/session state;
 - a left rail contains an expandable snapshot/volume tree; bounded sector continuation drives the center mosaic rather than duplicating sectors in a second navigation list;
-- the center workspace renders the selected volume as a progressively loaded mosaic of sector cards, each containing exactly 64 keyboard-focusable page cells, with allocation, physical type, ownership conflict, encryption, support level, and diagnostic state conveyed by accessible labels as well as color;
-- the right inspector shows selected-page identity, support/availability/coverage, safe physical extents, typed slots, structural relationships, OOS/overflow links, and contained diagnostics; and
+- the center workspace renders the selected volume as a progressively loaded mosaic of keyboard-focusable sector cards, each previewing exactly 64 page cells; selecting a card exposes its 64 individually keyboard-focusable pages, with allocation, physical type, ownership conflict, encryption, support level, and diagnostic state conveyed by accessible labels as well as color;
+- selecting a sector replaces the mosaic with a large 64-page grid, and selecting a page replaces that grid with page identity, support/availability/coverage, safe physical extents, typed slots, structural relationships, OOS/overflow links, and contained diagnostics; Back and breadcrumbs restore the previous level; and
 - a typed selector/command palette jumps to snapshot-scoped volume, sector, page, file, slot, and OOS-value identities without accepting paths, offsets, or arbitrary query expressions.
 
 Normal, sparse, fragmented, corrupt, and OOS-heavy snapshots use the same hierarchy. Sparse and fragmented sectors emphasize allocation runs and ownership disagreements without collapsing missing pages. Corrupt content retains validated sibling facts, marks the exact containment boundary, and keeps coverage visible. OOS-heavy pages render chains lazily with validated-prefix, terminal-condition, total-length, and traversal-budget facts; selecting a chain node navigates through typed identities rather than URLs containing secrets or byte offsets. Loading and enrichment states keep the prior immutable revision visible, reserve layout space, announce progress accessibly, and offer cancellation.
