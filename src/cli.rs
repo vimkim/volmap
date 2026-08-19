@@ -11,8 +11,8 @@ use serde::Serialize;
 
 use crate::diagnostics::InspectionOutcome;
 use crate::inspection::{
-    CancelToken, GraphView, Inspection, OpenFailure, OpenRequest, ProgressObserver, QueryError,
-    ResourcePolicy, RevisionSelector, ScanPhase, ScanProgress,
+    CancelToken, GraphView, Inspection, OpenFailure, OpenRequest, OperationError, ProgressObserver,
+    QueryError, ResourcePolicy, RevisionSelector, ScanPhase, ScanProgress,
 };
 use crate::model::{FileId, Oid, PageId, SectorId, SlotId, Vfid, VolId, Vpid};
 use crate::projection::{
@@ -312,6 +312,7 @@ where
     };
     match run(cli) {
         Ok(code) => code,
+        Err(CliError::BrokenPipe) => 141,
         Err(error) => {
             let _ = writeln!(
                 io::stderr().lock(),
@@ -489,12 +490,35 @@ fn run_map(command: MapCommand) -> Result<i32, CliError> {
     }
     let (mut view, _) = open_view(&command.input, &command.resources, command.output.format)?;
     if let Some(EntitySelector::File(vfid)) = selector {
-        view = view
-            .enrich_file(vfid, enrichment_policy, &CancelToken::new())
-            .map_err(|error| CliError::OpenAdapter(error.to_string()))?;
+        view = match view.enrich_file(vfid, enrichment_policy, &CancelToken::new()) {
+            Ok(enriched) => enriched,
+            Err(OperationError::Query(QueryError::EntityNotFound)) => {
+                let overview = view.overview();
+                return write_command_error(
+                    command.output.format,
+                    "map",
+                    command.selector.as_deref().unwrap_or_default(),
+                    &overview,
+                    "entity-not-found",
+                );
+            }
+            Err(error) => return Err(operation_error(error)),
+        };
     }
     let overview = view.overview();
-    let (volumes, sectors) = map_data(&view, selector)?;
+    let (volumes, sectors) = match map_data(&view, selector) {
+        Ok(data) => data,
+        Err(CliError::Query(QueryError::EntityNotFound)) => {
+            return write_command_error(
+                command.output.format,
+                "map",
+                command.selector.as_deref().unwrap_or_default(),
+                &overview,
+                "entity-not-found",
+            );
+        }
+        Err(error) => return Err(error),
+    };
     let document = result_document(
         "map",
         command.selector,
@@ -512,101 +536,118 @@ fn run_map(command: MapCommand) -> Result<i32, CliError> {
     Ok(outcome_exit(overview.outcome))
 }
 
+#[allow(clippy::too_many_lines)]
 fn run_inspect(command: InspectCommand) -> Result<i32, CliError> {
     command.output.validate()?;
     let selector = EntitySelector::parse(&command.selector)?;
     let enrichment_policy = command.resources.clone().policy()?;
     let (mut view, _) = open_view(&command.input, &command.resources, command.output.format)?;
-    let data = match selector {
-        EntitySelector::Volume(vol_id) => DataProjection::InspectVolume {
-            volume: volume_projection(view.volume(vol_id).map_err(CliError::Query)?),
-        },
-        EntitySelector::Sector(vol_id, sector_id) => DataProjection::InspectSector {
-            sector: sector_projection(view.sector(vol_id, sector_id).map_err(CliError::Query)?),
-        },
-        EntitySelector::Page(vpid) => {
-            view = view
-                .enrich_page(vpid, enrichment_policy, &CancelToken::new())
-                .map_err(|error| CliError::OpenAdapter(error.to_string()))?;
-            DataProjection::InspectPage {
-                page: page_projection(view.page(vpid).map_err(CliError::Query)?),
-                deep: deep_page_projection(view.deep_page(vpid)),
-            }
-        }
-        EntitySelector::File(vfid) => {
-            let header_page = Vpid::new(
-                vfid.vol_id,
-                PageId::new(vfid.file_id.get())
-                    .map_err(|error| CliError::Internal(error.to_string()))?,
-            );
-            view = view
-                .enrich_file(vfid, enrichment_policy, &CancelToken::new())
-                .map_err(|error| CliError::OpenAdapter(error.to_string()))?;
-            let header = view
-                .deep_page(header_page)
-                .and_then(|deep| deep.file_header)
-                .ok_or(CliError::Query(QueryError::EntityNotFound))?;
-            DataProjection::InspectFile {
-                file: file_header_projection(header),
-            }
-        }
-        EntitySelector::Slot(oid) => {
-            let vpid = Vpid::new(oid.vol_id, oid.page_id);
-            view = view
-                .enrich_page(vpid, enrichment_policy, &CancelToken::new())
-                .map_err(|error| CliError::OpenAdapter(error.to_string()))?;
-            let deep = view
-                .deep_page(vpid)
-                .ok_or(CliError::Query(QueryError::EntityNotFound))?;
-            let selected_slot = deep
-                .slotted
-                .as_ref()
-                .and_then(|slotted| {
-                    slotted
-                        .slots()
-                        .get(usize::try_from(oid.slot_id.get()).ok()?)
-                })
-                .copied()
-                .ok_or(CliError::Query(QueryError::EntityNotFound))?;
-            let overflow_chain = if selected_slot.record_type() == crate::format::RecordType::BigOne
-            {
+    let data = (|| -> Result<DataProjection, CliError> {
+        Ok(match selector {
+            EntitySelector::Volume(vol_id) => DataProjection::InspectVolume {
+                volume: volume_projection(view.volume(vol_id).map_err(CliError::Query)?),
+            },
+            EntitySelector::Sector(vol_id, sector_id) => DataProjection::InspectSector {
+                sector: sector_projection(view.sector(vol_id, sector_id).map_err(CliError::Query)?),
+            },
+            EntitySelector::Page(vpid) => {
                 view = view
-                    .enrich_bigone(oid, enrichment_policy, &CancelToken::new())
-                    .map_err(|error| CliError::OpenAdapter(error.to_string()))?;
-                view.overflow_chain(oid).map(overflow_chain_projection)
-            } else {
-                None
-            };
-            let relocation_edge =
-                if selected_slot.record_type() == crate::format::RecordType::Relocation {
-                    view = view
-                        .enrich_relocation(oid, enrichment_policy, &CancelToken::new())
-                        .map_err(|error| CliError::OpenAdapter(error.to_string()))?;
-                    view.relocation_edge(oid)
-                        .map(relocation_edge_projection)
-                        .map(Box::new)
-                } else {
-                    None
-                };
-            DataProjection::InspectSlot {
-                page: page_projection(view.page(vpid).map_err(CliError::Query)?),
-                deep: deep_page_projection(Some(deep)),
-                selected_slot: slot_projection(selected_slot),
-                overflow_chain,
-                relocation_edge,
+                    .enrich_page(vpid, enrichment_policy, &CancelToken::new())
+                    .map_err(operation_error)?;
+                DataProjection::InspectPage {
+                    page: page_projection(view.page(vpid).map_err(CliError::Query)?),
+                    deep: deep_page_projection(view.deep_page(vpid)),
+                }
             }
-        }
-        EntitySelector::Oos(oid) => {
-            view = view
-                .enrich_oos(oid, enrichment_policy, &CancelToken::new())
-                .map_err(|error| CliError::OpenAdapter(error.to_string()))?;
-            DataProjection::InspectOos {
-                chain: oos_chain_projection(
-                    view.oos_chain(oid)
-                        .ok_or(CliError::Query(QueryError::EntityNotFound))?,
-                ),
+            EntitySelector::File(vfid) => {
+                let header_page = Vpid::new(
+                    vfid.vol_id,
+                    PageId::new(vfid.file_id.get())
+                        .map_err(|error| CliError::Internal(error.to_string()))?,
+                );
+                view = view
+                    .enrich_file(vfid, enrichment_policy, &CancelToken::new())
+                    .map_err(operation_error)?;
+                let header = view
+                    .deep_page(header_page)
+                    .and_then(|deep| deep.file_header)
+                    .ok_or(CliError::Query(QueryError::EntityNotFound))?;
+                DataProjection::InspectFile {
+                    file: file_header_projection(header),
+                }
             }
+            EntitySelector::Slot(oid) => {
+                let vpid = Vpid::new(oid.vol_id, oid.page_id);
+                view = view
+                    .enrich_page(vpid, enrichment_policy, &CancelToken::new())
+                    .map_err(operation_error)?;
+                let deep = view
+                    .deep_page(vpid)
+                    .ok_or(CliError::Query(QueryError::EntityNotFound))?;
+                let selected_slot = deep
+                    .slotted
+                    .as_ref()
+                    .and_then(|slotted| {
+                        slotted
+                            .slots()
+                            .get(usize::try_from(oid.slot_id.get()).ok()?)
+                    })
+                    .copied()
+                    .ok_or(CliError::Query(QueryError::EntityNotFound))?;
+                let overflow_chain =
+                    if selected_slot.record_type() == crate::format::RecordType::BigOne {
+                        view = view
+                            .enrich_bigone(oid, enrichment_policy, &CancelToken::new())
+                            .map_err(operation_error)?;
+                        view.overflow_chain(oid).map(overflow_chain_projection)
+                    } else {
+                        None
+                    };
+                let relocation_edge =
+                    if selected_slot.record_type() == crate::format::RecordType::Relocation {
+                        view = view
+                            .enrich_relocation(oid, enrichment_policy, &CancelToken::new())
+                            .map_err(operation_error)?;
+                        view.relocation_edge(oid)
+                            .map(relocation_edge_projection)
+                            .map(Box::new)
+                    } else {
+                        None
+                    };
+                DataProjection::InspectSlot {
+                    page: page_projection(view.page(vpid).map_err(CliError::Query)?),
+                    deep: deep_page_projection(Some(deep)),
+                    selected_slot: slot_projection(selected_slot),
+                    overflow_chain,
+                    relocation_edge,
+                }
+            }
+            EntitySelector::Oos(oid) => {
+                view = view
+                    .enrich_oos(oid, enrichment_policy, &CancelToken::new())
+                    .map_err(operation_error)?;
+                DataProjection::InspectOos {
+                    chain: oos_chain_projection(
+                        view.oos_chain(oid)
+                            .ok_or(CliError::Query(QueryError::EntityNotFound))?,
+                    ),
+                }
+            }
+        })
+    })();
+    let data = match data {
+        Ok(data) => data,
+        Err(CliError::Query(QueryError::EntityNotFound)) => {
+            let overview = view.overview();
+            return write_command_error(
+                command.output.format,
+                "inspect",
+                &command.selector,
+                &overview,
+                "entity-not-found",
+            );
         }
+        Err(error) => return Err(error),
     };
     let overview = view.overview();
     let document = result_document("inspect", Some(command.selector), &overview, data);
@@ -756,7 +797,174 @@ fn write_document(document: &ResultDocument, format: OutputFormat) -> Result<(),
     }
 }
 
+fn operation_error(error: OperationError) -> CliError {
+    match error {
+        OperationError::Query(error) => CliError::Query(error),
+        error => CliError::OpenAdapter(error.to_string()),
+    }
+}
+
+#[derive(Serialize)]
+struct CommandErrorDetail<'a> {
+    code: &'static str,
+    selector: &'a str,
+}
+
+#[derive(Serialize)]
+struct CommandErrorDocument<'a> {
+    schema: &'static str,
+    schema_version: u32,
+    document_type: &'static str,
+    tool: &'a crate::projection::ToolProjection,
+    command: &'a crate::projection::CommandProjection,
+    snapshot: &'a crate::projection::SnapshotProjection,
+    error: CommandErrorDetail<'a>,
+}
+
+fn write_command_error(
+    format: OutputFormat,
+    command: &str,
+    selector: &str,
+    overview: &crate::inspection::OverviewView,
+    code: &'static str,
+) -> Result<i32, CliError> {
+    if format == OutputFormat::Human {
+        return Err(CliError::Query(QueryError::EntityNotFound));
+    }
+    let shell = result_document(
+        command,
+        Some(selector.to_owned()),
+        overview,
+        DataProjection::Summary {
+            overview: summary_projection(overview),
+        },
+    );
+    let detail = CommandErrorDetail { code, selector };
+    match format {
+        OutputFormat::Human => unreachable!("handled above"),
+        OutputFormat::Json => {
+            let mut bytes = serde_json::to_vec_pretty(&CommandErrorDocument {
+                schema: shell.schema,
+                schema_version: shell.schema_version,
+                document_type: "command-error",
+                tool: &shell.tool,
+                command: &shell.command,
+                snapshot: &shell.snapshot,
+                error: detail,
+            })
+            .map_err(|error| CliError::Internal(error.to_string()))?;
+            bytes.push(b'\n');
+            write_stdout(&bytes)?;
+        }
+        OutputFormat::Jsonl => {
+            let mut sequence = 0;
+            write_jsonl_record(
+                &shell,
+                &mut sequence,
+                "header",
+                &(&shell.tool, &shell.command, &shell.snapshot),
+            )?;
+            write_jsonl_record(&shell, &mut sequence, "command-error", &detail)?;
+            write_jsonl_record(&shell, &mut sequence, "completion", &("request-error", "2"))?;
+        }
+    }
+    Ok(2)
+}
+
 fn write_jsonl(document: &ResultDocument) -> Result<(), CliError> {
+    let mut sequence = 0_u64;
+    write_jsonl_record(
+        document,
+        &mut sequence,
+        "header",
+        &(&document.tool, &document.command, &document.snapshot),
+    )?;
+    match &document.data {
+        DataProjection::Summary { overview } => {
+            write_jsonl_record(document, &mut sequence, "overview", overview)?;
+        }
+        DataProjection::Map {
+            volumes,
+            sectors,
+            deep_pages,
+            oos_chains,
+            overflow_chains,
+            relocation_edges,
+        } => {
+            for volume in volumes {
+                write_jsonl_record(document, &mut sequence, "volume", volume)?;
+            }
+            for sector in sectors {
+                write_jsonl_record(document, &mut sequence, "sector", sector)?;
+            }
+            for page in deep_pages {
+                write_jsonl_record(document, &mut sequence, "deep-page", page)?;
+            }
+            for chain in oos_chains {
+                write_jsonl_record(document, &mut sequence, "oos-chain", chain)?;
+            }
+            for chain in overflow_chains {
+                write_jsonl_record(document, &mut sequence, "overflow-chain", chain)?;
+            }
+            for edge in relocation_edges {
+                write_jsonl_record(document, &mut sequence, "relocation-edge", edge)?;
+            }
+        }
+        DataProjection::InspectVolume { volume } => {
+            write_jsonl_record(document, &mut sequence, "volume", volume)?;
+        }
+        DataProjection::InspectSector { sector } => {
+            write_jsonl_record(document, &mut sequence, "sector", sector)?;
+        }
+        DataProjection::InspectFile { file } => {
+            write_jsonl_record(document, &mut sequence, "file", file)?;
+        }
+        DataProjection::InspectPage { page, deep } => {
+            write_jsonl_record(document, &mut sequence, "page", page)?;
+            write_jsonl_record(document, &mut sequence, "deep-page", deep)?;
+        }
+        DataProjection::InspectSlot {
+            page,
+            deep,
+            selected_slot,
+            overflow_chain,
+            relocation_edge,
+        } => {
+            write_jsonl_record(document, &mut sequence, "page", page)?;
+            write_jsonl_record(document, &mut sequence, "deep-page", deep)?;
+            write_jsonl_record(document, &mut sequence, "slot", selected_slot)?;
+            if let Some(chain) = overflow_chain {
+                write_jsonl_record(document, &mut sequence, "overflow-chain", chain)?;
+            }
+            if let Some(edge) = relocation_edge {
+                write_jsonl_record(document, &mut sequence, "relocation-edge", edge)?;
+            }
+        }
+        DataProjection::InspectOos { chain } => {
+            write_jsonl_record(document, &mut sequence, "oos-chain", chain)?;
+        }
+    }
+    for coverage in &document.coverage {
+        write_jsonl_record(document, &mut sequence, "coverage", coverage)?;
+    }
+    for diagnostic in &document.diagnostics {
+        write_jsonl_record(document, &mut sequence, "diagnostic", diagnostic)?;
+    }
+    let emitted_records = sequence;
+    write_jsonl_record(
+        document,
+        &mut sequence,
+        "completion",
+        &(document.outcome, emitted_records),
+    )
+}
+
+fn write_jsonl_record<T: Serialize>(
+    document: &ResultDocument,
+    sequence: &mut u64,
+    kind: &str,
+    data: &T,
+) -> Result<(), CliError> {
     #[derive(Serialize)]
     struct Record<'a, T: Serialize> {
         schema: &'a str,
@@ -766,42 +974,23 @@ fn write_jsonl(document: &ResultDocument) -> Result<(), CliError> {
         sequence: String,
         snapshot_id: &'a str,
         revision: &'a str,
-        data: T,
+        data: &'a T,
     }
-    let records = [
-        serde_json::to_string(&Record {
-            schema: document.schema,
-            schema_version: document.schema_version,
-            kind: "header",
-            sequence: "0".to_owned(),
-            snapshot_id: &document.snapshot.id,
-            revision: &document.snapshot.revision,
-            data: (&document.tool, &document.command),
-        }),
-        serde_json::to_string(&Record {
-            schema: document.schema,
-            schema_version: document.schema_version,
-            kind: "data",
-            sequence: "1".to_owned(),
-            snapshot_id: &document.snapshot.id,
-            revision: &document.snapshot.revision,
-            data: &document.data,
-        }),
-        serde_json::to_string(&Record {
-            schema: document.schema,
-            schema_version: document.schema_version,
-            kind: "completion",
-            sequence: "2".to_owned(),
-            snapshot_id: &document.snapshot.id,
-            revision: &document.snapshot.revision,
-            data: (document.outcome, &document.coverage, &document.diagnostics),
-        }),
-    ];
-    for record in records {
-        let record = record.map_err(|error| CliError::Internal(error.to_string()))?;
-        write_stdout(record.as_bytes())?;
-        write_stdout(b"\n")?;
-    }
+    let record = serde_json::to_string(&Record {
+        schema: document.schema,
+        schema_version: document.schema_version,
+        kind,
+        sequence: sequence.to_string(),
+        snapshot_id: &document.snapshot.id,
+        revision: &document.snapshot.revision,
+        data,
+    })
+    .map_err(|error| CliError::Internal(error.to_string()))?;
+    write_stdout(record.as_bytes())?;
+    write_stdout(b"\n")?;
+    *sequence = sequence
+        .checked_add(1)
+        .ok_or_else(|| CliError::Internal("JSONL sequence overflow".to_owned()))?;
     Ok(())
 }
 
