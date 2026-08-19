@@ -77,8 +77,21 @@ pub fn export_html(view: &GraphView, output: &Path, limit: u64) -> Result<(), Ex
     let mut html = LimitedString::new(limit);
     html.push(HTML_PREFIX)?;
     html.push(&safe_json)?;
-    html.push(HTML_SUFFIX)?;
+    let suffix = HTML_SUFFIX
+        .strip_suffix("</body></html>\n")
+        .ok_or(ExportError::InvalidDestination)?;
+    html.push(suffix)?;
+    html.push("<details id=\"licenses\"><summary>About and licenses</summary><pre>")?;
+    html.push(&escape_html(crate::notices::THIRD_PARTY_NOTICES))?;
+    html.push("</pre></details></body></html>\n")?;
     install_new_file(output, html.as_bytes())
+}
+
+fn escape_html(value: &str) -> String {
+    value
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
 }
 
 fn complete_document(view: &GraphView) -> Result<ResultDocument, ExportError> {

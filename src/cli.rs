@@ -27,8 +27,6 @@ const DEFAULT_SPILL_LIMIT: &str = "2GiB";
 const DEFAULT_MAX_DECODED_BYTES: &str = "256MiB";
 const DEFAULT_WORKERS: u32 = 4;
 const DEFAULT_MAX_CHAIN_STEPS: u64 = 65_536;
-const NOTICE: &str = "Volmap Inspector\nCopyright CUBRID\nLicensed under Apache-2.0.\nFormat authority: CUBRID e1e651debf6cc100172bde96603b17424f9c135a (Apache-2.0).\nThird-party notices are embedded in the release notice inventory.\n";
-
 #[derive(Debug, Parser)]
 #[command(name = "volmap", version, about = "Read-only CUBRID volume inspector")]
 pub struct Cli {
@@ -615,7 +613,7 @@ fn run_inspect(command: InspectCommand) -> Result<i32, CliError> {
 
 fn run_licenses(command: LicensesCommand) -> Result<i32, CliError> {
     match command.format {
-        OutputFormat::Human => write_stdout(NOTICE.as_bytes())?,
+        OutputFormat::Human => write_stdout(crate::notices::THIRD_PARTY_NOTICES.as_bytes())?,
         OutputFormat::Json => {
             #[derive(Serialize)]
             struct NoticeDocument<'a> {
@@ -627,7 +625,7 @@ fn run_licenses(command: LicensesCommand) -> Result<i32, CliError> {
             let bytes = serde_json::to_vec_pretty(&NoticeDocument {
                 schema: "volmap.licenses",
                 schema_version: 1,
-                text: NOTICE,
+                text: crate::notices::THIRD_PARTY_NOTICES,
             })
             .map_err(|error| CliError::Internal(error.to_string()))?;
             write_stdout(&bytes)?;

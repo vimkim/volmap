@@ -21,7 +21,7 @@ release:
 test:
     cargo test --locked --offline
 
-# Run the current Phase 0 zero-interface executable.
+# Run the command-line interface.
 run:
     cargo run --locked --offline
 
@@ -49,11 +49,21 @@ elf-check: release
     ! readelf -V {{artifact}} | rg -q 'GLIBC_'
     ldd {{artifact}} 2>&1 | rg -q 'statically linked|not a dynamic executable'
 
-# Run all Phase 0 pre-commit gates.
+# Run all local pre-commit gates.
 verify: fmt-check test lint elf-check
+    cargo metadata --locked --offline --format-version 1 >/dev/null
+    cmp LICENSE vendor/aes-0.9.2/LICENSE-APACHE
+    ! rg -n 'path\+file:|download_url=file:|/home/|/tmp/' THIRD_PARTY_NOTICES.txt SBOM.cdx.json
     git diff --check
 
-# Reserved until Wayfinder tickets 05, 06, 07, 08, 13, and 16 close.
-serve:
-    @echo "volmap serve is intentionally unavailable: the web architecture, contract, security, prototype, decoder scope, and release graph remain open." >&2
-    @exit 2
+# Start the authenticated read-only HTTP viewer; pass normal serve arguments.
+serve *args:
+    cargo run --locked --offline -- serve {{args}}
+
+# Regenerate deterministic notices and the CycloneDX SBOM with pinned tools.
+release-artifacts:
+    release/regenerate-artifacts.sh
+
+# Run the clean-commit offline reproducibility and supply-chain audit.
+release-audit:
+    release/check.sh

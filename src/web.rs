@@ -164,6 +164,7 @@ async fn serve_async(view: GraphView, options: ServeOptions) -> Result<(), Serve
             get(index),
         )
         .route("/api/v1/session", get(session))
+        .route("/api/v1/licenses", get(licenses))
         .route("/api/v1/s/{snapshot}/r/{revision}/overview", get(overview))
         .route("/api/v1/s/{snapshot}/r/{revision}/volumes", get(volumes))
         .route(
@@ -364,6 +365,21 @@ async fn javascript() -> impl IntoResponse {
         )],
         APP_JS,
     )
+}
+
+#[derive(Serialize)]
+struct LicenseDocument {
+    schema: &'static str,
+    schema_version: u32,
+    notice: &'static str,
+}
+
+async fn licenses() -> Json<LicenseDocument> {
+    Json(LicenseDocument {
+        schema: "volmap.licenses",
+        schema_version: 1,
+        notice: crate::notices::THIRD_PARTY_NOTICES,
+    })
 }
 
 #[derive(Serialize)]
@@ -928,7 +944,7 @@ fn disclose_token(token: &str, token_file: Option<&PathBuf>) -> Result<(), Serve
 
 const INDEX_HTML: &str = r#"<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Volmap Inspector</title><link rel="stylesheet" href="/app.css"></head>
-<body><header><strong>VOLMAP</strong><span id="crumb">locked session</span><span class="spacer"></span><span id="outcome">locked</span></header>
+<body><header><strong>VOLMAP</strong><span id="crumb">locked session</span><span class="spacer"></span><button id="licenses" hidden>About &amp; licenses</button><span id="outcome">locked</span></header>
 <section id="unlock"><h1>Unlock inspection</h1><p>Enter the one-time bearer token printed by the server. It remains only in this page's memory and is lost on refresh.</p><form id="unlockForm"><label>Bearer token <input id="token" type="password" autocomplete="off" spellcheck="false"></label><button>Unlock</button><p id="unlockError" role="alert"></p></form></section>
 <main id="app" hidden><aside><h2>Snapshot hierarchy</h2><div id="volumes"></div><h2>Sector window</h2><div id="sectors"></div></aside><section class="workspace"><div class="workspace-title"><div><h1 id="sectorTitle">Sector</h1><p id="sectorNote"></p></div><div id="legend">S system · r reserved · . unreserved · ! finding</div></div><div id="grid" role="grid"></div></section><aside id="details"><h2>Selected page</h2><div id="pageDetail">Select a page.</div></aside></main>
 <script src="/app.js"></script></body></html>"#;
@@ -944,7 +960,7 @@ function fieldList(fields){const list=document.createElement('dl');for(const [na
 async function api(path,options={}){const headers={Authorization:`Bearer ${token}`,...options.headers};const response=await fetch(path,{...options,headers,cache:'no-store',credentials:'omit'});if(!response.ok)throw new Error(`request failed (${response.status})`);return response.json()}
 function base(){return `/api/v1/s/${session.snapshot.id}/r/${session.snapshot.revision}`}
 function updateSession(payload){session.snapshot=payload.snapshot;session.outcome=payload.outcome;$('outcome').textContent=payload.outcome;$('crumb').textContent=`snapshot ${payload.snapshot.id.slice(0,12)} · revision ${payload.snapshot.revision}`}
-async function unlock(event){event.preventDefault();token=$('token').value;$('token').value='';try{session=await api('/api/v1/session');$('unlock').hidden=true;$('app').hidden=false;updateSession(session);await loadVolumes()}catch(error){token='';$('unlockError').textContent=error.message}}
+async function unlock(event){event.preventDefault();token=$('token').value;$('token').value='';try{session=await api('/api/v1/session');$('unlock').hidden=true;$('app').hidden=false;$('licenses').hidden=false;updateSession(session);await loadVolumes()}catch(error){token='';$('unlockError').textContent=error.message}}
 async function loadVolumes(){const payload=await api(`${base()}/volumes`),root=$('volumes');root.replaceChildren();payload.data.forEach((volume,index)=>{const node=button(`volume ${volume.vol_id} · ${volume.total_sectors} sectors`,()=>selectVolume(volume),'nav');node.dataset.volume=String(volume.vol_id);root.append(node);if(index===0)selectVolume(volume)})}
 async function selectVolume(volume){currentVolume=volume;currentSector=0;document.querySelectorAll('#volumes .nav').forEach(node=>node.classList.toggle('active',node.dataset.volume===String(volume.vol_id)));renderSectorWindow();await loadSector()}
 function renderSectorWindow(){const root=$('sectors');root.replaceChildren();const start=Math.max(0,currentSector-4),end=Math.min(currentVolume.total_sectors,start+10);for(let sector=start;sector<end;sector++){root.append(button(`sector ${sector}`,async()=>{currentSector=sector;renderSectorWindow();await loadSector()},`nav ${sector===currentSector?'active':''}`))}}
@@ -956,4 +972,5 @@ async function loadPage(pageId){selectedPage=pageId;const payload=await api(`${b
 async function loadSlot(page,slotId){const payload=await api(`${base()}/slot/${page.vol_id}/${page.page_id}/${slotId}`),slot=payload.data.selected_slot,root=$('pageDetail');root.replaceChildren(fieldList([['Identity',`slot:${page.vol_id}:${page.page_id}:${slot.slot_id}`],['Record type',`${slot.record_type} (${slot.record_type_ordinal})`],['Offset',slot.offset],['Length',slot.length]]));if(page.page_type.state==='known'&&page.page_type.value==='oos')root.append(button('Validate OOS chain',()=>enrich(`oos:${page.vol_id}:${page.page_id}:${slot.slot_id}`,()=>loadOos(page,slot.slot_id))));root.append(withheld(`slot:${page.vol_id}:${page.page_id}:${slot.slot_id}`))}
 async function loadOos(page,slotId){const payload=await api(`${base()}/oos/${page.vol_id}/${page.page_id}/${slotId}`),chain=payload.data.chain,root=$('pageDetail');root.replaceChildren(fieldList([['Identity',`oos:${page.vol_id}:${page.page_id}:${slotId}`],['Complete',chain.complete],['Validated bytes',chain.validated_payload_bytes],['Chunks',chain.chunks.length],['Diagnostic',chain.diagnostic.state==='known'?chain.diagnostic.value:'none']]));for(const chunk of chain.chunks){root.append(fieldList([['Chunk',chunk.chunk_index],['OID',`${chunk.oid.vol_id}:${chunk.oid.page_id}:${chunk.oid.slot_id}`],['Payload length',chunk.payload_length]]))}root.append(withheld(`oos:${page.vol_id}:${page.page_id}:${slotId}`))}
 async function enrich(selector,done){try{const payload=await api(`${base()}/enrichments`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selector})});updateSession(payload);await done()}catch(error){$('pageDetail').append(document.createTextNode(` ${error.message}`))}}
-$('unlockForm').addEventListener('submit',unlock)})();";
+async function showLicenses(){const payload=await api('/api/v1/licenses'),root=$('pageDetail'),text=document.createElement('pre');text.textContent=payload.notice;text.className='withheld';root.replaceChildren(text)}
+$('licenses').addEventListener('click',showLicenses);$('unlockForm').addEventListener('submit',unlock)})();";

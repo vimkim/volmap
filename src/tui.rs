@@ -115,6 +115,7 @@ enum Tab {
     Chain,
     Findings,
     Coverage,
+    About,
 }
 
 impl Tab {
@@ -125,6 +126,7 @@ impl Tab {
             Self::Chain => "Chain",
             Self::Findings => "Findings",
             Self::Coverage => "Coverage",
+            Self::About => "About",
         }
     }
 }
@@ -136,6 +138,7 @@ struct State {
     tab: Tab,
     prompt: Option<String>,
     status: String,
+    detail_scroll: usize,
 }
 
 impl State {
@@ -149,7 +152,8 @@ impl State {
             cell: 0,
             tab: Tab::Structure,
             prompt: None,
-            status: "q quit · arrows move · [ ] sector · / jump · 1-5 tabs · ? help".to_owned(),
+            status: "q quit · arrows move · [ ] sector · / jump · 1-6 tabs · ? about".to_owned(),
+            detail_scroll: 0,
         })
     }
 }
@@ -195,14 +199,42 @@ fn handle_key(view: &GraphView, state: &mut State, key: KeyEvent) -> Result<bool
         KeyCode::PageDown => move_volume(view, state, true),
         KeyCode::Tab => {
             state.tab = next_tab(state.tab, key.modifiers.contains(KeyModifiers::SHIFT));
+            state.detail_scroll = 0;
         }
-        KeyCode::Char('1') => state.tab = Tab::Structure,
-        KeyCode::Char('2') => state.tab = Tab::Slots,
-        KeyCode::Char('3') => state.tab = Tab::Chain,
-        KeyCode::Char('4') => state.tab = Tab::Findings,
-        KeyCode::Char('5') => state.tab = Tab::Coverage,
+        KeyCode::Char('1') => {
+            state.tab = Tab::Structure;
+            state.detail_scroll = 0;
+        }
+        KeyCode::Char('2') => {
+            state.tab = Tab::Slots;
+            state.detail_scroll = 0;
+        }
+        KeyCode::Char('3') => {
+            state.tab = Tab::Chain;
+            state.detail_scroll = 0;
+        }
+        KeyCode::Char('4') => {
+            state.tab = Tab::Findings;
+            state.detail_scroll = 0;
+        }
+        KeyCode::Char('5') => {
+            state.tab = Tab::Coverage;
+            state.detail_scroll = 0;
+        }
+        KeyCode::Char('6') => {
+            state.tab = Tab::About;
+            state.detail_scroll = 0;
+        }
+        KeyCode::Char('j') if matches!(state.tab, Tab::About) => {
+            state.detail_scroll = state.detail_scroll.saturating_add(1);
+        }
+        KeyCode::Char('k') if matches!(state.tab, Tab::About) => {
+            state.detail_scroll = state.detail_scroll.saturating_sub(1);
+        }
         KeyCode::Char('?') => {
-            "PgUp/PgDn volume · [/] sector · arrows page · / typed jump · tabs 1-5 · q quit"
+            state.tab = Tab::About;
+            state.detail_scroll = 0;
+            "About/licenses · j/k scroll · Tab returns to inspection · q quit"
                 .clone_into(&mut state.status);
         }
         _ => {}
@@ -261,8 +293,9 @@ const fn next_tab(tab: Tab, reverse: bool) -> Tab {
         (Tab::Structure, false) | (Tab::Chain, true) => Tab::Slots,
         (Tab::Slots, false) | (Tab::Findings, true) => Tab::Chain,
         (Tab::Chain, false) | (Tab::Coverage, true) => Tab::Findings,
-        (Tab::Findings, false) | (Tab::Structure, true) => Tab::Coverage,
-        (Tab::Coverage, false) | (Tab::Slots, true) => Tab::Structure,
+        (Tab::Findings, false) | (Tab::About, true) => Tab::Coverage,
+        (Tab::Coverage, false) | (Tab::Structure, true) => Tab::About,
+        (Tab::About, false) | (Tab::Slots, true) => Tab::Structure,
     }
 }
 
@@ -400,13 +433,18 @@ fn draw(stdout: &mut Stdout, view: &GraphView, state: &State) -> Result<(), TuiE
         detail_top,
         width,
         &format!(
-            "[1 Structure] [2 Slots] [3 Chain] [4 Findings] [5 Coverage]  active: {}",
+            "[1 Structure] [2 Slots] [3 Chain] [4 Findings] [5 Coverage] [6 About]  active: {}",
             state.tab.label()
         ),
     )?;
     let lines = detail_lines(view, state, &page);
     let available = height.saturating_sub(detail_top + 3);
-    for (offset, text) in lines.into_iter().take(usize::from(available)).enumerate() {
+    for (offset, text) in lines
+        .into_iter()
+        .skip(state.detail_scroll)
+        .take(usize::from(available))
+        .enumerate()
+    {
         line(
             stdout,
             detail_top + 1 + u16::try_from(offset).unwrap_or(0),
@@ -474,6 +512,10 @@ fn detail_lines(view: &GraphView, state: &State, page: &PageProjection) -> Vec<S
                         .map_or_else(|| "unknown".to_owned(), |value| value.to_string())
                 )
             })
+            .collect(),
+        Tab::About => crate::notices::THIRD_PARTY_NOTICES
+            .lines()
+            .map(str::to_owned)
             .collect(),
     }
 }

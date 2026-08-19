@@ -10,6 +10,7 @@ pub mod export;
 pub mod format;
 pub mod inspection;
 pub mod model;
+pub mod notices;
 pub mod projection;
 pub mod source;
 pub mod tde;

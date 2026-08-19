@@ -444,6 +444,8 @@ fn html_export_is_deterministic_private_atomic_and_path_free() {
     assert!(text.contains("Content-Security-Policy"));
     assert!(text.contains("connect-src 'none'"));
     assert!(text.contains("bytes withheld"));
+    assert!(text.contains("THIRD-PARTY COMPONENTS"));
+    assert!(text.contains("aes 0.9.2"));
     assert!(!text.contains(&vinf.display().to_string()));
     assert!(!text.contains(&volume.display().to_string()));
 
