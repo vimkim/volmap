@@ -3,8 +3,94 @@ use crate::model::{Oid, PageId, SlotId, VolId};
 
 use super::{DB_PAGE_SIZE, DecodeError, DecodeErrorKind, DecodedPageEnvelope, PageType};
 
-const HEADER_SIZE: usize = 32;
+pub const SLOTTED_HEADER_SIZE: usize = 32;
+const HEADER_SIZE: usize = SLOTTED_HEADER_SIZE;
 const SLOT_SIZE: usize = 4;
+
+/// Decode the free-space summary available in a plaintext slotted-page header.
+///
+/// This deliberately validates only header geometry. It is used by the eager
+/// volume scan, while [`decode_slotted_page`] remains the authoritative deep
+/// decoder for slot and record geometry.
+pub fn decode_slotted_free_space_header(bytes: &[u8]) -> Result<u32, DecodeError> {
+    if bytes.len() != HEADER_SIZE {
+        return Err(DecodeError::new(
+            DecodeErrorKind::InvalidLength,
+            "slotted.header.length",
+        ));
+    }
+    let view = ByteView::new(bytes, 0);
+    let num_slots = non_negative_i16(
+        read_i16(&view, 0, "slotted.header.num_slots")?,
+        "slotted.header.num_slots",
+    )?;
+    let num_records = non_negative_i16(
+        read_i16(&view, 2, "slotted.header.num_records")?,
+        "slotted.header.num_records",
+    )?;
+    if num_records > num_slots {
+        return Err(DecodeError::new(
+            DecodeErrorKind::InvalidGeometry,
+            "slotted.header.record_count",
+        ));
+    }
+    if !matches!(read_i16(&view, 4, "slotted.header.anchor")?, 1..=4) {
+        return Err(DecodeError::new(
+            DecodeErrorKind::UnknownEnum,
+            "slotted.header.anchor",
+        ));
+    }
+    let alignment = read_u16(&view, 6, "slotted.header.alignment")?;
+    if !matches!(alignment, 1 | 2 | 4 | 8) {
+        return Err(DecodeError::new(
+            DecodeErrorKind::InvalidGeometry,
+            "slotted.header.alignment",
+        ));
+    }
+    let total_free = non_negative_i32(
+        read_i32(&view, 8, "slotted.header.total_free")?,
+        "slotted.header.total_free",
+    )?;
+    let contiguous_free = non_negative_i32(
+        read_i32(&view, 12, "slotted.header.contiguous_free")?,
+        "slotted.header.contiguous_free",
+    )?;
+    let free_area_offset = non_negative_i32(
+        read_i32(&view, 16, "slotted.header.free_area_offset")?,
+        "slotted.header.free_area_offset",
+    )?;
+    if contiguous_free > total_free {
+        return Err(DecodeError::new(
+            DecodeErrorKind::InvalidGeometry,
+            "slotted.header.free_space_order",
+        ));
+    }
+    let slot_bytes = usize::from(num_slots)
+        .checked_mul(SLOT_SIZE)
+        .ok_or_else(|| {
+            DecodeError::new(
+                DecodeErrorKind::ArithmeticOverflow,
+                "slotted.slot_array.size",
+            )
+        })?;
+    let slot_start = DB_PAGE_SIZE.checked_sub(slot_bytes).ok_or_else(|| {
+        DecodeError::new(
+            DecodeErrorKind::InvalidGeometry,
+            "slotted.slot_array.bounds",
+        )
+    })?;
+    if slot_start < HEADER_SIZE
+        || usize::try_from(free_area_offset)
+            .map_or(true, |offset| offset < HEADER_SIZE || offset > slot_start)
+        || total_free as usize > DB_PAGE_SIZE - HEADER_SIZE
+    {
+        return Err(DecodeError::new(
+            DecodeErrorKind::InvalidGeometry,
+            "slotted.header.free_area_bounds",
+        ));
+    }
+    Ok(total_free)
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum AnchorType {

@@ -100,8 +100,10 @@ This mode provides authentication, not transport confidentiality or integrity.
 Use SSH, a VPN, or a trusted TLS reverse proxy when the network is not trusted.
 The token is never accepted in a URL and the browser keeps it only in memory.
 The volume workspace renders a progressively loaded full-volume mosaic: every
-sector is an 8×8 grid of its 64 pages, colored by allocation class with findings
-shown as a separate outline.
+sector is an 8×8 grid of its 64 pages. Allocated slotted pages split green
+occupied space from blue free space using an eager header summary; pages whose
+occupancy cannot be established use a green/blue unknown pattern. Allocation
+classes remain distinct, and findings are shown as a separate outline.
 Selecting a sector replaces the mosaic with a large 64-page view. Selecting a
 page replaces that sector with detailed structural facts. Slotted pages show an
 exhaustive 16,344-byte content distribution: the slotted header, every allocated

@@ -7,7 +7,7 @@ use std::io;
 use std::os::unix::fs::{FileExt, MetadataExt};
 use std::path::{Path, PathBuf};
 
-use crate::format::{IO_PAGE_SIZE, PAGE_PREFIX_SIZE, PAGE_WATERMARK_SIZE};
+use crate::format::{DB_PAGE_SIZE, IO_PAGE_SIZE, PAGE_PREFIX_SIZE, PAGE_WATERMARK_SIZE};
 use crate::model::{PageId, VolId, Vpid};
 
 const MAX_MANIFEST_BYTES: u64 = 1024 * 1024;
@@ -113,6 +113,21 @@ impl VolumeHandle {
         read_exact_at(&self.file, &mut prefix, offset)?;
         read_exact_at(&self.file, &mut watermark, watermark_offset)?;
         Ok((prefix, watermark))
+    }
+
+    pub fn read_page_user_prefix<const N: usize>(
+        &self,
+        page_id: PageId,
+    ) -> Result<[u8; N], SourceError> {
+        if N > DB_PAGE_SIZE {
+            return Err(SourceError::arithmetic("page user prefix length"));
+        }
+        let offset = page_offset(page_id)?
+            .checked_add(PAGE_PREFIX_SIZE as u64)
+            .ok_or_else(|| SourceError::arithmetic("page user prefix offset"))?;
+        let mut prefix = [0_u8; N];
+        read_exact_at(&self.file, &mut prefix, offset)?;
+        Ok(prefix)
     }
 
     #[must_use]

@@ -26,8 +26,8 @@ pub use page::{
 };
 pub use sector::{SectorBitmap, decode_sector_bitmap};
 pub use slotted::{
-    AnchorType, OosChunkFact, OosNext, RecordType, SlotFact, SlottedPage, decode_oos_chunk,
-    decode_slotted_page,
+    AnchorType, OosChunkFact, OosNext, RecordType, SLOTTED_HEADER_SIZE, SlotFact, SlottedPage,
+    decode_oos_chunk, decode_slotted_free_space_header, decode_slotted_page,
 };
 pub use vacuum::{
     DroppedFileFact, DroppedFilesPageFact, VacuumEntryFact, VacuumPageFact,

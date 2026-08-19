@@ -18,17 +18,18 @@ use zeroize::Zeroizing;
 use crate::diagnostics::{InspectionOutcome, OutcomeInputs};
 use crate::format::{
     BOOT_DB_PARM_SIZE, BtreePageFact, CatalogClassInfoFact, CatalogPageFact,
-    CatalogRepresentationHeaderFact, DecodeError, DroppedFilesPageFact, FileHeader, HeapPageFact,
-    OosNext, PageContent, PageType, RecordType, SlottedPage, TDE_KEY_INFO_RECORD_SIZE,
-    TdeAlgorithm, TrackerItemFact, UserPageFact, VacuumPageFact, VolumePurpose, VolumeType,
-    decode_bigone_target, decode_boot_db_parm, decode_btree_page, decode_catalog_class_info,
-    decode_catalog_directory, decode_catalog_page, decode_catalog_representation_header,
-    decode_decrypted_page_envelope, decode_dropped_files_page, decode_extdata_header,
-    decode_file_header, decode_full_sectors, decode_heap_page, decode_oos_chunk,
-    decode_overflow_continuation, decode_overflow_head, decode_page_envelope,
-    decode_page_envelope_parts, decode_partial_sectors, decode_relocation_target,
-    decode_sector_bitmap, decode_slotted_page, decode_tracker_items, decode_user_pages,
-    decode_vacuum_page, decode_volume_header,
+    CatalogRepresentationHeaderFact, DB_PAGE_SIZE, DecodeError, DroppedFilesPageFact, FileHeader,
+    HeapPageFact, OosNext, PageContent, PageType, RecordType, SLOTTED_HEADER_SIZE, SlottedPage,
+    TDE_KEY_INFO_RECORD_SIZE, TdeAlgorithm, TrackerItemFact, UserPageFact, VacuumPageFact,
+    VolumePurpose, VolumeType, decode_bigone_target, decode_boot_db_parm, decode_btree_page,
+    decode_catalog_class_info, decode_catalog_directory, decode_catalog_page,
+    decode_catalog_representation_header, decode_decrypted_page_envelope,
+    decode_dropped_files_page, decode_extdata_header, decode_file_header, decode_full_sectors,
+    decode_heap_page, decode_oos_chunk, decode_overflow_continuation, decode_overflow_head,
+    decode_page_envelope, decode_page_envelope_parts, decode_partial_sectors,
+    decode_relocation_target, decode_sector_bitmap, decode_slotted_free_space_header,
+    decode_slotted_page, decode_tracker_items, decode_user_pages, decode_vacuum_page,
+    decode_volume_header,
 };
 use crate::model::{
     Availability, Coverage, Hfid, InspectionRevision, Oid, PageAllocationClass, PageId, SectorId,
@@ -45,6 +46,10 @@ const SECTOR_PAGES: u32 = 64;
 const PACKED_PAGE_FACT_SIZE: u64 = 16;
 const PACKED_PAGE_FACT_SIZE_USIZE: usize = 16;
 const PACKED_FACT_LSA_PRESENT: u8 = 0x80;
+const PACKED_FACT_DIAGNOSTIC_MASK: u8 = 0x07;
+const PACKED_FACT_OCCUPANCY_MASK: u8 = 0x78;
+const PACKED_FACT_OCCUPANCY_SHIFT: u8 = 3;
+const OCCUPANCY_LEVELS: u8 = 15;
 const WORKER_PAGE_BATCH: usize = 16;
 const TERMINAL_DIAGNOSTIC_RESERVE: u64 = 512;
 static NEXT_SPILL_DIRECTORY: AtomicU64 = AtomicU64::new(0);
@@ -213,6 +218,7 @@ pub struct PageView {
     pub availability: Availability,
     pub tde_state: TdeInspectionState,
     pub detail_support: Option<PageDetailSupport>,
+    pub slotted_occupied_percent: Option<u8>,
     pub lsa_word: Option<u64>,
     pub diagnostic_code: Option<&'static str>,
 }
@@ -257,6 +263,8 @@ pub struct FastScanResources {
     pub packed_fact_bytes: u64,
     pub envelope_read_attempts: u64,
     pub envelope_requested_bytes: u64,
+    pub slotted_header_read_attempts: u64,
+    pub slotted_header_requested_bytes: u64,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -265,6 +273,7 @@ struct PageFastFact {
     page_type: Option<PageType>,
     availability: Availability,
     tde_state: TdeInspectionState,
+    slotted_occupancy_units: Option<u8>,
     lsa_word: Option<u64>,
     diagnostic_code: Option<&'static str>,
 }
@@ -295,6 +304,10 @@ impl PackedPageFact {
             TdeInspectionState::DecryptedInvalid => 4,
             TdeInspectionState::InvalidFlags => 5,
         };
+        if let Some(units) = fact.slotted_occupancy_units {
+            debug_assert!((1..=OCCUPANCY_LEVELS).contains(&units));
+            bytes[15] |= units << PACKED_FACT_OCCUPANCY_SHIFT;
+        }
         bytes[15] |= match fact.diagnostic_code {
             None => 0,
             Some("page.envelope.identity_mismatch") => 1,
@@ -337,7 +350,7 @@ impl PackedPageFact {
             _ => return Err(FactStoreError::InvalidRecord),
         };
         let metadata = self.0[15];
-        let diagnostic_code = match metadata & !PACKED_FACT_LSA_PRESENT {
+        let diagnostic_code = match metadata & PACKED_FACT_DIAGNOSTIC_MASK {
             0 => None,
             1 => Some("page.envelope.identity_mismatch"),
             2 => Some("page.envelope.lsa_mismatch"),
@@ -347,6 +360,9 @@ impl PackedPageFact {
             6 => Some("tde.decrypted_invalid"),
             _ => return Err(FactStoreError::InvalidRecord),
         };
+        let occupancy_units =
+            (metadata & PACKED_FACT_OCCUPANCY_MASK) >> PACKED_FACT_OCCUPANCY_SHIFT;
+        let slotted_occupancy_units = (occupancy_units != 0).then_some(occupancy_units);
         let lsa_word = if metadata & PACKED_FACT_LSA_PRESENT == 0 {
             None
         } else {
@@ -361,6 +377,7 @@ impl PackedPageFact {
             page_type,
             availability,
             tde_state,
+            slotted_occupancy_units,
             lsa_word,
             diagnostic_code,
         })
@@ -627,6 +644,7 @@ fn scan_page_envelope(
     };
     match decode_page_envelope_parts(&prefix, &watermark, source.vpid(page_id)) {
         Ok(summary) => {
+            let page_type = summary.page_type();
             let (availability, tde_state) = match summary.content() {
                 PageContent::Plaintext => {
                     (Availability::Available, TdeInspectionState::NotEncrypted)
@@ -647,12 +665,24 @@ fn scan_page_envelope(
                     unreachable!("fast envelope decoding cannot produce decrypted content")
                 }
             };
+            let slotted_occupancy_units = if matches!(summary.content(), PageContent::Plaintext)
+                && page_uses_slotted_layout(page_type, None)
+            {
+                source
+                    .read_page_user_prefix::<SLOTTED_HEADER_SIZE>(page_id)
+                    .ok()
+                    .and_then(|header| decode_slotted_free_space_header(&header).ok())
+                    .and_then(slotted_occupancy_units)
+            } else {
+                None
+            };
             EnvelopeScanResult::Fact {
                 fact: PageFastFact {
                     page_id,
-                    page_type: Some(summary.page_type()),
+                    page_type: Some(page_type),
                     availability,
                     tde_state,
+                    slotted_occupancy_units,
                     lsa_word: Some(summary.lsa_word()),
                     diagnostic_code: None,
                 },
@@ -671,6 +701,7 @@ fn scan_page_envelope(
                     } else {
                         TdeInspectionState::NotEncrypted
                     },
+                    slotted_occupancy_units: None,
                     lsa_word: None,
                     diagnostic_code: Some(code),
                 },
@@ -678,6 +709,25 @@ fn scan_page_envelope(
             }
         }
     }
+}
+
+fn slotted_occupancy_units(total_free: u32) -> Option<u8> {
+    let page_bytes = u32::try_from(DB_PAGE_SIZE).ok()?;
+    let occupied = page_bytes.checked_sub(total_free)?;
+    let levels = u32::from(OCCUPANCY_LEVELS);
+    let units = occupied
+        .checked_mul(levels)?
+        .div_ceil(page_bytes)
+        .clamp(1, levels);
+    u8::try_from(units).ok()
+}
+
+fn slotted_occupied_percent(units: u8) -> u8 {
+    let percent = u32::from(units)
+        .saturating_mul(100)
+        .saturating_add(u32::from(OCCUPANCY_LEVELS / 2))
+        / u32::from(OCCUPANCY_LEVELS);
+    u8::try_from(percent).unwrap_or(100)
 }
 
 fn retained_diagnostic_bytes(diagnostic: &DiagnosticRecord) -> Result<u64, OpenFailure> {
@@ -1269,6 +1319,7 @@ impl Inspection {
         let wave_capacity_u64 =
             u64::try_from(wave_capacity).map_err(|_| OpenFailure::Arithmetic)?;
         let mut envelope_read_attempts = 0_u64;
+        let mut slotted_header_read_attempts = 0_u64;
         'volume_scan: for (volume_index, source) in sources.volumes().iter().enumerate() {
             let Some(volume) = volumes.get_mut(volume_index) else {
                 return Err(OpenFailure::Arithmetic);
@@ -1365,6 +1416,15 @@ impl Inspection {
                         }
                         break 'volume_scan;
                     };
+                    if fact.tde_state == TdeInspectionState::NotEncrypted
+                        && fact
+                            .page_type
+                            .is_some_and(|page_type| page_uses_slotted_layout(page_type, None))
+                    {
+                        slotted_header_read_attempts = slotted_header_read_attempts
+                            .checked_add(1)
+                            .ok_or(OpenFailure::Arithmetic)?;
+                    }
                     if let Some((code, rule)) = diagnostic {
                         let finding = DiagnosticRecord {
                             code,
@@ -1497,6 +1557,12 @@ impl Inspection {
             envelope_read_attempts,
             envelope_requested_bytes: envelope_read_attempts
                 .checked_mul(40)
+                .ok_or(OpenFailure::Arithmetic)?,
+            slotted_header_read_attempts,
+            slotted_header_requested_bytes: slotted_header_read_attempts
+                .checked_mul(
+                    u64::try_from(SLOTTED_HEADER_SIZE).map_err(|_| OpenFailure::Arithmetic)?,
+                )
                 .ok_or(OpenFailure::Arithmetic)?,
         };
         report(&mut progress, ScanPhase::Reconciliation, 1, Some(1));
@@ -3949,6 +4015,9 @@ impl GraphView {
             availability: fact.map_or(Availability::Unsupported, |value| value.availability),
             tde_state: fact.map_or(TdeInspectionState::NotEncrypted, |value| value.tde_state),
             detail_support: fact.and_then(|value| value.page_type.map(page_detail_support)),
+            slotted_occupied_percent: fact
+                .and_then(|value| value.slotted_occupancy_units)
+                .map(slotted_occupied_percent),
             lsa_word: fact.and_then(|value| value.lsa_word),
             diagnostic_code: fact.and_then(|value| value.diagnostic_code),
         })
@@ -4294,6 +4363,7 @@ mod tests {
             page_type: Some(PageType::Heap),
             availability: Availability::Available,
             tde_state: TdeInspectionState::Decrypted,
+            slotted_occupancy_units: Some(8),
             lsa_word: Some(0x0102_0304_0506_0708),
             diagnostic_code: Some("page.envelope.lsa_mismatch"),
         };

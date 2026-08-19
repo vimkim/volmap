@@ -10,7 +10,7 @@ use volmap::export::{ExportError, export_html};
 use volmap::format::{IO_PAGE_SIZE, PageType};
 use volmap::inspection::{CancelToken, Inspection, OpenRequest, ResourcePolicy, RevisionSelector};
 use volmap::model::{Availability, Oid, PageId, SectorId, SlotId, VolId, Vpid};
-use volmap::projection::{DataProjection, result_document, summary_projection};
+use volmap::projection::{DataProjection, page_projection, result_document, summary_projection};
 use volmap::source::InputSpec;
 
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
@@ -181,6 +181,15 @@ fn inspection_opens_sparse_volume_and_scans_only_reserved_sector_envelopes() {
         .unwrap();
     assert_eq!(heap.page_type, Some(PageType::Heap));
     assert_eq!(heap.availability, Availability::Available);
+    assert_eq!(heap.slotted_occupied_percent, Some(7));
+    let projected = serde_json::to_value(page_projection(heap)).unwrap();
+    assert_eq!(projected["occupancy"]["state"], "known");
+    assert_eq!(projected["occupancy"]["occupied_percent"], 7);
+    assert_eq!(projected["occupancy"]["free_percent"], 93);
+    let oos = view
+        .page(Vpid::new(VolId::new(0).unwrap(), PageId::new(20).unwrap()))
+        .unwrap();
+    assert_eq!(oos.slotted_occupied_percent, Some(7));
 
     let unreserved = view
         .sector(VolId::new(0).unwrap(), SectorId::new(1).unwrap())
@@ -269,6 +278,14 @@ fn packed_facts_spill_privately_and_preserve_the_graph_projection() {
     assert_eq!(
         spilled.fast_scan_resources().envelope_requested_bytes,
         64 * 40
+    );
+    assert_eq!(
+        spilled.fast_scan_resources().slotted_header_read_attempts,
+        3
+    );
+    assert_eq!(
+        spilled.fast_scan_resources().slotted_header_requested_bytes,
+        3 * 32
     );
     let heap = Vpid::new(VolId::new(0).unwrap(), PageId::new(10).unwrap());
     assert_eq!(spilled.page(heap).unwrap(), resident.page(heap).unwrap());

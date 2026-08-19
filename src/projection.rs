@@ -164,9 +164,20 @@ pub struct PageProjection {
     pub availability: &'static str,
     pub tde_state: &'static str,
     pub detail_support: OptionalTextProjection,
+    pub occupancy: PageOccupancyProjection,
     pub lsa_word: OptionalCountProjection,
     pub diagnostic: OptionalTextProjection,
     pub bytes: BytesWithheldProjection,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(tag = "state", rename_all = "kebab-case")]
+pub enum PageOccupancyProjection {
+    Unknown,
+    Known {
+        occupied_percent: u8,
+        free_percent: u8,
+    },
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -593,6 +604,13 @@ pub fn page_projection(page: PageView) -> PageProjection {
             .map_or(OptionalTextProjection::Unsupported, |support| {
                 OptionalTextProjection::Known(support.as_str())
             }),
+        occupancy: page.slotted_occupied_percent.map_or(
+            PageOccupancyProjection::Unknown,
+            |occupied_percent| PageOccupancyProjection::Known {
+                occupied_percent,
+                free_percent: 100_u8.saturating_sub(occupied_percent),
+            },
+        ),
         lsa_word: page
             .lsa_word
             .map_or(OptionalCountProjection::Unknown, |value| {
