@@ -56,6 +56,12 @@ Three replacement variants are captured on branch `prototype/drilldown-workspace
 
 Page selection is an explicit deep-inspection target. When supported detail has not yet been requested, the browser automatically submits one bounded enrichment and advances to the returned immutable revision before showing structural detail. A slotted page exposes its safe slot directory independently of specialized page metadata: every validated slot row shows slot ID, record type, byte offset, and byte size, alongside a proportional structural extent canvas. Source bytes and payload remain withheld.
 
+### Follow-up full slotted-page distribution decision
+
+On 2026-08-20 the user clarified that a selected slotted page must show both meanings of unallocated space: retained empty/deleted slot-directory entries and every free byte region between live records. Three real-data variants are captured on branch `prototype/slotted-page-distribution` at commit `4e2ecac`: a continuous physical byte ruler, a vertical page-anatomy view, and a 512-cell block atlas with per-slot lanes.
+
+The accepted direction combines the ruler's exact full-page geometry with magnified record and slot-directory lanes. A whole-page proportional view alone makes small records and four-byte directory entries practically invisible; the vertical anatomy view spends too much screen height on empty space; and the block atlas makes small structures visible only by rounding them to cell boundaries. Production therefore keeps an exact, non-rounded 16,344-byte slotted-content overview and pairs it with explicit interval rows and a complete directory list. Live records, fragmented and contiguous free regions, the 32-byte header, live directory entries, and empty/deleted directory entries remain separately labeled. No record payload bytes are exposed.
+
 ## Answer
 
 The production web explorer uses a responsive Atlas shell:

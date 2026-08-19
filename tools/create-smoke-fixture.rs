@@ -7,6 +7,7 @@ use std::os::unix::fs::{FileExt, OpenOptionsExt};
 use std::path::Path;
 
 const IO_PAGE_SIZE: usize = 16_384;
+const DB_PAGE_SIZE: usize = 16_344;
 const PHYSICAL_PAGES: u64 = 64 * 64;
 const PAGE_UNKNOWN: u8 = 0;
 const PAGE_HEAP: u8 = 2;
@@ -55,13 +56,19 @@ fn volume_header_page() -> [u8; IO_PAGE_SIZE] {
 fn oos_chunk_page(page_id: i32, index: i32, next_page: Option<i32>) -> [u8; IO_PAGE_SIZE] {
     let mut page = envelope_page(page_id, PAGE_OOS);
     let user = &mut page[32..IO_PAGE_SIZE - 8];
-    user[0..2].copy_from_slice(&1_i16.to_le_bytes());
-    user[2..4].copy_from_slice(&1_i16.to_le_bytes());
+    let distribution_fixture = page_id == 20;
+    user[0..2].copy_from_slice(&(if distribution_fixture { 4_i16 } else { 1 }).to_le_bytes());
+    user[2..4].copy_from_slice(&(if distribution_fixture { 2_i16 } else { 1 }).to_le_bytes());
     user[4..6].copy_from_slice(&1_i16.to_le_bytes());
     user[6..8].copy_from_slice(&8_u16.to_le_bytes());
-    user[8..12].copy_from_slice(&16_280_i32.to_le_bytes());
-    user[12..16].copy_from_slice(&16_280_i32.to_le_bytes());
-    user[16..20].copy_from_slice(&56_i32.to_le_bytes());
+    user[8..12].copy_from_slice(
+        &(if distribution_fixture { 16_240_i32 } else { 16_280 }).to_le_bytes(),
+    );
+    user[12..16].copy_from_slice(
+        &(if distribution_fixture { 16_216_i32 } else { 16_280 }).to_le_bytes(),
+    );
+    user[16..20]
+        .copy_from_slice(&(if distribution_fixture { 112_i32 } else { 56 }).to_le_bytes());
     user[32..36].copy_from_slice(&8_i32.to_le_bytes());
     user[36..40].copy_from_slice(&index.to_le_bytes());
     let (next_page, next_slot, next_volume): (i32, i16, i16) =
@@ -71,7 +78,15 @@ fn oos_chunk_page(page_id: i32, index: i32, next_page: Option<i32>) -> [u8; IO_P
     user[46..48].copy_from_slice(&next_volume.to_le_bytes());
     user[48..52].copy_from_slice(b"safe");
     let slot = 32_u32 | (20_u32 << 14) | (2_u32 << 28);
-    user[IO_PAGE_SIZE - 44..IO_PAGE_SIZE - 40].copy_from_slice(&slot.to_le_bytes());
+    user[DB_PAGE_SIZE - 4..DB_PAGE_SIZE].copy_from_slice(&slot.to_le_bytes());
+    if distribution_fixture {
+        let second = 80_u32 | (32_u32 << 14) | (3_u32 << 28);
+        let unallocated = 9_u32 << 28;
+        let deleted = (48_u32 << 14) | (6_u32 << 28);
+        user[DB_PAGE_SIZE - 8..DB_PAGE_SIZE - 4].copy_from_slice(&second.to_le_bytes());
+        user[DB_PAGE_SIZE - 12..DB_PAGE_SIZE - 8].copy_from_slice(&unallocated.to_le_bytes());
+        user[DB_PAGE_SIZE - 16..DB_PAGE_SIZE - 12].copy_from_slice(&deleted.to_le_bytes());
+    }
     page
 }
 

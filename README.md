@@ -103,9 +103,12 @@ The volume workspace renders a progressively loaded full-volume mosaic: every
 sector is an 8×8 grid of its 64 pages, colored by allocation class with findings
 shown as a separate outline.
 Selecting a sector replaces the mosaic with a large 64-page view. Selecting a
-page replaces that sector with detailed structural facts; slotted pages include
-the validated offset and byte size of every slot. Breadcrumb and Back controls
-return to the preceding level.
+page replaces that sector with detailed structural facts. Slotted pages show an
+exhaustive 16,344-byte content distribution: the slotted header, every allocated
+record extent, every fragmented or contiguous free interval, and the complete
+slot directory. Directory entries are colored and labeled as allocated,
+unallocated, or deleted, with record and directory offsets and sizes shown
+separately. Breadcrumb and Back controls return to the preceding level.
 
 ## Safety and scope
 

@@ -26,6 +26,7 @@ use subtle::ConstantTimeEq;
 use tokio::net::TcpListener;
 use tokio::sync::{Mutex, Semaphore};
 
+use crate::format::{DB_PAGE_SIZE, SlottedPage};
 use crate::inspection::{CancelToken, DiagnosticRecord, GraphView, QueryError, ResourcePolicy};
 use crate::model::{FileId, Oid, PageId, SectorId, SlotId, Vfid, VolId, Vpid};
 use crate::projection::{
@@ -399,7 +400,7 @@ async fn index() -> Html<&'static str> {
 async fn css() -> impl IntoResponse {
     (
         [(axum::http::header::CONTENT_TYPE, "text/css; charset=utf-8")],
-        APP_CSS,
+        format!("{APP_CSS}{DISTRIBUTION_CSS}"),
     )
 }
 
@@ -938,23 +939,26 @@ async fn page(
         Ok(value) => {
             let vpid = value.vpid;
             let deep = view.deep_page(vpid);
-            let slots = deep
-                .as_ref()
-                .and_then(|detail| detail.slotted.as_ref())
-                .map_or_else(Vec::new, |slotted| {
-                    slotted
-                        .slots()
-                        .iter()
-                        .copied()
-                        .map(slot_projection)
-                        .collect()
-                });
+            let slotted = deep.as_ref().and_then(|detail| detail.slotted.as_ref());
+            let slots = slotted.map_or_else(Vec::new, |slotted| {
+                slotted
+                    .slots()
+                    .iter()
+                    .copied()
+                    .map(slot_projection)
+                    .collect()
+            });
+            let distribution = slotted.map_or(
+                PageDistributionProjection::NotAvailable,
+                page_distribution_projection,
+            );
             Json(api_envelope(
                 &overview,
                 PageResourceProjection {
                     page: page_projection(value),
                     deep: deep_page_projection(deep),
                     slots,
+                    distribution,
                 },
             ))
             .into_response()
@@ -968,6 +972,174 @@ struct PageResourceProjection {
     page: PageProjection,
     deep: DeepPageProjection,
     slots: Vec<SlotProjection>,
+    distribution: PageDistributionProjection,
+}
+
+#[derive(Serialize)]
+#[serde(tag = "state", rename_all = "kebab-case")]
+enum PageDistributionProjection {
+    NotAvailable,
+    Available {
+        content_size: u32,
+        header: ByteRegionProjection,
+        record_extents: Vec<RecordExtentProjection>,
+        free_regions: Vec<FreeRegionProjection>,
+        slot_directory: ByteRegionProjection,
+        slot_entries: Vec<SlotEntryProjection>,
+        allocated_record_bytes: u32,
+        unoccupied_bytes: u32,
+    },
+}
+
+#[derive(Clone, Copy, Serialize)]
+struct ByteRegionProjection {
+    offset: u32,
+    length: u32,
+}
+
+#[derive(Serialize)]
+struct RecordExtentProjection {
+    slot_id: u16,
+    offset: u32,
+    length: u32,
+    record_type: &'static str,
+}
+
+#[derive(Serialize)]
+struct FreeRegionProjection {
+    offset: u32,
+    length: u32,
+    kind: &'static str,
+}
+
+#[derive(Serialize)]
+struct SlotEntryProjection {
+    slot_id: u16,
+    offset: u32,
+    length: u32,
+    state: &'static str,
+    record_type: &'static str,
+}
+
+fn page_distribution_projection(slotted: &SlottedPage) -> PageDistributionProjection {
+    const HEADER_SIZE: u32 = 32;
+    const SLOT_ENTRY_SIZE: u32 = 4;
+
+    let content_size = u32::try_from(DB_PAGE_SIZE).expect("DB page size fits u32");
+    let slot_directory_length = u32::try_from(slotted.slots().len())
+        .expect("validated slot count fits u32")
+        * SLOT_ENTRY_SIZE;
+    let slot_directory_offset = content_size - slot_directory_length;
+    let mut records: Vec<_> = slotted
+        .slots()
+        .iter()
+        .copied()
+        .filter(|slot| !slot.is_empty())
+        .map(|slot| RecordExtentProjection {
+            slot_id: slot.slot_id(),
+            offset: u32::from(slot.offset()),
+            length: u32::from(slot.length()),
+            record_type: slot.record_type().as_str(),
+        })
+        .collect();
+    records.sort_unstable_by_key(|record| (record.offset, record.slot_id));
+
+    let mut free_regions = Vec::new();
+    let mut cursor = HEADER_SIZE;
+    for record in &records {
+        if cursor < record.offset {
+            push_free_region(
+                &mut free_regions,
+                cursor,
+                record.offset,
+                slot_directory_offset,
+                slotted.free_area_offset(),
+            );
+        }
+        cursor = cursor.max(record.offset + record.length);
+    }
+    if cursor < slot_directory_offset {
+        push_free_region(
+            &mut free_regions,
+            cursor,
+            slot_directory_offset,
+            slot_directory_offset,
+            slotted.free_area_offset(),
+        );
+    }
+
+    let allocated_record_bytes = records.iter().map(|record| record.length).sum();
+    let unoccupied_bytes = free_regions.iter().map(|region| region.length).sum();
+    let slot_entries = slotted
+        .slots()
+        .iter()
+        .copied()
+        .map(|slot| SlotEntryProjection {
+            slot_id: slot.slot_id(),
+            offset: content_size - (u32::from(slot.slot_id()) + 1) * SLOT_ENTRY_SIZE,
+            length: SLOT_ENTRY_SIZE,
+            state: if !slot.is_empty() {
+                "allocated"
+            } else if matches!(
+                slot.record_type(),
+                crate::format::RecordType::MarkDeleted
+                    | crate::format::RecordType::DeletedWillReuse
+            ) {
+                "deleted"
+            } else {
+                "unallocated"
+            },
+            record_type: slot.record_type().as_str(),
+        })
+        .collect();
+
+    PageDistributionProjection::Available {
+        content_size,
+        header: ByteRegionProjection {
+            offset: 0,
+            length: HEADER_SIZE,
+        },
+        record_extents: records,
+        free_regions,
+        slot_directory: ByteRegionProjection {
+            offset: slot_directory_offset,
+            length: slot_directory_length,
+        },
+        slot_entries,
+        allocated_record_bytes,
+        unoccupied_bytes,
+    }
+}
+
+fn push_free_region(
+    regions: &mut Vec<FreeRegionProjection>,
+    start: u32,
+    end: u32,
+    slot_directory_offset: u32,
+    free_area_offset: u32,
+) {
+    if end == slot_directory_offset && start < free_area_offset && free_area_offset < end {
+        regions.push(FreeRegionProjection {
+            offset: start,
+            length: free_area_offset - start,
+            kind: "fragmented-free",
+        });
+        regions.push(FreeRegionProjection {
+            offset: free_area_offset,
+            length: end - free_area_offset,
+            kind: "contiguous-free",
+        });
+    } else {
+        regions.push(FreeRegionProjection {
+            offset: start,
+            length: end - start,
+            kind: if end == slot_directory_offset && start == free_area_offset {
+                "contiguous-free"
+            } else {
+                "fragmented-free"
+            },
+        });
+    }
 }
 
 async fn slot(
@@ -1420,6 +1592,51 @@ const INDEX_HTML: &str = r#"<!doctype html>
 #[allow(clippy::needless_raw_string_hashes)]
 const APP_CSS: &str = r#":root{color-scheme:dark;--bg:#071014;--panel:#0d1820;--line:#29404b;--text:#dce8ec;--muted:#8fa5ae;--cyan:#68d8d0;--unreserved:#24323a;--reserved:#315f8a;--allocated:#2f845e;--system:#7658a5;--finding:#d25569}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,sans-serif}button,input{font:inherit}header{position:sticky;top:0;z-index:4;height:54px;display:flex;align-items:center;gap:18px;padding:0 18px;border-bottom:1px solid var(--line);background:#0a1319}header strong{letter-spacing:.08em}.spacer{flex:1}#unlock{max-width:620px;margin:12vh auto;padding:28px;border:1px solid var(--line);background:var(--panel)}#unlock label{display:grid;gap:7px}#unlock input{padding:10px;background:#071014;color:var(--text);border:1px solid var(--line)}button{padding:8px 11px;background:var(--cyan);color:#071014;border:0;font-weight:700;cursor:pointer}button:focus-visible,input:focus-visible,[role=gridcell]:focus-visible{outline:2px solid #ffd376;outline-offset:2px}main{min-height:calc(100vh - 54px);display:grid;grid-template-columns:220px minmax(560px,1fr)}aside,.workspace{min-width:0}aside{position:sticky;top:54px;height:calc(100vh - 54px);align-self:start;overflow:auto;border-right:1px solid var(--line)}h1,h2,h3,p{margin:0}h2{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);padding:14px;border-bottom:1px solid var(--line)}#volumes{padding:10px}.nav{display:block;width:100%;text-align:left;background:transparent;color:var(--text);border:0;padding:7px;margin:0}.nav.active{background:#16303b;color:var(--cyan)}#drillBreadcrumb{display:flex;align-items:center;gap:8px;min-height:50px;padding:9px 18px;border-bottom:1px solid var(--line);color:var(--muted)}#drillBreadcrumb button{padding:6px 9px;border:1px solid var(--line);background:var(--panel);color:var(--cyan)}#drillBreadcrumb .back{margin-right:8px;background:var(--cyan);color:var(--bg)}#workspaceContent{padding-bottom:24px}.workspace-title{display:flex;gap:18px;align-items:end;padding:18px}.workspace-title p,#legend,#mapStatus,.muted{color:var(--muted);font-size:12px}#legend{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:5px 12px;margin-left:auto;max-width:540px}.swatch{display:inline-block;width:9px;height:9px;margin-right:5px;border-radius:2px;background:var(--unreserved)}.swatch.reserved-unallocated{background:var(--reserved)}.swatch.allocated{background:var(--allocated)}.swatch.system-metadata{background:var(--system)}.swatch.finding{background:transparent;border:2px solid var(--finding)}#volumeMap{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;padding:0 18px 18px}.sector-card{min-width:0;padding:0;border:1px solid var(--line);background:var(--panel);color:var(--text);text-align:left}.sector-card:hover{border-color:var(--cyan)}.sector-heading{display:flex;gap:7px;padding:6px 7px;color:var(--muted);font-size:11px}.sector-heading strong{color:var(--text)}.sector-heading span{margin-left:auto}.sector-preview-pages,.sector-focus-grid{display:grid;grid-template-columns:repeat(8,1fr)}.sector-preview-pages{gap:2px;padding:0 7px 7px}.page{aspect-ratio:1;min-width:0;margin:0;padding:0;border:1px solid transparent;border-radius:1px;background:var(--unreserved)}.page.unreserved{background:var(--unreserved)}.page.reserved-unallocated{background:var(--reserved)}.page.allocated{background:var(--allocated)}.page.system-metadata{background:var(--system)}.page.finding{outline:2px solid var(--finding);outline-offset:-2px}.preview-page{display:block}.sector-focus{max-width:790px;margin:0 auto;padding:0 18px 30px}.sector-focus-grid{gap:7px}.focus-page{position:relative;color:var(--text);text-align:left}.focus-page.selected{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan),0 0 8px var(--cyan)}.focus-page .page-id{position:absolute;left:6px;bottom:5px;font-size:11px}.focus-page .page-kind{position:absolute;top:5px;left:6px;right:6px;overflow:hidden;color:#d5e0e4;font-size:9px;text-overflow:ellipsis;white-space:nowrap}#mapStatus{padding:0 18px 24px}#mapSentinel{height:1px;grid-column:1/-1}.page-workspace{display:grid;grid-template-columns:minmax(300px,1fr) minmax(360px,1.15fr);gap:18px;padding:0 18px 24px}.panel{min-width:0;padding:16px;border:1px solid var(--line);background:var(--panel)}.panel h2{padding:0 0 10px;border:0;color:var(--text);font-size:17px;letter-spacing:0;text-transform:none}.panel h3{margin:18px 0 8px}.page-facts{grid-template-columns:125px 1fr}.structure-facts{margin-top:16px}.slot-map{display:block;width:100%;height:82px;margin:10px 0;border:1px solid var(--line);background:#16242c}.slot-table{width:100%;border-collapse:collapse}.slot-table th,.slot-table td{padding:7px;border-bottom:1px solid var(--line);text-align:right}.slot-table th:first-child,.slot-table td:first-child{text-align:left}.slot-action{padding:3px 6px;background:transparent;color:var(--cyan);border:1px solid var(--line)}.slot-detail{grid-column:1/-1}.status-note{margin-top:12px;padding:9px;border:1px solid var(--line);color:var(--muted)}dl{display:grid;grid-template-columns:115px 1fr;gap:7px}dt{color:var(--muted)}dd{margin:0;overflow-wrap:anywhere}.withheld{padding:8px;border:1px solid var(--line);color:var(--muted);font-family:ui-monospace,monospace;white-space:pre-wrap}dialog{max-width:min(860px,90vw);max-height:80vh;background:var(--panel);color:var(--text);border:1px solid var(--line)}dialog::backdrop{background:#000b}@media(max-width:900px){main{grid-template-columns:190px 1fr}.page-workspace{grid-template-columns:1fr}}@media(max-width:720px){header{position:static;height:auto;min-height:54px;flex-wrap:wrap;padding:10px 14px}main{display:block}aside{position:static;height:auto;border:0;border-bottom:1px solid var(--line)}.workspace-title{display:block}.workspace-title #legend{justify-content:flex-start;margin:10px 0 0}#volumeMap{grid-template-columns:repeat(2,minmax(135px,1fr));gap:8px;padding:0 12px 16px}.sector-focus-grid{gap:4px}.page-workspace{padding:0 12px 18px}}"#;
 
+const DISTRIBUTION_CSS: &str = r"
+.page-distribution{display:grid;gap:14px}
+.page-workspace{align-items:start}
+.distribution-summary{display:grid;grid-template-columns:repeat(4,minmax(90px,1fr));gap:8px}
+.distribution-metric{padding:8px;border:1px solid var(--line);background:#101e25}
+.distribution-metric strong,.distribution-metric span{display:block}
+.distribution-metric strong{font-size:18px;color:var(--text)}
+.distribution-metric span{color:var(--muted);font-size:11px}
+.distribution-legend{display:flex;flex-wrap:wrap;gap:7px 14px;color:var(--muted);font-size:11px}
+.distribution-legend i{display:inline-block;width:11px;height:11px;margin-right:5px;vertical-align:-2px;border:1px solid #ffffff20}
+.region-header{background:#7658a5}
+.region-record{background:#2f845e}
+.region-fragmented-free{background:#263842}
+.region-contiguous-free{background:repeating-linear-gradient(135deg,#254955 0,#254955 5px,#1b3741 5px,#1b3741 10px)}
+.region-slot-directory{background:#315f8a}
+.full-page-map{position:relative;height:76px;border:1px solid var(--line);background:#111d23;overflow:hidden}
+.full-page-map .page-region{position:absolute;inset-block:0;border-right:1px solid #071014}
+.full-page-map .page-region:focus-visible{z-index:2;outline:2px solid #ffd376;outline-offset:-2px}
+.page-map-axis{display:flex;justify-content:space-between;margin-top:-10px;color:var(--muted);font:10px ui-monospace,monospace}
+.distribution-section-title{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.distribution-section-title h3{margin:0}
+.region-list{display:grid;gap:4px;max-height:420px;overflow:auto;padding-right:4px}
+.region-row{display:grid;grid-template-columns:minmax(150px,1.2fr) 132px 74px minmax(120px,1fr);gap:9px;align-items:center;padding:6px;border:1px solid #213741;background:#0b171d}
+.region-name{display:flex;align-items:center;min-width:0}
+.region-name i{flex:0 0 auto;width:10px;height:24px;margin-right:8px}
+.region-name span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.region-range,.region-size{color:var(--muted);font:11px ui-monospace,monospace;text-align:right}
+.region-lane{position:relative;height:12px;background:#17262e}
+.region-lane i{position:absolute;inset-block:0;min-width:2px}
+.slot-directory-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:7px;max-height:420px;overflow:auto;padding-right:4px}
+.slot-entry{display:grid;grid-template-columns:1fr auto;gap:3px 8px;padding:9px;border:1px solid var(--line);background:#12232b;color:var(--text);text-align:left;font-weight:400}
+.slot-entry:hover{border-color:var(--cyan)}
+.slot-entry strong{color:var(--text)}
+.slot-entry .slot-state{font-size:10px;text-transform:uppercase;letter-spacing:.08em}
+.slot-entry small{grid-column:1/-1;color:var(--muted)}
+.slot-entry.allocated{border-left:4px solid #2f845e}
+.slot-entry.allocated .slot-state{color:#79d4a6}
+.slot-entry.unallocated{border-left:4px solid #87733f}
+.slot-entry.unallocated .slot-state{color:#d7bd71}
+.slot-entry.deleted{border-left:4px solid #a3485a;background:#281a20}
+.slot-entry.deleted .slot-state{color:#e68d9d}
+@media(max-width:1100px){.distribution-summary{grid-template-columns:repeat(2,1fr)}.region-row{grid-template-columns:minmax(140px,1fr) 125px 65px}.region-lane{grid-column:1/-1}}
+@media(max-width:720px){.distribution-summary{grid-template-columns:1fr 1fr}.region-row{grid-template-columns:1fr auto}.region-range{grid-column:1}.region-size{grid-column:2;grid-row:1}.slot-directory-grid{grid-template-columns:1fr}}
+";
+
 const APP_JS: &str = r"(()=>{'use strict';
 let token='',session=null,currentVolume=null,currentSector=null,selectedPage=null,currentLevel='volume',volumeView=null,sectorCursor='end',loadedSectors=0,loadingGeneration=null,loadGeneration=0;
 const sectorCache=new Map();
@@ -1445,11 +1662,17 @@ function showSector(sector){mapObserver.disconnect();currentSector=sector;render
 function withheld(identity){const note=document.createElement('p');note.className='withheld';note.textContent=`evidence ${identity} · structural ranges only · bytes withheld`;return note}
 async function showPage(pageId,skipEnrichment=false){selectedPage=pageId;try{const payload=await api(`${base()}/page/${currentVolume.vol_id}/${pageId}`),p=payload.data.page,deep=payload.data.deep,shouldEnrich=!skipEnrichment&&deep.state==='not-enriched'&&p.detail_support.state==='known';renderPageWorkspace(payload,shouldEnrich);if(shouldEnrich)await enrichSelectedPage(p)}catch(error){renderWorkspaceError(error)}}
 function appendPrimitiveStructure(root,deep){if(!deep.structure)return;const fields=[];for(const [name,value] of Object.entries(deep.structure)){if(name==='slots'||name==='bytes'||value===null||typeof value==='object')continue;fields.push([name.replaceAll('_',' '),value])}if(fields.length){const title=document.createElement('h3');title.textContent='Decoded structure';root.append(title,fieldList(fields))}}
-function drawSlotMap(canvas,slots){const context=canvas.getContext('2d'),width=canvas.width,height=canvas.height,scale=width/16384;context.fillStyle='#16242c';context.fillRect(0,0,width,height);slots.forEach((slot,index)=>{const left=Number(slot.offset)*scale,size=Math.max(2,Number(slot.length)*scale);context.fillStyle=index%2===0?'#2f845e':'#315f8a';context.fillRect(left,0,size,height);context.fillStyle='#dce8ec';if(size>28)context.fillText(String(slot.slot_id),left+4,16)})}
-function renderPageWorkspace(payload,enriching=false){const p=payload.data.page,deep=payload.data.deep,slots=payload.data.slots,content=$('workspaceContent'),title=document.createElement('div'),layout=document.createElement('div'),facts=document.createElement('section'),slotPanel=document.createElement('section');renderBreadcrumb('page');title.className='workspace-title';title.innerHTML=`<div><h1>Page ${p.page_id}</h1><p>${p.page_type.state==='known'?p.page_type.value:'unknown type'} · detailed structural view</p></div>`;layout.className='page-workspace';facts.className='panel';const factsTitle=document.createElement('h2');factsTitle.textContent='Page facts';facts.append(factsTitle,fieldList([['Identity',`page:${p.vol_id}:${p.page_id}`],['Sector',p.sector_id],['Physical type',p.page_type.state==='known'?p.page_type.value:'not inspected'],['Allocation',p.allocation],['Availability',p.availability],['Detail support',p.detail_support.state==='known'?p.detail_support.value:p.detail_support.state],['Deep state',deep.state],['TDE',p.tde_state]]));appendPrimitiveStructure(facts,deep);facts.append(withheld(`page:${p.vol_id}:${p.page_id}`));slotPanel.className='panel';const slotsTitle=document.createElement('h2');slotsTitle.textContent=slots.length?`Slots (${slots.length})`:'Slot structure';slotPanel.append(slotsTitle);if(slots.length){const canvas=document.createElement('canvas');canvas.className='slot-map';canvas.width=1000;canvas.height=80;canvas.setAttribute('aria-label','Proportional page slot extent map');slotPanel.append(canvas,slotTable(p,slots));drawSlotMap(canvas,slots)}else{const note=document.createElement('p');note.className='muted';note.textContent=enriching?'Loading structural metadata…':'No validated slot directory is available for this page.';slotPanel.append(note)}if(enriching){const note=document.createElement('p');note.className='status-note';note.setAttribute('role','status');note.textContent='Enriching the selected page at a new immutable revision…';facts.append(note)}layout.append(facts,slotPanel);content.replaceChildren(title,layout)}
+function distributionLegend(){const root=document.createElement('div');root.className='distribution-legend';for(const [kind,label] of [['header','Slotted header'],['record','Allocated record'],['fragmented-free','Fragmented free'],['contiguous-free','Contiguous free'],['slot-directory','Slot directory']]){const item=document.createElement('span'),swatch=document.createElement('i');swatch.className=`region-${kind}`;item.append(swatch,label);root.append(item)}return root}
+function distributionRegions(distribution){const regions=[{...distribution.header,kind:'header',label:'Slotted-page header'},...distribution.record_extents.map(record=>({...record,kind:'record',label:`Slot ${record.slot_id} · ${record.record_type}`})),...distribution.free_regions.map((region,index)=>({...region,label:`${region.kind==='contiguous-free'?'Contiguous':'Fragmented'} free region ${index+1}`})),{...distribution.slot_directory,kind:'slot-directory',label:'Slot directory'}];regions.sort((left,right)=>left.offset-right.offset||left.length-right.length);return regions}
+function distributionMetric(value,label){const node=document.createElement('div'),number=document.createElement('strong'),caption=document.createElement('span');node.className='distribution-metric';number.textContent=String(value);caption.textContent=label;node.append(number,caption);return node}
+function renderSlottedDistribution(page,slots,distribution){const root=document.createDocumentFragment(),title=document.createElement('h2'),summary=document.createElement('div'),map=document.createElement('div'),axis=document.createElement('div'),regions=distributionRegions(distribution),slotById=new Map(slots.map(slot=>[slot.slot_id,slot])),notAllocated=distribution.slot_entries.filter(entry=>entry.state!=='allocated').length;title.textContent='Full slotted-page distribution';summary.className='distribution-summary';summary.append(distributionMetric(distribution.record_extents.length,'allocated records'),distributionMetric(notAllocated,'slots not allocated'),distributionMetric(distribution.free_regions.length,'free byte regions'),distributionMetric(`${distribution.unoccupied_bytes} B`,'unoccupied bytes'));map.className='full-page-map';map.setAttribute('aria-label',`Complete ${distribution.content_size}-byte slotted-page content map`);for(const region of regions){const node=region.kind==='record'?button('',()=>showSlot(page,region.slot_id)):document.createElement('span'),end=region.offset+region.length,label=`${region.label}: offset ${region.offset}, size ${region.length} bytes, end ${end}`;node.className=`page-region region-${region.kind}`;node.style.left=`${region.offset/distribution.content_size*100}%`;node.style.width=`${region.length/distribution.content_size*100}%`;node.title=label;node.setAttribute('aria-label',label);map.append(node)}axis.className='page-map-axis';for(const value of [0,Math.floor(distribution.content_size/4),Math.floor(distribution.content_size/2),Math.floor(distribution.content_size*3/4),distribution.content_size]){const tick=document.createElement('span');tick.textContent=String(value);axis.append(tick)}root.append(title,summary,distributionLegend(),map,axis,regionList(page,regions,distribution.content_size),slotDirectory(page,distribution.slot_entries,slotById));return root}
+function sectionTitle(title,caption){const root=document.createElement('div'),heading=document.createElement('h3'),detail=document.createElement('span');root.className='distribution-section-title';heading.textContent=title;detail.className='muted';detail.textContent=caption;root.append(heading,detail);return root}
+function regionList(page,regions,contentSize){const wrapper=document.createElement('section'),list=document.createElement('div');list.className='region-list';for(const region of regions){const row=document.createElement('div'),name=document.createElement('span'),swatch=document.createElement('i'),label=document.createElement('span'),range=document.createElement('span'),size=document.createElement('span'),lane=document.createElement('span'),extent=document.createElement('i'),end=region.offset+region.length;row.className='region-row';name.className='region-name';swatch.className=`region-${region.kind}`;label.textContent=region.label;name.append(swatch,label);range.className='region-range';range.textContent=`${region.offset}–${end}`;size.className='region-size';size.textContent=`${region.length} B`;lane.className='region-lane';extent.className=`region-${region.kind}`;extent.style.left=`${region.offset/contentSize*100}%`;extent.style.width=`${region.length/contentSize*100}%`;lane.append(extent);row.append(name,range,size,lane);if(region.kind==='record'){row.tabIndex=0;row.setAttribute('role','button');row.setAttribute('aria-label',`Inspect ${region.label}`);row.onclick=()=>showSlot(page,region.slot_id);row.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();showSlot(page,region.slot_id)}}}list.append(row)}wrapper.append(sectionTitle('Physical intervals',`${regions.length} exhaustive non-overlapping regions`),list);return wrapper}
+function slotDirectory(page,entries,slotById){const wrapper=document.createElement('section'),grid=document.createElement('div');grid.className='slot-directory-grid';for(const entry of entries){const slot=slotById.get(entry.slot_id),node=button('',()=>showSlot(page,entry.slot_id),`slot-entry ${entry.state}`),name=document.createElement('strong'),state=document.createElement('span'),kind=document.createElement('small'),directory=document.createElement('small'),record=document.createElement('small');name.textContent=`Slot ${entry.slot_id}`;state.className='slot-state';state.textContent=entry.state==='allocated'?'allocated':entry.state==='deleted'?'deleted · not allocated':'not allocated';kind.textContent=`record type · ${entry.record_type}`;directory.textContent=`directory · ${entry.offset}–${entry.offset+entry.length} (${entry.length} B)`;record.textContent=slot&&Number(slot.offset)>0?`record · ${slot.offset}–${Number(slot.offset)+Number(slot.length)} (${slot.length} B)`:`record · no live extent${slot&&Number(slot.length)>0?` · retained length ${slot.length} B`:''}`;node.append(name,state,kind,directory,record);grid.append(node)}wrapper.append(sectionTitle('Slot directory',`${entries.length} entries · allocated, empty, and deleted`),grid);return wrapper}
+function renderPageWorkspace(payload,enriching=false){const p=payload.data.page,deep=payload.data.deep,slots=payload.data.slots,distribution=payload.data.distribution,content=$('workspaceContent'),title=document.createElement('div'),layout=document.createElement('div'),facts=document.createElement('section'),distributionPanel=document.createElement('section');renderBreadcrumb('page');title.className='workspace-title';title.innerHTML=`<div><h1>Page ${p.page_id}</h1><p>${p.page_type.state==='known'?p.page_type.value:'unknown type'} · detailed structural view</p></div>`;layout.className='page-workspace';facts.className='panel';const factsTitle=document.createElement('h2');factsTitle.textContent='Page facts';facts.append(factsTitle,fieldList([['Identity',`page:${p.vol_id}:${p.page_id}`],['Sector',p.sector_id],['Physical type',p.page_type.state==='known'?p.page_type.value:'not inspected'],['Allocation',p.allocation],['Availability',p.availability],['Detail support',p.detail_support.state==='known'?p.detail_support.value:p.detail_support.state],['Deep state',deep.state],['TDE',p.tde_state]]));appendPrimitiveStructure(facts,deep);facts.append(withheld(`page:${p.vol_id}:${p.page_id}`));distributionPanel.className='panel page-distribution';if(distribution.state==='available')distributionPanel.append(renderSlottedDistribution(p,slots,distribution));else{const slotsTitle=document.createElement('h2'),note=document.createElement('p');slotsTitle.textContent='Slotted-page distribution';note.className='muted';note.textContent=enriching?'Loading structural metadata…':'No validated slot directory is available for this page.';distributionPanel.append(slotsTitle,note)}if(enriching){const note=document.createElement('p');note.className='status-note';note.setAttribute('role','status');note.textContent='Enriching the selected page at a new immutable revision…';facts.append(note)}layout.append(facts,distributionPanel);content.replaceChildren(title,layout)}
 function slotTable(page,slots){const table=document.createElement('table'),head=document.createElement('thead'),body=document.createElement('tbody'),header=document.createElement('tr');table.className='slot-table';for(const label of ['Slot','Record type','Offset','Size (bytes)','']){const cell=document.createElement('th');cell.textContent=label;header.append(cell)}head.append(header);for(const slot of slots){const row=document.createElement('tr');for(const value of [slot.slot_id,slot.record_type,slot.offset,slot.length]){const cell=document.createElement('td');cell.textContent=String(value);row.append(cell)}const action=document.createElement('td');action.append(button('Inspect',()=>showSlot(page,slot.slot_id),'slot-action'));row.append(action);body.append(row)}table.append(head,body);return table}
 async function enrichSelectedPage(page){try{const receipt=await api(`${base()}/enrichments`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selector:`page:${page.vol_id}:${page.page_id}`})});updateSession(receipt);invalidateVolumeView();const sectorPayload=await api(`${base()}/sector/${page.vol_id}/${page.sector_id}`);currentSector=sectorPayload.data;await showPage(page.page_id,true)}catch(error){renderWorkspaceError(error)}}
-async function showSlot(page,slotId){try{const payload=await api(`${base()}/slot/${page.vol_id}/${page.page_id}/${slotId}`),slot=payload.data.selected_slot,root=document.createElement('section');root.id='slotDetail';root.className='panel slot-detail';const title=document.createElement('h2');title.textContent=`Slot ${slot.slot_id}`;root.append(title,fieldList([['Identity',`slot:${page.vol_id}:${page.page_id}:${slot.slot_id}`],['Record type',`${slot.record_type} (${slot.record_type_ordinal})`],['Offset',slot.offset],['Size',slot.length]]));if(page.page_type.state==='known'&&page.page_type.value==='oos')root.append(button('Validate OOS chain',()=>enrichOos(page,slot.slot_id)));root.append(withheld(`slot:${page.vol_id}:${page.page_id}:${slot.slot_id}`));const old=$('slotDetail');if(old)old.remove();document.querySelector('.page-workspace').append(root)}catch(error){renderWorkspaceError(error)}}
+async function showSlot(page,slotId){try{const payload=await api(`${base()}/slot/${page.vol_id}/${page.page_id}/${slotId}`),slot=payload.data.selected_slot,root=document.createElement('section');root.id='slotDetail';root.className='panel slot-detail';const title=document.createElement('h2');title.textContent=`Slot ${slot.slot_id}`;root.append(title,fieldList([['Identity',`slot:${page.vol_id}:${page.page_id}:${slot.slot_id}`],['Record type',`${slot.record_type} (${slot.record_type_ordinal})`],['Offset',slot.offset],['Size',slot.length]]));if(page.page_type.state==='known'&&page.page_type.value==='oos'&&Number(slot.offset)>0&&slot.record_type==='home')root.append(button('Validate OOS chain',()=>enrichOos(page,slot.slot_id)));root.append(withheld(`slot:${page.vol_id}:${page.page_id}:${slot.slot_id}`));const old=$('slotDetail');if(old)old.remove();document.querySelector('.page-workspace').append(root)}catch(error){renderWorkspaceError(error)}}
 async function enrichOos(page,slotId){try{const receipt=await api(`${base()}/enrichments`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selector:`oos:${page.vol_id}:${page.page_id}:${slotId}`})});updateSession(receipt);invalidateVolumeView();const sectorPayload=await api(`${base()}/sector/${page.vol_id}/${page.sector_id}`);currentSector=sectorPayload.data;await showPage(page.page_id,true);const payload=await api(`${base()}/oos/${page.vol_id}/${page.page_id}/${slotId}`),chain=payload.data.chain,root=document.createElement('section');root.id='slotDetail';root.className='panel slot-detail';root.append(fieldList([['Identity',`oos:${page.vol_id}:${page.page_id}:${slotId}`],['Complete',chain.complete],['Validated bytes',chain.validated_payload_bytes],['Chunks',chain.chunks.length],['Diagnostic',chain.diagnostic.state==='known'?chain.diagnostic.value:'none']]));root.append(withheld(`oos:${page.vol_id}:${page.page_id}:${slotId}`));document.querySelector('.page-workspace').append(root)}catch(error){renderWorkspaceError(error)}}
 function renderWorkspaceError(error){const note=document.createElement('p');note.className='status-note';note.setAttribute('role','alert');note.textContent=error.message;$('workspaceContent').append(note)}
 async function showLicenses(){const payload=await api('/api/v1/licenses');$('infoContent').textContent=payload.notice;$('infoDialog').showModal()}
@@ -1718,8 +1941,107 @@ mod tests {
         assert!(APP_JS.contains("deep.state==='not-enriched'"));
         assert!(APP_JS.contains("slot.offset"));
         assert!(APP_JS.contains("slot.length"));
-        assert!(APP_JS.contains("drawSlotMap"));
+        assert!(APP_JS.contains("renderSlottedDistribution"));
         assert!(APP_JS.contains("64 physical pages"));
+    }
+
+    #[test]
+    fn browser_contract_renders_complete_slotted_page_distribution() {
+        assert!(DISTRIBUTION_CSS.contains(".page-distribution"));
+        assert!(DISTRIBUTION_CSS.contains(".region-fragmented-free"));
+        assert!(DISTRIBUTION_CSS.contains(".slot-entry.unallocated"));
+        assert!(DISTRIBUTION_CSS.contains(".slot-entry.deleted"));
+        assert!(APP_JS.contains("distribution.free_regions"));
+        assert!(APP_JS.contains("distribution.slot_entries"));
+        assert!(APP_JS.contains("Full slotted-page distribution"));
+        assert!(APP_JS.contains("not allocated"));
+        assert!(APP_JS.contains("Number(slot.offset)>0&&slot.record_type==='home'"));
+        assert!(!APP_JS.contains("width/16384"));
+    }
+
+    #[test]
+    fn slotted_page_distribution_covers_records_free_space_and_directory_entries() {
+        use crate::format::{IO_PAGE_SIZE, PageType, decode_page_envelope, decode_slotted_page};
+
+        let mut bytes = [0_u8; IO_PAGE_SIZE];
+        bytes[8..12].copy_from_slice(&7_i32.to_le_bytes());
+        bytes[12..14].copy_from_slice(&1_i16.to_le_bytes());
+        bytes[14] = PageType::Heap.ordinal();
+        let user = &mut bytes[32..IO_PAGE_SIZE - 8];
+        user[0..2].copy_from_slice(&4_i16.to_le_bytes());
+        user[2..4].copy_from_slice(&2_i16.to_le_bytes());
+        user[4..6].copy_from_slice(&1_i16.to_le_bytes());
+        user[6..8].copy_from_slice(&8_u16.to_le_bytes());
+        user[8..12].copy_from_slice(&16_256_i32.to_le_bytes());
+        user[12..16].copy_from_slice(&16_200_i32.to_le_bytes());
+        user[16..20].copy_from_slice(&128_i32.to_le_bytes());
+        for (slot, offset, length, kind) in [
+            (0_usize, 32_u16, 24_u16, 2_u8),
+            (1, 0, 0, 9),
+            (2, 0, 48, 6),
+            (3, 80, 16, 3),
+        ] {
+            let word = u32::from(offset) | (u32::from(length) << 14) | (u32::from(kind) << 28);
+            let start = DB_PAGE_SIZE - 4 * (slot + 1);
+            user[start..start + 4].copy_from_slice(&word.to_le_bytes());
+        }
+        let envelope = decode_page_envelope(
+            &bytes,
+            Vpid::new(VolId::new(1).unwrap(), PageId::new(7).unwrap()),
+        )
+        .unwrap();
+        let slotted = decode_slotted_page(&envelope).unwrap();
+
+        let PageDistributionProjection::Available {
+            content_size,
+            header,
+            record_extents,
+            free_regions,
+            slot_directory,
+            slot_entries,
+            allocated_record_bytes,
+            unoccupied_bytes,
+        } = page_distribution_projection(&slotted)
+        else {
+            panic!("slotted page must have a distribution");
+        };
+
+        assert_eq!(content_size, 16_344);
+        assert_eq!((header.offset, header.length), (0, 32));
+        assert_eq!(
+            record_extents
+                .iter()
+                .map(|record| (record.slot_id, record.offset, record.length))
+                .collect::<Vec<_>>(),
+            vec![(0, 32, 24), (3, 80, 16)]
+        );
+        assert_eq!(
+            free_regions
+                .iter()
+                .map(|region| (region.offset, region.length, region.kind))
+                .collect::<Vec<_>>(),
+            vec![
+                (56, 24, "fragmented-free"),
+                (96, 32, "fragmented-free"),
+                (128, 16_200, "contiguous-free"),
+            ]
+        );
+        assert_eq!((slot_directory.offset, slot_directory.length), (16_328, 16));
+        assert_eq!(
+            slot_entries
+                .iter()
+                .map(|entry| (entry.slot_id, entry.offset, entry.state))
+                .collect::<Vec<_>>(),
+            vec![
+                (0, 16_340, "allocated"),
+                (1, 16_336, "unallocated"),
+                (2, 16_332, "deleted"),
+                (3, 16_328, "allocated"),
+            ]
+        );
+        assert_eq!(allocated_record_bytes, 40);
+        assert_eq!(unoccupied_bytes, 16_256);
+        assert_eq!(32 + 40 + 16_256 + 16, content_size);
     }
 
     #[test]
