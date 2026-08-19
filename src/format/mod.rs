@@ -9,6 +9,7 @@ mod file_table;
 mod page;
 mod sector;
 mod slotted;
+mod vacuum;
 mod volume;
 
 use core::fmt;
@@ -22,6 +23,10 @@ pub use sector::{SectorBitmap, decode_sector_bitmap};
 pub use slotted::{
     AnchorType, OosChunkFact, OosNext, RecordType, SlotFact, SlottedPage, decode_oos_chunk,
     decode_slotted_page,
+};
+pub use vacuum::{
+    DroppedFileFact, DroppedFilesPageFact, VacuumEntryFact, VacuumPageFact,
+    decode_dropped_files_page, decode_vacuum_page,
 };
 pub use volume::{ValidatedCString, VolumeHeader, VolumePurpose, VolumeType, decode_volume_header};
 

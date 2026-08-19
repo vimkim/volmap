@@ -6,7 +6,7 @@ use crate::diagnostics::InspectionOutcome;
 use crate::format::{PageType, VolumePurpose, VolumeType};
 use crate::inspection::{
     CoverageRecord, DeepPageView, DiagnosticRecord, OosChainView, OverviewView, PageView,
-    SectorView, VolumeView,
+    RawPageView, SectorView, VolumeView,
 };
 use crate::model::{
     Availability, Coverage, PageAllocationClass, SnapshotId, SnapshotValidity, TdeInspectionState,
@@ -170,9 +170,58 @@ pub struct PageProjection {
 pub enum DeepPageProjection {
     NotEnriched,
     EnvelopeOnly,
-    FileHeader { structure: FileHeaderProjection },
-    Slotted { structure: SlottedPageProjection },
-    Invalid { rule: &'static str },
+    FileHeader {
+        structure: FileHeaderProjection,
+    },
+    Slotted {
+        structure: SlottedPageProjection,
+    },
+    Vacuum {
+        structure: VacuumPageProjection,
+    },
+    DroppedFiles {
+        structure: DroppedFilesPageProjection,
+    },
+    Invalid {
+        rule: &'static str,
+    },
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct VacuumPageProjection {
+    pub next: OptionalVpidProjection,
+    pub index_unvacuumed: OptionalCountProjection,
+    pub index_free: String,
+    pub entries: Vec<VacuumEntryProjection>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct VacuumEntryProjection {
+    pub block_id: String,
+    pub flags: String,
+    pub start_lsa_word: String,
+    pub oldest_visible_mvccid: String,
+    pub newest_mvccid: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct DroppedFilesPageProjection {
+    pub next: OptionalVpidProjection,
+    pub entries: Vec<DroppedFileProjection>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct DroppedFileProjection {
+    pub vol_id: i16,
+    pub file_id: i32,
+    pub mvccid: String,
+}
+
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(tag = "state", rename_all = "kebab-case")]
+pub enum OptionalVpidProjection {
+    Terminal,
+    Link { vol_id: i16, page_id: i32 },
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -410,6 +459,46 @@ pub fn deep_page_projection(deep: Option<DeepPageView>) -> DeepPageProjection {
             structure: file_header_projection(file_header),
         };
     }
+    if let Some(raw) = deep.raw {
+        return match raw {
+            RawPageView::Vacuum(page) => DeepPageProjection::Vacuum {
+                structure: VacuumPageProjection {
+                    next: optional_vpid_projection(page.next),
+                    index_unvacuumed: page
+                        .index_unvacuumed
+                        .map_or(OptionalCountProjection::Unknown, |value| {
+                            OptionalCountProjection::Known(value.to_string())
+                        }),
+                    index_free: page.index_free.to_string(),
+                    entries: page
+                        .entries
+                        .into_iter()
+                        .map(|entry| VacuumEntryProjection {
+                            block_id: entry.block_id.to_string(),
+                            flags: entry.flags.to_string(),
+                            start_lsa_word: entry.start_lsa_word.to_string(),
+                            oldest_visible_mvccid: entry.oldest_visible_mvccid.to_string(),
+                            newest_mvccid: entry.newest_mvccid.to_string(),
+                        })
+                        .collect(),
+                },
+            },
+            RawPageView::DroppedFiles(page) => DeepPageProjection::DroppedFiles {
+                structure: DroppedFilesPageProjection {
+                    next: optional_vpid_projection(page.next),
+                    entries: page
+                        .entries
+                        .into_iter()
+                        .map(|entry| DroppedFileProjection {
+                            vol_id: entry.vfid.vol_id.get(),
+                            file_id: entry.vfid.file_id.get(),
+                            mvccid: entry.mvccid.to_string(),
+                        })
+                        .collect(),
+                },
+            },
+        };
+    }
     let Some(slotted) = deep.slotted else {
         return DeepPageProjection::EnvelopeOnly;
     };
@@ -429,6 +518,16 @@ pub fn deep_page_projection(deep: Option<DeepPageView>) -> DeepPageProjection {
                 .map(slot_projection)
                 .collect(),
         },
+    }
+}
+
+const fn optional_vpid_projection(vpid: Option<crate::model::Vpid>) -> OptionalVpidProjection {
+    match vpid {
+        Some(vpid) => OptionalVpidProjection::Link {
+            vol_id: vpid.vol_id.get(),
+            page_id: vpid.page_id.get(),
+        },
+        None => OptionalVpidProjection::Terminal,
     }
 }
 

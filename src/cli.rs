@@ -931,6 +931,35 @@ fn render_human(document: &ResultDocument) -> String {
                         structure.page_total
                     );
                 }
+                crate::projection::DeepPageProjection::Vacuum { structure } => {
+                    let _ = writeln!(
+                        output,
+                        "vacuum queue: free-index={} entries={}",
+                        structure.index_free,
+                        structure.entries.len()
+                    );
+                    for entry in &structure.entries {
+                        let _ = writeln!(
+                            output,
+                            "  block:{} flags={} start-lsa={} oldest={} newest={}",
+                            entry.block_id,
+                            entry.flags,
+                            entry.start_lsa_word,
+                            entry.oldest_visible_mvccid,
+                            entry.newest_mvccid
+                        );
+                    }
+                }
+                crate::projection::DeepPageProjection::DroppedFiles { structure } => {
+                    let _ = writeln!(output, "dropped files: entries={}", structure.entries.len());
+                    for entry in &structure.entries {
+                        let _ = writeln!(
+                            output,
+                            "  file:{}:{} mvccid={}",
+                            entry.vol_id, entry.file_id, entry.mvccid
+                        );
+                    }
+                }
                 crate::projection::DeepPageProjection::Invalid { rule } => {
                     let _ = writeln!(output, "deep detail: invalid ({rule})");
                 }
