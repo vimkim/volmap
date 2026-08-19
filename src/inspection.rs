@@ -2,10 +2,14 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
+use std::fs::{DirBuilder, File, OpenOptions};
+use std::io;
 use std::mem::size_of;
-use std::path::PathBuf;
+use std::os::unix::fs::{DirBuilderExt, FileExt, OpenOptionsExt};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
@@ -37,6 +41,10 @@ use crate::tde::{
 
 const FORMAT_PROFILE: &str = "cubrid-feat-oos-linux-x86_64-gcc-e1e651de";
 const SECTOR_PAGES: u32 = 64;
+const PACKED_PAGE_FACT_SIZE: u64 = 16;
+const PACKED_PAGE_FACT_SIZE_USIZE: usize = 16;
+const PACKED_FACT_LSA_PRESENT: u8 = 0x80;
+static NEXT_SPILL_DIRECTORY: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ResourcePolicy {
@@ -90,6 +98,8 @@ impl std::error::Error for ResourcePolicyError {}
 pub struct OpenRequest {
     pub input: InputSpec,
     pub tde_keys_file: Option<PathBuf>,
+    /// Parent directory for the private, unlinked spill file.
+    pub spill_directory: Option<PathBuf>,
 }
 
 #[derive(Clone, Debug)]
@@ -231,7 +241,7 @@ pub struct OverviewView {
     pub diagnostics: Vec<DiagnosticRecord>,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct PageFastFact {
     page_id: PageId,
     page_type: Option<PageType>,
@@ -241,11 +251,310 @@ struct PageFastFact {
     diagnostic_code: Option<&'static str>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct PackedPageFact([u8; PACKED_PAGE_FACT_SIZE_USIZE]);
+
+impl PackedPageFact {
+    fn pack(fact: PageFastFact) -> Self {
+        let mut bytes = [0_u8; PACKED_PAGE_FACT_SIZE_USIZE];
+        bytes[..4].copy_from_slice(&fact.page_id.get().to_le_bytes());
+        if let Some(lsa_word) = fact.lsa_word {
+            bytes[4..12].copy_from_slice(&lsa_word.to_le_bytes());
+            bytes[15] |= PACKED_FACT_LSA_PRESENT;
+        }
+        bytes[12] = fact.page_type.map_or(u8::MAX, PageType::ordinal);
+        bytes[13] = match fact.availability {
+            Availability::Available => 0,
+            Availability::Unreadable => 1,
+            Availability::Unsupported => 2,
+            Availability::EncryptedOpaque => 3,
+        };
+        bytes[14] = match fact.tde_state {
+            TdeInspectionState::NotEncrypted => 0,
+            TdeInspectionState::Decrypted => 1,
+            TdeInspectionState::EncryptedOpaque => 2,
+            TdeInspectionState::KeyError => 3,
+            TdeInspectionState::DecryptedInvalid => 4,
+            TdeInspectionState::InvalidFlags => 5,
+        };
+        bytes[15] |= match fact.diagnostic_code {
+            None => 0,
+            Some("page.envelope.identity_mismatch") => 1,
+            Some("page.envelope.lsa_mismatch") => 2,
+            Some("page.envelope.type_unknown") => 3,
+            Some("page.envelope.tde_flags_invalid") => 4,
+            Some("page.envelope.invalid") => 5,
+            Some("tde.decrypted_invalid") => 6,
+            Some(_) => 7,
+        };
+        Self(bytes)
+    }
+
+    fn unpack(self) -> Result<PageFastFact, FactStoreError> {
+        let page_id = PageId::new(i32::from_le_bytes(
+            self.0[..4]
+                .try_into()
+                .map_err(|_| FactStoreError::InvalidRecord)?,
+        ))
+        .map_err(|_| FactStoreError::InvalidRecord)?;
+        let page_type = if self.0[12] == u8::MAX {
+            None
+        } else {
+            Some(page_type_from_ordinal(self.0[12]).ok_or(FactStoreError::InvalidRecord)?)
+        };
+        let availability = match self.0[13] {
+            0 => Availability::Available,
+            1 => Availability::Unreadable,
+            2 => Availability::Unsupported,
+            3 => Availability::EncryptedOpaque,
+            _ => return Err(FactStoreError::InvalidRecord),
+        };
+        let tde_state = match self.0[14] {
+            0 => TdeInspectionState::NotEncrypted,
+            1 => TdeInspectionState::Decrypted,
+            2 => TdeInspectionState::EncryptedOpaque,
+            3 => TdeInspectionState::KeyError,
+            4 => TdeInspectionState::DecryptedInvalid,
+            5 => TdeInspectionState::InvalidFlags,
+            _ => return Err(FactStoreError::InvalidRecord),
+        };
+        let metadata = self.0[15];
+        let diagnostic_code = match metadata & !PACKED_FACT_LSA_PRESENT {
+            0 => None,
+            1 => Some("page.envelope.identity_mismatch"),
+            2 => Some("page.envelope.lsa_mismatch"),
+            3 => Some("page.envelope.type_unknown"),
+            4 => Some("page.envelope.tde_flags_invalid"),
+            5 => Some("page.envelope.invalid"),
+            6 => Some("tde.decrypted_invalid"),
+            _ => return Err(FactStoreError::InvalidRecord),
+        };
+        let lsa_word = if metadata & PACKED_FACT_LSA_PRESENT == 0 {
+            None
+        } else {
+            Some(u64::from_le_bytes(
+                self.0[4..12]
+                    .try_into()
+                    .map_err(|_| FactStoreError::InvalidRecord)?,
+            ))
+        };
+        Ok(PageFastFact {
+            page_id,
+            page_type,
+            availability,
+            tde_state,
+            lsa_word,
+            diagnostic_code,
+        })
+    }
+}
+
+#[derive(Debug)]
+struct SpillFile(File);
+
+impl SpillFile {
+    fn create(parent: Option<&Path>) -> Result<Self, io::Error> {
+        let parent = parent.unwrap_or_else(|| Path::new("/tmp"));
+        let metadata = std::fs::symlink_metadata(parent)?;
+        if metadata.file_type().is_symlink() || !metadata.is_dir() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "spill parent must be a real directory",
+            ));
+        }
+        for _ in 0..128 {
+            let sequence = NEXT_SPILL_DIRECTORY.fetch_add(1, Ordering::Relaxed);
+            let timestamp = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos();
+            let directory = parent.join(format!(
+                ".volmap-spill-{}-{timestamp:x}-{sequence:x}",
+                std::process::id()
+            ));
+            match DirBuilder::new().mode(0o700).create(&directory) {
+                Ok(()) => {
+                    let path = directory.join("facts");
+                    let file = OpenOptions::new()
+                        .read(true)
+                        .write(true)
+                        .create_new(true)
+                        .mode(0o600)
+                        .open(&path);
+                    match file {
+                        Ok(file) => {
+                            std::fs::remove_file(&path)?;
+                            std::fs::remove_dir(&directory)?;
+                            return Ok(Self(file));
+                        }
+                        Err(error) => {
+                            let _ = std::fs::remove_dir(&directory);
+                            return Err(error);
+                        }
+                    }
+                }
+                Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
+                Err(error) => return Err(error),
+            }
+        }
+        Err(io::Error::new(
+            io::ErrorKind::AlreadyExists,
+            "could not allocate a private spill directory",
+        ))
+    }
+
+    fn read(&self, offset: u64) -> Result<PackedPageFact, FactStoreError> {
+        let mut bytes = [0_u8; PACKED_PAGE_FACT_SIZE_USIZE];
+        self.0
+            .read_exact_at(&mut bytes, offset)
+            .map_err(|_| FactStoreError::Io)?;
+        Ok(PackedPageFact(bytes))
+    }
+
+    fn write(&self, offset: u64, fact: PackedPageFact) -> Result<(), FactStoreError> {
+        self.0
+            .write_all_at(&fact.0, offset)
+            .map_err(|_| FactStoreError::Io)
+    }
+}
+
+#[derive(Debug)]
+enum FactStoreError {
+    Io,
+    InvalidRecord,
+    Arithmetic,
+}
+
+#[derive(Clone, Debug)]
+enum PageFactStore {
+    Memory(Vec<PackedPageFact>),
+    Spilled {
+        file: Arc<SpillFile>,
+        offset: u64,
+        len: u64,
+    },
+}
+
+impl PageFactStore {
+    fn memory() -> Self {
+        Self::Memory(Vec::new())
+    }
+
+    fn memory_with_capacity(capacity: u64) -> Result<Self, OpenFailure> {
+        Ok(Self::Memory(Vec::with_capacity(
+            usize::try_from(capacity).map_err(|_| OpenFailure::Arithmetic)?,
+        )))
+    }
+
+    fn spilled(file: Arc<SpillFile>, offset: u64) -> Self {
+        Self::Spilled {
+            file,
+            offset,
+            len: 0,
+        }
+    }
+
+    fn len(&self) -> u64 {
+        match self {
+            Self::Memory(facts) => facts.len() as u64,
+            Self::Spilled { len, .. } => *len,
+        }
+    }
+
+    fn push(&mut self, fact: PageFastFact) -> Result<(), FactStoreError> {
+        let packed = PackedPageFact::pack(fact);
+        match self {
+            Self::Memory(facts) => {
+                facts.push(packed);
+                Ok(())
+            }
+            Self::Spilled { file, offset, len } => {
+                let relative = len
+                    .checked_mul(PACKED_PAGE_FACT_SIZE)
+                    .ok_or(FactStoreError::Arithmetic)?;
+                let position = offset
+                    .checked_add(relative)
+                    .ok_or(FactStoreError::Arithmetic)?;
+                file.write(position, packed)?;
+                *len = len.checked_add(1).ok_or(FactStoreError::Arithmetic)?;
+                Ok(())
+            }
+        }
+    }
+
+    fn fact_at(&self, index: u64) -> Result<Option<PageFastFact>, FactStoreError> {
+        if index >= self.len() {
+            return Ok(None);
+        }
+        let packed = match self {
+            Self::Memory(facts) => *facts
+                .get(usize::try_from(index).map_err(|_| FactStoreError::Arithmetic)?)
+                .ok_or(FactStoreError::InvalidRecord)?,
+            Self::Spilled { file, offset, .. } => {
+                let relative = index
+                    .checked_mul(PACKED_PAGE_FACT_SIZE)
+                    .ok_or(FactStoreError::Arithmetic)?;
+                file.read(
+                    offset
+                        .checked_add(relative)
+                        .ok_or(FactStoreError::Arithmetic)?,
+                )?
+            }
+        };
+        packed.unpack().map(Some)
+    }
+
+    fn page_fact(&self, page_id: PageId) -> Result<Option<PageFastFact>, FactStoreError> {
+        let mut low = 0_u64;
+        let mut high = self.len();
+        while low < high {
+            let middle = low + (high - low) / 2;
+            let fact = self.fact_at(middle)?.ok_or(FactStoreError::InvalidRecord)?;
+            match fact.page_id.get().cmp(&page_id.get()) {
+                std::cmp::Ordering::Less => low = middle + 1,
+                std::cmp::Ordering::Greater => high = middle,
+                std::cmp::Ordering::Equal => return Ok(Some(fact)),
+            }
+        }
+        Ok(None)
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+struct PageFactSummary {
+    inspected: u64,
+    page_type_counts: [u64; 15],
+    tde_opaque_pages: u64,
+}
+
+impl PageFactSummary {
+    fn observe(&mut self, fact: PageFastFact) -> Result<(), OpenFailure> {
+        self.inspected = self
+            .inspected
+            .checked_add(1)
+            .ok_or(OpenFailure::Arithmetic)?;
+        if let Some(page_type) = fact.page_type {
+            let count = self
+                .page_type_counts
+                .get_mut(usize::from(page_type.ordinal()))
+                .ok_or(OpenFailure::Arithmetic)?;
+            *count = count.checked_add(1).ok_or(OpenFailure::Arithmetic)?;
+        }
+        if fact.tde_state == TdeInspectionState::EncryptedOpaque {
+            self.tde_opaque_pages = self
+                .tde_opaque_pages
+                .checked_add(1)
+                .ok_or(OpenFailure::Arithmetic)?;
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug)]
 struct VolumeRecord {
     view: VolumeView,
     reserved_masks: Vec<u64>,
-    pages: Vec<PageFastFact>,
+    pages: PageFactStore,
 }
 
 impl VolumeRecord {
@@ -255,11 +564,8 @@ impl VolumeRecord {
             .is_some_and(|mask| mask & (1_u64 << (sector % 64)) != 0)
     }
 
-    fn page_fact(&self, page_id: PageId) -> Option<PageFastFact> {
-        self.pages
-            .binary_search_by_key(&page_id.get(), |fact| fact.page_id.get())
-            .ok()
-            .and_then(|index| self.pages.get(index).copied())
+    fn page_fact(&self, page_id: PageId) -> Result<Option<PageFastFact>, FactStoreError> {
+        self.pages.page_fact(page_id)
     }
 }
 
@@ -385,6 +691,8 @@ struct SessionData {
     volumes: Vec<VolumeRecord>,
     coverage: Vec<CoverageRecord>,
     diagnostics: Vec<DiagnosticRecord>,
+    fast_summary: PageFactSummary,
+    page_overrides: BTreeMap<Vpid, PageFastFact>,
     deep_pages: BTreeMap<Vpid, DeepPageFact>,
     file_allocations: BTreeMap<Vpid, Vfid>,
     tracked_files: BTreeMap<Vfid, FileHeader>,
@@ -667,7 +975,7 @@ impl Inspection {
             volumes.push(VolumeRecord {
                 view,
                 reserved_masks,
-                pages: Vec::new(),
+                pages: PageFactStore::memory(),
             });
             report(
                 &mut progress,
@@ -722,19 +1030,13 @@ impl Inspection {
                 rule: "tde.key_file.owner_only_permissions",
             });
         }
-        let mut envelope_total = 0_u64;
-        for volume in &volumes {
-            let system_pages = u64::try_from(volume.view.system_last_page.get())
-                .ok()
-                .and_then(|last| last.checked_add(1))
-                .ok_or(OpenFailure::Arithmetic)?;
-            let reserved_pages = u64::from(volume.view.reserved_sectors)
-                .checked_mul(u64::from(SECTOR_PAGES))
-                .ok_or(OpenFailure::Arithmetic)?;
-            envelope_total = envelope_total
-                .checked_add(reserved_pages.max(system_pages))
-                .ok_or(OpenFailure::Arithmetic)?;
-        }
+        let envelope_counts = volumes
+            .iter()
+            .map(eligible_page_count)
+            .collect::<Result<Vec<_>, _>>()?;
+        let envelope_total = envelope_counts.iter().try_fold(0_u64, |total, count| {
+            total.checked_add(*count).ok_or(OpenFailure::Arithmetic)
+        })?;
         report(
             &mut progress,
             ScanPhase::PageEnvelopes,
@@ -745,11 +1047,35 @@ impl Inspection {
         let mut evaluated = 0_u64;
         let mut conclusive = 0_u64;
         let mut stopped_reason = None;
-        let mut memory_used = estimate_base_bytes(&volumes)?;
+        let memory_used = estimate_base_bytes(&volumes)?;
+        let fact_bytes = envelope_total
+            .checked_mul(PACKED_PAGE_FACT_SIZE)
+            .ok_or(OpenFailure::Arithmetic)?;
+        let use_spill = memory_used
+            .checked_add(fact_bytes)
+            .is_none_or(|required| required > policy.memory_limit);
+        let spill = if use_spill && memory_used <= policy.memory_limit {
+            Some(Arc::new(
+                SpillFile::create(request.spill_directory.as_deref())
+                    .map_err(|_| OpenFailure::Spill)?,
+            ))
+        } else {
+            None
+        };
+        if spill.is_none() && memory_used <= policy.memory_limit {
+            for (volume, count) in volumes.iter_mut().zip(&envelope_counts) {
+                volume.pages = PageFactStore::memory_with_capacity(*count)?;
+            }
+        }
+        let mut spill_used = 0_u64;
+        let mut fast_summary = PageFactSummary::default();
         'volume_scan: for (volume_index, source) in sources.volumes().iter().enumerate() {
             let Some(volume) = volumes.get_mut(volume_index) else {
                 return Err(OpenFailure::Arithmetic);
             };
+            if let Some(file) = spill.as_ref() {
+                volume.pages = PageFactStore::spilled(Arc::clone(file), spill_used);
+            }
             for sector in 0..volume.view.total_sectors {
                 let first_page = sector
                     .checked_mul(SECTOR_PAGES)
@@ -774,21 +1100,25 @@ impl Inspection {
                     let page_id =
                         PageId::new(i32::try_from(raw_page).map_err(|_| OpenFailure::Arithmetic)?)
                             .map_err(|_| OpenFailure::Arithmetic)?;
-                    let next_memory = memory_used
-                        .checked_add(size_of::<PageFastFact>() as u64)
-                        .ok_or(OpenFailure::Arithmetic)?;
-                    if next_memory > policy.memory_limit {
+                    let spill_exhausted = spill.is_some()
+                        && spill_used
+                            .checked_add(PACKED_PAGE_FACT_SIZE)
+                            .is_none_or(|next| next > policy.spill_limit);
+                    if memory_used > policy.memory_limit || spill_exhausted {
                         stopped_reason = Some("resource-limit");
                         diagnostics.push(DiagnosticRecord {
                             code: "inspection.resource_limit",
                             severity: "error",
-                            message: "The resident fact budget stopped page-envelope inspection.",
+                            message: "The admitted fact budget stopped page-envelope inspection.",
                             subject: format!("page:{}:{}", volume.view.vol_id.get(), page_id.get()),
-                            rule: "inspection.resource_policy.resident",
+                            rule: if memory_used > policy.memory_limit {
+                                "inspection.resource_policy.resident"
+                            } else {
+                                "inspection.resource_policy.spill"
+                            },
                         });
                         break 'volume_scan;
                     }
-                    memory_used = next_memory;
                     evaluated = evaluated.checked_add(1).ok_or(OpenFailure::Arithmetic)?;
                     let fact = match source.read_envelope(page_id) {
                         Ok((prefix, watermark)) => match decode_page_envelope_parts(
@@ -873,7 +1203,16 @@ impl Inspection {
                             break 'volume_scan;
                         }
                     };
-                    volume.pages.push(fact);
+                    volume
+                        .pages
+                        .push(fact)
+                        .map_err(|_| OpenFailure::FactStore)?;
+                    fast_summary.observe(fact)?;
+                    if spill.is_some() {
+                        spill_used = spill_used
+                            .checked_add(PACKED_PAGE_FACT_SIZE)
+                            .ok_or(OpenFailure::Arithmetic)?;
+                    }
                     report(
                         &mut progress,
                         ScanPhase::PageEnvelopes,
@@ -969,6 +1308,8 @@ impl Inspection {
                 volumes,
                 coverage,
                 diagnostics,
+                fast_summary,
+                page_overrides: BTreeMap::new(),
                 deep_pages: BTreeMap::new(),
                 file_allocations: BTreeMap::new(),
                 tracked_files: BTreeMap::new(),
@@ -1016,19 +1357,10 @@ impl GraphView {
             .map(|volume| u64::from(volume.view.reserved_sectors))
             .sum();
         let physical_page_count = sector_count * u64::from(SECTOR_PAGES);
-        let mut counts = [0_u64; 15];
-        let mut opaque = 0_u64;
-        let mut inspected = 0_u64;
-        for fact in self.data.volumes.iter().flat_map(|volume| &volume.pages) {
-            inspected += 1;
-            if let Some(page_type) = fact.page_type {
-                counts[usize::from(page_type.ordinal())] += 1;
-            }
-            if fact.tde_state == TdeInspectionState::EncryptedOpaque {
-                opaque += 1;
-            }
-        }
-        let page_type_counts = counts
+        let page_type_counts = self
+            .data
+            .fast_summary
+            .page_type_counts
             .into_iter()
             .enumerate()
             .filter(|(_, count)| *count != 0)
@@ -1050,9 +1382,9 @@ impl GraphView {
             sector_count,
             reserved_sector_count,
             physical_page_count,
-            inspected_page_envelopes: inspected,
+            inspected_page_envelopes: self.data.fast_summary.inspected,
             page_type_counts,
-            tde_opaque_pages: opaque,
+            tde_opaque_pages: self.data.fast_summary.tde_opaque_pages,
             coverage: self.data.coverage.clone(),
             diagnostics: self.data.diagnostics.clone(),
         }
@@ -1084,7 +1416,7 @@ impl GraphView {
                 let page_id =
                     PageId::new(i32::try_from(raw_page).map_err(|_| QueryError::Arithmetic)?)
                         .map_err(|_| QueryError::Arithmetic)?;
-                Self::page_from_record(volume, page_id, &self.data.file_allocations)
+                self.page_from_record(volume, page_id)
             })
             .collect::<Result<Vec<_>, _>>()?;
         Ok(SectorView {
@@ -1106,7 +1438,7 @@ impl GraphView {
         if raw_page >= total_pages {
             return Err(QueryError::EntityNotFound);
         }
-        Self::page_from_record(volume, vpid.page_id, &self.data.file_allocations)
+        self.page_from_record(volume, vpid.page_id)
     }
 
     pub fn file_pages(&self, vfid: Vfid) -> Result<Vec<PageView>, QueryError> {
@@ -1414,44 +1746,48 @@ impl GraphView {
         }
         let mut tracker = None;
         let mut decoded_bytes = 0_u64;
-        for (volume, fact) in self.data.volumes.iter().flat_map(|volume| {
-            volume
-                .pages
-                .iter()
-                .filter(|fact| fact.page_type == Some(PageType::FileTable))
-                .map(move |fact| (volume, fact))
-        }) {
-            if cancel.is_cancelled() {
-                return Err(OperationError::Interrupted);
-            }
-            let vpid = Vpid::new(volume.view.vol_id, fact.page_id);
-            decoded_bytes = decoded_bytes
-                .checked_add(crate::format::IO_PAGE_SIZE as u64)
-                .ok_or(OperationError::Arithmetic)?;
-            if decoded_bytes > policy.max_decoded_bytes {
-                return Err(OperationError::ResourceLimit);
-            }
-            let owned = match OwnedInspectionPage::read(&self.data, vpid) {
-                Ok(page) => page,
-                Err(InspectionPageError::Source(error)) => {
-                    return Err(OperationError::Source(error));
+        for volume in &self.data.volumes {
+            for index in 0..volume.pages.len() {
+                let fact = volume
+                    .pages
+                    .fact_at(index)
+                    .map_err(|_| OperationError::FactStore)?
+                    .ok_or(OperationError::FactStore)?;
+                if fact.page_type != Some(PageType::FileTable) {
+                    continue;
                 }
-                Err(
-                    InspectionPageError::Format(_)
-                    | InspectionPageError::EncryptedOpaque
-                    | InspectionPageError::Decrypt,
-                ) => continue,
-            };
-            let Ok(envelope) = owned.envelope(vpid) else {
-                continue;
-            };
-            let Ok(header) = decode_file_header(&envelope) else {
-                continue;
-            };
-            if header.file_type() == crate::format::FileType::Tracker
-                && tracker.replace(header).is_some()
-            {
-                return self.page_decode_failure(vpid, "file.tracker.unique_header");
+                if cancel.is_cancelled() {
+                    return Err(OperationError::Interrupted);
+                }
+                let vpid = Vpid::new(volume.view.vol_id, fact.page_id);
+                decoded_bytes = decoded_bytes
+                    .checked_add(crate::format::IO_PAGE_SIZE as u64)
+                    .ok_or(OperationError::Arithmetic)?;
+                if decoded_bytes > policy.max_decoded_bytes {
+                    return Err(OperationError::ResourceLimit);
+                }
+                let owned = match OwnedInspectionPage::read(&self.data, vpid) {
+                    Ok(page) => page,
+                    Err(InspectionPageError::Source(error)) => {
+                        return Err(OperationError::Source(error));
+                    }
+                    Err(
+                        InspectionPageError::Format(_)
+                        | InspectionPageError::EncryptedOpaque
+                        | InspectionPageError::Decrypt,
+                    ) => continue,
+                };
+                let Ok(envelope) = owned.envelope(vpid) else {
+                    continue;
+                };
+                let Ok(header) = decode_file_header(&envelope) else {
+                    continue;
+                };
+                if header.file_type() == crate::format::FileType::Tracker
+                    && tracker.replace(header).is_some()
+                {
+                    return self.page_decode_failure(vpid, "file.tracker.unique_header");
+                }
             }
         }
         let tracker = tracker
@@ -3065,25 +3401,25 @@ impl GraphView {
                 diagnostic_rule: Some(rule),
             },
         );
-        let decrypted = next
+        let original = next
             .volumes
-            .iter_mut()
+            .iter()
             .find(|volume| volume.view.vol_id == vpid.vol_id)
-            .and_then(|volume| {
-                volume
-                    .pages
-                    .iter_mut()
-                    .find(|fact| fact.page_id == vpid.page_id)
-            })
-            .is_some_and(|fact| {
-                if fact.tde_state == TdeInspectionState::Decrypted {
-                    fact.tde_state = TdeInspectionState::DecryptedInvalid;
-                    fact.diagnostic_code = Some("tde.decrypted_invalid");
-                    true
-                } else {
-                    false
-                }
-            });
+            .ok_or(OperationError::FactStore)?
+            .page_fact(vpid.page_id)
+            .map_err(|_| OperationError::FactStore)?
+            .ok_or(OperationError::FactStore)?;
+        let decrypted = original.tde_state == TdeInspectionState::Decrypted;
+        if decrypted {
+            next.page_overrides.insert(
+                vpid,
+                PageFastFact {
+                    tde_state: TdeInspectionState::DecryptedInvalid,
+                    diagnostic_code: Some("tde.decrypted_invalid"),
+                    ..original
+                },
+            );
+        }
         next.diagnostics.push(DiagnosticRecord {
             code: if decrypted {
                 "tde.decrypted_invalid"
@@ -3213,9 +3549,9 @@ impl GraphView {
     }
 
     fn page_from_record(
+        &self,
         volume: &VolumeRecord,
         page_id: PageId,
-        file_allocations: &BTreeMap<Vpid, Vfid>,
     ) -> Result<PageView, QueryError> {
         let raw_page = u32::try_from(page_id.get()).map_err(|_| QueryError::EntityNotFound)?;
         let raw_sector = raw_page / SECTOR_PAGES;
@@ -3225,14 +3561,20 @@ impl GraphView {
         let vpid = Vpid::new(volume.view.vol_id, page_id);
         let allocation = if page_id.get() <= volume.view.system_last_page.get() {
             PageAllocationClass::SystemMetadata
-        } else if file_allocations.contains_key(&vpid) {
+        } else if self.data.file_allocations.contains_key(&vpid) {
             PageAllocationClass::Allocated
         } else if volume.is_reserved(raw_sector) {
             PageAllocationClass::ReservedUnallocated
         } else {
             PageAllocationClass::Unreserved
         };
-        let fact = volume.page_fact(page_id);
+        let fact = if let Some(override_fact) = self.data.page_overrides.get(&vpid) {
+            Some(*override_fact)
+        } else {
+            volume
+                .page_fact(page_id)
+                .map_err(|_| QueryError::FactStore)?
+        };
         Ok(PageView {
             vpid,
             sector_id,
@@ -3252,6 +3594,8 @@ pub enum OpenFailure {
     Source(SourceError),
     Format(DecodeError),
     Tde(TdeError),
+    Spill,
+    FactStore,
     TdeBootstrap,
     Interrupted,
     Arithmetic,
@@ -3269,6 +3613,8 @@ impl fmt::Display for OpenFailure {
             Self::Source(error) => write!(formatter, "{error}"),
             Self::Format(error) => write!(formatter, "{error}"),
             Self::Tde(error) => write!(formatter, "{error}"),
+            Self::Spill => formatter.write_str("private spill storage could not be created"),
+            Self::FactStore => formatter.write_str("packed page facts could not be stored"),
             Self::TdeBootstrap => formatter.write_str("TDE key bootstrap failed"),
             Self::Interrupted => formatter.write_str("inspection interrupted before publication"),
             Self::Arithmetic => formatter.write_str("inspection arithmetic overflow"),
@@ -3287,6 +3633,7 @@ pub enum OperationError {
     Unsupported,
     Structural(String),
     ResourceLimit,
+    FactStore,
     Arithmetic,
 }
 
@@ -3300,6 +3647,7 @@ impl fmt::Display for OperationError {
             Self::Unsupported => formatter.write_str("page body is unavailable for enrichment"),
             Self::Structural(rule) => write!(formatter, "structural validation failed: {rule}"),
             Self::ResourceLimit => formatter.write_str("page enrichment exceeds resource policy"),
+            Self::FactStore => formatter.write_str("packed page fact storage is unavailable"),
             Self::Arithmetic => formatter.write_str("inspection enrichment arithmetic overflow"),
         }
     }
@@ -3310,6 +3658,7 @@ impl std::error::Error for OperationError {}
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum QueryError {
     EntityNotFound,
+    FactStore,
     Arithmetic,
 }
 
@@ -3469,6 +3818,23 @@ fn estimate_base_bytes(volumes: &[VolumeRecord]) -> Result<u64, OpenFailure> {
     })
 }
 
+fn eligible_page_count(volume: &VolumeRecord) -> Result<u64, OpenFailure> {
+    let system_last =
+        u32::try_from(volume.view.system_last_page.get()).map_err(|_| OpenFailure::Arithmetic)?;
+    (0..volume.view.total_sectors).try_fold(0_u64, |count, sector| {
+        let first_page = sector
+            .checked_mul(SECTOR_PAGES)
+            .ok_or(OpenFailure::Arithmetic)?;
+        if volume.is_reserved(sector) || first_page <= system_last {
+            count
+                .checked_add(u64::from(SECTOR_PAGES))
+                .ok_or(OpenFailure::Arithmetic)
+        } else {
+            Ok(count)
+        }
+    })
+}
+
 fn page_detail_support(page_type: PageType) -> PageDetailSupport {
     match page_type {
         PageType::ExtensibleHash | PageType::Btree | PageType::Catalog => {
@@ -3544,8 +3910,28 @@ pub const fn tde_algorithm_name(algorithm: TdeAlgorithm) -> &'static str {
 
 #[cfg(test)]
 mod tests {
-    use super::page_uses_slotted_layout;
+    use std::mem::size_of;
+
+    use super::{
+        PACKED_PAGE_FACT_SIZE_USIZE, PackedPageFact, PageFastFact, page_uses_slotted_layout,
+    };
     use crate::format::{FileType, PageType};
+    use crate::model::{Availability, PageId, TdeInspectionState};
+
+    #[test]
+    fn packed_page_fact_is_exact_and_round_trips_canonical_fields() {
+        assert_eq!(size_of::<PackedPageFact>(), PACKED_PAGE_FACT_SIZE_USIZE);
+        let fact = PageFastFact {
+            page_id: PageId::new(42).unwrap(),
+            page_type: Some(PageType::Heap),
+            availability: Availability::Available,
+            tde_state: TdeInspectionState::Decrypted,
+            lsa_word: Some(0x0102_0304_0506_0708),
+            diagnostic_code: Some("page.envelope.lsa_mismatch"),
+        };
+
+        assert_eq!(PackedPageFact::pack(fact).unpack().unwrap(), fact);
+    }
 
     #[test]
     fn ehash_slotted_layout_requires_bucket_file_ownership() {

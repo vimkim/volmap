@@ -212,6 +212,7 @@ fn explicit_key_file_bootstraps_and_enriches_an_encrypted_page() {
             volume_root: None,
         },
         tde_keys_file: Some(key_file),
+        spill_directory: None,
     };
     let view = Inspection::open(&request, policy(), &CancelToken::new(), None)
         .unwrap()
@@ -238,6 +239,7 @@ fn invalid_decrypted_structure_is_not_retried_as_ciphertext() {
             volume_root: None,
         },
         tde_keys_file: Some(key_file),
+        spill_directory: None,
     };
     let view = Inspection::open(&request, policy(), &CancelToken::new(), None)
         .unwrap()
@@ -266,6 +268,7 @@ fn insecure_key_permissions_are_reported_without_disclosing_the_path() {
             volume_root: None,
         },
         tde_keys_file: Some(key_file.clone()),
+        spill_directory: None,
     };
     let overview = Inspection::open(&request, policy(), &CancelToken::new(), None)
         .unwrap()
@@ -296,6 +299,7 @@ fn key_failures_do_not_disclose_the_explicit_path() {
             volume_root: None,
         },
         tde_keys_file: Some(key_file.clone()),
+        spill_directory: None,
     };
     let error = Inspection::open(&request, policy(), &CancelToken::new(), None).unwrap_err();
     assert!(

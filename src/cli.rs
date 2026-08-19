@@ -195,13 +195,7 @@ struct ResourceArgs {
 }
 
 impl ResourceArgs {
-    fn policy(self) -> Result<ResourcePolicy, CliError> {
-        if self.spill_directory.is_some() {
-            return Err(CliError::Usage(
-                "--spill-directory is gated until interface-safe spill segments are enabled"
-                    .to_owned(),
-            ));
-        }
+    fn policy(&self) -> Result<ResourcePolicy, CliError> {
         ResourcePolicy::new(
             self.memory_limit,
             self.spill_limit,
@@ -331,13 +325,13 @@ where
 #[allow(clippy::too_many_lines)]
 fn run(cli: Cli) -> Result<i32, CliError> {
     match cli.command {
-        Command::Summary(command) => run_summary(command),
+        Command::Summary(command) => run_summary(&command),
         Command::Map(command) => run_map(command),
         Command::Inspect(command) => run_inspect(command),
         Command::Licenses(command) => run_licenses(command),
         Command::Tui(command) => {
             let (view, overview) =
-                open_view(&command.input, command.resources, OutputFormat::Human)?;
+                open_view(&command.input, &command.resources, OutputFormat::Human)?;
             crate::tui::run(&view).map_err(|error| CliError::OpenAdapter(error.to_string()))?;
             Ok(outcome_exit(overview.outcome))
         }
@@ -368,7 +362,7 @@ fn run(cli: Cli) -> Result<i32, CliError> {
                 enrichments.dedup();
                 let enrichment_policy = command.resources.clone().policy()?;
                 let (mut view, _) =
-                    open_view(&command.input, command.resources, OutputFormat::Human)?;
+                    open_view(&command.input, &command.resources, OutputFormat::Human)?;
                 for selector in enrichments {
                     match selector {
                         EntitySelector::Page(vpid) => {
@@ -422,7 +416,7 @@ fn run(cli: Cli) -> Result<i32, CliError> {
         Command::Serve(command) => {
             let policy = command.resources.clone().policy()?;
             let (view, overview) =
-                open_view(&command.input, command.resources, OutputFormat::Human)?;
+                open_view(&command.input, &command.resources, OutputFormat::Human)?;
             crate::web::serve(
                 view,
                 crate::web::ServeOptions {
@@ -460,9 +454,9 @@ fn entity_order_key(selector: &EntitySelector) -> (u8, i16, i32, i32) {
     }
 }
 
-fn run_summary(command: FiniteCommand) -> Result<i32, CliError> {
+fn run_summary(command: &FiniteCommand) -> Result<i32, CliError> {
     command.output.validate()?;
-    let (view, overview) = open_view(&command.input, command.resources, command.output.format)?;
+    let (view, overview) = open_view(&command.input, &command.resources, command.output.format)?;
     let _ = view;
     let document = result_document(
         "summary",
@@ -492,7 +486,7 @@ fn run_map(command: MapCommand) -> Result<i32, CliError> {
             "map accepts only volume, sector, or file selectors".to_owned(),
         ));
     }
-    let (mut view, _) = open_view(&command.input, command.resources, command.output.format)?;
+    let (mut view, _) = open_view(&command.input, &command.resources, command.output.format)?;
     if let Some(EntitySelector::File(vfid)) = selector {
         view = view
             .enrich_file(vfid, enrichment_policy, &CancelToken::new())
@@ -521,7 +515,7 @@ fn run_inspect(command: InspectCommand) -> Result<i32, CliError> {
     command.output.validate()?;
     let selector = EntitySelector::parse(&command.selector)?;
     let enrichment_policy = command.resources.clone().policy()?;
-    let (mut view, _) = open_view(&command.input, command.resources, command.output.format)?;
+    let (mut view, _) = open_view(&command.input, &command.resources, command.output.format)?;
     let data = match selector {
         EntitySelector::Volume(vol_id) => DataProjection::InspectVolume {
             volume: volume_projection(view.volume(vol_id).map_err(CliError::Query)?),
@@ -650,7 +644,7 @@ fn run_licenses(command: LicensesCommand) -> Result<i32, CliError> {
 
 fn open_view(
     input: &InputArgs,
-    resources: ResourceArgs,
+    resources: &ResourceArgs,
     format: OutputFormat,
 ) -> Result<(GraphView, crate::inspection::OverviewView), CliError> {
     let input_spec = input.input_spec()?;
@@ -660,6 +654,7 @@ fn open_view(
     let request = OpenRequest {
         input: input_spec,
         tde_keys_file: input.tde_keys_file.clone(),
+        spill_directory: resources.spill_directory.clone(),
     };
     let show_progress = match progress_choice {
         ProgressChoice::Never => false,
@@ -1236,7 +1231,10 @@ impl CliError {
         match self {
             Self::Usage(_) | Self::Query(QueryError::EntityNotFound) => 2,
             Self::Query(QueryError::Arithmetic) | Self::Internal(_) => 70,
-            Self::Open(_) | Self::Output(_) | Self::OpenAdapter(_) => 4,
+            Self::Query(QueryError::FactStore)
+            | Self::Open(_)
+            | Self::Output(_)
+            | Self::OpenAdapter(_) => 4,
             Self::BrokenPipe => 141,
         }
     }
@@ -1250,6 +1248,9 @@ impl fmt::Display for CliError {
             }
             Self::Open(error) => write!(formatter, "{error}"),
             Self::Query(QueryError::EntityNotFound) => formatter.write_str("entity not found"),
+            Self::Query(QueryError::FactStore) => {
+                formatter.write_str("packed page fact storage is unavailable")
+            }
             Self::Query(QueryError::Arithmetic) => formatter.write_str("query arithmetic overflow"),
             Self::Output(error) => write!(formatter, "output failed: {error}"),
             Self::BrokenPipe => formatter.write_str("broken output pipe"),

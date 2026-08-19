@@ -154,6 +154,7 @@ fn inspection_opens_sparse_volume_and_scans_only_reserved_sector_envelopes() {
             volume_root: None,
         },
         tde_keys_file: None,
+        spill_directory: None,
     };
     let inspection =
         Inspection::open(&request, policy(4 * 1024 * 1024), &CancelToken::new(), None).unwrap();
@@ -193,6 +194,7 @@ fn resource_refusal_publishes_partial_coverage_without_silent_sampling() {
             volume_root: None,
         },
         tde_keys_file: None,
+        spill_directory: None,
     };
     let inspection = Inspection::open(&request, policy(1), &CancelToken::new(), None).unwrap();
     let overview = inspection
@@ -217,6 +219,80 @@ fn resource_refusal_publishes_partial_coverage_without_silent_sampling() {
 }
 
 #[test]
+fn packed_facts_spill_privately_and_preserve_the_graph_projection() {
+    let (_directory, _volume, vinf) = fixture();
+    let spill_parent = TestDirectory::new();
+    let request = OpenRequest {
+        input: InputSpec::Vinf {
+            path: vinf,
+            volume_root: None,
+        },
+        tde_keys_file: None,
+        spill_directory: Some(spill_parent.path().to_path_buf()),
+    };
+    let resident = Inspection::open(
+        &OpenRequest {
+            spill_directory: None,
+            ..request.clone()
+        },
+        policy(4 * 1024 * 1024),
+        &CancelToken::new(),
+        None,
+    )
+    .unwrap()
+    .view(RevisionSelector::Latest)
+    .unwrap();
+    let spilled = Inspection::open(
+        &request,
+        ResourcePolicy::new(768, 4 * 1024, 1, 32, 1024 * 1024).unwrap(),
+        &CancelToken::new(),
+        None,
+    )
+    .unwrap()
+    .view(RevisionSelector::Latest)
+    .unwrap();
+
+    assert_eq!(spilled.overview(), resident.overview());
+    let heap = Vpid::new(VolId::new(0).unwrap(), PageId::new(10).unwrap());
+    assert_eq!(spilled.page(heap).unwrap(), resident.page(heap).unwrap());
+    assert_eq!(
+        std::fs::read_dir(spill_parent.path()).unwrap().count(),
+        0,
+        "the private spill inode and directory must be unlinked while open"
+    );
+}
+
+#[test]
+fn exhausted_spill_budget_publishes_an_explicit_partial_prefix() {
+    let (_directory, _volume, vinf) = fixture();
+    let request = OpenRequest {
+        input: InputSpec::Vinf {
+            path: vinf,
+            volume_root: None,
+        },
+        tde_keys_file: None,
+        spill_directory: None,
+    };
+    let overview = Inspection::open(
+        &request,
+        ResourcePolicy::new(768, 16, 1, 32, 1024 * 1024).unwrap(),
+        &CancelToken::new(),
+        None,
+    )
+    .unwrap()
+    .view(RevisionSelector::Latest)
+    .unwrap()
+    .overview();
+
+    assert_eq!(overview.inspected_page_envelopes, 1);
+    assert_eq!(overview.outcome, InspectionOutcome::Incomplete);
+    assert!(overview.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == "inspection.resource_limit"
+            && diagnostic.rule == "inspection.resource_policy.spill"
+    }));
+}
+
+#[test]
 fn stable_projection_omits_manifest_and_volume_paths() {
     let (_directory, volume, vinf) = fixture();
     let request = OpenRequest {
@@ -225,6 +301,7 @@ fn stable_projection_omits_manifest_and_volume_paths() {
             volume_root: None,
         },
         tde_keys_file: None,
+        spill_directory: None,
     };
     let view = Inspection::open(&request, policy(4 * 1024 * 1024), &CancelToken::new(), None)
         .unwrap()
@@ -254,6 +331,7 @@ fn html_export_is_deterministic_private_atomic_and_path_free() {
             volume_root: None,
         },
         tde_keys_file: None,
+        spill_directory: None,
     };
     let view = Inspection::open(&request, policy(4 * 1024 * 1024), &CancelToken::new(), None)
         .unwrap()
@@ -298,6 +376,7 @@ fn deep_page_enrichment_publishes_a_new_revision_without_rewriting_the_old_view(
             volume_root: None,
         },
         tde_keys_file: None,
+        spill_directory: None,
     };
     let original = Inspection::open(&request, policy(4 * 1024 * 1024), &CancelToken::new(), None)
         .unwrap()
@@ -334,6 +413,7 @@ fn oos_enrichment_validates_a_chain_and_retains_no_payload_bytes() {
             volume_root: None,
         },
         tde_keys_file: None,
+        spill_directory: None,
     };
     let original = Inspection::open(&request, policy(4 * 1024 * 1024), &CancelToken::new(), None)
         .unwrap()
@@ -366,6 +446,7 @@ fn oos_enrichment_publishes_a_validated_prefix_at_the_chain_budget() {
             volume_root: None,
         },
         tde_keys_file: None,
+        spill_directory: None,
     };
     let original = Inspection::open(&request, policy(4 * 1024 * 1024), &CancelToken::new(), None)
         .unwrap()

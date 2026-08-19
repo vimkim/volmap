@@ -273,6 +273,7 @@ fn open_with_relocation(
             volume_root: None,
         },
         tde_keys_file: None,
+        spill_directory: None,
     };
     let view = Inspection::open(&request, policy(32), &CancelToken::new(), None)
         .unwrap()
