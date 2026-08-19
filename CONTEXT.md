@@ -8,6 +8,10 @@ Volmap Inspector is a read-only offline explorer of CUBRID volume allocation and
 The normalized, snapshot-scoped set of storage entities and explicit relationships that every CLI, JSON, TUI, HTML, and web view projects. Its meaning is independent of how entities are scanned, materialized, indexed, or cached.
 _Avoid_: Presentation tree, adapter model
 
+**Inspection adapter**:
+A CLI-human, JSON/JSONL, TUI, HTML, or web projection of the shared inspection module's normalized query results. An adapter never reads or parses volume bytes and never invents adapter-specific storage facts.
+_Avoid_: Parser frontend, independent inspector
+
 **Inspection revision**:
 A monotonically advancing version of one inspection graph as explicit deep-inspection targets add evidence and details. Revisions preserve the snapshot and entity identities; an export freezes one revision.
 _Avoid_: Database version, schema version
@@ -23,6 +27,10 @@ _Avoid_: Partial snapshot, stale cache
 **Entity reference**:
 A typed, snapshot-scoped identity used by one inspection entity to name another. Adapters may render it as navigation, but URLs, paths, and CLI selectors are not part of the reference.
 _Avoid_: Link URL, pointer
+
+**Entity selector**:
+An adapter-specific textual address used to request one entity in the snapshot being inspected. A selector is parsed into a typed identity for a request but is never stored as an entity reference or graph identity.
+_Avoid_: Entity reference, URL, path
 
 **Unresolved entity reference**:
 An on-disk physical identity whose target is missing, invalid, or unavailable. The intended identity remains visible for evidence and diagnostics without creating a target entity.
@@ -132,6 +140,10 @@ _Avoid_: Page ownership
 
 ## Page inspection
 
+**Page detail support**:
+The versioned interpretation promise for a recognized physical page type: `semantic`, `structural-only`, or `opaque`. It defines product scope independently of a particular page's availability, inspection coverage, or validity.
+_Avoid_: Page status, decoder success
+
 **Slotted page**:
 A CUBRID page whose records are addressed through a slot directory and occupy byte extents within the page body.
 _Avoid_: Record page
@@ -179,6 +191,14 @@ The logical storage object addressed by a head OOS OID whose validated chunk seq
 _Avoid_: OOS chain page
 
 ## Distribution
+
+**Live inspection session**:
+One foreground `serve` process, its fresh bearer credential, immutable revision history, enrichment jobs, cursors, and browser/API locations. All of them expire together when the process ends; they are never reused as a persistent inspection index.
+_Avoid_: Web deployment, daemon, saved report
+
+**HTML inspection export**:
+A bounded, self-contained offline file that freezes one inspection revision and contains only facts already committed to that revision. It is not connected to a live inspection session and cannot request missing deep detail.
+_Avoid_: Live viewer, database dump, cached session
 
 **Standalone executable**:
 The single Linux x86-64 `volmap` binary, with no runtime dependency on glibc, CUBRID libraries, installation assets, network services, or separately installed web assets.

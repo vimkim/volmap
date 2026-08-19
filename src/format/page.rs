@@ -5,8 +5,8 @@ use super::{DecodeError, DecodeErrorKind};
 
 pub const IO_PAGE_SIZE: usize = 16_384;
 pub const DB_PAGE_SIZE: usize = 16_344;
-const PAGE_PREFIX_SIZE: usize = 32;
-const PAGE_WATERMARK_SIZE: usize = 8;
+pub const PAGE_PREFIX_SIZE: usize = 32;
+pub const PAGE_WATERMARK_SIZE: usize = 8;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PageType {
@@ -46,6 +46,27 @@ impl PageType {
             Self::Log => 12,
             Self::DroppedFiles => 13,
             Self::VacuumData => 14,
+        }
+    }
+
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Unknown => "unknown",
+            Self::FileTable => "file-table",
+            Self::Heap => "heap",
+            Self::VolumeHeader => "volume-header",
+            Self::VolumeBitmap => "volume-bitmap",
+            Self::QueryResult => "query-result",
+            Self::ExtensibleHash => "extensible-hash",
+            Self::Overflow => "overflow",
+            Self::Oos => "oos",
+            Self::Area => "area",
+            Self::Catalog => "catalog",
+            Self::Btree => "btree",
+            Self::Log => "log",
+            Self::DroppedFiles => "dropped-files",
+            Self::VacuumData => "vacuum-data",
         }
     }
 
@@ -93,6 +114,37 @@ pub struct DecodedPageEnvelope<'a> {
     lsa_word: u64,
     content: PageContent,
     plaintext: Option<ByteView<'a>>,
+}
+
+/// Owned facts available from the plaintext prefix and trailing watermark.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct PageEnvelopeSummary {
+    id: Vpid,
+    page_type: PageType,
+    lsa_word: u64,
+    content: PageContent,
+}
+
+impl PageEnvelopeSummary {
+    #[must_use]
+    pub const fn id(self) -> Vpid {
+        self.id
+    }
+
+    #[must_use]
+    pub const fn page_type(self) -> PageType {
+        self.page_type
+    }
+
+    #[must_use]
+    pub const fn lsa_word(self) -> u64 {
+        self.lsa_word
+    }
+
+    #[must_use]
+    pub const fn content(self) -> PageContent {
+        self.content
+    }
 }
 
 impl<'a> DecodedPageEnvelope<'a> {
@@ -147,16 +199,66 @@ pub fn decode_page_envelope(
         ));
     }
 
-    let page_offset = u64::try_from(expected.page_id.get())
-        .ok()
-        .and_then(|page_id| page_id.checked_mul(IO_PAGE_SIZE as u64))
+    let summary = decode_page_envelope_parts(
+        bytes.get(..PAGE_PREFIX_SIZE).ok_or_else(|| {
+            DecodeError::new(DecodeErrorKind::InvalidLength, "page.envelope.prefix_size")
+        })?,
+        bytes
+            .get(IO_PAGE_SIZE - PAGE_WATERMARK_SIZE..)
+            .ok_or_else(|| {
+                DecodeError::new(
+                    DecodeErrorKind::InvalidLength,
+                    "page.envelope.watermark_size",
+                )
+            })?,
+        expected,
+    )?;
+    let page_offset = page_file_offset(expected)?;
+    let view = ByteView::new(bytes, page_offset);
+    let plaintext = match summary.content {
+        PageContent::Plaintext => Some(
+            view.subview(PAGE_PREFIX_SIZE, DB_PAGE_SIZE, "database page")
+                .map_err(|_| {
+                    DecodeError::new(DecodeErrorKind::ByteAccess, "page.envelope.user_region")
+                })?,
+        ),
+        PageContent::EncryptedOpaque { .. } => None,
+    };
+
+    Ok(DecodedPageEnvelope {
+        id: summary.id,
+        page_type: summary.page_type,
+        lsa_word: summary.lsa_word,
+        content: summary.content,
+        plaintext,
+    })
+}
+
+/// Decode the ordinary fast-scan envelope without reading the 16,344-byte
+/// user region.
+pub fn decode_page_envelope_parts(
+    prefix: &[u8],
+    watermark: &[u8],
+    expected: Vpid,
+) -> Result<PageEnvelopeSummary, DecodeError> {
+    if prefix.len() != PAGE_PREFIX_SIZE || watermark.len() != PAGE_WATERMARK_SIZE {
+        return Err(DecodeError::new(
+            DecodeErrorKind::InvalidLength,
+            "page.envelope.parts_size",
+        ));
+    }
+
+    let page_offset = page_file_offset(expected)?;
+    let view = ByteView::new(prefix, page_offset);
+    let watermark_offset = page_offset
+        .checked_add((IO_PAGE_SIZE - PAGE_WATERMARK_SIZE) as u64)
         .ok_or_else(|| {
             DecodeError::new(
                 DecodeErrorKind::ArithmeticOverflow,
-                "page.envelope.file_offset",
+                "page.envelope.watermark_offset",
             )
         })?;
-    let view = ByteView::new(bytes, page_offset);
+    let watermark_view = ByteView::new(watermark, watermark_offset);
 
     let leading_lsa = view.read_u64_le(0, "page leading LSA").map_err(|_| {
         DecodeError::at(
@@ -165,13 +267,13 @@ pub fn decode_page_envelope(
             page_offset,
         )
     })?;
-    let trailing_lsa = view
-        .read_u64_le(IO_PAGE_SIZE - PAGE_WATERMARK_SIZE, "page trailing LSA")
+    let trailing_lsa = watermark_view
+        .read_u64_le(0, "page trailing LSA")
         .map_err(|_| {
             DecodeError::at(
                 DecodeErrorKind::ByteAccess,
                 "page.envelope.trailing_lsa",
-                page_offset + (IO_PAGE_SIZE - PAGE_WATERMARK_SIZE) as u64,
+                watermark_offset,
             )
         })?;
     if leading_lsa != trailing_lsa {
@@ -207,37 +309,33 @@ pub fn decode_page_envelope(
             "page.envelope.tde_flags",
         ));
     }
-
-    let (content, plaintext) = match flags {
-        0 => (
-            PageContent::Plaintext,
-            Some(
-                view.subview(PAGE_PREFIX_SIZE, DB_PAGE_SIZE, "database page")
-                    .map_err(|_| {
-                        DecodeError::new(DecodeErrorKind::ByteAccess, "page.envelope.user_region")
-                    })?,
-            ),
-        ),
-        0x01 => (
-            PageContent::EncryptedOpaque {
-                algorithm: TdeAlgorithm::Aes,
-            },
-            None,
-        ),
-        0x02 => (
-            PageContent::EncryptedOpaque {
-                algorithm: TdeAlgorithm::Aria,
-            },
-            None,
-        ),
+    let content = match flags {
+        0 => PageContent::Plaintext,
+        0x01 => PageContent::EncryptedOpaque {
+            algorithm: TdeAlgorithm::Aes,
+        },
+        0x02 => PageContent::EncryptedOpaque {
+            algorithm: TdeAlgorithm::Aria,
+        },
         _ => unreachable!("flags validated above"),
     };
 
-    Ok(DecodedPageEnvelope {
+    Ok(PageEnvelopeSummary {
         id: expected,
         page_type,
         lsa_word: leading_lsa,
         content,
-        plaintext,
     })
+}
+
+fn page_file_offset(expected: Vpid) -> Result<u64, DecodeError> {
+    u64::try_from(expected.page_id.get())
+        .ok()
+        .and_then(|page_id| page_id.checked_mul(IO_PAGE_SIZE as u64))
+        .ok_or_else(|| {
+            DecodeError::new(
+                DecodeErrorKind::ArithmeticOverflow,
+                "page.envelope.file_offset",
+            )
+        })
 }

@@ -1,0 +1,1944 @@
+//! Revision-pinned inspection seam over stable volume sources.
+
+use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
+use std::mem::size_of;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+use sha2::{Digest, Sha256};
+
+use crate::diagnostics::{InspectionOutcome, OutcomeInputs};
+use crate::format::{
+    DecodeError, FileHeader, OosNext, PageContent, PageType, SlottedPage, TdeAlgorithm,
+    UserPageFact, VolumePurpose, VolumeType, decode_extdata_header, decode_file_header,
+    decode_full_sectors, decode_oos_chunk, decode_page_envelope, decode_page_envelope_parts,
+    decode_partial_sectors, decode_sector_bitmap, decode_slotted_page, decode_user_pages,
+    decode_volume_header,
+};
+use crate::model::{
+    Availability, Coverage, InspectionRevision, Oid, PageAllocationClass, PageId, SectorId,
+    SnapshotId, SnapshotValidity, TdeInspectionState, Vfid, VolId, Vpid,
+};
+use crate::source::{InputSpec, SourceError, SourceSet, discover};
+
+const FORMAT_PROFILE: &str = "cubrid-feat-oos-linux-x86_64-gcc-e1e651de";
+const SECTOR_PAGES: u32 = 64;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ResourcePolicy {
+    pub memory_limit: u64,
+    pub spill_limit: u64,
+    pub workers: u32,
+    pub max_chain_steps: u64,
+    pub max_decoded_bytes: u64,
+}
+
+impl ResourcePolicy {
+    pub fn new(
+        memory_limit: u64,
+        spill_limit: u64,
+        workers: u32,
+        max_chain_steps: u64,
+        max_decoded_bytes: u64,
+    ) -> Result<Self, ResourcePolicyError> {
+        if memory_limit == 0
+            || spill_limit == 0
+            || workers == 0
+            || max_chain_steps == 0
+            || max_decoded_bytes == 0
+        {
+            return Err(ResourcePolicyError::ZeroValue);
+        }
+        Ok(Self {
+            memory_limit,
+            spill_limit,
+            workers,
+            max_chain_steps,
+            max_decoded_bytes,
+        })
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ResourcePolicyError {
+    ZeroValue,
+}
+
+impl fmt::Display for ResourcePolicyError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("resource policy values must be nonzero")
+    }
+}
+
+impl std::error::Error for ResourcePolicyError {}
+
+#[derive(Clone, Debug)]
+pub struct OpenRequest {
+    pub input: InputSpec,
+}
+
+#[derive(Clone, Debug)]
+pub struct CancelToken(Arc<AtomicBool>);
+
+impl Default for CancelToken {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl CancelToken {
+    #[must_use]
+    pub fn new() -> Self {
+        Self(Arc::new(AtomicBool::new(false)))
+    }
+
+    pub fn cancel(&self) {
+        self.0.store(true, Ordering::Release);
+    }
+
+    #[must_use]
+    pub fn is_cancelled(&self) -> bool {
+        self.0.load(Ordering::Acquire)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ScanPhase {
+    Discovery,
+    VolumeGeometry,
+    SectorReservation,
+    PageEnvelopes,
+    Reconciliation,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ScanProgress {
+    pub phase: ScanPhase,
+    pub completed: u64,
+    pub trusted_total: Option<u64>,
+}
+
+pub trait ProgressObserver {
+    fn update(&mut self, progress: ScanProgress);
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RevisionSelector {
+    Latest,
+    Exact(InspectionRevision),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PageDetailSupport {
+    Semantic,
+    StructuralOnly,
+    Opaque,
+}
+
+impl PageDetailSupport {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Semantic => "semantic",
+            Self::StructuralOnly => "structural-only",
+            Self::Opaque => "opaque",
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DiagnosticRecord {
+    pub code: &'static str,
+    pub severity: &'static str,
+    pub message: &'static str,
+    pub subject: String,
+    pub rule: &'static str,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CoverageRecord {
+    pub facet: &'static str,
+    pub coverage: Coverage,
+    pub evaluated: u64,
+    pub conclusive: u64,
+    pub trusted_total: Option<u64>,
+    pub stop_reason: Option<&'static str>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct VolumeView {
+    pub vol_id: VolId,
+    pub purpose: VolumePurpose,
+    pub volume_type: VolumeType,
+    pub total_sectors: u32,
+    pub maximum_sectors: u32,
+    pub system_last_page: PageId,
+    pub reserved_sectors: u32,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct PageView {
+    pub vpid: Vpid,
+    pub sector_id: SectorId,
+    pub allocation: PageAllocationClass,
+    pub page_type: Option<PageType>,
+    pub availability: Availability,
+    pub tde_state: TdeInspectionState,
+    pub detail_support: Option<PageDetailSupport>,
+    pub lsa_word: Option<u64>,
+    pub diagnostic_code: Option<&'static str>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SectorView {
+    pub vol_id: VolId,
+    pub sector_id: SectorId,
+    pub reserved: bool,
+    pub pages: Vec<PageView>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OverviewView {
+    pub snapshot_id: SnapshotId,
+    pub revision: InspectionRevision,
+    pub validity: SnapshotValidity,
+    pub format_profile: &'static str,
+    pub input_kind: &'static str,
+    pub outcome: InspectionOutcome,
+    pub volume_count: u64,
+    pub sector_count: u64,
+    pub reserved_sector_count: u64,
+    pub physical_page_count: u64,
+    pub inspected_page_envelopes: u64,
+    pub page_type_counts: Vec<(PageType, u64)>,
+    pub tde_opaque_pages: u64,
+    pub coverage: Vec<CoverageRecord>,
+    pub diagnostics: Vec<DiagnosticRecord>,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct PageFastFact {
+    page_id: PageId,
+    page_type: Option<PageType>,
+    availability: Availability,
+    tde_state: TdeInspectionState,
+    lsa_word: Option<u64>,
+    diagnostic_code: Option<&'static str>,
+}
+
+#[derive(Clone, Debug)]
+struct VolumeRecord {
+    view: VolumeView,
+    reserved_masks: Vec<u64>,
+    pages: Vec<PageFastFact>,
+}
+
+impl VolumeRecord {
+    fn is_reserved(&self, sector: u32) -> bool {
+        let word = usize::try_from(sector / 64).ok();
+        word.and_then(|index| self.reserved_masks.get(index))
+            .is_some_and(|mask| mask & (1_u64 << (sector % 64)) != 0)
+    }
+
+    fn page_fact(&self, page_id: PageId) -> Option<PageFastFact> {
+        self.pages
+            .binary_search_by_key(&page_id.get(), |fact| fact.page_id.get())
+            .ok()
+            .and_then(|index| self.pages.get(index).copied())
+    }
+}
+
+#[derive(Clone, Debug)]
+struct DeepPageFact {
+    slotted: Option<SlottedPage>,
+    file_header: Option<FileHeader>,
+    diagnostic_rule: Option<&'static str>,
+}
+
+#[derive(Clone, Debug)]
+struct OosChainFact {
+    total_data_length: Option<u32>,
+    validated_payload_bytes: u64,
+    complete: bool,
+    chunks: Vec<OosChunkView>,
+    diagnostic_rule: Option<&'static str>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct OosChunkView {
+    pub oid: crate::model::Oid,
+    pub total_data_length: u32,
+    pub chunk_index: u32,
+    pub next: Option<crate::model::Oid>,
+    pub payload_offset: u16,
+    pub payload_length: u16,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OosChainView {
+    pub head: crate::model::Oid,
+    pub revision: InspectionRevision,
+    pub total_data_length: Option<u32>,
+    pub validated_payload_bytes: u64,
+    pub complete: bool,
+    pub chunks: Vec<OosChunkView>,
+    pub diagnostic_rule: Option<&'static str>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DeepPageView {
+    pub vpid: Vpid,
+    pub revision: InspectionRevision,
+    pub slotted: Option<SlottedPage>,
+    pub file_header: Option<FileHeader>,
+    pub diagnostic_rule: Option<&'static str>,
+}
+
+#[derive(Clone, Debug)]
+struct SessionData {
+    sources: Arc<SourceSet>,
+    snapshot_id: SnapshotId,
+    revision: InspectionRevision,
+    validity: SnapshotValidity,
+    outcome: InspectionOutcome,
+    volumes: Vec<VolumeRecord>,
+    coverage: Vec<CoverageRecord>,
+    diagnostics: Vec<DiagnosticRecord>,
+    deep_pages: BTreeMap<Vpid, DeepPageFact>,
+    file_allocations: BTreeMap<Vpid, Vfid>,
+    oos_chains: BTreeMap<crate::model::Oid, OosChainFact>,
+}
+
+#[derive(Clone, Copy)]
+enum FileTableKind {
+    Partial,
+    Full,
+    User,
+}
+
+#[derive(Default)]
+struct FileTraversal {
+    table_pages: BTreeSet<Vpid>,
+    partial_sectors: Vec<crate::format::PartialSectorFact>,
+    full_sectors: Vec<(VolId, SectorId)>,
+    user_pages: Vec<UserPageFact>,
+    decoded_bytes: u64,
+    steps: u64,
+}
+
+enum FileTraversalError {
+    Decode(&'static str),
+    Operation(OperationError),
+}
+
+#[derive(Clone, Debug)]
+pub struct Inspection {
+    data: Arc<SessionData>,
+}
+
+#[derive(Clone, Debug)]
+pub struct GraphView {
+    data: Arc<SessionData>,
+}
+
+impl Inspection {
+    #[allow(clippy::too_many_lines, clippy::single_match_else)]
+    pub fn open(
+        request: &OpenRequest,
+        policy: ResourcePolicy,
+        cancel: &CancelToken,
+        mut progress: Option<&mut dyn ProgressObserver>,
+    ) -> Result<Self, OpenFailure> {
+        report(&mut progress, ScanPhase::Discovery, 0, None);
+        if cancel.is_cancelled() {
+            return Err(OpenFailure::Interrupted);
+        }
+        let sources = Arc::new(discover(&request.input).map_err(OpenFailure::Source)?);
+        report(
+            &mut progress,
+            ScanPhase::VolumeGeometry,
+            0,
+            Some(sources.volumes().len() as u64),
+        );
+
+        let mut volumes = Vec::with_capacity(sources.volumes().len());
+        let mut hasher = Sha256::new();
+        hasher.update(FORMAT_PROFILE.as_bytes());
+        hasher.update(sources.input_kind().as_bytes());
+        let mut physical_page_count = 0_u64;
+
+        for (index, source) in sources.volumes().iter().enumerate() {
+            if cancel.is_cancelled() {
+                return Err(OpenFailure::Interrupted);
+            }
+            let page = source.read_page(PageId::new(0).map_err(|_| OpenFailure::Arithmetic)?)?;
+            let envelope = decode_page_envelope(
+                page.as_slice(),
+                source.vpid(PageId::new(0).map_err(|_| OpenFailure::Arithmetic)?),
+            )
+            .map_err(OpenFailure::Format)?;
+            let header = decode_volume_header(&envelope, source.stamp().length)
+                .map_err(OpenFailure::Format)?;
+            let total_pages = u64::from(header.total_sectors())
+                .checked_mul(u64::from(SECTOR_PAGES))
+                .ok_or(OpenFailure::Arithmetic)?;
+            physical_page_count = physical_page_count
+                .checked_add(total_pages)
+                .ok_or(OpenFailure::Arithmetic)?;
+            hasher.update(header.vol_id().get().to_le_bytes());
+            hasher.update(header.total_sectors().to_le_bytes());
+            hasher.update(header.maximum_sectors().to_le_bytes());
+            hasher.update(header.volume_creation().to_le_bytes());
+            let stamp = source.stamp();
+            hasher.update(stamp.device.to_le_bytes());
+            hasher.update(stamp.inode.to_le_bytes());
+            hasher.update(stamp.length.to_le_bytes());
+            hasher.update(stamp.modified_seconds.to_le_bytes());
+            hasher.update(stamp.modified_nanoseconds.to_le_bytes());
+
+            let mask_words = header.total_sectors().div_ceil(64);
+            let mask_len = usize::try_from(mask_words).map_err(|_| OpenFailure::Arithmetic)?;
+            let mut reserved_masks = vec![0_u64; mask_len];
+            for bitmap_index in 0..header.bitmap_page_count() {
+                let bitmap_page_id = bitmap_index
+                    .checked_add(1)
+                    .and_then(|value| i32::try_from(value).ok())
+                    .ok_or(OpenFailure::Arithmetic)?;
+                let page_id = PageId::new(bitmap_page_id).map_err(|_| OpenFailure::Arithmetic)?;
+                let bitmap_page = source.read_page(page_id)?;
+                let bitmap_envelope =
+                    decode_page_envelope(bitmap_page.as_slice(), source.vpid(page_id))
+                        .map_err(OpenFailure::Format)?;
+                let bitmap = decode_sector_bitmap(&bitmap_envelope, &header, bitmap_index)
+                    .map_err(OpenFailure::Format)?;
+                for relative in 0..bitmap.sector_count() {
+                    let sector_value = u32::try_from(bitmap.first_sector().get())
+                        .ok()
+                        .and_then(|first| first.checked_add(relative))
+                        .ok_or(OpenFailure::Arithmetic)?;
+                    let sector = SectorId::new(
+                        i32::try_from(sector_value).map_err(|_| OpenFailure::Arithmetic)?,
+                    )
+                    .map_err(|_| OpenFailure::Arithmetic)?;
+                    if bitmap.is_reserved(sector).map_err(OpenFailure::Format)? {
+                        let word = usize::try_from(sector_value / 64)
+                            .map_err(|_| OpenFailure::Arithmetic)?;
+                        if let Some(mask) = reserved_masks.get_mut(word) {
+                            *mask |= 1_u64 << (sector_value % 64);
+                        } else {
+                            return Err(OpenFailure::Arithmetic);
+                        }
+                    }
+                }
+            }
+            let reserved_sectors = reserved_masks.iter().map(|word| word.count_ones()).sum();
+            let view = VolumeView {
+                vol_id: header.vol_id(),
+                purpose: header.purpose(),
+                volume_type: header.volume_type(),
+                total_sectors: header.total_sectors(),
+                maximum_sectors: header.maximum_sectors(),
+                system_last_page: header.system_last_page(),
+                reserved_sectors,
+            };
+            volumes.push(VolumeRecord {
+                view,
+                reserved_masks,
+                pages: Vec::new(),
+            });
+            report(
+                &mut progress,
+                ScanPhase::VolumeGeometry,
+                (index + 1) as u64,
+                Some(sources.volumes().len() as u64),
+            );
+        }
+
+        report(
+            &mut progress,
+            ScanPhase::SectorReservation,
+            volumes
+                .iter()
+                .map(|volume| u64::from(volume.view.total_sectors))
+                .sum(),
+            Some(
+                volumes
+                    .iter()
+                    .map(|volume| u64::from(volume.view.total_sectors))
+                    .sum(),
+            ),
+        );
+
+        let mut diagnostics = Vec::new();
+        let mut envelope_total = 0_u64;
+        for volume in &volumes {
+            let system_pages = u64::try_from(volume.view.system_last_page.get())
+                .ok()
+                .and_then(|last| last.checked_add(1))
+                .ok_or(OpenFailure::Arithmetic)?;
+            let reserved_pages = u64::from(volume.view.reserved_sectors)
+                .checked_mul(u64::from(SECTOR_PAGES))
+                .ok_or(OpenFailure::Arithmetic)?;
+            envelope_total = envelope_total
+                .checked_add(reserved_pages.max(system_pages))
+                .ok_or(OpenFailure::Arithmetic)?;
+        }
+        report(
+            &mut progress,
+            ScanPhase::PageEnvelopes,
+            0,
+            Some(envelope_total),
+        );
+
+        let mut evaluated = 0_u64;
+        let mut conclusive = 0_u64;
+        let mut stopped_reason = None;
+        let mut memory_used = estimate_base_bytes(&volumes)?;
+        'volume_scan: for (volume_index, source) in sources.volumes().iter().enumerate() {
+            let Some(volume) = volumes.get_mut(volume_index) else {
+                return Err(OpenFailure::Arithmetic);
+            };
+            for sector in 0..volume.view.total_sectors {
+                let first_page = sector
+                    .checked_mul(SECTOR_PAGES)
+                    .ok_or(OpenFailure::Arithmetic)?;
+                let system_intersection = first_page
+                    <= u32::try_from(volume.view.system_last_page.get())
+                        .map_err(|_| OpenFailure::Arithmetic)?;
+                if !volume.is_reserved(sector) && !system_intersection {
+                    continue;
+                }
+                for within in 0..SECTOR_PAGES {
+                    if cancel.is_cancelled() {
+                        stopped_reason = Some("interrupted");
+                        break 'volume_scan;
+                    }
+                    let raw_page = first_page
+                        .checked_add(within)
+                        .ok_or(OpenFailure::Arithmetic)?;
+                    if raw_page >= volume.view.total_sectors.saturating_mul(SECTOR_PAGES) {
+                        continue;
+                    }
+                    let page_id =
+                        PageId::new(i32::try_from(raw_page).map_err(|_| OpenFailure::Arithmetic)?)
+                            .map_err(|_| OpenFailure::Arithmetic)?;
+                    let next_memory = memory_used
+                        .checked_add(size_of::<PageFastFact>() as u64)
+                        .ok_or(OpenFailure::Arithmetic)?;
+                    if next_memory > policy.memory_limit {
+                        stopped_reason = Some("resource-limit");
+                        diagnostics.push(DiagnosticRecord {
+                            code: "inspection.resource_limit",
+                            severity: "error",
+                            message: "The resident fact budget stopped page-envelope inspection.",
+                            subject: format!("page:{}:{}", volume.view.vol_id.get(), page_id.get()),
+                            rule: "inspection.resource_policy.resident",
+                        });
+                        break 'volume_scan;
+                    }
+                    memory_used = next_memory;
+                    evaluated = evaluated.checked_add(1).ok_or(OpenFailure::Arithmetic)?;
+                    let fact = match source.read_envelope(page_id) {
+                        Ok((prefix, watermark)) => match decode_page_envelope_parts(
+                            &prefix,
+                            &watermark,
+                            source.vpid(page_id),
+                        ) {
+                            Ok(summary) => {
+                                conclusive =
+                                    conclusive.checked_add(1).ok_or(OpenFailure::Arithmetic)?;
+                                hasher.update(summary.id().vol_id.get().to_le_bytes());
+                                hasher.update(summary.id().page_id.get().to_le_bytes());
+                                hasher.update([summary.page_type().ordinal()]);
+                                hasher.update(summary.lsa_word().to_le_bytes());
+                                let (availability, tde_state) = match summary.content() {
+                                    PageContent::Plaintext => {
+                                        (Availability::Available, TdeInspectionState::NotEncrypted)
+                                    }
+                                    PageContent::EncryptedOpaque { .. } => (
+                                        Availability::EncryptedOpaque,
+                                        TdeInspectionState::EncryptedOpaque,
+                                    ),
+                                };
+                                PageFastFact {
+                                    page_id,
+                                    page_type: Some(summary.page_type()),
+                                    availability,
+                                    tde_state,
+                                    lsa_word: Some(summary.lsa_word()),
+                                    diagnostic_code: None,
+                                }
+                            }
+                            Err(error) => {
+                                conclusive =
+                                    conclusive.checked_add(1).ok_or(OpenFailure::Arithmetic)?;
+                                let code = page_diagnostic_code(&error);
+                                diagnostics.push(DiagnosticRecord {
+                                    code,
+                                    severity: "error",
+                                    message: "The page envelope violates the pinned format.",
+                                    subject: format!(
+                                        "page:{}:{}",
+                                        volume.view.vol_id.get(),
+                                        page_id.get()
+                                    ),
+                                    rule: error.rule(),
+                                });
+                                PageFastFact {
+                                    page_id,
+                                    page_type: None,
+                                    availability: Availability::Unreadable,
+                                    tde_state: if error.rule() == "page.envelope.tde_flags" {
+                                        TdeInspectionState::InvalidFlags
+                                    } else {
+                                        TdeInspectionState::NotEncrypted
+                                    },
+                                    lsa_word: None,
+                                    diagnostic_code: Some(code),
+                                }
+                            }
+                        },
+                        Err(_) => {
+                            stopped_reason = Some("unreadable");
+                            diagnostics.push(DiagnosticRecord {
+                                code: "input.volume_unreadable",
+                                severity: "error",
+                                message: "A volume could not be read completely.",
+                                subject: format!("volume:{}", volume.view.vol_id.get()),
+                                rule: "source.positional_read.complete",
+                            });
+                            break 'volume_scan;
+                        }
+                    };
+                    volume.pages.push(fact);
+                    report(
+                        &mut progress,
+                        ScanPhase::PageEnvelopes,
+                        evaluated,
+                        Some(envelope_total),
+                    );
+                }
+            }
+        }
+
+        report(&mut progress, ScanPhase::Reconciliation, 0, Some(1));
+        let mut validity = SnapshotValidity::Valid;
+        if !sources.verify_unchanged().map_err(OpenFailure::Source)? {
+            validity = SnapshotValidity::Invalidated;
+            diagnostics.push(DiagnosticRecord {
+                code: "snapshot.modified",
+                severity: "fatal",
+                message: "An input changed during inspection.",
+                subject: "snapshot".to_owned(),
+                rule: "snapshot.file_stamp.stable",
+            });
+        }
+        let page_coverage = if stopped_reason.is_some() {
+            Coverage::Partial
+        } else {
+            Coverage::Complete
+        };
+        let coverage = vec![
+            CoverageRecord {
+                facet: "volume-topology",
+                coverage: Coverage::Complete,
+                evaluated: volumes.len() as u64,
+                conclusive: volumes.len() as u64,
+                trusted_total: Some(volumes.len() as u64),
+                stop_reason: None,
+            },
+            CoverageRecord {
+                facet: "sector-reservation",
+                coverage: Coverage::Complete,
+                evaluated: volumes
+                    .iter()
+                    .map(|volume| u64::from(volume.view.total_sectors))
+                    .sum(),
+                conclusive: volumes
+                    .iter()
+                    .map(|volume| u64::from(volume.view.total_sectors))
+                    .sum(),
+                trusted_total: Some(
+                    volumes
+                        .iter()
+                        .map(|volume| u64::from(volume.view.total_sectors))
+                        .sum(),
+                ),
+                stop_reason: None,
+            },
+            CoverageRecord {
+                facet: "file-inventory",
+                coverage: Coverage::NotRequested,
+                evaluated: 0,
+                conclusive: 0,
+                trusted_total: None,
+                stop_reason: Some("implementation-pending"),
+            },
+            CoverageRecord {
+                facet: "page-envelopes",
+                coverage: page_coverage,
+                evaluated,
+                conclusive,
+                trusted_total: Some(envelope_total),
+                stop_reason: stopped_reason,
+            },
+        ];
+        let outcome = InspectionOutcome::classify(OutcomeInputs {
+            fatal: validity == SnapshotValidity::Invalidated,
+            unexpected_incomplete: page_coverage == Coverage::Partial,
+            has_error_findings: diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.severity == "error"),
+            expected_limitations: true,
+        });
+        let digest = hasher.finalize();
+        let mut snapshot_bytes = [0_u8; 16];
+        snapshot_bytes.copy_from_slice(&digest[..16]);
+        report(&mut progress, ScanPhase::Reconciliation, 1, Some(1));
+        Ok(Self {
+            data: Arc::new(SessionData {
+                sources,
+                snapshot_id: SnapshotId::from_bytes(snapshot_bytes),
+                revision: InspectionRevision::new(0),
+                validity,
+                outcome,
+                volumes,
+                coverage,
+                diagnostics,
+                deep_pages: BTreeMap::new(),
+                file_allocations: BTreeMap::new(),
+                oos_chains: BTreeMap::new(),
+            }),
+        })
+    }
+
+    pub fn view(&self, selector: RevisionSelector) -> Result<GraphView, OperationError> {
+        let requested = match selector {
+            RevisionSelector::Latest => self.data.revision,
+            RevisionSelector::Exact(revision) => revision,
+        };
+        if requested != self.data.revision {
+            return Err(OperationError::RevisionNotFound);
+        }
+        Ok(GraphView {
+            data: Arc::clone(&self.data),
+        })
+    }
+
+    pub fn verify_snapshot(&self) -> Result<bool, OperationError> {
+        self.data
+            .sources
+            .verify_unchanged()
+            .map_err(OperationError::Source)
+    }
+}
+
+impl GraphView {
+    #[must_use]
+    pub fn overview(&self) -> OverviewView {
+        let sector_count = self
+            .data
+            .volumes
+            .iter()
+            .map(|volume| u64::from(volume.view.total_sectors))
+            .sum();
+        let reserved_sector_count = self
+            .data
+            .volumes
+            .iter()
+            .map(|volume| u64::from(volume.view.reserved_sectors))
+            .sum();
+        let physical_page_count = sector_count * u64::from(SECTOR_PAGES);
+        let mut counts = [0_u64; 15];
+        let mut opaque = 0_u64;
+        let mut inspected = 0_u64;
+        for fact in self.data.volumes.iter().flat_map(|volume| &volume.pages) {
+            inspected += 1;
+            if let Some(page_type) = fact.page_type {
+                counts[usize::from(page_type.ordinal())] += 1;
+            }
+            if fact.tde_state == TdeInspectionState::EncryptedOpaque {
+                opaque += 1;
+            }
+        }
+        let page_type_counts = counts
+            .into_iter()
+            .enumerate()
+            .filter(|(_, count)| *count != 0)
+            .filter_map(|(ordinal, count)| {
+                u8::try_from(ordinal)
+                    .ok()
+                    .and_then(page_type_from_ordinal)
+                    .map(|kind| (kind, count))
+            })
+            .collect();
+        OverviewView {
+            snapshot_id: self.data.snapshot_id,
+            revision: self.data.revision,
+            validity: self.data.validity,
+            format_profile: FORMAT_PROFILE,
+            input_kind: self.data.sources.input_kind(),
+            outcome: self.data.outcome,
+            volume_count: self.data.volumes.len() as u64,
+            sector_count,
+            reserved_sector_count,
+            physical_page_count,
+            inspected_page_envelopes: inspected,
+            page_type_counts,
+            tde_opaque_pages: opaque,
+            coverage: self.data.coverage.clone(),
+            diagnostics: self.data.diagnostics.clone(),
+        }
+    }
+
+    #[must_use]
+    pub fn volumes(&self) -> Vec<VolumeView> {
+        self.data.volumes.iter().map(|volume| volume.view).collect()
+    }
+
+    pub fn volume(&self, vol_id: VolId) -> Result<VolumeView, QueryError> {
+        self.volume_record(vol_id).map(|record| record.view)
+    }
+
+    pub fn sector(&self, vol_id: VolId, sector_id: SectorId) -> Result<SectorView, QueryError> {
+        let volume = self.volume_record(vol_id)?;
+        let sector = u32::try_from(sector_id.get()).map_err(|_| QueryError::EntityNotFound)?;
+        if sector >= volume.view.total_sectors {
+            return Err(QueryError::EntityNotFound);
+        }
+        let first_page = sector
+            .checked_mul(SECTOR_PAGES)
+            .ok_or(QueryError::Arithmetic)?;
+        let pages = (0..SECTOR_PAGES)
+            .map(|within| {
+                let raw_page = first_page
+                    .checked_add(within)
+                    .ok_or(QueryError::Arithmetic)?;
+                let page_id =
+                    PageId::new(i32::try_from(raw_page).map_err(|_| QueryError::Arithmetic)?)
+                        .map_err(|_| QueryError::Arithmetic)?;
+                Self::page_from_record(volume, page_id, &self.data.file_allocations)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(SectorView {
+            vol_id,
+            sector_id,
+            reserved: volume.is_reserved(sector),
+            pages,
+        })
+    }
+
+    pub fn page(&self, vpid: Vpid) -> Result<PageView, QueryError> {
+        let volume = self.volume_record(vpid.vol_id)?;
+        let raw_page = u32::try_from(vpid.page_id.get()).map_err(|_| QueryError::EntityNotFound)?;
+        let total_pages = volume
+            .view
+            .total_sectors
+            .checked_mul(SECTOR_PAGES)
+            .ok_or(QueryError::Arithmetic)?;
+        if raw_page >= total_pages {
+            return Err(QueryError::EntityNotFound);
+        }
+        Self::page_from_record(volume, vpid.page_id, &self.data.file_allocations)
+    }
+
+    pub fn file_pages(&self, vfid: Vfid) -> Result<Vec<PageView>, QueryError> {
+        let pages = self
+            .data
+            .file_allocations
+            .iter()
+            .filter_map(|(vpid, owner)| (*owner == vfid).then_some(*vpid))
+            .map(|vpid| self.page(vpid))
+            .collect::<Result<Vec<_>, _>>()?;
+        if pages.is_empty() {
+            return Err(QueryError::EntityNotFound);
+        }
+        Ok(pages)
+    }
+
+    /// Decode one page body into a new immutable revision. The prior view is
+    /// retained unchanged and remains queryable by its caller.
+    pub fn enrich_page(
+        &self,
+        vpid: Vpid,
+        policy: ResourcePolicy,
+        cancel: &CancelToken,
+    ) -> Result<Self, OperationError> {
+        if cancel.is_cancelled() {
+            return Err(OperationError::Interrupted);
+        }
+        if !self
+            .data
+            .sources
+            .verify_unchanged()
+            .map_err(OperationError::Source)?
+        {
+            return self.invalidated_revision();
+        }
+        let page_view = self.page(vpid).map_err(OperationError::Query)?;
+        if page_view.availability != Availability::Available {
+            return Err(OperationError::Unsupported);
+        }
+        if policy.max_decoded_bytes < crate::format::IO_PAGE_SIZE as u64
+            || policy.memory_limit < crate::format::IO_PAGE_SIZE as u64
+        {
+            return Err(OperationError::ResourceLimit);
+        }
+        let source = self
+            .data
+            .sources
+            .volume(vpid.vol_id)
+            .ok_or(OperationError::Query(QueryError::EntityNotFound))?;
+        let bytes = source
+            .read_page(vpid.page_id)
+            .map_err(OperationError::Source)?;
+        if cancel.is_cancelled() {
+            return Err(OperationError::Interrupted);
+        }
+        let decoded = decode_page_envelope(bytes.as_slice(), vpid);
+        let fact = match decoded {
+            Ok(envelope) => {
+                let slotted = if matches!(
+                    envelope.page_type(),
+                    PageType::Heap
+                        | PageType::Oos
+                        | PageType::Btree
+                        | PageType::ExtensibleHash
+                        | PageType::Catalog
+                ) {
+                    match decode_slotted_page(&envelope) {
+                        Ok(value) => Some(value),
+                        Err(error) => {
+                            return self.page_decode_failure(vpid, error.rule());
+                        }
+                    }
+                } else {
+                    None
+                };
+                DeepPageFact {
+                    slotted,
+                    // PAGE_FTAB is role-ambiguous without its owning VFID: only
+                    // an explicit file selector may interpret one as a header.
+                    file_header: None,
+                    diagnostic_rule: None,
+                }
+            }
+            Err(error) => return self.page_decode_failure(vpid, error.rule()),
+        };
+        if !self
+            .data
+            .sources
+            .verify_unchanged()
+            .map_err(OperationError::Source)?
+        {
+            return self.invalidated_revision();
+        }
+        self.publish_deep_page(vpid, fact)
+    }
+
+    /// Decode the header page selected by a VFID. Generic `PAGE_FTAB` page
+    /// enrichment intentionally remains envelope-only because continuation
+    /// pages share the same page type and do not contain `FILE_HEADER`.
+    pub fn enrich_file(
+        &self,
+        vfid: Vfid,
+        policy: ResourcePolicy,
+        cancel: &CancelToken,
+    ) -> Result<Self, OperationError> {
+        let header_page = Vpid::new(
+            vfid.vol_id,
+            PageId::new(vfid.file_id.get()).map_err(|_| OperationError::Arithmetic)?,
+        );
+        if self
+            .data
+            .deep_pages
+            .get(&header_page)
+            .is_some_and(|fact| fact.file_header.is_some())
+        {
+            return Ok(self.clone());
+        }
+        if cancel.is_cancelled() {
+            return Err(OperationError::Interrupted);
+        }
+        if policy.max_decoded_bytes < crate::format::IO_PAGE_SIZE as u64
+            || policy.memory_limit < crate::format::IO_PAGE_SIZE as u64
+        {
+            return Err(OperationError::ResourceLimit);
+        }
+        if !self
+            .data
+            .sources
+            .verify_unchanged()
+            .map_err(OperationError::Source)?
+        {
+            return self.invalidated_revision();
+        }
+        let page = self.page(header_page).map_err(OperationError::Query)?;
+        if page.availability != Availability::Available
+            || page.page_type != Some(PageType::FileTable)
+        {
+            return Err(OperationError::Unsupported);
+        }
+        let source = self
+            .data
+            .sources
+            .volume(vfid.vol_id)
+            .ok_or(OperationError::Query(QueryError::EntityNotFound))?;
+        let bytes = source
+            .read_page(header_page.page_id)
+            .map_err(OperationError::Source)?;
+        let envelope = match decode_page_envelope(bytes.as_slice(), header_page) {
+            Ok(value) => value,
+            Err(error) => return self.page_decode_failure(header_page, error.rule()),
+        };
+        let file_header = match decode_file_header(&envelope) {
+            Ok(value) if value.vfid() == vfid => value,
+            Ok(_) => return self.page_decode_failure(header_page, "file.header.self_identity"),
+            Err(error) => return self.page_decode_failure(header_page, error.rule()),
+        };
+        let allocations = match self.collect_file_allocations(file_header, policy, cancel) {
+            Ok(value) => value,
+            Err(FileTraversalError::Decode(rule)) => {
+                return self.page_decode_failure(header_page, rule);
+            }
+            Err(FileTraversalError::Operation(error)) => return Err(error),
+        };
+        if cancel.is_cancelled() {
+            return Err(OperationError::Interrupted);
+        }
+        if !self
+            .data
+            .sources
+            .verify_unchanged()
+            .map_err(OperationError::Source)?
+        {
+            return self.invalidated_revision();
+        }
+        self.publish_file(header_page, file_header, allocations)
+    }
+
+    #[allow(clippy::too_many_lines)]
+    fn collect_file_allocations(
+        &self,
+        header: FileHeader,
+        policy: ResourcePolicy,
+        cancel: &CancelToken,
+    ) -> Result<BTreeSet<Vpid>, FileTraversalError> {
+        let temporary = header.flags() & 0x2 != 0;
+        let numerable = header.flags() & 0x1 != 0;
+        let partial_offset = header
+            .partial_table_offset()
+            .ok_or(FileTraversalError::Decode(
+                "file.header.partial_table_required",
+            ))?;
+        if header.full_table_offset().is_some() == temporary {
+            return Err(FileTraversalError::Decode(
+                "file.header.full_table_presence",
+            ));
+        }
+        if header.user_table_offset().is_some() != numerable {
+            return Err(FileTraversalError::Decode(
+                "file.header.user_table_presence",
+            ));
+        }
+        let start = Vpid::new(
+            header.vfid().vol_id,
+            PageId::new(header.vfid().file_id.get())
+                .map_err(|_| FileTraversalError::Operation(OperationError::Arithmetic))?,
+        );
+        let mut traversal = FileTraversal::default();
+        traversal.table_pages.insert(start);
+        self.walk_file_table(
+            start,
+            partial_offset,
+            FileTableKind::Partial,
+            policy,
+            cancel,
+            &mut traversal,
+        )?;
+        if let Some(offset) = header.full_table_offset() {
+            self.walk_file_table(
+                start,
+                offset,
+                FileTableKind::Full,
+                policy,
+                cancel,
+                &mut traversal,
+            )?;
+        }
+        if let Some(offset) = header.user_table_offset() {
+            self.walk_file_table(
+                start,
+                offset,
+                FileTableKind::User,
+                policy,
+                cancel,
+                &mut traversal,
+            )?;
+        }
+        let expected_partial = if temporary {
+            header.sector_total()
+        } else {
+            header.sector_partial()
+        };
+        if traversal.partial_sectors.len() as u64 != u64::from(expected_partial)
+            || (!temporary
+                && traversal.full_sectors.len() as u64 != u64::from(header.sector_full()))
+            || traversal.table_pages.len() as u64 != u64::from(header.page_ftab())
+            || (numerable && traversal.user_pages.len() as u64 != u64::from(header.page_user()))
+            || traversal
+                .user_pages
+                .iter()
+                .filter(|page| page.marked_deleted)
+                .count() as u64
+                != u64::from(header.page_marked_delete())
+        {
+            return Err(FileTraversalError::Decode(
+                "file.table.count_reconciliation",
+            ));
+        }
+        let mut sectors = BTreeSet::new();
+        let mut allocations = BTreeSet::new();
+        for partial in traversal.partial_sectors {
+            if !sectors.insert((partial.vol_id, partial.sector_id)) {
+                return Err(FileTraversalError::Decode("file.table.sector_unique"));
+            }
+            let first = i64::from(partial.sector_id.get()) * i64::from(SECTOR_PAGES);
+            for bit in 0..SECTOR_PAGES {
+                if partial.page_bitmap & (1_u64 << bit) != 0 {
+                    let page = first + i64::from(bit);
+                    let page_id = i32::try_from(page)
+                        .ok()
+                        .and_then(|value| PageId::new(value).ok())
+                        .ok_or(FileTraversalError::Decode("file.table.page_range"))?;
+                    let vpid = Vpid::new(partial.vol_id, page_id);
+                    self.page(vpid)
+                        .map_err(|_| FileTraversalError::Decode("file.table.page_range"))?;
+                    allocations.insert(vpid);
+                }
+            }
+        }
+        for (vol_id, sector_id) in traversal.full_sectors {
+            if !sectors.insert((vol_id, sector_id)) {
+                return Err(FileTraversalError::Decode("file.table.sector_unique"));
+            }
+            let first = i64::from(sector_id.get()) * i64::from(SECTOR_PAGES);
+            for bit in 0..SECTOR_PAGES {
+                let page = first + i64::from(bit);
+                let page_id = i32::try_from(page)
+                    .ok()
+                    .and_then(|value| PageId::new(value).ok())
+                    .ok_or(FileTraversalError::Decode("file.table.page_range"))?;
+                let vpid = Vpid::new(vol_id, page_id);
+                self.page(vpid)
+                    .map_err(|_| FileTraversalError::Decode("file.table.page_range"))?;
+                allocations.insert(vpid);
+            }
+        }
+        if allocations.len() as u64
+            != u64::from(header.page_total().saturating_sub(header.page_free()))
+            || !traversal
+                .table_pages
+                .iter()
+                .all(|page| allocations.contains(page))
+            || !traversal
+                .user_pages
+                .iter()
+                .all(|page| allocations.contains(&page.vpid))
+        {
+            return Err(FileTraversalError::Decode("file.table.page_reconciliation"));
+        }
+        let retained = (allocations.len() as u64)
+            .checked_mul(size_of::<(Vpid, Vfid)>() as u64)
+            .ok_or(FileTraversalError::Operation(OperationError::Arithmetic))?;
+        if retained > policy.memory_limit {
+            return Err(FileTraversalError::Operation(OperationError::ResourceLimit));
+        }
+        Ok(allocations)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn walk_file_table(
+        &self,
+        start: Vpid,
+        initial_offset: u16,
+        kind: FileTableKind,
+        policy: ResourcePolicy,
+        cancel: &CancelToken,
+        traversal: &mut FileTraversal,
+    ) -> Result<(), FileTraversalError> {
+        let mut current = start;
+        let mut offset = initial_offset;
+        let mut visited = BTreeSet::new();
+        loop {
+            if cancel.is_cancelled() {
+                return Err(FileTraversalError::Operation(OperationError::Interrupted));
+            }
+            traversal.steps = traversal
+                .steps
+                .checked_add(1)
+                .ok_or(FileTraversalError::Operation(OperationError::Arithmetic))?;
+            traversal.decoded_bytes = traversal
+                .decoded_bytes
+                .checked_add(crate::format::IO_PAGE_SIZE as u64)
+                .ok_or(FileTraversalError::Operation(OperationError::Arithmetic))?;
+            if traversal.steps > policy.max_chain_steps
+                || traversal.decoded_bytes > policy.max_decoded_bytes
+            {
+                return Err(FileTraversalError::Operation(OperationError::ResourceLimit));
+            }
+            if !visited.insert(current) {
+                return Err(FileTraversalError::Decode("file.extdata.cycle"));
+            }
+            if current != start && !traversal.table_pages.insert(current) {
+                return Err(FileTraversalError::Decode("file.extdata.page_shared"));
+            }
+            let source = self
+                .data
+                .sources
+                .volume(current.vol_id)
+                .ok_or(FileTraversalError::Decode("file.extdata.page_range"))?;
+            let bytes = source
+                .read_page(current.page_id)
+                .map_err(|error| FileTraversalError::Operation(OperationError::Source(error)))?;
+            let envelope = decode_page_envelope(bytes.as_slice(), current)
+                .map_err(|error| FileTraversalError::Decode(error.rule()))?;
+            if envelope.page_type() != PageType::FileTable {
+                return Err(FileTraversalError::Decode("file.extdata.page_type"));
+            }
+            let item_size = match kind {
+                FileTableKind::Partial => 16,
+                FileTableKind::Full | FileTableKind::User => 8,
+            };
+            let component = decode_extdata_header(&envelope, offset, item_size)
+                .map_err(|error| FileTraversalError::Decode(error.rule()))?;
+            match kind {
+                FileTableKind::Partial => traversal.partial_sectors.extend(
+                    decode_partial_sectors(&envelope, component)
+                        .map_err(|error| FileTraversalError::Decode(error.rule()))?,
+                ),
+                FileTableKind::Full => traversal.full_sectors.extend(
+                    decode_full_sectors(&envelope, component)
+                        .map_err(|error| FileTraversalError::Decode(error.rule()))?,
+                ),
+                FileTableKind::User => traversal.user_pages.extend(
+                    decode_user_pages(&envelope, component)
+                        .map_err(|error| FileTraversalError::Decode(error.rule()))?,
+                ),
+            }
+            let Some(next) = component.next else {
+                return Ok(());
+            };
+            current = next;
+            offset = 0;
+        }
+    }
+
+    #[must_use]
+    pub fn deep_page(&self, vpid: Vpid) -> Option<DeepPageView> {
+        self.data.deep_pages.get(&vpid).map(|fact| DeepPageView {
+            vpid,
+            revision: self.data.revision,
+            slotted: fact.slotted.clone(),
+            file_header: fact.file_header,
+            diagnostic_rule: fact.diagnostic_rule,
+        })
+    }
+
+    #[must_use]
+    pub fn deep_pages(&self) -> Vec<DeepPageView> {
+        self.data
+            .deep_pages
+            .iter()
+            .map(|(vpid, fact)| DeepPageView {
+                vpid: *vpid,
+                revision: self.data.revision,
+                slotted: fact.slotted.clone(),
+                file_header: fact.file_header,
+                diagnostic_rule: fact.diagnostic_rule,
+            })
+            .collect()
+    }
+
+    /// Validate one explicitly selected OOS chain and publish its structural
+    /// prefix as a new immutable revision. Payload bytes are never retained.
+    #[allow(clippy::too_many_lines)]
+    pub fn enrich_oos(
+        &self,
+        head: Oid,
+        policy: ResourcePolicy,
+        cancel: &CancelToken,
+    ) -> Result<Self, OperationError> {
+        if self.data.oos_chains.contains_key(&head) {
+            return Ok(self.clone());
+        }
+        if !self
+            .data
+            .sources
+            .verify_unchanged()
+            .map_err(OperationError::Source)?
+        {
+            return self.invalidated_revision();
+        }
+        let mut visited = BTreeSet::new();
+        let mut chunks = Vec::new();
+        let mut current = head;
+        let mut expected_total = None;
+        let mut expected_index = 0_u32;
+        let mut validated_payload_bytes = 0_u64;
+        let mut decoded_bytes = 0_u64;
+        loop {
+            if cancel.is_cancelled() {
+                return self.publish_oos_chain(
+                    head,
+                    expected_total,
+                    validated_payload_bytes,
+                    chunks,
+                    Some("interrupted"),
+                );
+            }
+            if u64::try_from(chunks.len()).unwrap_or(u64::MAX) >= policy.max_chain_steps {
+                return self.publish_oos_chain(
+                    head,
+                    expected_total,
+                    validated_payload_bytes,
+                    chunks,
+                    Some("resource-limit"),
+                );
+            }
+            if !visited.insert(current) {
+                return self.publish_oos_chain(
+                    head,
+                    expected_total,
+                    validated_payload_bytes,
+                    chunks,
+                    Some("oos.chain.acyclic"),
+                );
+            }
+            decoded_bytes = match decoded_bytes.checked_add(crate::format::IO_PAGE_SIZE as u64) {
+                Some(value)
+                    if value <= policy.max_decoded_bytes
+                        && value <= policy.memory_limit.saturating_mul(2) =>
+                {
+                    value
+                }
+                _ => {
+                    return self.publish_oos_chain(
+                        head,
+                        expected_total,
+                        validated_payload_bytes,
+                        chunks,
+                        Some("resource-limit"),
+                    );
+                }
+            };
+            let Ok(page_view) = self.page(Vpid::new(current.vol_id, current.page_id)) else {
+                return self.publish_oos_chain(
+                    head,
+                    expected_total,
+                    validated_payload_bytes,
+                    chunks,
+                    Some("oos.chain.page_exists"),
+                );
+            };
+            if page_view.page_type != Some(PageType::Oos)
+                || page_view.availability != Availability::Available
+            {
+                return self.publish_oos_chain(
+                    head,
+                    expected_total,
+                    validated_payload_bytes,
+                    chunks,
+                    Some("oos.chain.page_role"),
+                );
+            }
+            let source = self
+                .data
+                .sources
+                .volume(current.vol_id)
+                .ok_or(OperationError::Query(QueryError::EntityNotFound))?;
+            let bytes = source
+                .read_page(current.page_id)
+                .map_err(OperationError::Source)?;
+            let envelope = match decode_page_envelope(
+                bytes.as_slice(),
+                Vpid::new(current.vol_id, current.page_id),
+            ) {
+                Ok(value) => value,
+                Err(error) => {
+                    return self.publish_oos_chain(
+                        head,
+                        expected_total,
+                        validated_payload_bytes,
+                        chunks,
+                        Some(error.rule()),
+                    );
+                }
+            };
+            let slotted = match decode_slotted_page(&envelope) {
+                Ok(value) => value,
+                Err(error) => {
+                    return self.publish_oos_chain(
+                        head,
+                        expected_total,
+                        validated_payload_bytes,
+                        chunks,
+                        Some(error.rule()),
+                    );
+                }
+            };
+            let slot_id =
+                u16::try_from(current.slot_id.get()).map_err(|_| OperationError::Arithmetic)?;
+            let chunk = match decode_oos_chunk(&envelope, &slotted, slot_id) {
+                Ok(value) => value,
+                Err(error) => {
+                    return self.publish_oos_chain(
+                        head,
+                        expected_total,
+                        validated_payload_bytes,
+                        chunks,
+                        Some(error.rule()),
+                    );
+                }
+            };
+            if chunk.chunk_index() != expected_index
+                || expected_total.is_some_and(|total| total != chunk.total_data_length())
+            {
+                return self.publish_oos_chain(
+                    head,
+                    expected_total,
+                    validated_payload_bytes,
+                    chunks,
+                    Some("oos.chain.sequence"),
+                );
+            }
+            expected_total.get_or_insert(chunk.total_data_length());
+            validated_payload_bytes =
+                match validated_payload_bytes.checked_add(u64::from(chunk.payload_length())) {
+                    Some(value)
+                        if value <= u64::from(chunk.total_data_length())
+                            && value <= policy.max_decoded_bytes =>
+                    {
+                        value
+                    }
+                    _ => {
+                        return self.publish_oos_chain(
+                            head,
+                            expected_total,
+                            validated_payload_bytes,
+                            chunks,
+                            Some("oos.chain.accumulated_length"),
+                        );
+                    }
+                };
+            let next = match chunk.next() {
+                OosNext::Terminal => None,
+                OosNext::Link(oid) => Some(oid),
+            };
+            chunks.push(OosChunkView {
+                oid: current,
+                total_data_length: chunk.total_data_length(),
+                chunk_index: chunk.chunk_index(),
+                next,
+                payload_offset: chunk.payload_offset(),
+                payload_length: chunk.payload_length(),
+            });
+            match next {
+                None if validated_payload_bytes == u64::from(chunk.total_data_length()) => break,
+                None => {
+                    return self.publish_oos_chain(
+                        head,
+                        expected_total,
+                        validated_payload_bytes,
+                        chunks,
+                        Some("oos.chain.complete_length"),
+                    );
+                }
+                Some(oid) => current = oid,
+            }
+            expected_index = expected_index
+                .checked_add(1)
+                .ok_or(OperationError::Arithmetic)?;
+        }
+        if !self
+            .data
+            .sources
+            .verify_unchanged()
+            .map_err(OperationError::Source)?
+        {
+            return self.invalidated_revision();
+        }
+        self.publish_oos_chain(head, expected_total, validated_payload_bytes, chunks, None)
+    }
+
+    #[must_use]
+    pub fn oos_chain(&self, head: Oid) -> Option<OosChainView> {
+        self.data.oos_chains.get(&head).map(|fact| OosChainView {
+            head,
+            revision: self.data.revision,
+            total_data_length: fact.total_data_length,
+            validated_payload_bytes: fact.validated_payload_bytes,
+            complete: fact.complete,
+            chunks: fact.chunks.clone(),
+            diagnostic_rule: fact.diagnostic_rule,
+        })
+    }
+
+    #[must_use]
+    pub fn oos_chains(&self) -> Vec<OosChainView> {
+        self.data
+            .oos_chains
+            .keys()
+            .filter_map(|head| self.oos_chain(*head))
+            .collect()
+    }
+
+    fn publish_oos_chain(
+        &self,
+        head: Oid,
+        total_data_length: Option<u32>,
+        validated_payload_bytes: u64,
+        chunks: Vec<OosChunkView>,
+        failure: Option<&'static str>,
+    ) -> Result<Self, OperationError> {
+        let mut next = (*self.data).clone();
+        next.revision = next
+            .revision
+            .next()
+            .map_err(|_| OperationError::Arithmetic)?;
+        next.oos_chains.insert(
+            head,
+            OosChainFact {
+                total_data_length,
+                validated_payload_bytes,
+                complete: failure.is_none(),
+                chunks,
+                diagnostic_rule: failure,
+            },
+        );
+        if let Some(rule) = failure {
+            let resource = matches!(rule, "resource-limit" | "interrupted");
+            next.diagnostics.push(DiagnosticRecord {
+                code: if resource {
+                    "inspection.resource_limit"
+                } else {
+                    "oos.chain.invalid"
+                },
+                severity: "error",
+                message: if resource {
+                    "The OOS traversal stopped at its admitted resource boundary."
+                } else {
+                    "The selected OOS chain violates its pinned structural format."
+                },
+                subject: format!(
+                    "oos:{}:{}:{}",
+                    head.vol_id.get(),
+                    head.page_id.get(),
+                    head.slot_id.get()
+                ),
+                rule,
+            });
+        }
+        refresh_oos_coverage(&mut next, failure);
+        next.outcome = classify_session_outcome(&next);
+        Ok(Self {
+            data: Arc::new(next),
+        })
+    }
+
+    fn page_decode_failure(&self, vpid: Vpid, rule: &'static str) -> Result<Self, OperationError> {
+        let mut next = (*self.data).clone();
+        next.revision = next
+            .revision
+            .next()
+            .map_err(|_| OperationError::Arithmetic)?;
+        next.deep_pages.insert(
+            vpid,
+            DeepPageFact {
+                slotted: None,
+                file_header: None,
+                diagnostic_rule: Some(rule),
+            },
+        );
+        next.diagnostics.push(DiagnosticRecord {
+            code: "page.structure.invalid",
+            severity: "error",
+            message: "The requested page body violates its pinned structural format.",
+            subject: format!("page:{}:{}", vpid.vol_id.get(), vpid.page_id.get()),
+            rule,
+        });
+        refresh_deep_coverage(&mut next, Some("corrupt-structure"));
+        next.outcome = classify_session_outcome(&next);
+        Ok(Self {
+            data: Arc::new(next),
+        })
+    }
+
+    fn publish_deep_page(&self, vpid: Vpid, fact: DeepPageFact) -> Result<Self, OperationError> {
+        if let Some(existing) = self.data.deep_pages.get(&vpid) {
+            // An explicit file selector may refine an earlier envelope-only
+            // PAGE_FTAB result. All other repeated enrichments are idempotent.
+            if fact.file_header.is_none() || existing.file_header.is_some() {
+                return Ok(self.clone());
+            }
+        }
+        let mut next = (*self.data).clone();
+        next.revision = next
+            .revision
+            .next()
+            .map_err(|_| OperationError::Arithmetic)?;
+        next.deep_pages.insert(vpid, fact);
+        refresh_deep_coverage(&mut next, None);
+        next.outcome = classify_session_outcome(&next);
+        Ok(Self {
+            data: Arc::new(next),
+        })
+    }
+
+    fn publish_file(
+        &self,
+        header_page: Vpid,
+        header: FileHeader,
+        allocations: BTreeSet<Vpid>,
+    ) -> Result<Self, OperationError> {
+        if allocations.iter().any(|vpid| {
+            self.data
+                .file_allocations
+                .get(vpid)
+                .is_some_and(|owner| *owner != header.vfid())
+        }) {
+            return self.page_decode_failure(header_page, "file.table.owner_unique");
+        }
+        let mut next = (*self.data).clone();
+        next.revision = next
+            .revision
+            .next()
+            .map_err(|_| OperationError::Arithmetic)?;
+        next.deep_pages.insert(
+            header_page,
+            DeepPageFact {
+                slotted: None,
+                file_header: Some(header),
+                diagnostic_rule: None,
+            },
+        );
+        for vpid in allocations {
+            next.file_allocations.insert(vpid, header.vfid());
+        }
+        refresh_deep_coverage(&mut next, None);
+        let inspected_files = next
+            .deep_pages
+            .values()
+            .filter(|fact| fact.file_header.is_some())
+            .count() as u64;
+        next.coverage
+            .retain(|coverage| coverage.facet != "file-inventory");
+        next.coverage.push(CoverageRecord {
+            facet: "file-inventory",
+            coverage: Coverage::Partial,
+            evaluated: inspected_files,
+            conclusive: inspected_files,
+            trusted_total: None,
+            stop_reason: Some("selective-enrichment"),
+        });
+        next.outcome = classify_session_outcome(&next);
+        Ok(Self {
+            data: Arc::new(next),
+        })
+    }
+
+    fn invalidated_revision(&self) -> Result<Self, OperationError> {
+        if self.data.validity == SnapshotValidity::Invalidated {
+            return Ok(self.clone());
+        }
+        let mut next = (*self.data).clone();
+        next.revision = next
+            .revision
+            .next()
+            .map_err(|_| OperationError::Arithmetic)?;
+        next.validity = SnapshotValidity::Invalidated;
+        next.diagnostics.push(DiagnosticRecord {
+            code: "snapshot.modified",
+            severity: "fatal",
+            message: "An input changed after this snapshot was published.",
+            subject: "snapshot".to_owned(),
+            rule: "snapshot.file_stamp.stable",
+        });
+        next.outcome = InspectionOutcome::Fatal;
+        Ok(Self {
+            data: Arc::new(next),
+        })
+    }
+
+    fn volume_record(&self, vol_id: VolId) -> Result<&VolumeRecord, QueryError> {
+        self.data
+            .volumes
+            .binary_search_by_key(&vol_id.get(), |volume| volume.view.vol_id.get())
+            .ok()
+            .and_then(|index| self.data.volumes.get(index))
+            .ok_or(QueryError::EntityNotFound)
+    }
+
+    fn page_from_record(
+        volume: &VolumeRecord,
+        page_id: PageId,
+        file_allocations: &BTreeMap<Vpid, Vfid>,
+    ) -> Result<PageView, QueryError> {
+        let raw_page = u32::try_from(page_id.get()).map_err(|_| QueryError::EntityNotFound)?;
+        let raw_sector = raw_page / SECTOR_PAGES;
+        let sector_id =
+            SectorId::new(i32::try_from(raw_sector).map_err(|_| QueryError::Arithmetic)?)
+                .map_err(|_| QueryError::Arithmetic)?;
+        let vpid = Vpid::new(volume.view.vol_id, page_id);
+        let allocation = if page_id.get() <= volume.view.system_last_page.get() {
+            PageAllocationClass::SystemMetadata
+        } else if file_allocations.contains_key(&vpid) {
+            PageAllocationClass::Allocated
+        } else if volume.is_reserved(raw_sector) {
+            PageAllocationClass::ReservedUnallocated
+        } else {
+            PageAllocationClass::Unreserved
+        };
+        let fact = volume.page_fact(page_id);
+        Ok(PageView {
+            vpid,
+            sector_id,
+            allocation,
+            page_type: fact.and_then(|value| value.page_type),
+            availability: fact.map_or(Availability::Unsupported, |value| value.availability),
+            tde_state: fact.map_or(TdeInspectionState::NotEncrypted, |value| value.tde_state),
+            detail_support: fact.and_then(|value| value.page_type.map(page_detail_support)),
+            lsa_word: fact.and_then(|value| value.lsa_word),
+            diagnostic_code: fact.and_then(|value| value.diagnostic_code),
+        })
+    }
+}
+
+#[derive(Debug)]
+pub enum OpenFailure {
+    Source(SourceError),
+    Format(DecodeError),
+    Interrupted,
+    Arithmetic,
+}
+
+impl From<SourceError> for OpenFailure {
+    fn from(value: SourceError) -> Self {
+        Self::Source(value)
+    }
+}
+
+impl fmt::Display for OpenFailure {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Source(error) => write!(formatter, "{error}"),
+            Self::Format(error) => write!(formatter, "{error}"),
+            Self::Interrupted => formatter.write_str("inspection interrupted before publication"),
+            Self::Arithmetic => formatter.write_str("inspection arithmetic overflow"),
+        }
+    }
+}
+
+impl std::error::Error for OpenFailure {}
+
+#[derive(Debug)]
+pub enum OperationError {
+    RevisionNotFound,
+    Source(SourceError),
+    Query(QueryError),
+    Interrupted,
+    Unsupported,
+    ResourceLimit,
+    Arithmetic,
+}
+
+impl fmt::Display for OperationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::RevisionNotFound => formatter.write_str("inspection revision not found"),
+            Self::Source(error) => write!(formatter, "{error}"),
+            Self::Query(error) => write!(formatter, "{error}"),
+            Self::Interrupted => formatter.write_str("inspection enrichment interrupted"),
+            Self::Unsupported => formatter.write_str("page body is unavailable for enrichment"),
+            Self::ResourceLimit => formatter.write_str("page enrichment exceeds resource policy"),
+            Self::Arithmetic => formatter.write_str("inspection enrichment arithmetic overflow"),
+        }
+    }
+}
+
+impl std::error::Error for OperationError {}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum QueryError {
+    EntityNotFound,
+    Arithmetic,
+}
+
+impl fmt::Display for QueryError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "query failed: {self:?}")
+    }
+}
+
+impl std::error::Error for QueryError {}
+
+fn refresh_deep_coverage(data: &mut SessionData, failure: Option<&'static str>) {
+    data.coverage
+        .retain(|coverage| coverage.facet != "deep-pages");
+    let conclusive = data
+        .deep_pages
+        .values()
+        .filter(|fact| fact.diagnostic_rule.is_none())
+        .count() as u64;
+    let total = data
+        .volumes
+        .iter()
+        .map(|volume| u64::from(volume.view.total_sectors) * u64::from(SECTOR_PAGES))
+        .sum();
+    let complete = data.deep_pages.len() as u64 == total;
+    data.coverage.push(CoverageRecord {
+        facet: "deep-pages",
+        coverage: if complete {
+            Coverage::Complete
+        } else {
+            Coverage::Partial
+        },
+        evaluated: data.deep_pages.len() as u64,
+        conclusive,
+        trusted_total: Some(total),
+        stop_reason: if complete {
+            failure
+        } else {
+            failure.or(Some("selective-enrichment"))
+        },
+    });
+}
+
+fn refresh_oos_coverage(data: &mut SessionData, failure: Option<&'static str>) {
+    data.coverage
+        .retain(|coverage| coverage.facet != "oos-chains");
+    let total = data.oos_chains.len() as u64;
+    let conclusive = data
+        .oos_chains
+        .values()
+        .filter(|chain| chain.complete)
+        .count() as u64;
+    data.coverage.push(CoverageRecord {
+        facet: "oos-chains",
+        coverage: if conclusive == total {
+            Coverage::Complete
+        } else {
+            Coverage::Partial
+        },
+        evaluated: total,
+        conclusive,
+        trusted_total: Some(total),
+        stop_reason: failure,
+    });
+}
+
+fn classify_session_outcome(data: &SessionData) -> InspectionOutcome {
+    let unexpectedly_incomplete = data.coverage.iter().any(|coverage| {
+        coverage.coverage == Coverage::Partial
+            && matches!(
+                coverage.stop_reason,
+                Some("resource-limit" | "interrupted" | "unreadable")
+            )
+    });
+    InspectionOutcome::classify(OutcomeInputs {
+        fatal: data.validity == SnapshotValidity::Invalidated,
+        unexpected_incomplete: unexpectedly_incomplete,
+        has_error_findings: data
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.severity == "error"),
+        expected_limitations: true,
+    })
+}
+
+fn report(
+    observer: &mut Option<&mut dyn ProgressObserver>,
+    phase: ScanPhase,
+    completed: u64,
+    trusted_total: Option<u64>,
+) {
+    if let Some(observer) = observer.as_deref_mut() {
+        observer.update(ScanProgress {
+            phase,
+            completed,
+            trusted_total,
+        });
+    }
+}
+
+fn estimate_base_bytes(volumes: &[VolumeRecord]) -> Result<u64, OpenFailure> {
+    volumes.iter().try_fold(0_u64, |total, volume| {
+        let mask_bytes = u64::try_from(volume.reserved_masks.len())
+            .ok()
+            .and_then(|count| count.checked_mul(size_of::<u64>() as u64))
+            .ok_or(OpenFailure::Arithmetic)?;
+        total
+            .checked_add(mask_bytes)
+            .and_then(|value| value.checked_add(size_of::<VolumeRecord>() as u64))
+            .ok_or(OpenFailure::Arithmetic)
+    })
+}
+
+fn page_detail_support(page_type: PageType) -> PageDetailSupport {
+    match page_type {
+        PageType::ExtensibleHash => PageDetailSupport::StructuralOnly,
+        PageType::Unknown | PageType::QueryResult | PageType::Area | PageType::Log => {
+            PageDetailSupport::Opaque
+        }
+        PageType::FileTable
+        | PageType::Heap
+        | PageType::VolumeHeader
+        | PageType::VolumeBitmap
+        | PageType::Overflow
+        | PageType::Oos
+        | PageType::Catalog
+        | PageType::Btree
+        | PageType::DroppedFiles
+        | PageType::VacuumData => PageDetailSupport::Semantic,
+    }
+}
+
+fn page_diagnostic_code(error: &DecodeError) -> &'static str {
+    match error.rule() {
+        "page.envelope.identity_match" => "page.envelope.identity_mismatch",
+        "page.envelope.lsa_match" => "page.envelope.lsa_mismatch",
+        "page.envelope.type_known" => "page.envelope.type_unknown",
+        "page.envelope.tde_flags" => "page.envelope.tde_flags_invalid",
+        _ => "page.envelope.invalid",
+    }
+}
+
+fn page_type_from_ordinal(ordinal: u8) -> Option<PageType> {
+    match ordinal {
+        0 => Some(PageType::Unknown),
+        1 => Some(PageType::FileTable),
+        2 => Some(PageType::Heap),
+        3 => Some(PageType::VolumeHeader),
+        4 => Some(PageType::VolumeBitmap),
+        5 => Some(PageType::QueryResult),
+        6 => Some(PageType::ExtensibleHash),
+        7 => Some(PageType::Overflow),
+        8 => Some(PageType::Oos),
+        9 => Some(PageType::Area),
+        10 => Some(PageType::Catalog),
+        11 => Some(PageType::Btree),
+        12 => Some(PageType::Log),
+        13 => Some(PageType::DroppedFiles),
+        14 => Some(PageType::VacuumData),
+        _ => None,
+    }
+}
+
+#[must_use]
+pub const fn tde_algorithm_name(algorithm: TdeAlgorithm) -> &'static str {
+    match algorithm {
+        TdeAlgorithm::Aes => "aes",
+        TdeAlgorithm::Aria => "aria",
+    }
+}

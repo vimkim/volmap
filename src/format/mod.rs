@@ -5,17 +5,24 @@
 //! offsets from `src/storage/file_io.h`, `storage_common.h`, and
 //! `disk_manager.c`; it does not reproduce a C/C++ memory layout.
 
+mod file_table;
 mod page;
 mod sector;
+mod slotted;
 mod volume;
 
 use core::fmt;
 
 pub use page::{
-    DB_PAGE_SIZE, DecodedPageEnvelope, IO_PAGE_SIZE, PageContent, PageType, TdeAlgorithm,
-    decode_page_envelope,
+    DB_PAGE_SIZE, DecodedPageEnvelope, IO_PAGE_SIZE, PAGE_PREFIX_SIZE, PAGE_WATERMARK_SIZE,
+    PageContent, PageEnvelopeSummary, PageType, TdeAlgorithm, decode_page_envelope,
+    decode_page_envelope_parts,
 };
 pub use sector::{SectorBitmap, decode_sector_bitmap};
+pub use slotted::{
+    AnchorType, OosChunkFact, OosNext, RecordType, SlotFact, SlottedPage, decode_oos_chunk,
+    decode_slotted_page,
+};
 pub use volume::{ValidatedCString, VolumeHeader, VolumePurpose, VolumeType, decode_volume_header};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -84,3 +91,7 @@ impl fmt::Display for DecodeError {
 }
 
 impl std::error::Error for DecodeError {}
+pub use file_table::{
+    ExtDataHeader, FileHeader, FileType, PartialSectorFact, UserPageFact, decode_extdata_header,
+    decode_file_header, decode_full_sectors, decode_partial_sectors, decode_user_pages,
+};

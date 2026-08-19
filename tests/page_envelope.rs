@@ -1,5 +1,6 @@
 use volmap::format::{
-    DecodeErrorKind, IO_PAGE_SIZE, PageContent, PageType, TdeAlgorithm, decode_page_envelope,
+    DecodeErrorKind, IO_PAGE_SIZE, PAGE_PREFIX_SIZE, PAGE_WATERMARK_SIZE, PageContent, PageType,
+    TdeAlgorithm, decode_page_envelope, decode_page_envelope_parts,
 };
 use volmap::model::{PageId, VolId, Vpid};
 
@@ -89,5 +90,25 @@ fn physical_page_size_is_exact() {
     assert_eq!(
         decode_page_envelope(&short, vpid()).unwrap_err().kind(),
         DecodeErrorKind::InvalidLength
+    );
+}
+
+#[test]
+fn fast_envelope_decoder_needs_only_prefix_and_watermark() {
+    let bytes = synthetic_page(vpid(), PageType::Oos.ordinal(), 0x02);
+    let decoded = decode_page_envelope_parts(
+        &bytes[..PAGE_PREFIX_SIZE],
+        &bytes[IO_PAGE_SIZE - PAGE_WATERMARK_SIZE..],
+        vpid(),
+    )
+    .unwrap();
+
+    assert_eq!(decoded.id(), vpid());
+    assert_eq!(decoded.page_type(), PageType::Oos);
+    assert_eq!(
+        decoded.content(),
+        PageContent::EncryptedOpaque {
+            algorithm: TdeAlgorithm::Aria
+        }
     );
 }

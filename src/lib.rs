@@ -4,6 +4,13 @@
 #![forbid(unsafe_code)]
 
 pub mod bytes;
+pub mod cli;
 pub mod diagnostics;
+pub mod export;
 pub mod format;
+pub mod inspection;
 pub mod model;
+pub mod projection;
+pub mod source;
+pub mod tui;
+pub mod web;
