@@ -642,6 +642,9 @@ impl Inspection {
                                         Availability::EncryptedOpaque,
                                         TdeInspectionState::EncryptedOpaque,
                                     ),
+                                    PageContent::Decrypted { .. } => unreachable!(
+                                        "fast envelope decoding cannot produce decrypted content"
+                                    ),
                                 };
                                 PageFastFact {
                                     page_id,

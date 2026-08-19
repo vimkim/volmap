@@ -20,8 +20,8 @@ use core::fmt;
 
 pub use page::{
     DB_PAGE_SIZE, DecodedPageEnvelope, IO_PAGE_SIZE, PAGE_PREFIX_SIZE, PAGE_WATERMARK_SIZE,
-    PageContent, PageEnvelopeSummary, PageType, TdeAlgorithm, decode_page_envelope,
-    decode_page_envelope_parts,
+    PageContent, PageEnvelopeSummary, PageType, TdeAlgorithm, decode_decrypted_page_envelope,
+    decode_page_envelope, decode_page_envelope_parts,
 };
 pub use sector::{SectorBitmap, decode_sector_bitmap};
 pub use slotted::{

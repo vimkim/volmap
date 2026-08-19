@@ -104,6 +104,7 @@ pub enum TdeAlgorithm {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PageContent {
     Plaintext,
+    Decrypted { algorithm: TdeAlgorithm },
     EncryptedOpaque { algorithm: TdeAlgorithm },
 }
 
@@ -172,20 +173,73 @@ impl<'a> DecodedPageEnvelope<'a> {
     pub const fn tde_algorithm(&self) -> Option<TdeAlgorithm> {
         match self.content {
             PageContent::Plaintext => None,
-            PageContent::EncryptedOpaque { algorithm } => Some(algorithm),
+            PageContent::Decrypted { algorithm } | PageContent::EncryptedOpaque { algorithm } => {
+                Some(algorithm)
+            }
         }
     }
 
     pub(crate) fn plaintext(&self, rule: &'static str) -> Result<ByteView<'a>, DecodeError> {
         match self.content {
-            PageContent::Plaintext => self.plaintext.ok_or_else(|| {
-                DecodeError::new(DecodeErrorKind::ByteAccess, "page.envelope.plaintext_state")
-            }),
+            PageContent::Plaintext | PageContent::Decrypted { .. } => {
+                self.plaintext.ok_or_else(|| {
+                    DecodeError::new(DecodeErrorKind::ByteAccess, "page.envelope.plaintext_state")
+                })
+            }
             PageContent::EncryptedOpaque { .. } => {
                 Err(DecodeError::new(DecodeErrorKind::EncryptedOpaque, rule))
             }
         }
     }
+}
+
+/// Attach an already decrypted, zeroizing user region to its validated
+/// plaintext envelope. The original page must carry exactly one TDE flag;
+/// callers cannot use this entry point to relabel plaintext or invalid flags.
+pub fn decode_decrypted_page_envelope<'a>(
+    encrypted_page: &[u8],
+    decrypted_user: &'a [u8],
+    expected: Vpid,
+) -> Result<DecodedPageEnvelope<'a>, DecodeError> {
+    if encrypted_page.len() != IO_PAGE_SIZE || decrypted_user.len() != DB_PAGE_SIZE {
+        return Err(DecodeError::new(
+            DecodeErrorKind::InvalidLength,
+            "page.decrypted.physical_size",
+        ));
+    }
+    let summary = decode_page_envelope_parts(
+        encrypted_page.get(..PAGE_PREFIX_SIZE).ok_or_else(|| {
+            DecodeError::new(DecodeErrorKind::InvalidLength, "page.decrypted.prefix")
+        })?,
+        encrypted_page
+            .get(IO_PAGE_SIZE - PAGE_WATERMARK_SIZE..)
+            .ok_or_else(|| {
+                DecodeError::new(DecodeErrorKind::InvalidLength, "page.decrypted.watermark")
+            })?,
+        expected,
+    )?;
+    let PageContent::EncryptedOpaque { algorithm } = summary.content else {
+        return Err(DecodeError::new(
+            DecodeErrorKind::InvalidFlags,
+            "page.decrypted.encrypted_source",
+        ));
+    };
+    let page_offset = page_file_offset(expected)?;
+    let user_offset = page_offset
+        .checked_add(PAGE_PREFIX_SIZE as u64)
+        .ok_or_else(|| {
+            DecodeError::new(
+                DecodeErrorKind::ArithmeticOverflow,
+                "page.decrypted.user_offset",
+            )
+        })?;
+    Ok(DecodedPageEnvelope {
+        id: summary.id,
+        page_type: summary.page_type,
+        lsa_word: summary.lsa_word,
+        content: PageContent::Decrypted { algorithm },
+        plaintext: Some(ByteView::new(decrypted_user, user_offset)),
+    })
 }
 
 pub fn decode_page_envelope(
@@ -223,6 +277,9 @@ pub fn decode_page_envelope(
                 })?,
         ),
         PageContent::EncryptedOpaque { .. } => None,
+        PageContent::Decrypted { .. } => {
+            unreachable!("fast envelope decoding cannot produce decrypted content")
+        }
     };
 
     Ok(DecodedPageEnvelope {

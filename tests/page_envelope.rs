@@ -1,6 +1,7 @@
 use volmap::format::{
-    DecodeErrorKind, IO_PAGE_SIZE, PAGE_PREFIX_SIZE, PAGE_WATERMARK_SIZE, PageContent, PageType,
-    TdeAlgorithm, decode_page_envelope, decode_page_envelope_parts,
+    DB_PAGE_SIZE, DecodeErrorKind, IO_PAGE_SIZE, PAGE_PREFIX_SIZE, PAGE_WATERMARK_SIZE,
+    PageContent, PageType, TdeAlgorithm, decode_decrypted_page_envelope, decode_page_envelope,
+    decode_page_envelope_parts, decode_slotted_page,
 };
 use volmap::model::{PageId, VolId, Vpid};
 
@@ -31,7 +32,9 @@ fn valid_plaintext_envelope_reports_plaintext_without_exposing_body_bytes() {
     assert_eq!(decoded.tde_algorithm(), None);
     match decoded.content() {
         PageContent::Plaintext => {}
-        PageContent::EncryptedOpaque { .. } => panic!("plaintext became opaque"),
+        PageContent::Decrypted { .. } | PageContent::EncryptedOpaque { .. } => {
+            panic!("plaintext changed state")
+        }
     }
 }
 
@@ -48,6 +51,29 @@ fn encrypted_envelope_never_exposes_its_ciphertext_region() {
             algorithm: TdeAlgorithm::Aes
         }
     ));
+}
+
+#[test]
+fn decrypted_envelope_preserves_algorithm_and_exposes_only_supplied_plaintext() {
+    let expected = Vpid::new(VolId::new(0).unwrap(), PageId::new(14).unwrap());
+    let mut page = synthetic_page(expected, PageType::Heap.ordinal(), 0x02);
+    page[32..40].copy_from_slice(b"cipher!!");
+    let mut plaintext = [0_u8; DB_PAGE_SIZE];
+    plaintext[4..6].copy_from_slice(&1_i16.to_le_bytes());
+    plaintext[6..8].copy_from_slice(&8_u16.to_le_bytes());
+    plaintext[8..12].copy_from_slice(&16_312_i32.to_le_bytes());
+    plaintext[12..16].copy_from_slice(&16_312_i32.to_le_bytes());
+    plaintext[16..20].copy_from_slice(&32_i32.to_le_bytes());
+    let decoded = decode_decrypted_page_envelope(&page, &plaintext, expected).unwrap();
+    assert_eq!(decoded.tde_algorithm(), Some(TdeAlgorithm::Aria));
+    assert!(matches!(
+        decoded.content(),
+        PageContent::Decrypted {
+            algorithm: TdeAlgorithm::Aria
+        }
+    ));
+    let slotted = decode_slotted_page(&decoded).unwrap();
+    assert!(slotted.slots().is_empty());
 }
 
 #[test]
