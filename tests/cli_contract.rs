@@ -111,6 +111,14 @@ fn help_and_usage_are_stable_and_do_not_scan() {
     assert!(String::from_utf8_lossy(&help.stdout).contains("Read-only CUBRID volume inspector"));
     assert!(help.stderr.is_empty());
 
+    let serve_help = volmap(&["serve", "--help"]);
+    assert!(serve_help.status.success());
+    let serve_help = String::from_utf8(serve_help.stdout).unwrap();
+    assert!(serve_help.contains("--listen"));
+    assert!(!serve_help.contains("--allow-remote-http"));
+    assert!(!serve_help.contains("--external-origin"));
+    assert!(!serve_help.contains("--token-file"));
+
     let bare = volmap(&[]);
     assert_eq!(bare.status.code(), Some(2));
     assert!(bare.stdout.is_empty());

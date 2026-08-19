@@ -125,12 +125,6 @@ struct ServeCommand {
     resources: ResourceArgs,
     #[arg(long, default_value = "127.0.0.1:0")]
     listen: SocketAddr,
-    #[arg(long)]
-    allow_remote_http: bool,
-    #[arg(long)]
-    external_origin: Option<String>,
-    #[arg(long)]
-    token_file: Option<PathBuf>,
 }
 
 #[derive(Clone, Copy, Debug, Args)]
@@ -423,9 +417,6 @@ fn run(cli: Cli) -> Result<i32, CliError> {
                 view,
                 crate::web::ServeOptions {
                     listen: command.listen,
-                    allow_remote_http: command.allow_remote_http,
-                    external_origin: command.external_origin,
-                    token_file: command.token_file,
                     policy,
                 },
             )

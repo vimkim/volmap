@@ -193,7 +193,7 @@ _Avoid_: OOS chain page
 ## Distribution
 
 **Live inspection session**:
-One foreground `serve` process, its fresh bearer credential, immutable revision history, enrichment jobs, cursors, and browser/API locations. All of them expire together when the process ends; they are never reused as a persistent inspection index.
+One foreground `serve` process, its private cursor-integrity key, immutable revision history, enrichment jobs, cursors, and browser/API locations. The HTTP interface is unauthenticated; remote exposure requires an explicit IPv4 wildcard listener. All process state expires together when the process ends and is never reused as a persistent inspection index.
 _Avoid_: Web deployment, daemon, saved report
 
 **HTML inspection export**:

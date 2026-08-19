@@ -13,7 +13,7 @@ envelopes (including MVCC header structure), validated same-heap relocation
 edges, vacuum metadata, structural B-tree
 root/node/OID-overflow metadata, validated catalog directory/class/representation
 metadata, terminal browsing,
-deterministic HTML export, and the authenticated web viewer are usable. TDE
+deterministic HTML export, and the live web viewer are usable. TDE
 decryption is available from an explicit local key file and applies to every
 deep page read. The pinned source-derived acceptance corpus covers the current
 semantic page families. Fast page facts use an exact 16-byte canonical form and
@@ -73,8 +73,8 @@ values.
 
 ## Web access
 
-Loopback is the default. The bearer token is printed once to the controlling
-terminal, or written to a new mode-0600 file:
+Loopback is the default, and the browser opens the inspection directly without
+a credential prompt:
 
 ```sh
 volmap serve --vinf /snapshot/db_vinf --listen 127.0.0.1:8080
@@ -86,19 +86,17 @@ From another machine, forward the loopback listener through SSH:
 ssh -L 8080:127.0.0.1:8080 user@server
 ```
 
-For an explicitly trusted internal network, plain HTTP on all interfaces is
-supported with an explicit acknowledgement and exact browser origin:
+To accept remote clients, explicitly listen on all IPv4 interfaces:
 
 ```sh
-volmap serve --vinf /snapshot/db_vinf \
-  --listen 0.0.0.0:8080 \
-  --allow-remote-http \
-  --external-origin http://10.0.0.15:8080
+volmap serve --vinf /snapshot/db_vinf --listen 0.0.0.0:8080
 ```
 
-This mode provides authentication, not transport confidentiality or integrity.
-Use SSH, a VPN, or a trusted TLS reverse proxy when the network is not trusted.
-The token is never accepted in a URL and the browser keeps it only in memory.
+This mode is deliberately unauthenticated: anyone who can reach the port can
+inspect metadata and request bounded enrichment. Use a firewall, SSH, a VPN, or
+a trusted TLS reverse proxy when the network is not fully trusted. Binding a
+specific non-loopback address or the IPv6 wildcard is rejected; remote access
+must be the explicit `0.0.0.0:PORT` form.
 The volume workspace renders a progressively loaded full-volume mosaic: every
 sector is an 8×8 grid of its 64 pages. Allocated slotted pages split green
 occupied space from blue free space using an eager header summary; pages whose
@@ -113,9 +111,9 @@ unallocated, or deleted, with record and directory offsets and sizes shown
 separately. Every volume, sector, page, slot, and OOS view has a canonical URL
 that pins both the snapshot and immutable inspection revision. Browser Back and
 Forward restore those exact views and revisions; reloading a deep URL restores
-the same view after the in-memory bearer token is entered again. Enrichment
-publishes a new revision URL, so the previous revision remains reachable in
-browser history. Breadcrumb and Back controls return to the preceding level.
+the same view directly. Enrichment publishes a new revision URL, so the
+previous revision remains reachable in browser history. Breadcrumb and Back
+controls return to the preceding level.
 
 ## Safety and scope
 

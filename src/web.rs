@@ -1,11 +1,9 @@
-//! Authenticated, same-origin HTTP adapter with embedded Atlas assets.
+//! Read-only HTTP adapter with embedded Atlas assets.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::OpenOptions;
-use std::io::{self, IsTerminal, Read, Write};
-use std::net::SocketAddr;
-use std::os::unix::fs::OpenOptionsExt;
-use std::path::PathBuf;
+use std::io::{self, Read};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::{Arc, RwLock};
 
 use axum::Json;
@@ -13,10 +11,9 @@ use axum::Router;
 use axum::extract::DefaultBodyLimit;
 use axum::extract::rejection::{JsonRejection, QueryRejection};
 use axum::extract::{Path, Query, Request, State};
-use axum::http::header::{
-    AUTHORIZATION, CACHE_CONTROL, CONTENT_SECURITY_POLICY, CONTENT_TYPE, HOST, ORIGIN,
-};
-use axum::http::{HeaderName, HeaderValue, StatusCode, Uri};
+use axum::http::header::{CACHE_CONTROL, CONTENT_SECURITY_POLICY, CONTENT_TYPE, HOST, ORIGIN};
+use axum::http::uri::Authority;
+use axum::http::{HeaderName, HeaderValue, StatusCode};
 use axum::middleware::{Next, from_fn_with_state};
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{get, post};
@@ -50,9 +47,6 @@ const MAX_SECTOR_COLLECTION_LIMIT: usize = 64;
 #[derive(Clone, Debug)]
 pub struct ServeOptions {
     pub listen: SocketAddr,
-    pub allow_remote_http: bool,
-    pub external_origin: Option<String>,
-    pub token_file: Option<PathBuf>,
     pub policy: ResourcePolicy,
 }
 
@@ -61,9 +55,8 @@ struct WebState {
     session: Arc<RwLock<LiveSession>>,
     enrichment: Arc<Mutex<()>>,
     policy: ResourcePolicy,
-    token_header: Arc<[u8]>,
-    authority: Arc<str>,
-    origin: Arc<str>,
+    cursor_key: Arc<[u8; 32]>,
+    authority: Option<Arc<str>>,
     semaphore: Arc<Semaphore>,
 }
 
@@ -75,11 +68,7 @@ struct LiveSession {
 
 #[derive(Debug)]
 pub enum ServeError {
-    InvalidListener,
-    RemoteAcknowledgementRequired,
-    ExternalOriginRequired,
-    InvalidExternalOrigin,
-    TokenDisclosureUnavailable,
+    RemoteWildcardRequired,
     Io(io::Error),
     Runtime(String),
 }
@@ -87,17 +76,8 @@ pub enum ServeError {
 impl std::fmt::Display for ServeError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::InvalidListener => formatter.write_str("listener must use a numeric IP address"),
-            Self::RemoteAcknowledgementRequired => {
-                formatter.write_str("non-loopback HTTP requires --allow-remote-http")
-            }
-            Self::ExternalOriginRequired => {
-                formatter.write_str("wildcard HTTP requires --external-origin")
-            }
-            Self::InvalidExternalOrigin => formatter.write_str("invalid external origin"),
-            Self::TokenDisclosureUnavailable => formatter.write_str(
-                "token disclosure requires a controlling terminal or a new --token-file",
-            ),
+            Self::RemoteWildcardRequired => formatter
+                .write_str("remote HTTP requires an explicit --listen 0.0.0.0:PORT listener"),
             Self::Io(error) => write!(formatter, "web I/O failed: {error}"),
             Self::Runtime(message) => write!(formatter, "web runtime failed: {message}"),
         }
@@ -126,18 +106,7 @@ async fn serve_async(view: GraphView, options: ServeOptions) -> Result<(), Serve
         .await
         .map_err(ServeError::Io)?;
     let local = listener.local_addr().map_err(ServeError::Io)?;
-    let origin = options
-        .external_origin
-        .as_deref()
-        .map(parse_origin)
-        .transpose()?
-        .unwrap_or_else(|| ParsedOrigin {
-            origin: format!("http://{local}"),
-            authority: local.to_string(),
-        });
-    let token = generate_token()?;
-    disclose_token(&token, options.token_file.as_ref())?;
-    let token_header = Arc::<[u8]>::from(format!("Bearer {token}").into_bytes());
+    let cursor_key = Arc::new(generate_cursor_key()?);
     let initial_revision = view.overview().revision.get();
     let mut views = BTreeMap::new();
     views.insert(initial_revision, view);
@@ -149,16 +118,15 @@ async fn serve_async(view: GraphView, options: ServeOptions) -> Result<(), Serve
         })),
         enrichment: Arc::new(Mutex::new(())),
         policy: options.policy,
-        token_header,
-        authority: Arc::from(origin.authority.as_str()),
-        origin: Arc::from(origin.origin.as_str()),
+        cursor_key,
+        authority: (!options.listen.ip().is_unspecified()).then(|| Arc::from(local.to_string())),
         semaphore: Arc::new(Semaphore::new(MAX_CONCURRENT_REQUESTS)),
     };
     let router = build_router(state);
-    eprintln!("Volmap web origin: {}", origin.origin);
+    eprintln!("Volmap web listener: http://{local}");
     if !options.listen.ip().is_loopback() {
         eprintln!(
-            "WARNING: plain HTTP on a non-loopback listener; bearer authentication does not provide transport confidentiality or integrity. Use only on a trusted internal network, SSH, VPN, or a trusted TLS proxy."
+            "WARNING: unauthenticated plain HTTP is listening on all interfaces. Anyone who can reach this port can inspect metadata and request enrichment."
         );
     }
     axum::serve(listener, router)
@@ -298,27 +266,16 @@ fn guard(state: &WebState, request: &Request) -> Result<(), GuardError> {
     }
     let mut hosts = request.headers().get_all(HOST).iter();
     let host = hosts.next().and_then(|value| value.to_str().ok());
-    if host != Some(state.authority.as_ref()) || hosts.next().is_some() {
+    let valid_authority = host.is_some_and(|value| value.parse::<Authority>().is_ok());
+    let expected_authority_matches = state
+        .authority
+        .as_deref()
+        .is_none_or(|authority| host == Some(authority));
+    if !valid_authority || !expected_authority_matches || hosts.next().is_some() {
         return Err(GuardError {
             status: StatusCode::MISDIRECTED_REQUEST,
             code: "invalid-host",
         });
-    }
-    if request.uri().path().starts_with("/api/v1/") {
-        let authorization = request.headers().get_all(AUTHORIZATION);
-        let mut values = authorization.iter();
-        let supplied = values.next().map(HeaderValue::as_bytes);
-        let exactly_one = values.next().is_none();
-        let valid = supplied.is_some_and(|value| {
-            value.len() == state.token_header.len()
-                && bool::from(value.ct_eq(state.token_header.as_ref()))
-        });
-        if !exactly_one || !valid {
-            return Err(GuardError {
-                status: StatusCode::UNAUTHORIZED,
-                code: "authentication-required",
-            });
-        }
     }
     let enrichment_post = request.uri().path().ends_with("/enrichments");
     let method_allowed = if enrichment_post {
@@ -349,7 +306,8 @@ fn guard(state: &WebState, request: &Request) -> Result<(), GuardError> {
         let origins = request.headers().get_all(ORIGIN);
         let mut values = origins.iter();
         let supplied = values.next().and_then(|value| value.to_str().ok());
-        if supplied != Some(state.origin.as_ref()) || values.next().is_some() {
+        let expected_origin = host.map(|authority| format!("http://{authority}"));
+        if supplied != expected_origin.as_deref() || values.next().is_some() {
             return Err(GuardError {
                 status: StatusCode::FORBIDDEN,
                 code: "origin-rejected",
@@ -454,7 +412,7 @@ async fn session(State(state): State<WebState>) -> Response {
     Json(api_envelope(
         &overview,
         SessionProjection {
-            origin: state.origin.to_string(),
+            access: "unauthenticated-http",
         },
     ))
     .into_response()
@@ -462,7 +420,7 @@ async fn session(State(state): State<WebState>) -> Response {
 
 #[derive(Serialize)]
 struct SessionProjection {
-    origin: String,
+    access: &'static str,
 }
 
 fn latest_view(state: &WebState) -> Result<GraphView, GuardError> {
@@ -819,11 +777,7 @@ fn cursor_mac(
     payload: &[u8],
 ) -> [u8; 32] {
     let mut key = [0_u8; 64];
-    if state.token_header.len() > key.len() {
-        key[..32].copy_from_slice(&Sha256::digest(state.token_header.as_ref()));
-    } else {
-        key[..state.token_header.len()].copy_from_slice(state.token_header.as_ref());
-    }
+    key[..state.cursor_key.len()].copy_from_slice(state.cursor_key.as_ref());
     let mut inner_pad = [0x36_u8; 64];
     let mut outer_pad = [0x5c_u8; 64];
     for ((inner, outer), key_byte) in inner_pad.iter_mut().zip(outer_pad.iter_mut()).zip(key) {
@@ -1510,87 +1464,28 @@ fn error_response(status: StatusCode, code: &'static str) -> Response {
 
 fn validate_listener(options: &ServeOptions) -> Result<(), ServeError> {
     let ip = options.listen.ip();
-    if !ip.is_loopback() && !options.allow_remote_http {
-        return Err(ServeError::RemoteAcknowledgementRequired);
-    }
-    if ip.is_unspecified() && options.external_origin.is_none() {
-        return Err(ServeError::ExternalOriginRequired);
-    }
-    if let Some(origin) = &options.external_origin {
-        parse_origin(origin)?;
+    if !ip.is_loopback() && ip != IpAddr::V4(Ipv4Addr::UNSPECIFIED) {
+        return Err(ServeError::RemoteWildcardRequired);
     }
     Ok(())
 }
 
-struct ParsedOrigin {
-    origin: String,
-    authority: String,
-}
-
-fn parse_origin(value: &str) -> Result<ParsedOrigin, ServeError> {
-    let uri: Uri = value
-        .parse()
-        .map_err(|_| ServeError::InvalidExternalOrigin)?;
-    let scheme = uri.scheme_str().ok_or(ServeError::InvalidExternalOrigin)?;
-    if !matches!(scheme, "http" | "https")
-        || uri.path() != "/"
-        || uri.query().is_some()
-        || uri.authority().is_none()
-    {
-        return Err(ServeError::InvalidExternalOrigin);
-    }
-    let authority = uri.authority().ok_or(ServeError::InvalidExternalOrigin)?;
-    if authority.as_str().contains('@') || authority.port_u16().is_none() {
-        return Err(ServeError::InvalidExternalOrigin);
-    }
-    Ok(ParsedOrigin {
-        origin: format!("{scheme}://{authority}"),
-        authority: authority.to_string(),
-    })
-}
-
-fn generate_token() -> Result<String, ServeError> {
+fn generate_cursor_key() -> Result<[u8; 32], ServeError> {
     let mut random = OpenOptions::new().read(true).open("/dev/urandom")?;
     let mut bytes = [0_u8; 32];
     random.read_exact(&mut bytes)?;
-    let mut token = String::with_capacity(64);
-    for byte in bytes {
-        use std::fmt::Write as _;
-        write!(&mut token, "{byte:02x}")
-            .map_err(|_| ServeError::Runtime("could not encode session credential".to_owned()))?;
-    }
-    Ok(token)
-}
-
-fn disclose_token(token: &str, token_file: Option<&PathBuf>) -> Result<(), ServeError> {
-    if let Some(path) = token_file {
-        let mut file = OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .mode(0o600)
-            .open(path)?;
-        file.write_all(token.as_bytes())?;
-        file.write_all(b"\n")?;
-        file.sync_all()?;
-        return Ok(());
-    }
-    if !io::stderr().is_terminal() {
-        return Err(ServeError::TokenDisclosureUnavailable);
-    }
-    eprintln!("Volmap bearer token (shown once): {token}");
-    Ok(())
+    Ok(bytes)
 }
 
 const INDEX_HTML: &str = r#"<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Volmap Inspector</title><link rel="stylesheet" href="/app.css"></head>
-<body><header><strong>VOLMAP</strong><span id="crumb">locked session</span><span class="spacer"></span><button id="licenses" hidden>About &amp; licenses</button><span id="outcome">locked</span></header>
-<section id="unlock"><h1>Unlock inspection</h1><p>Enter the one-time bearer token printed by the server. It remains only in this page's memory and is lost on refresh.</p><form id="unlockForm"><label>Bearer token <input id="token" type="password" autocomplete="off" spellcheck="false"></label><button>Unlock</button><p id="unlockError" role="alert"></p></form></section>
-<main id="app" hidden><aside><h2>Snapshot hierarchy</h2><div id="volumes"></div></aside><section class="workspace"><nav id="drillBreadcrumb" aria-label="Inspection hierarchy"></nav><div id="workspaceContent"></div></section></main>
+<body><header><strong>VOLMAP</strong><span id="crumb">loading session</span><span class="spacer"></span><button id="licenses">About &amp; licenses</button><span id="outcome">loading</span></header>
+<main id="app"><aside><h2>Snapshot hierarchy</h2><div id="volumes"></div></aside><section class="workspace"><nav id="drillBreadcrumb" aria-label="Inspection hierarchy"></nav><div id="workspaceContent"></div></section></main>
 <dialog id="infoDialog"><button id="closeInfo">Close</button><pre id="infoContent" class="withheld"></pre></dialog>
 <script src="/app.js"></script></body></html>"#;
 
 #[allow(clippy::needless_raw_string_hashes)]
-const APP_CSS: &str = r#":root{color-scheme:dark;--bg:#071014;--panel:#0d1820;--line:#29404b;--text:#dce8ec;--muted:#8fa5ae;--cyan:#68d8d0;--unreserved:#24323a;--reserved:#315f8a;--allocated:#2f845e;--system:#7658a5;--finding:#d25569}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,sans-serif}button,input{font:inherit}header{position:sticky;top:0;z-index:4;height:54px;display:flex;align-items:center;gap:18px;padding:0 18px;border-bottom:1px solid var(--line);background:#0a1319}header strong{letter-spacing:.08em}.spacer{flex:1}#unlock{max-width:620px;margin:12vh auto;padding:28px;border:1px solid var(--line);background:var(--panel)}#unlock label{display:grid;gap:7px}#unlock input{padding:10px;background:#071014;color:var(--text);border:1px solid var(--line)}button{padding:8px 11px;background:var(--cyan);color:#071014;border:0;font-weight:700;cursor:pointer}button:focus-visible,input:focus-visible,[role=gridcell]:focus-visible{outline:2px solid #ffd376;outline-offset:2px}main{min-height:calc(100vh - 54px);display:grid;grid-template-columns:220px minmax(560px,1fr)}aside,.workspace{min-width:0}aside{position:sticky;top:54px;height:calc(100vh - 54px);align-self:start;overflow:auto;border-right:1px solid var(--line)}h1,h2,h3,p{margin:0}h2{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);padding:14px;border-bottom:1px solid var(--line)}#volumes{padding:10px}.nav{display:block;width:100%;text-align:left;background:transparent;color:var(--text);border:0;padding:7px;margin:0}.nav.active{background:#16303b;color:var(--cyan)}#drillBreadcrumb{display:flex;align-items:center;gap:8px;min-height:50px;padding:9px 18px;border-bottom:1px solid var(--line);color:var(--muted)}#drillBreadcrumb button{padding:6px 9px;border:1px solid var(--line);background:var(--panel);color:var(--cyan)}#drillBreadcrumb .back{margin-right:8px;background:var(--cyan);color:var(--bg)}#workspaceContent{padding-bottom:24px}.workspace-title{display:flex;gap:18px;align-items:end;padding:18px}.workspace-title p,#legend,#mapStatus,.muted{color:var(--muted);font-size:12px}#legend{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:5px 12px;margin-left:auto;max-width:620px}.swatch{display:inline-block;width:9px;height:9px;margin-right:5px;border-radius:2px;background:var(--unreserved)}.swatch.reserved-unallocated,.swatch.free{background:var(--reserved)}.swatch.allocated{background:var(--allocated)}.swatch.system-metadata{background:var(--system)}.swatch.finding{background:transparent;border:2px solid var(--finding)}#volumeMap{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;padding:0 18px 18px}.sector-card{min-width:0;padding:0;border:1px solid var(--line);background:var(--panel);color:var(--text);text-align:left}.sector-card:hover{border-color:var(--cyan)}.sector-heading{display:flex;gap:7px;padding:6px 7px;color:var(--muted);font-size:11px}.sector-heading strong{color:var(--text)}.sector-heading span{margin-left:auto}.sector-preview-pages,.sector-focus-grid{display:grid;grid-template-columns:repeat(8,1fr)}.sector-preview-pages{gap:2px;padding:0 7px 7px}.page{aspect-ratio:1;min-width:0;margin:0;padding:0;border:1px solid transparent;border-radius:1px;background:var(--unreserved)}.page.unreserved{background:var(--unreserved)}.page.reserved-unallocated{background:var(--reserved)}.page.allocated{background:var(--allocated)}.page.allocated.occupancy-known{background:linear-gradient(to top,var(--allocated) 0 var(--occupied),var(--reserved) var(--occupied) 100%)}.page.allocated.occupancy-unknown{background:repeating-linear-gradient(135deg,var(--allocated) 0 4px,var(--reserved) 4px 8px)}.page.system-metadata{background:var(--system)}.page.finding{outline:2px solid var(--finding);outline-offset:-2px}.preview-page{display:block}.sector-focus{max-width:790px;margin:0 auto;padding:0 18px 30px}.sector-focus-grid{gap:7px}.focus-page{position:relative;color:var(--text);text-align:left}.focus-page.selected{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan),0 0 8px var(--cyan)}.focus-page .page-id{position:absolute;left:6px;bottom:5px;font-size:11px}.focus-page .page-kind{position:absolute;top:5px;left:6px;right:6px;overflow:hidden;color:#d5e0e4;font-size:9px;text-overflow:ellipsis;white-space:nowrap}#mapStatus{padding:0 18px 24px}#mapSentinel{height:1px;grid-column:1/-1}.page-workspace{display:grid;grid-template-columns:minmax(300px,1fr) minmax(360px,1.15fr);gap:18px;padding:0 18px 24px}.panel{min-width:0;padding:16px;border:1px solid var(--line);background:var(--panel)}.panel h2{padding:0 0 10px;border:0;color:var(--text);font-size:17px;letter-spacing:0;text-transform:none}.panel h3{margin:18px 0 8px}.page-facts{grid-template-columns:125px 1fr}.structure-facts{margin-top:16px}.slot-map{display:block;width:100%;height:82px;margin:10px 0;border:1px solid var(--line);background:#16242c}.slot-table{width:100%;border-collapse:collapse}.slot-table th,.slot-table td{padding:7px;border-bottom:1px solid var(--line);text-align:right}.slot-table th:first-child,.slot-table td:first-child{text-align:left}.slot-action{padding:3px 6px;background:transparent;color:var(--cyan);border:1px solid var(--line)}.slot-detail{grid-column:1/-1}.status-note{margin-top:12px;padding:9px;border:1px solid var(--line);color:var(--muted)}dl{display:grid;grid-template-columns:115px 1fr;gap:7px}dt{color:var(--muted)}dd{margin:0;overflow-wrap:anywhere}.withheld{padding:8px;border:1px solid var(--line);color:var(--muted);font-family:ui-monospace,monospace;white-space:pre-wrap}dialog{max-width:min(860px,90vw);max-height:80vh;background:var(--panel);color:var(--text);border:1px solid var(--cyan)}dialog::backdrop{background:#000b}@media(max-width:900px){main{grid-template-columns:190px 1fr}.page-workspace{grid-template-columns:1fr}}@media(max-width:720px){header{position:static;height:auto;min-height:54px;flex-wrap:wrap;padding:10px 14px}main{display:block}aside{position:static;height:auto;border:0;border-bottom:1px solid var(--line)}.workspace-title{display:block}.workspace-title #legend{justify-content:flex-start;margin:10px 0 0}#volumeMap{grid-template-columns:repeat(2,minmax(135px,1fr));gap:8px;padding:0 12px 16px}.sector-focus-grid{gap:4px}.page-workspace{padding:0 12px 18px}}"#;
+const APP_CSS: &str = r#":root{color-scheme:dark;--bg:#071014;--panel:#0d1820;--line:#29404b;--text:#dce8ec;--muted:#8fa5ae;--cyan:#68d8d0;--unreserved:#24323a;--reserved:#315f8a;--allocated:#2f845e;--system:#7658a5;--finding:#d25569}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,sans-serif}button{font:inherit}header{position:sticky;top:0;z-index:4;height:54px;display:flex;align-items:center;gap:18px;padding:0 18px;border-bottom:1px solid var(--line);background:#0a1319}header strong{letter-spacing:.08em}.spacer{flex:1}button{padding:8px 11px;background:var(--cyan);color:#071014;border:0;font-weight:700;cursor:pointer}button:focus-visible,[role=gridcell]:focus-visible{outline:2px solid #ffd376;outline-offset:2px}main{min-height:calc(100vh - 54px);display:grid;grid-template-columns:220px minmax(560px,1fr)}aside,.workspace{min-width:0}aside{position:sticky;top:54px;height:calc(100vh - 54px);align-self:start;overflow:auto;border-right:1px solid var(--line)}h1,h2,h3,p{margin:0}h2{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);padding:14px;border-bottom:1px solid var(--line)}#volumes{padding:10px}.nav{display:block;width:100%;text-align:left;background:transparent;color:var(--text);border:0;padding:7px;margin:0}.nav.active{background:#16303b;color:var(--cyan)}#drillBreadcrumb{display:flex;align-items:center;gap:8px;min-height:50px;padding:9px 18px;border-bottom:1px solid var(--line);color:var(--muted)}#drillBreadcrumb button{padding:6px 9px;border:1px solid var(--line);background:var(--panel);color:var(--cyan)}#drillBreadcrumb .back{margin-right:8px;background:var(--cyan);color:var(--bg)}#workspaceContent{padding-bottom:24px}.workspace-title{display:flex;gap:18px;align-items:end;padding:18px}.workspace-title p,#legend,#mapStatus,.muted{color:var(--muted);font-size:12px}#legend{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:5px 12px;margin-left:auto;max-width:620px}.swatch{display:inline-block;width:9px;height:9px;margin-right:5px;border-radius:2px;background:var(--unreserved)}.swatch.reserved-unallocated,.swatch.free{background:var(--reserved)}.swatch.allocated{background:var(--allocated)}.swatch.system-metadata{background:var(--system)}.swatch.finding{background:transparent;border:2px solid var(--finding)}#volumeMap{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;padding:0 18px 18px}.sector-card{min-width:0;padding:0;border:1px solid var(--line);background:var(--panel);color:var(--text);text-align:left}.sector-card:hover{border-color:var(--cyan)}.sector-heading{display:flex;gap:7px;padding:6px 7px;color:var(--muted);font-size:11px}.sector-heading strong{color:var(--text)}.sector-heading span{margin-left:auto}.sector-preview-pages,.sector-focus-grid{display:grid;grid-template-columns:repeat(8,1fr)}.sector-preview-pages{gap:2px;padding:0 7px 7px}.page{aspect-ratio:1;min-width:0;margin:0;padding:0;border:1px solid transparent;border-radius:1px;background:var(--unreserved)}.page.unreserved{background:var(--unreserved)}.page.reserved-unallocated{background:var(--reserved)}.page.allocated{background:var(--allocated)}.page.allocated.occupancy-known{background:linear-gradient(to top,var(--allocated) 0 var(--occupied),var(--reserved) var(--occupied) 100%)}.page.allocated.occupancy-unknown{background:repeating-linear-gradient(135deg,var(--allocated) 0 4px,var(--reserved) 4px 8px)}.page.system-metadata{background:var(--system)}.page.finding{outline:2px solid var(--finding);outline-offset:-2px}.preview-page{display:block}.sector-focus{max-width:790px;margin:0 auto;padding:0 18px 30px}.sector-focus-grid{gap:7px}.focus-page{position:relative;color:var(--text);text-align:left}.focus-page.selected{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan),0 0 8px var(--cyan)}.focus-page .page-id{position:absolute;left:6px;bottom:5px;font-size:11px}.focus-page .page-kind{position:absolute;top:5px;left:6px;right:6px;overflow:hidden;color:#d5e0e4;font-size:9px;text-overflow:ellipsis;white-space:nowrap}#mapStatus{padding:0 18px 24px}#mapSentinel{height:1px;grid-column:1/-1}.page-workspace{display:grid;grid-template-columns:minmax(300px,1fr) minmax(360px,1.15fr);gap:18px;padding:0 18px 24px}.panel{min-width:0;padding:16px;border:1px solid var(--line);background:var(--panel)}.panel h2{padding:0 0 10px;border:0;color:var(--text);font-size:17px;letter-spacing:0;text-transform:none}.panel h3{margin:18px 0 8px}.page-facts{grid-template-columns:125px 1fr}.structure-facts{margin-top:16px}.slot-map{display:block;width:100%;height:82px;margin:10px 0;border:1px solid var(--line);background:#16242c}.slot-table{width:100%;border-collapse:collapse}.slot-table th,.slot-table td{padding:7px;border-bottom:1px solid var(--line);text-align:right}.slot-table th:first-child,.slot-table td:first-child{text-align:left}.slot-action{padding:3px 6px;background:transparent;color:var(--cyan);border:1px solid var(--line)}.slot-detail{grid-column:1/-1}.status-note{margin-top:12px;padding:9px;border:1px solid var(--line);color:var(--muted)}dl{display:grid;grid-template-columns:115px 1fr;gap:7px}dt{color:var(--muted)}dd{margin:0;overflow-wrap:anywhere}.withheld{padding:8px;border:1px solid var(--line);color:var(--muted);font-family:ui-monospace,monospace;white-space:pre-wrap}dialog{max-width:min(860px,90vw);max-height:80vh;background:var(--panel);color:var(--text);border:1px solid var(--cyan)}dialog::backdrop{background:#000b}@media(max-width:900px){main{grid-template-columns:190px 1fr}.page-workspace{grid-template-columns:1fr}}@media(max-width:720px){header{position:static;height:auto;min-height:54px;flex-wrap:wrap;padding:10px 14px}main{display:block}aside{position:static;height:auto;border:0;border-bottom:1px solid var(--line)}.workspace-title{display:block}.workspace-title #legend{justify-content:flex-start;margin:10px 0 0}#volumeMap{grid-template-columns:repeat(2,minmax(135px,1fr));gap:8px;padding:0 12px 16px}.sector-focus-grid{gap:4px}.page-workspace{padding:0 12px 18px}}"#;
 
 const DISTRIBUTION_CSS: &str = r"
 .page-distribution{display:grid;gap:14px}
@@ -1638,7 +1533,7 @@ const DISTRIBUTION_CSS: &str = r"
 ";
 
 const APP_JS: &str = r"(()=>{'use strict';
-let token='',session=null,currentVolume=null,currentSector=null,currentPage=null,selectedPage=null,selectedSlot=null,currentLevel='volume',volumeView=null,sectorCursor='end',loadedSectors=0,loadingGeneration=null,loadGeneration=0,routeGeneration=0;
+let session=null,currentVolume=null,currentSector=null,currentPage=null,selectedPage=null,selectedSlot=null,currentLevel='volume',volumeView=null,sectorCursor='end',loadedSectors=0,loadingGeneration=null,loadGeneration=0,routeGeneration=0;
 const sectorCache=new Map();
 const $=id=>document.getElementById(id);
 function button(label,action,className=''){const node=document.createElement('button');node.textContent=label;node.className=className;node.onclick=action;return node}
@@ -1649,10 +1544,10 @@ function browserRoutePath(route){const prefix=`/s/${route.snapshot}/r/${route.re
 function browserParentPath(route){if(route.kind==='volume')return null;if(route.kind==='sector')return browserRoutePath({...route,kind:'volume'});if(route.kind==='page')return browserRoutePath({...route,kind:'sector',sector:currentSector.sector_id});if(route.kind==='slot')return browserRoutePath({...route,kind:'page'});return browserRoutePath({...route,kind:'slot'})}
 function syncBrowserRoute(kind,mode='push'){if(mode==='none')return;const route=browserRoute(kind),path=browserRoutePath(route),parent=browserParentPath(route);if(location.pathname===path){if(!history.state?.volmap)history.replaceState({volmap:true,previous:null,parent},'',path);return}if(mode==='replace')history.replaceState({volmap:true,previous:history.state?.previous||null,parent},'',path);else history.pushState({volmap:true,previous:location.pathname,parent},'',path)}
 function installBrowserRouteState(route){const current=browserRoute(route.kind);history.replaceState({volmap:true,previous:null,parent:browserParentPath(current)},'',browserRoutePath(current))}
-async function api(path,options={}){const headers={Authorization:`Bearer ${token}`,...options.headers};const response=await fetch(path,{...options,headers,cache:'no-store',credentials:'omit'});if(!response.ok)throw new Error(`request failed (${response.status})`);return response.json()}
+async function api(path,options={}){const response=await fetch(path,{...options,cache:'no-store',credentials:'same-origin'});if(!response.ok)throw new Error(`request failed (${response.status})`);return response.json()}
 function base(){return `/api/v1/s/${session.snapshot.id}/r/${session.snapshot.revision}`}
 function updateSession(payload){session.snapshot=payload.snapshot;session.outcome=payload.outcome;$('outcome').textContent=payload.outcome;$('crumb').textContent=`snapshot ${payload.snapshot.id.slice(0,12)} · revision ${payload.snapshot.revision}`}
-async function unlock(event){event.preventDefault();token=$('token').value;$('token').value='';$('unlockError').textContent='';try{const route=parseBrowserRoute();if(!route)throw new Error('invalid inspector URL');session=await api('/api/v1/session');if(route.kind!=='root'){if(route.snapshot!==session.snapshot.id)throw new Error('this URL belongs to a different snapshot');session.snapshot.revision=route.revision}updateSession(session);await loadVolumes(route);$('unlock').hidden=true;$('app').hidden=false;$('licenses').hidden=false}catch(error){token='';$('unlock').hidden=false;$('app').hidden=true;$('licenses').hidden=true;$('unlockError').textContent=error.message}}
+async function start(){try{const route=parseBrowserRoute();if(!route)throw new Error('invalid inspector URL');session=await api('/api/v1/session');if(route.kind!=='root'){if(route.snapshot!==session.snapshot.id)throw new Error('this URL belongs to a different snapshot');session.snapshot.revision=route.revision}updateSession(session);await loadVolumes(route)}catch(error){renderWorkspaceError(error)}}
 async function loadVolumes(route={kind:'root'}){const payload=await api(`${base()}/volumes`),root=$('volumes'),volumes=payload.data.items;updateSession(payload);root.replaceChildren();for(const volume of volumes){const node=button(`volume ${volume.vol_id} · ${volume.total_sectors} sectors`,()=>selectVolume(volume),'nav');node.dataset.volume=String(volume.vol_id);root.append(node)}if(!volumes.length)return;const volume=route.kind==='root'?volumes[0]:volumes.find(value=>value.vol_id===route.vol);if(!volume)throw new Error('the URL volume does not exist in this revision');activateVolume(volume);if(route.kind==='root')await showVolume('replace');else{await restoreBrowserRoute(route);installBrowserRouteState(route)}}
 function invalidateVolumeView(){mapObserver.disconnect();volumeView=null;sectorCache.clear();sectorCursor='end';loadedSectors=0;loadGeneration++}
 function activateVolume(volume){currentVolume=volume;currentSector=null;currentPage=null;selectedPage=null;selectedSlot=null;invalidateVolumeView();document.querySelectorAll('#volumes .nav').forEach(node=>node.classList.toggle('active',node.dataset.volume===String(volume.vol_id)))}
@@ -1691,7 +1586,7 @@ async function restoreBrowserRoute(route){if(route.kind==='volume'){await showVo
 async function restoreBrowserLocation(){const generation=++routeGeneration;try{const route=parseBrowserRoute();if(!route)throw new Error('invalid inspector URL');if(route.kind==='root'){session=await api('/api/v1/session');updateSession(session);if(generation===routeGeneration)await loadVolumes(route);return}if(route.snapshot!==session.snapshot.id)throw new Error('this URL belongs to a different snapshot');session.snapshot.revision=route.revision;if(generation===routeGeneration)await loadVolumes(route)}catch(error){if(generation===routeGeneration)renderWorkspaceError(error)}}
 function renderWorkspaceError(error){const note=document.createElement('p');note.className='status-note';note.setAttribute('role','alert');note.textContent=error.message;$('workspaceContent').append(note)}
 async function showLicenses(){const payload=await api('/api/v1/licenses');$('infoContent').textContent=payload.notice;$('infoDialog').showModal()}
-window.addEventListener('popstate',()=>{if(session)restoreBrowserLocation()});$('closeInfo').addEventListener('click',()=>$('infoDialog').close());$('licenses').addEventListener('click',showLicenses);$('unlockForm').addEventListener('submit',unlock)})();";
+window.addEventListener('popstate',()=>{if(session)restoreBrowserLocation()});$('closeInfo').addEventListener('click',()=>$('infoDialog').close());$('licenses').addEventListener('click',showLicenses);start()})();";
 
 #[cfg(test)]
 mod tests {
@@ -1708,10 +1603,16 @@ mod tests {
             })),
             enrichment: Arc::new(Mutex::new(())),
             policy: ResourcePolicy::new(1024, 1024, 1, 1, 1024).unwrap(),
-            token_header: Arc::from(&b"Bearer test-token"[..]),
-            authority: Arc::from("127.0.0.1:8787"),
-            origin: Arc::from("http://127.0.0.1:8787"),
+            cursor_key: Arc::new([7_u8; 32]),
+            authority: Some(Arc::from("127.0.0.1:8787")),
             semaphore: Arc::new(Semaphore::new(1)),
+        }
+    }
+
+    fn wildcard_state() -> WebState {
+        WebState {
+            authority: None,
+            ..state()
         }
     }
 
@@ -1724,51 +1625,31 @@ mod tests {
             .unwrap()
     }
 
-    fn authenticated(method: Method, uri: &str) -> Request<Body> {
-        let mut request = request(method, uri);
-        request
-            .headers_mut()
-            .insert(AUTHORIZATION, HeaderValue::from_static("Bearer test-token"));
-        request
+    #[test]
+    fn api_requests_are_unauthenticated() {
+        let state = state();
+        let request = request(Method::GET, "/api/v1/session");
+        assert!(guard(&state, &request).is_ok());
     }
 
     #[test]
-    fn api_authentication_is_exact_and_constant_shape() {
+    fn wildcard_listener_accepts_any_valid_host_while_loopback_stays_exact() {
         let state = state();
-        let valid = authenticated(Method::GET, "/api/v1/session");
-        assert!(guard(&state, &valid).is_ok());
-
-        let missing = request(Method::GET, "/api/v1/session");
-        let error = guard(&state, &missing).unwrap_err();
-        assert_eq!(error.status, StatusCode::UNAUTHORIZED);
-        assert_eq!(error.code, "authentication-required");
-
-        let mut duplicate = authenticated(Method::GET, "/api/v1/session");
-        duplicate
-            .headers_mut()
-            .append(AUTHORIZATION, HeaderValue::from_static("Bearer test-token"));
-        assert_eq!(
-            guard(&state, &duplicate).unwrap_err().status,
-            StatusCode::UNAUTHORIZED
-        );
-    }
-
-    #[test]
-    fn host_check_precedes_auth_and_ignores_forwarded_authority() {
-        let state = state();
-        let mut request = authenticated(Method::GET, "/api/v1/session");
-        request
+        let mut wrong_host = request(Method::GET, "/api/v1/session");
+        wrong_host
             .headers_mut()
             .insert(HOST, HeaderValue::from_static("attacker.test:8787"));
-        request.headers_mut().insert(
+        wrong_host.headers_mut().insert(
             HeaderName::from_static("x-forwarded-host"),
             HeaderValue::from_static("127.0.0.1:8787"),
         );
-        let error = guard(&state, &request).unwrap_err();
+        let error = guard(&state, &wrong_host).unwrap_err();
         assert_eq!(error.status, StatusCode::MISDIRECTED_REQUEST);
         assert_eq!(error.code, "invalid-host");
 
-        let mut duplicate = authenticated(Method::GET, "/api/v1/session");
+        assert!(guard(&wildcard_state(), &wrong_host).is_ok());
+
+        let mut duplicate = request(Method::GET, "/api/v1/session");
         duplicate
             .headers_mut()
             .append(HOST, HeaderValue::from_static("127.0.0.1:8787"));
@@ -1781,7 +1662,7 @@ mod tests {
     #[test]
     fn post_requires_exact_json_origin_and_same_site_context() {
         let state = state();
-        let mut valid = authenticated(Method::POST, "/api/v1/s/id/r/0/enrichments");
+        let mut valid = request(Method::POST, "/api/v1/s/id/r/0/enrichments");
         valid
             .headers_mut()
             .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
@@ -1790,7 +1671,20 @@ mod tests {
             .insert(ORIGIN, HeaderValue::from_static("http://127.0.0.1:8787"));
         assert!(guard(&state, &valid).is_ok());
 
-        let mut missing_origin = authenticated(Method::POST, "/api/v1/s/id/r/0/enrichments");
+        let mut wildcard = request(Method::POST, "/api/v1/s/id/r/0/enrichments");
+        wildcard
+            .headers_mut()
+            .insert(HOST, HeaderValue::from_static("debug.internal:8787"));
+        wildcard
+            .headers_mut()
+            .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        wildcard.headers_mut().insert(
+            ORIGIN,
+            HeaderValue::from_static("http://debug.internal:8787"),
+        );
+        assert!(guard(&wildcard_state(), &wildcard).is_ok());
+
+        let mut missing_origin = request(Method::POST, "/api/v1/s/id/r/0/enrichments");
         missing_origin
             .headers_mut()
             .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
@@ -1809,7 +1703,7 @@ mod tests {
             StatusCode::FORBIDDEN
         );
 
-        let mut content_type = authenticated(Method::POST, "/api/v1/s/id/r/0/enrichments");
+        let mut content_type = request(Method::POST, "/api/v1/s/id/r/0/enrichments");
         content_type.headers_mut().insert(
             CONTENT_TYPE,
             HeaderValue::from_static("application/json; charset=utf-8"),
@@ -1823,13 +1717,13 @@ mod tests {
     #[test]
     fn unsupported_methods_are_rejected_before_routing() {
         let state = state();
-        let request = authenticated(Method::POST, "/api/v1/session");
-        let error = guard(&state, &request).unwrap_err();
+        let invalid_post = request(Method::POST, "/api/v1/session");
+        let error = guard(&state, &invalid_post).unwrap_err();
         assert_eq!(error.status, StatusCode::METHOD_NOT_ALLOWED);
         assert_eq!(error.code, "method-not-allowed");
 
-        let request = authenticated(Method::GET, "/api/v1/s/id/r/0/enrichments");
-        let error = guard(&state, &request).unwrap_err();
+        let invalid_get = request(Method::GET, "/api/v1/s/id/r/0/enrichments");
+        let error = guard(&state, &invalid_get).unwrap_err();
         assert_eq!(error.status, StatusCode::METHOD_NOT_ALLOWED);
     }
 
@@ -1862,65 +1756,32 @@ mod tests {
     fn options(listen: &str) -> ServeOptions {
         ServeOptions {
             listen: listen.parse().unwrap(),
-            allow_remote_http: false,
-            external_origin: None,
-            token_file: None,
             policy: ResourcePolicy::new(1024, 1024, 1, 1, 1024).unwrap(),
         }
     }
 
     #[test]
-    fn remote_http_requires_explicit_acknowledgement_and_wildcard_origin() {
+    fn remote_http_requires_the_explicit_ipv4_wildcard_listener() {
         assert!(validate_listener(&options("127.0.0.1:8787")).is_ok());
+        assert!(validate_listener(&options("0.0.0.0:8787")).is_ok());
 
-        let remote = options("192.0.2.10:8787");
-        assert!(matches!(
-            validate_listener(&remote),
-            Err(ServeError::RemoteAcknowledgementRequired)
-        ));
-
-        let mut remote = remote;
-        remote.allow_remote_http = true;
-        assert!(validate_listener(&remote).is_ok());
-
-        let mut wildcard = options("0.0.0.0:8787");
-        wildcard.allow_remote_http = true;
-        assert!(matches!(
-            validate_listener(&wildcard),
-            Err(ServeError::ExternalOriginRequired)
-        ));
-        wildcard.external_origin = Some("http://debug.internal:8787".to_owned());
-        assert!(validate_listener(&wildcard).is_ok());
-    }
-
-    #[test]
-    fn external_origin_is_an_exact_origin_with_an_explicit_port() {
-        let origin = parse_origin("http://debug.internal:8787").unwrap();
-        assert_eq!(origin.origin, "http://debug.internal:8787");
-        assert_eq!(origin.authority, "debug.internal:8787");
-        for invalid in [
-            "http://debug.internal",
-            "http://user@debug.internal:8787",
-            "http://debug.internal:8787/path",
-            "http://debug.internal:8787/?query",
-            "ftp://debug.internal:8787",
-        ] {
+        for rejected in ["192.0.2.10:8787", "[::]:8787"] {
             assert!(matches!(
-                parse_origin(invalid),
-                Err(ServeError::InvalidExternalOrigin)
+                validate_listener(&options(rejected)),
+                Err(ServeError::RemoteWildcardRequired)
             ));
         }
     }
 
     #[test]
-    fn browser_credential_has_no_url_or_storage_channel() {
-        assert!(!APP_JS.contains("localStorage"));
-        assert!(!APP_JS.contains("sessionStorage"));
-        assert!(!APP_JS.contains("location.hash"));
-        assert!(!APP_JS.contains("?token="));
-        assert!(!APP_JS.contains("&token="));
-        assert!(APP_JS.contains("Authorization:`Bearer ${token}`"));
-        assert!(INDEX_HTML.contains("remains only in this page's memory"));
+    fn browser_starts_directly_without_a_credential_gate() {
+        assert!(!APP_JS.contains("Authorization"));
+        assert!(!APP_JS.contains("Bearer"));
+        assert!(!INDEX_HTML.contains("unlockForm"));
+        assert!(!INDEX_HTML.contains("Bearer"));
+        assert!(!APP_CSS.contains("#unlock"));
+        assert!(APP_JS.contains("async function start()"));
+        assert!(APP_JS.contains("start()"));
     }
 
     #[test]
@@ -2093,7 +1954,7 @@ mod tests {
     }
 
     #[test]
-    fn collection_cursor_is_opaque_authenticated_and_revision_bound() {
+    fn collection_cursor_is_opaque_session_keyed_and_revision_bound() {
         let state = state();
         let mut overview = test_overview();
         let cursor = encode_cursor(&state, &overview, "volumes", 100);
