@@ -996,7 +996,8 @@ pub fn snapshot_id_hex(snapshot_id: SnapshotId) -> String {
     output
 }
 
-fn coverage_projection(coverage: CoverageRecord) -> CoverageProjection {
+#[must_use]
+pub fn coverage_projection(coverage: CoverageRecord) -> CoverageProjection {
     CoverageProjection {
         facet: coverage.facet,
         coverage: coverage_name(coverage.coverage),
@@ -1011,7 +1012,8 @@ fn coverage_projection(coverage: CoverageRecord) -> CoverageProjection {
     }
 }
 
-fn diagnostic_projection(diagnostic: DiagnosticRecord) -> DiagnosticProjection {
+#[must_use]
+pub fn diagnostic_projection(diagnostic: DiagnosticRecord) -> DiagnosticProjection {
     DiagnosticProjection {
         code: diagnostic.code,
         severity: diagnostic.severity,

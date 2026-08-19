@@ -11,6 +11,7 @@ use std::sync::{Arc, RwLock};
 use axum::Json;
 use axum::Router;
 use axum::extract::DefaultBodyLimit;
+use axum::extract::rejection::JsonRejection;
 use axum::extract::{Path, Request, State};
 use axum::http::header::{
     AUTHORIZATION, CACHE_CONTROL, CONTENT_SECURITY_POLICY, CONTENT_TYPE, HOST, ORIGIN,
@@ -25,11 +26,13 @@ use tokio::net::TcpListener;
 use tokio::sync::{Mutex, Semaphore};
 
 use crate::inspection::{CancelToken, GraphView, QueryError, ResourcePolicy};
-use crate::model::{Oid, PageId, SectorId, SlotId, VolId, Vpid};
+use crate::model::{FileId, Oid, PageId, SectorId, SlotId, Vfid, VolId, Vpid};
 use crate::projection::{
-    DeepPageProjection, OosChainProjection, PageProjection, SlotProjection, SnapshotProjection,
-    VolumeProjection, deep_page_projection, oos_chain_projection, outcome_name, page_projection,
-    sector_projection, slot_projection, snapshot_id_hex, summary_projection, volume_projection,
+    CoverageProjection, DeepPageProjection, DiagnosticProjection, OosChainProjection,
+    PageProjection, SCHEMA_NAME, SCHEMA_VERSION, SlotProjection, SnapshotProjection,
+    VolumeProjection, coverage_projection, deep_page_projection, diagnostic_projection,
+    file_header_projection, oos_chain_projection, outcome_name, page_projection, sector_projection,
+    slot_projection, snapshot_id_hex, summary_projection, volume_projection,
 };
 
 const MAX_URI_BYTES: usize = 8192;
@@ -150,6 +153,7 @@ async fn serve_async(view: GraphView, options: ServeOptions) -> Result<(), Serve
         .route("/app.css", get(css))
         .route("/app.js", get(javascript))
         .route("/s/{snapshot}/r/{revision}/volume/{vol}", get(index))
+        .route("/s/{snapshot}/r/{revision}/file/{vol}/{file}", get(index))
         .route(
             "/s/{snapshot}/r/{revision}/sector/{vol}/{sector}",
             get(index),
@@ -167,6 +171,10 @@ async fn serve_async(view: GraphView, options: ServeOptions) -> Result<(), Serve
         .route("/api/v1/licenses", get(licenses))
         .route("/api/v1/s/{snapshot}/r/{revision}/overview", get(overview))
         .route("/api/v1/s/{snapshot}/r/{revision}/volumes", get(volumes))
+        .route(
+            "/api/v1/s/{snapshot}/r/{revision}/file/{vol}/{file}",
+            get(file),
+        )
         .route(
             "/api/v1/s/{snapshot}/r/{revision}/sector/{vol}/{sector}",
             get(sector),
@@ -386,8 +394,11 @@ async fn licenses() -> Json<LicenseDocument> {
 struct ApiEnvelope<T: Serialize> {
     schema: &'static str,
     schema_version: u32,
+    document_type: &'static str,
     snapshot: SnapshotProjection,
     outcome: &'static str,
+    coverage: Vec<CoverageProjection>,
+    diagnostics: Vec<DiagnosticProjection>,
     data: T,
 }
 
@@ -467,6 +478,35 @@ async fn volumes(
     let overview = view.overview();
     let data: Vec<VolumeProjection> = view.volumes().into_iter().map(volume_projection).collect();
     Json(api_envelope(&overview, data)).into_response()
+}
+
+async fn file(
+    State(state): State<WebState>,
+    Path((snapshot, revision, vol, file)): Path<(String, u64, i16, i32)>,
+) -> Response {
+    let view = match revision_view(&state, &snapshot, revision) {
+        Ok(value) => value,
+        Err(error) => return error_response(error.status, error.code),
+    };
+    let Some(vfid) = VolId::new(vol)
+        .ok()
+        .zip(FileId::new(file).ok())
+        .map(|(vol_id, file_id)| Vfid::new(vol_id, file_id))
+    else {
+        return error_response(StatusCode::NOT_FOUND, "entity-not-found");
+    };
+    let header_page = PageId::new(vfid.file_id.get())
+        .ok()
+        .map(|page_id| Vpid::new(vfid.vol_id, page_id));
+    let Some(header) = header_page
+        .and_then(|vpid| view.deep_page(vpid))
+        .and_then(|deep| deep.file_header)
+        .filter(|header| header.vfid() == vfid)
+    else {
+        return error_response(StatusCode::NOT_FOUND, "entity-not-found");
+    };
+    let overview = view.overview();
+    Json(api_envelope(&overview, file_header_projection(header))).into_response()
 }
 
 async fn sector(
@@ -631,8 +671,19 @@ struct EnrichmentProjection {
 async fn enrich(
     State(state): State<WebState>,
     Path((snapshot, revision)): Path<(String, u64)>,
-    Json(request): Json<EnrichmentRequest>,
+    payload: Result<Json<EnrichmentRequest>, JsonRejection>,
 ) -> Response {
+    let Json(request) = match payload {
+        Ok(value) => value,
+        Err(error) => {
+            let status = if error.status() == StatusCode::PAYLOAD_TOO_LARGE {
+                StatusCode::PAYLOAD_TOO_LARGE
+            } else {
+                StatusCode::BAD_REQUEST
+            };
+            return error_response(status, "malformed-request");
+        }
+    };
     let Ok(_admission) = state.enrichment.try_lock() else {
         return error_response(StatusCode::TOO_MANY_REQUESTS, "resource-admission-refused");
     };
@@ -821,8 +872,9 @@ fn api_envelope<T: Serialize>(
     data: T,
 ) -> ApiEnvelope<T> {
     ApiEnvelope {
-        schema: "volmap.web",
-        schema_version: 1,
+        schema: SCHEMA_NAME,
+        schema_version: SCHEMA_VERSION,
+        document_type: "resource",
         snapshot: SnapshotProjection {
             id: snapshot_id_hex(overview.snapshot_id),
             revision: overview.revision.get().to_string(),
@@ -833,6 +885,18 @@ fn api_envelope<T: Serialize>(
             format_profile: overview.format_profile,
         },
         outcome: outcome_name(overview.outcome),
+        coverage: overview
+            .coverage
+            .iter()
+            .copied()
+            .map(coverage_projection)
+            .collect(),
+        diagnostics: overview
+            .diagnostics
+            .iter()
+            .cloned()
+            .map(diagnostic_projection)
+            .collect(),
         data,
     }
 }
@@ -849,6 +913,7 @@ fn matches_revision(
 struct ErrorEnvelope {
     schema: &'static str,
     schema_version: u32,
+    document_type: &'static str,
     error: ErrorDetail,
 }
 
@@ -861,8 +926,9 @@ fn error_response(status: StatusCode, code: &'static str) -> Response {
     (
         status,
         Json(ErrorEnvelope {
-            schema: "volmap.web-error",
-            schema_version: 1,
+            schema: SCHEMA_NAME,
+            schema_version: SCHEMA_VERSION,
+            document_type: "error",
             error: ErrorDetail { code },
         }),
     )
@@ -974,3 +1040,221 @@ async function loadOos(page,slotId){const payload=await api(`${base()}/oos/${pag
 async function enrich(selector,done){try{const payload=await api(`${base()}/enrichments`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selector})});updateSession(payload);await done()}catch(error){$('pageDetail').append(document.createTextNode(` ${error.message}`))}}
 async function showLicenses(){const payload=await api('/api/v1/licenses'),root=$('pageDetail'),text=document.createElement('pre');text.textContent=payload.notice;text.className='withheld';root.replaceChildren(text)}
 $('licenses').addEventListener('click',showLicenses);$('unlockForm').addEventListener('submit',unlock)})();";
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::{Method, Request};
+
+    fn state() -> WebState {
+        WebState {
+            session: Arc::new(RwLock::new(LiveSession {
+                views: BTreeMap::new(),
+                jobs: BTreeSet::new(),
+                latest: 0,
+            })),
+            enrichment: Arc::new(Mutex::new(())),
+            policy: ResourcePolicy::new(1024, 1024, 1, 1, 1024).unwrap(),
+            token_header: Arc::from(&b"Bearer test-token"[..]),
+            authority: Arc::from("127.0.0.1:8787"),
+            origin: Arc::from("http://127.0.0.1:8787"),
+            semaphore: Arc::new(Semaphore::new(1)),
+        }
+    }
+
+    fn request(method: Method, uri: &str) -> Request<Body> {
+        Request::builder()
+            .method(method)
+            .uri(uri)
+            .header(HOST, "127.0.0.1:8787")
+            .body(Body::empty())
+            .unwrap()
+    }
+
+    fn authenticated(method: Method, uri: &str) -> Request<Body> {
+        let mut request = request(method, uri);
+        request
+            .headers_mut()
+            .insert(AUTHORIZATION, HeaderValue::from_static("Bearer test-token"));
+        request
+    }
+
+    #[test]
+    fn api_authentication_is_exact_and_constant_shape() {
+        let state = state();
+        let valid = authenticated(Method::GET, "/api/v1/session");
+        assert!(guard(&state, &valid).is_ok());
+
+        let missing = request(Method::GET, "/api/v1/session");
+        let error = guard(&state, &missing).unwrap_err();
+        assert_eq!(error.status, StatusCode::UNAUTHORIZED);
+        assert_eq!(error.code, "authentication-required");
+
+        let mut duplicate = authenticated(Method::GET, "/api/v1/session");
+        duplicate
+            .headers_mut()
+            .append(AUTHORIZATION, HeaderValue::from_static("Bearer test-token"));
+        assert_eq!(
+            guard(&state, &duplicate).unwrap_err().status,
+            StatusCode::UNAUTHORIZED
+        );
+    }
+
+    #[test]
+    fn host_check_precedes_auth_and_ignores_forwarded_authority() {
+        let state = state();
+        let mut request = authenticated(Method::GET, "/api/v1/session");
+        request
+            .headers_mut()
+            .insert(HOST, HeaderValue::from_static("attacker.test:8787"));
+        request.headers_mut().insert(
+            HeaderName::from_static("x-forwarded-host"),
+            HeaderValue::from_static("127.0.0.1:8787"),
+        );
+        let error = guard(&state, &request).unwrap_err();
+        assert_eq!(error.status, StatusCode::MISDIRECTED_REQUEST);
+        assert_eq!(error.code, "invalid-host");
+
+        let mut duplicate = authenticated(Method::GET, "/api/v1/session");
+        duplicate
+            .headers_mut()
+            .append(HOST, HeaderValue::from_static("127.0.0.1:8787"));
+        assert_eq!(
+            guard(&state, &duplicate).unwrap_err().status,
+            StatusCode::MISDIRECTED_REQUEST
+        );
+    }
+
+    #[test]
+    fn post_requires_exact_json_origin_and_same_site_context() {
+        let state = state();
+        let mut valid = authenticated(Method::POST, "/api/v1/s/id/r/0/enrichments");
+        valid
+            .headers_mut()
+            .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        valid
+            .headers_mut()
+            .insert(ORIGIN, HeaderValue::from_static("http://127.0.0.1:8787"));
+        assert!(guard(&state, &valid).is_ok());
+
+        let mut missing_origin = authenticated(Method::POST, "/api/v1/s/id/r/0/enrichments");
+        missing_origin
+            .headers_mut()
+            .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        assert_eq!(
+            guard(&state, &missing_origin).unwrap_err().status,
+            StatusCode::FORBIDDEN
+        );
+
+        let mut cross_site = valid;
+        cross_site.headers_mut().insert(
+            HeaderName::from_static("sec-fetch-site"),
+            HeaderValue::from_static("cross-site"),
+        );
+        assert_eq!(
+            guard(&state, &cross_site).unwrap_err().status,
+            StatusCode::FORBIDDEN
+        );
+
+        let mut content_type = authenticated(Method::POST, "/api/v1/s/id/r/0/enrichments");
+        content_type.headers_mut().insert(
+            CONTENT_TYPE,
+            HeaderValue::from_static("application/json; charset=utf-8"),
+        );
+        assert_eq!(
+            guard(&state, &content_type).unwrap_err().status,
+            StatusCode::BAD_REQUEST
+        );
+    }
+
+    #[test]
+    fn request_bounds_and_security_headers_fail_closed() {
+        let state = state();
+        let long_uri = format!("/{}", "x".repeat(MAX_URI_BYTES));
+        let request = request(Method::GET, &long_uri);
+        assert_eq!(
+            guard(&state, &request).unwrap_err().status,
+            StatusCode::URI_TOO_LONG
+        );
+
+        let mut headers = axum::http::HeaderMap::new();
+        apply_security_headers(&mut headers);
+        assert_eq!(headers[CACHE_CONTROL], "no-store");
+        assert_eq!(headers["x-content-type-options"], "nosniff");
+        assert_eq!(headers["referrer-policy"], "no-referrer");
+        assert_eq!(headers["cross-origin-resource-policy"], "same-origin");
+        assert_eq!(headers["cross-origin-opener-policy"], "same-origin");
+        assert!(
+            headers[CONTENT_SECURITY_POLICY]
+                .to_str()
+                .unwrap()
+                .contains("frame-ancestors 'none'")
+        );
+        assert!(!headers.contains_key("access-control-allow-origin"));
+    }
+
+    fn options(listen: &str) -> ServeOptions {
+        ServeOptions {
+            listen: listen.parse().unwrap(),
+            allow_remote_http: false,
+            external_origin: None,
+            token_file: None,
+            policy: ResourcePolicy::new(1024, 1024, 1, 1, 1024).unwrap(),
+        }
+    }
+
+    #[test]
+    fn remote_http_requires_explicit_acknowledgement_and_wildcard_origin() {
+        assert!(validate_listener(&options("127.0.0.1:8787")).is_ok());
+
+        let remote = options("192.0.2.10:8787");
+        assert!(matches!(
+            validate_listener(&remote),
+            Err(ServeError::RemoteAcknowledgementRequired)
+        ));
+
+        let mut remote = remote;
+        remote.allow_remote_http = true;
+        assert!(validate_listener(&remote).is_ok());
+
+        let mut wildcard = options("0.0.0.0:8787");
+        wildcard.allow_remote_http = true;
+        assert!(matches!(
+            validate_listener(&wildcard),
+            Err(ServeError::ExternalOriginRequired)
+        ));
+        wildcard.external_origin = Some("http://debug.internal:8787".to_owned());
+        assert!(validate_listener(&wildcard).is_ok());
+    }
+
+    #[test]
+    fn external_origin_is_an_exact_origin_with_an_explicit_port() {
+        let origin = parse_origin("http://debug.internal:8787").unwrap();
+        assert_eq!(origin.origin, "http://debug.internal:8787");
+        assert_eq!(origin.authority, "debug.internal:8787");
+        for invalid in [
+            "http://debug.internal",
+            "http://user@debug.internal:8787",
+            "http://debug.internal:8787/path",
+            "http://debug.internal:8787/?query",
+            "ftp://debug.internal:8787",
+        ] {
+            assert!(matches!(
+                parse_origin(invalid),
+                Err(ServeError::InvalidExternalOrigin)
+            ));
+        }
+    }
+
+    #[test]
+    fn browser_credential_has_no_url_or_storage_channel() {
+        assert!(!APP_JS.contains("localStorage"));
+        assert!(!APP_JS.contains("sessionStorage"));
+        assert!(!APP_JS.contains("location.hash"));
+        assert!(!APP_JS.contains("?token="));
+        assert!(!APP_JS.contains("&token="));
+        assert!(APP_JS.contains("Authorization:`Bearer ${token}`"));
+        assert!(INDEX_HTML.contains("remains only in this page's memory"));
+    }
+}
