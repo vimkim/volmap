@@ -160,10 +160,10 @@ fn heap_header_page() -> [u8; IO_PAGE_SIZE] {
     page
 }
 
-fn heap_bigone_page() -> [u8; IO_PAGE_SIZE] {
+fn heap_bigone_page(relocation_target_type: u8) -> [u8; IO_PAGE_SIZE] {
     let mut page = page(6, PageType::Heap);
     let user = &mut page[32..IO_PAGE_SIZE - 8];
-    slotted_header(user, 2, 2, 80);
+    slotted_header(user, 4, 4, 96);
     user[32..40].fill(0xff);
     put_vpid(user, 40, 5);
     put_null_vpid(user, 48);
@@ -171,10 +171,17 @@ fn heap_bigone_page() -> [u8; IO_PAGE_SIZE] {
     user[72..76].copy_from_slice(&8_i32.to_le_bytes());
     user[76..78].copy_from_slice(&(-1_i16).to_le_bytes());
     user[78..80].copy_from_slice(&0_i16.to_le_bytes());
+    user[80..84].copy_from_slice(&6_i32.to_le_bytes());
+    user[84..86].copy_from_slice(&3_i16.to_le_bytes());
+    user[86..88].copy_from_slice(&0_i16.to_le_bytes());
     let chain = 32_u32 | (40_u32 << 14) | (2_u32 << 28);
     let bigone = 0x48_u32 | (8_u32 << 14) | (5_u32 << 28);
+    let relocation = 0x50_u32 | (8_u32 << 14) | (4_u32 << 28);
+    let newhome = 0x58_u32 | (8_u32 << 14) | (u32::from(relocation_target_type) << 28);
     user[DB_PAGE_SIZE - 4..DB_PAGE_SIZE].copy_from_slice(&chain.to_le_bytes());
     user[DB_PAGE_SIZE - 8..DB_PAGE_SIZE - 4].copy_from_slice(&bigone.to_le_bytes());
+    user[DB_PAGE_SIZE - 12..DB_PAGE_SIZE - 8].copy_from_slice(&relocation.to_le_bytes());
+    user[DB_PAGE_SIZE - 16..DB_PAGE_SIZE - 12].copy_from_slice(&newhome.to_le_bytes());
     page
 }
 
@@ -192,7 +199,7 @@ fn overflow_page(page_id: i32, next: Option<i32>, total: Option<i32>) -> [u8; IO
     page
 }
 
-fn fixture(corrupt_tail: bool) -> (TestDirectory, PathBuf) {
+fn fixture(corrupt_tail: bool, relocation_target_type: u8) -> (TestDirectory, PathBuf) {
     let directory = TestDirectory::new();
     let volume = directory.path().join("fixture");
     let vinf = directory.path().join("fixture_vinf");
@@ -224,7 +231,7 @@ fn fixture(corrupt_tail: bool) -> (TestDirectory, PathBuf) {
         tracker_items_page(),
         heap,
         heap_header_page(),
-        heap_bigone_page(),
+        heap_bigone_page(relocation_target_type),
         overflow,
         overflow_page(8, Some(9), Some(40_000)),
         overflow_page(9, Some(10), None),
@@ -252,7 +259,14 @@ fn policy(max_steps: u64) -> ResourcePolicy {
 }
 
 fn open(corrupt_tail: bool) -> (TestDirectory, volmap::inspection::GraphView) {
-    let (directory, vinf) = fixture(corrupt_tail);
+    open_with_relocation(corrupt_tail, 3)
+}
+
+fn open_with_relocation(
+    corrupt_tail: bool,
+    relocation_target_type: u8,
+) -> (TestDirectory, volmap::inspection::GraphView) {
+    let (directory, vinf) = fixture(corrupt_tail, relocation_target_type);
     let request = OpenRequest {
         input: InputSpec::Vinf {
             path: vinf,
@@ -273,6 +287,14 @@ fn source() -> Oid {
         VolId::new(0).unwrap(),
         PageId::new(6).unwrap(),
         SlotId::new(1).unwrap(),
+    )
+}
+
+fn relocation_source() -> Oid {
+    Oid::new(
+        VolId::new(0).unwrap(),
+        PageId::new(6).unwrap(),
+        SlotId::new(2).unwrap(),
     )
 }
 
@@ -313,4 +335,33 @@ fn bigone_enrichment_publishes_corrupt_and_resource_limited_prefixes() {
     assert_eq!(chain.validated_payload_bytes, 16_332);
     assert_eq!(chain.diagnostic_rule, Some("resource-limit"));
     assert_eq!(limited.overview().outcome, InspectionOutcome::Incomplete);
+}
+
+#[test]
+fn relocation_enrichment_publishes_only_a_validated_same_heap_edge() {
+    let (_directory, view) = open(false);
+    let enriched = view
+        .enrich_relocation(relocation_source(), policy(32), &CancelToken::new())
+        .unwrap();
+    let edge = enriched.relocation_edge(relocation_source()).unwrap();
+    assert!(edge.valid);
+    assert_eq!(edge.target.unwrap().page_id.get(), 6);
+    assert_eq!(edge.target.unwrap().slot_id.get(), 3);
+    assert_eq!(edge.diagnostic_rule, None);
+}
+
+#[test]
+fn relocation_enrichment_rejects_a_target_that_is_not_newhome() {
+    let (_directory, view) = open_with_relocation(false, 2);
+    let enriched = view
+        .enrich_relocation(relocation_source(), policy(32), &CancelToken::new())
+        .unwrap();
+    let edge = enriched.relocation_edge(relocation_source()).unwrap();
+    assert!(!edge.valid);
+    assert_eq!(edge.target.unwrap().slot_id.get(), 3);
+    assert_eq!(
+        edge.diagnostic_rule,
+        Some("heap.relocation.target_slot_role")
+    );
+    assert_eq!(enriched.overview().outcome, InspectionOutcome::Findings);
 }

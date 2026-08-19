@@ -17,8 +17,8 @@ use crate::inspection::{
 use crate::model::{FileId, Oid, PageId, SectorId, SlotId, Vfid, VolId, Vpid};
 use crate::projection::{
     DataProjection, ResultDocument, deep_page_projection, file_header_projection,
-    oos_chain_projection, overflow_chain_projection, page_projection, result_document,
-    sector_projection, slot_projection, summary_projection, volume_projection,
+    oos_chain_projection, overflow_chain_projection, page_projection, relocation_edge_projection,
+    result_document, sector_projection, slot_projection, summary_projection, volume_projection,
 };
 use crate::source::InputSpec;
 
@@ -400,6 +400,12 @@ fn run(cli: Cli) -> Result<i32, CliError> {
                                 view = view
                                     .enrich_bigone(oid, enrichment_policy, &CancelToken::new())
                                     .map_err(|error| CliError::OpenAdapter(error.to_string()))?;
+                            } else if selected_slot.record_type()
+                                == crate::format::RecordType::Relocation
+                            {
+                                view = view
+                                    .enrich_relocation(oid, enrichment_policy, &CancelToken::new())
+                                    .map_err(|error| CliError::OpenAdapter(error.to_string()))?;
                             }
                         }
                         EntitySelector::Oos(oid) => {
@@ -509,6 +515,7 @@ fn run_map(command: MapCommand) -> Result<i32, CliError> {
             deep_pages: Vec::new(),
             oos_chains: Vec::new(),
             overflow_chains: Vec::new(),
+            relocation_edges: Vec::new(),
         },
     );
     write_document(&document, command.output.format)?;
@@ -580,11 +587,23 @@ fn run_inspect(command: InspectCommand) -> Result<i32, CliError> {
             } else {
                 None
             };
+            let relocation_edge =
+                if selected_slot.record_type() == crate::format::RecordType::Relocation {
+                    view = view
+                        .enrich_relocation(oid, enrichment_policy, &CancelToken::new())
+                        .map_err(|error| CliError::OpenAdapter(error.to_string()))?;
+                    view.relocation_edge(oid)
+                        .map(relocation_edge_projection)
+                        .map(Box::new)
+                } else {
+                    None
+                };
             DataProjection::InspectSlot {
                 page: page_projection(view.page(vpid).map_err(CliError::Query)?),
                 deep: deep_page_projection(Some(deep)),
                 selected_slot: slot_projection(selected_slot),
                 overflow_chain,
+                relocation_edge,
             }
         }
         EntitySelector::Oos(oid) => {
@@ -1065,6 +1084,7 @@ fn render_human(document: &ResultDocument) -> String {
             deep: _,
             selected_slot,
             overflow_chain,
+            relocation_edge,
         } => {
             let _ = writeln!(
                 output,
@@ -1099,6 +1119,24 @@ fn render_human(document: &ResultDocument) -> String {
                         overflow_page.payload_offset,
                         overflow_page.payload_length
                     );
+                }
+            }
+            if let Some(edge) = relocation_edge {
+                match edge.target {
+                    crate::projection::OptionalOidProjection::Present { oid } => {
+                        let _ = writeln!(
+                            output,
+                            "relocation: valid={} target={}:{}:{} bytes=withheld",
+                            edge.valid, oid.vol_id, oid.page_id, oid.slot_id
+                        );
+                    }
+                    crate::projection::OptionalOidProjection::Absent => {
+                        let _ = writeln!(
+                            output,
+                            "relocation: valid={} target=unknown bytes=withheld",
+                            edge.valid
+                        );
+                    }
                 }
             }
         }

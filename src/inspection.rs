@@ -12,14 +12,14 @@ use crate::diagnostics::{InspectionOutcome, OutcomeInputs};
 use crate::format::{
     BtreePageFact, CatalogClassInfoFact, CatalogPageFact, CatalogRepresentationHeaderFact,
     DecodeError, DroppedFilesPageFact, FileHeader, HeapPageFact, OosNext, PageContent, PageType,
-    SlottedPage, TdeAlgorithm, TrackerItemFact, UserPageFact, VacuumPageFact, VolumePurpose,
-    VolumeType, decode_bigone_target, decode_btree_page, decode_catalog_class_info,
+    RecordType, SlottedPage, TdeAlgorithm, TrackerItemFact, UserPageFact, VacuumPageFact,
+    VolumePurpose, VolumeType, decode_bigone_target, decode_btree_page, decode_catalog_class_info,
     decode_catalog_directory, decode_catalog_page, decode_catalog_representation_header,
     decode_dropped_files_page, decode_extdata_header, decode_file_header, decode_full_sectors,
     decode_heap_page, decode_oos_chunk, decode_overflow_continuation, decode_overflow_head,
-    decode_page_envelope, decode_page_envelope_parts, decode_partial_sectors, decode_sector_bitmap,
-    decode_slotted_page, decode_tracker_items, decode_user_pages, decode_vacuum_page,
-    decode_volume_header,
+    decode_page_envelope, decode_page_envelope_parts, decode_partial_sectors,
+    decode_relocation_target, decode_sector_bitmap, decode_slotted_page, decode_tracker_items,
+    decode_user_pages, decode_vacuum_page, decode_volume_header,
 };
 use crate::model::{
     Availability, Coverage, InspectionRevision, Oid, PageAllocationClass, PageId, SectorId, SlotId,
@@ -346,6 +346,15 @@ pub struct OverflowChainView {
     pub diagnostic_rule: Option<&'static str>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct RelocationEdgeView {
+    pub source: Oid,
+    pub revision: InspectionRevision,
+    pub target: Option<Oid>,
+    pub valid: bool,
+    pub diagnostic_rule: Option<&'static str>,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DeepPageView {
     pub vpid: Vpid,
@@ -371,6 +380,14 @@ struct SessionData {
     tracked_files: BTreeMap<Vfid, FileHeader>,
     oos_chains: BTreeMap<crate::model::Oid, OosChainFact>,
     overflow_chains: BTreeMap<Oid, OverflowChainFact>,
+    relocation_edges: BTreeMap<Oid, RelocationEdgeFact>,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct RelocationEdgeFact {
+    target: Option<Oid>,
+    valid: bool,
+    diagnostic_rule: Option<&'static str>,
 }
 
 #[derive(Clone, Copy)]
@@ -776,6 +793,7 @@ impl Inspection {
                 tracked_files: BTreeMap::new(),
                 oos_chains: BTreeMap::new(),
                 overflow_chains: BTreeMap::new(),
+                relocation_edges: BTreeMap::new(),
             }),
         })
     }
@@ -1768,6 +1786,179 @@ impl GraphView {
             .collect()
     }
 
+    /// Validate the typed edge carried by one explicitly selected
+    /// `REC_RELOCATION`. Both endpoints must belong to the same tracked heap,
+    /// and the destination must be a live `REC_NEWHOME` slot.
+    #[allow(clippy::too_many_lines)]
+    pub fn enrich_relocation(
+        &self,
+        source: Oid,
+        policy: ResourcePolicy,
+        cancel: &CancelToken,
+    ) -> Result<Self, OperationError> {
+        if self.data.relocation_edges.contains_key(&source) {
+            return Ok(self.clone());
+        }
+        if cancel.is_cancelled() {
+            return self.publish_relocation_edge(source, None, Some("interrupted"));
+        }
+        if policy.max_decoded_bytes < crate::format::IO_PAGE_SIZE as u64
+            || policy.memory_limit < crate::format::IO_PAGE_SIZE as u64
+        {
+            return self.publish_relocation_edge(source, None, Some("resource-limit"));
+        }
+        if !self
+            .data
+            .sources
+            .verify_unchanged()
+            .map_err(OperationError::Source)?
+        {
+            return self.invalidated_revision();
+        }
+        let source_vpid = Vpid::new(source.vol_id, source.page_id);
+        let Some(heap_owner) = self.data.file_allocations.get(&source_vpid).copied() else {
+            return self.publish_relocation_edge(source, None, Some("heap.relocation.heap_owner"));
+        };
+        let valid_heap_owner = self
+            .data
+            .tracked_files
+            .get(&heap_owner)
+            .is_some_and(|header| {
+                matches!(
+                    header.file_type(),
+                    crate::format::FileType::Heap | crate::format::FileType::HeapReuseSlots
+                )
+            });
+        if !valid_heap_owner {
+            return self.publish_relocation_edge(source, None, Some("heap.relocation.heap_owner"));
+        }
+        let source_volume = self
+            .data
+            .sources
+            .volume(source_vpid.vol_id)
+            .ok_or(OperationError::Query(QueryError::EntityNotFound))?;
+        let source_bytes = source_volume
+            .read_page(source_vpid.page_id)
+            .map_err(OperationError::Source)?;
+        let source_envelope = match decode_page_envelope(source_bytes.as_slice(), source_vpid) {
+            Ok(value) if value.page_type() == PageType::Heap => value,
+            Ok(_) => {
+                return self.publish_relocation_edge(
+                    source,
+                    None,
+                    Some("heap.relocation.source_page_role"),
+                );
+            }
+            Err(error) => {
+                return self.publish_relocation_edge(source, None, Some(error.rule()));
+            }
+        };
+        let source_slotted = match decode_slotted_page(&source_envelope) {
+            Ok(value) => value,
+            Err(error) => {
+                return self.publish_relocation_edge(source, None, Some(error.rule()));
+            }
+        };
+        let source_slot =
+            u16::try_from(source.slot_id.get()).map_err(|_| OperationError::Arithmetic)?;
+        let target = match decode_relocation_target(&source_envelope, &source_slotted, source_slot)
+        {
+            Ok(value) => value,
+            Err(error) => {
+                return self.publish_relocation_edge(source, None, Some(error.rule()));
+            }
+        };
+        drop(source_slotted);
+        drop(source_bytes);
+        let target_vpid = Vpid::new(target.vol_id, target.page_id);
+        if policy.max_decoded_bytes < 2 * crate::format::IO_PAGE_SIZE as u64 {
+            return self.publish_relocation_edge(source, Some(target), Some("resource-limit"));
+        }
+        let target_role_valid = self.data.file_allocations.get(&target_vpid) == Some(&heap_owner)
+            && self.page(target_vpid).is_ok_and(|page| {
+                page.page_type == Some(PageType::Heap)
+                    && page.availability == Availability::Available
+            });
+        if !target_role_valid {
+            return self.publish_relocation_edge(
+                source,
+                Some(target),
+                Some("heap.relocation.target_page_role"),
+            );
+        }
+        let target_volume = self
+            .data
+            .sources
+            .volume(target_vpid.vol_id)
+            .ok_or(OperationError::Query(QueryError::EntityNotFound))?;
+        let target_bytes = target_volume
+            .read_page(target_vpid.page_id)
+            .map_err(OperationError::Source)?;
+        let target_envelope = match decode_page_envelope(target_bytes.as_slice(), target_vpid) {
+            Ok(value) if value.page_type() == PageType::Heap => value,
+            Ok(_) => {
+                return self.publish_relocation_edge(
+                    source,
+                    Some(target),
+                    Some("heap.relocation.target_page_role"),
+                );
+            }
+            Err(error) => {
+                return self.publish_relocation_edge(source, Some(target), Some(error.rule()));
+            }
+        };
+        let target_slotted = match decode_slotted_page(&target_envelope) {
+            Ok(value) => value,
+            Err(error) => {
+                return self.publish_relocation_edge(source, Some(target), Some(error.rule()));
+            }
+        };
+        let target_slot = usize::try_from(target.slot_id.get())
+            .ok()
+            .and_then(|slot| target_slotted.slots().get(slot));
+        if !target_slot.is_some_and(|slot| {
+            slot.record_type() == RecordType::NewHome && slot.offset() != 0 && slot.length() >= 8
+        }) {
+            return self.publish_relocation_edge(
+                source,
+                Some(target),
+                Some("heap.relocation.target_slot_role"),
+            );
+        }
+        if !self
+            .data
+            .sources
+            .verify_unchanged()
+            .map_err(OperationError::Source)?
+        {
+            return self.invalidated_revision();
+        }
+        self.publish_relocation_edge(source, Some(target), None)
+    }
+
+    #[must_use]
+    pub fn relocation_edge(&self, source: Oid) -> Option<RelocationEdgeView> {
+        self.data
+            .relocation_edges
+            .get(&source)
+            .map(|fact| RelocationEdgeView {
+                source,
+                revision: self.data.revision,
+                target: fact.target,
+                valid: fact.valid,
+                diagnostic_rule: fact.diagnostic_rule,
+            })
+    }
+
+    #[must_use]
+    pub fn relocation_edges(&self) -> Vec<RelocationEdgeView> {
+        self.data
+            .relocation_edges
+            .keys()
+            .filter_map(|source| self.relocation_edge(*source))
+            .collect()
+    }
+
     /// Validate the overflow chain referenced by one explicitly selected
     /// `REC_BIGONE`. The record payload and overflow payload bytes are never
     /// retained; only typed links and byte extents are published.
@@ -2484,6 +2675,55 @@ impl GraphView {
         })
     }
 
+    fn publish_relocation_edge(
+        &self,
+        source: Oid,
+        target: Option<Oid>,
+        failure: Option<&'static str>,
+    ) -> Result<Self, OperationError> {
+        let mut next = (*self.data).clone();
+        next.revision = next
+            .revision
+            .next()
+            .map_err(|_| OperationError::Arithmetic)?;
+        next.relocation_edges.insert(
+            source,
+            RelocationEdgeFact {
+                target,
+                valid: failure.is_none(),
+                diagnostic_rule: failure,
+            },
+        );
+        if let Some(rule) = failure {
+            let resource = matches!(rule, "resource-limit" | "interrupted");
+            next.diagnostics.push(DiagnosticRecord {
+                code: if resource {
+                    "inspection.resource_limit"
+                } else {
+                    "heap.relocation.invalid"
+                },
+                severity: "error",
+                message: if resource {
+                    "The relocation validation stopped at its admitted resource boundary."
+                } else {
+                    "The selected REC_RELOCATION edge violates its pinned structural format."
+                },
+                subject: format!(
+                    "slot:{}:{}:{}",
+                    source.vol_id.get(),
+                    source.page_id.get(),
+                    source.slot_id.get()
+                ),
+                rule,
+            });
+        }
+        refresh_relocation_coverage(&mut next, failure);
+        next.outcome = classify_session_outcome(&next);
+        Ok(Self {
+            data: Arc::new(next),
+        })
+    }
+
     fn page_decode_failure(&self, vpid: Vpid, rule: &'static str) -> Result<Self, OperationError> {
         let mut next = (*self.data).clone();
         next.revision = next
@@ -2790,6 +3030,29 @@ fn refresh_overflow_coverage(data: &mut SessionData, failure: Option<&'static st
         .count() as u64;
     data.coverage.push(CoverageRecord {
         facet: "overflow-chains",
+        coverage: if conclusive == total {
+            Coverage::Complete
+        } else {
+            Coverage::Partial
+        },
+        evaluated: total,
+        conclusive,
+        trusted_total: Some(total),
+        stop_reason: failure,
+    });
+}
+
+fn refresh_relocation_coverage(data: &mut SessionData, failure: Option<&'static str>) {
+    data.coverage
+        .retain(|coverage| coverage.facet != "relocation-edges");
+    let total = data.relocation_edges.len() as u64;
+    let conclusive = data
+        .relocation_edges
+        .values()
+        .filter(|edge| edge.valid)
+        .count() as u64;
+    data.coverage.push(CoverageRecord {
+        facet: "relocation-edges",
         coverage: if conclusive == total {
             Coverage::Complete
         } else {

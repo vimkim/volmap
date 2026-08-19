@@ -10,7 +10,7 @@ use crate::inspection::GraphView;
 use crate::projection::{
     DataProjection, DeepPageResourceProjection, ResultDocument, SectorProjection,
     deep_page_projection, oos_chain_projection, overflow_chain_projection, page_projection,
-    result_document, sector_projection, volume_projection,
+    relocation_edge_projection, result_document, sector_projection, volume_projection,
 };
 
 pub const DEFAULT_MAX_HTML_BYTES: u64 = 64 * 1024 * 1024;
@@ -128,6 +128,11 @@ fn complete_document(view: &GraphView) -> Result<ResultDocument, ExportError> {
                 .overflow_chains()
                 .into_iter()
                 .map(overflow_chain_projection)
+                .collect(),
+            relocation_edges: view
+                .relocation_edges()
+                .into_iter()
+                .map(relocation_edge_projection)
                 .collect(),
         },
     ))

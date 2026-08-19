@@ -6,7 +6,7 @@ use crate::diagnostics::InspectionOutcome;
 use crate::format::{PageType, VolumePurpose, VolumeType};
 use crate::inspection::{
     CoverageRecord, DeepPageView, DiagnosticRecord, OosChainView, OverflowChainView, OverviewView,
-    PageView, RawPageView, SectorView, VolumeView,
+    PageView, RawPageView, RelocationEdgeView, SectorView, VolumeView,
 };
 use crate::model::{
     Availability, Coverage, PageAllocationClass, SnapshotId, SnapshotValidity, TdeInspectionState,
@@ -91,6 +91,7 @@ pub enum DataProjection {
         deep_pages: Vec<DeepPageResourceProjection>,
         oos_chains: Vec<OosChainProjection>,
         overflow_chains: Vec<OverflowChainProjection>,
+        relocation_edges: Vec<RelocationEdgeProjection>,
     },
     InspectVolume {
         volume: VolumeProjection,
@@ -110,6 +111,7 @@ pub enum DataProjection {
         deep: DeepPageProjection,
         selected_slot: SlotProjection,
         overflow_chain: Option<OverflowChainProjection>,
+        relocation_edge: Option<Box<RelocationEdgeProjection>>,
     },
     InspectOos {
         chain: OosChainProjection,
@@ -435,6 +437,15 @@ pub struct OverflowChainProjection {
     pub validated_payload_bytes: String,
     pub complete: bool,
     pub pages: Vec<OverflowPageProjection>,
+    pub diagnostic: OptionalTextProjection,
+    pub bytes: BytesWithheldProjection,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct RelocationEdgeProjection {
+    pub source: OidProjection,
+    pub target: OptionalOidProjection,
+    pub valid: bool,
     pub diagnostic: OptionalTextProjection,
     pub bytes: BytesWithheldProjection,
 }
@@ -931,6 +942,22 @@ pub fn overflow_chain_projection(chain: OverflowChainView) -> OverflowChainProje
             })
             .collect(),
         diagnostic: chain.diagnostic_rule.map_or(
+            OptionalTextProjection::Unknown,
+            OptionalTextProjection::Known,
+        ),
+        bytes: BytesWithheldProjection {
+            state: "bytes-withheld",
+        },
+    }
+}
+
+#[must_use]
+pub fn relocation_edge_projection(edge: RelocationEdgeView) -> RelocationEdgeProjection {
+    RelocationEdgeProjection {
+        source: oid_projection(edge.source),
+        target: optional_oid_projection(edge.target),
+        valid: edge.valid,
+        diagnostic: edge.diagnostic_rule.map_or(
             OptionalTextProjection::Unknown,
             OptionalTextProjection::Known,
         ),
