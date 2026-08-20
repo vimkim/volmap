@@ -165,8 +165,16 @@ The snapshot-wide, unsampled pass that completely establishes volume geometry, s
 _Avoid_: Sample scan, partial scan
 
 **Deep inspection**:
-Opt-in enrichment of selected pages or OOS value chains with validated body structure, slot allocation, page-type details, and bounded chain relationships without exposing application payloads.
+Opt-in enrichment of selected pages, slots, records, or OOS value chains with validated body structure, slot allocation, page-type details, record interpretations, and bounded chain relationships. Application payloads surface only under explicit-target disclosure.
 _Avoid_: Deep scan
+
+**Record interpretation**:
+Revision-scoped decoded evidence for an explicitly deep-inspected record: its attribute names, domains, and typed values resolved through a class representation. It is distinct from, and never replaces, the record's physical facts.
+_Avoid_: Row dump, record view
+
+**Class representation**:
+A schema evidence entity keyed by (class OID, reprid) that names one representation's attributes and their typed domains, decoded from the class object's own heap record.
+_Avoid_: Catalog representation, DISK_REPR
 
 **TDE inspection state**:
 The canonical visibility or failure classification for a page: `not-encrypted`, `decrypted`, `encrypted-opaque`, `key-error`, `decrypted-invalid`, or `invalid-flags`.
@@ -177,8 +185,12 @@ A page whose plaintext I/O envelope validly identifies AES or ARIA encryption bu
 _Avoid_: Encrypted error, unreadable encrypted page
 
 **Application payload**:
-Record bytes or decoded user values not required to describe physical allocation, record boundaries, record kind, or internal storage navigation. Version one never displays application payloads.
+Record bytes or decoded user values not required to describe physical allocation, record boundaries, record kind, or internal storage navigation. Explicit-target disclosure governs when any of it surfaces.
 _Avoid_: Raw metadata
+
+**Explicit-target disclosure**:
+The disclosure rule separating structural facts from user values: decoded, typed attribute values are retained in the inspection graph and displayed only for records the operator explicitly deep-inspected, while raw or undecodable payload bytes remain withheld everywhere.
+_Avoid_: Payload opt-in, selective disclosure
 
 ## OOS storage
 
