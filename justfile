@@ -73,6 +73,9 @@ verify: fmt-check test-debug lint elf-check-release
 serve-debug *args:
     {{cargo}} run --locked -- serve {{args}}
 
+serve-debug-demodb:
+    {{cargo}} run --locked --target {{target}} -- serve --database demodb --listen 0.0.0.0:7777
+
 # Start the optimized static musl viewer for the local demodb database.
 serve-release-demodb:
     {{cargo}} run --release --locked --target {{target}} -- serve --database demodb --listen 0.0.0.0:7777
