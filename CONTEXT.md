@@ -12,6 +12,14 @@ _Avoid_: Presentation tree, adapter model
 A CLI-human, JSON/JSONL, TUI, HTML, or web projection of the shared inspection module's normalized query results. An adapter never reads or parses volume bytes and never invents adapter-specific storage facts.
 _Avoid_: Parser frontend, independent inspector
 
+**Projection workspace**:
+The process-local owner of immutable inspection revisions and presentation-neutral projection and enrichment semantics shared by interactive inspection adapters. It excludes adapter navigation, transport, scheduling, and rendering state.
+_Avoid_: Live inspection session, web state, TUI state
+
+**Atlas trail**:
+The TUI's typed Volume → Sector → Page ancestry together with the focus and content anchors restored at each ancestor. It is structural navigation state, not chronological or browser history.
+_Avoid_: Back history, URL history, breadcrumb cache
+
 **Terminal interaction parity**:
 The TUI preserves the web viewer's Volume → Sector → Page drill-down and semantic visual distinctions, including page occupancy and structural distribution, while expressing them through terminal-native layout, rendering, and controls. It does not require pixel matching or reproduction of browser-only mechanics.
 _Avoid_: Cosmetic parity, pixel parity
@@ -209,8 +217,12 @@ _Avoid_: OOS chain page
 ## Distribution
 
 **Live inspection session**:
-One foreground `serve` process, its private cursor-integrity key, immutable revision history, enrichment jobs, cursors, and browser/API locations. The HTTP interface is unauthenticated; remote exposure requires an explicit IPv4 wildcard listener. All process state expires together when the process ends and is never reused as a persistent inspection index.
+One foreground `serve` process, its private cursor-integrity key, current database snapshot with its immutable revision history, enrichment jobs, cursors, and browser/API locations. A snapshot refresh may replace the current snapshot; superseded snapshot state is discarded. The HTTP interface is unauthenticated; remote exposure requires an explicit IPv4 wildcard listener. All process state expires together when the process ends and is never reused as a persistent inspection index.
 _Avoid_: Web deployment, daemon, saved report
+
+**Snapshot refresh**:
+An explicit on-demand request that a live inspection session re-inspect its original volume inputs as a new database snapshot. The session adopts the new snapshot atomically only when its fast inspection succeeds and discards the superseded snapshot; on failure the current snapshot remains authoritative and unchanged. Deep-inspection enrichment never carries over between snapshots.
+_Avoid_: Auto-reload, live monitoring, in-place rescan
 
 **HTML inspection export**:
 A bounded, self-contained offline file that freezes one inspection revision and contains only facts already committed to that revision. It is not connected to a live inspection session and cannot request missing deep detail.
