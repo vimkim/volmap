@@ -22,6 +22,20 @@ budget. Bounded envelope workers merge facts and findings back into canonical
 physical order. The remaining mutation/fuzz, distribution, and company release
 approval matrices are still release gates.
 
+## Screenshots
+
+### Volume map
+
+![Full-volume sector and page mosaic](docs/images/volume-view.png)
+
+### Sector drill-down
+
+![A sector expanded into its 64 physical pages](docs/images/sector-view.png)
+
+### Slotted-page inspection
+
+![Detailed slotted-page content distribution and slot directory](docs/images/slotted-page-view.png)
+
 ## Build
 
 The supported release target is static Linux x86-64 musl:
