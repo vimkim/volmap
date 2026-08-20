@@ -1,4 +1,5 @@
 volmap-standalone*
 recovered/
 /target/
+/vendor/
 /prompt.md

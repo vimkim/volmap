@@ -13,7 +13,7 @@ cd "$repo_root"
 [[ $(cargo cyclonedx --version) == "$CYCLONEDX_VERSION" ]]
 
 cargo about generate \
-  --frozen \
+  --locked \
   --all-features \
   --target "$TARGET" \
   --fail \

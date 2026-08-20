@@ -1,8 +1,8 @@
 # Release audit
 
-The source tree carries its complete locked Cargo graph in `vendor/`. Normal
-builds are offline through `.cargo/config.toml`; a missing or altered vendored
-crate is fatal.
+The source tree pins its complete Cargo dependency graph in `Cargo.lock`.
+Cargo downloads missing crate sources from crates.io into its normal shared
+cache; builds use `--locked` so dependency resolution cannot silently change.
 
 Release metadata is generated with exactly:
 
@@ -12,13 +12,14 @@ Release metadata is generated with exactly:
 
 After a reviewed dependency change, install those pinned tools and run
 `release/regenerate-artifacts.sh`. Review the generated notice, SBOM, policy
-result, `Cargo.lock`, vendored sources, build scripts, unsafe/native-code
-surface, and licenses before committing them.
+result, `Cargo.lock`, build scripts, unsafe/native-code surface, and licenses
+before committing them.
 
 On a clean candidate commit, `release/check.sh` regenerates and compares both
 artifacts, runs all dependency policy checks, extracts the commit into two
-different absolute paths, builds and tests without network access, proves the
-two release binaries are byte-identical, and verifies the static musl ELF.
+different absolute paths, builds and tests with the locked dependency graph,
+proves the two release binaries are byte-identical, and verifies the static
+musl ELF.
 The fixed epoch is the pinned CUBRID format-authority commit time. Path remaps
 remove checkout and Cargo-home locations from compiled artifacts.
 

@@ -123,7 +123,7 @@ async fn serve_async(view: GraphView, options: ServeOptions) -> Result<(), Serve
         semaphore: Arc::new(Semaphore::new(MAX_CONCURRENT_REQUESTS)),
     };
     let router = build_router(state);
-    eprintln!("Volmap web listener: http://{local}");
+    print_listener_urls(local);
     if !options.listen.ip().is_loopback() {
         eprintln!(
             "WARNING: unauthenticated plain HTTP is listening on all interfaces. Anyone who can reach this port can inspect metadata and request enrichment."
@@ -133,6 +133,54 @@ async fn serve_async(view: GraphView, options: ServeOptions) -> Result<(), Serve
         .with_graceful_shutdown(shutdown_signal())
         .await
         .map_err(|error| ServeError::Runtime(error.to_string()))
+}
+
+fn print_listener_urls(local: SocketAddr) {
+    let interface_ips = if_addrs::get_if_addrs()
+        .map(|interfaces| {
+            interfaces
+                .into_iter()
+                .filter(if_addrs::Interface::is_oper_up)
+                .map(|interface| interface.ip())
+                .collect()
+        })
+        .unwrap_or_default();
+
+    eprintln!("Bound to {local}");
+    eprintln!("Available at (non-exhaustive list):");
+    for url in listener_urls(local, interface_ips) {
+        eprintln!("    {url}");
+    }
+}
+
+fn listener_urls(local: SocketAddr, interface_ips: Vec<IpAddr>) -> Vec<String> {
+    let mut addresses = BTreeSet::new();
+    if local.ip().is_unspecified() {
+        let loopback = match local {
+            SocketAddr::V4(_) => IpAddr::V4(Ipv4Addr::LOCALHOST),
+            SocketAddr::V6(_) => IpAddr::V6(std::net::Ipv6Addr::LOCALHOST),
+        };
+        addresses.insert(loopback);
+        addresses.extend(
+            interface_ips
+                .into_iter()
+                .filter(|ip| ip.is_ipv4() == local.is_ipv4() && is_publishable_listener_ip(*ip)),
+        );
+    } else {
+        addresses.insert(local.ip());
+    }
+
+    addresses
+        .into_iter()
+        .map(|ip| format!("http://{}", SocketAddr::new(ip, local.port())))
+        .collect()
+}
+
+fn is_publishable_listener_ip(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(ip) => !ip.is_unspecified() && !ip.is_multicast() && ip != Ipv4Addr::BROADCAST,
+        IpAddr::V6(ip) => !ip.is_unspecified() && !ip.is_multicast() && !ip.is_unicast_link_local(),
+    }
 }
 
 fn build_router(state: WebState) -> Router {
@@ -1844,6 +1892,43 @@ mod tests {
                 Err(ServeError::RemoteWildcardRequired)
             ));
         }
+    }
+
+    #[test]
+    fn wildcard_listener_urls_are_sorted_deduplicated_and_family_matched() {
+        let urls = listener_urls(
+            "0.0.0.0:8080".parse().unwrap(),
+            vec![
+                "192.168.4.2".parse().unwrap(),
+                "10.88.0.1".parse().unwrap(),
+                "127.0.0.1".parse().unwrap(),
+                "192.168.4.2".parse().unwrap(),
+                "::1".parse().unwrap(),
+                "224.0.0.1".parse().unwrap(),
+                "0.0.0.0".parse().unwrap(),
+            ],
+        );
+
+        assert_eq!(
+            urls,
+            [
+                "http://10.88.0.1:8080",
+                "http://127.0.0.1:8080",
+                "http://192.168.4.2:8080",
+            ]
+        );
+    }
+
+    #[test]
+    fn concrete_and_ipv6_listener_urls_use_clickable_socket_syntax() {
+        assert_eq!(
+            listener_urls("127.0.0.1:8080".parse().unwrap(), Vec::new()),
+            ["http://127.0.0.1:8080"]
+        );
+        assert_eq!(
+            listener_urls("[::1]:8080".parse().unwrap(), Vec::new()),
+            ["http://[::1]:8080"]
+        );
     }
 
     #[test]

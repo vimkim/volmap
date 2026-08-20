@@ -1153,6 +1153,33 @@
     },
     {
       "type": "library",
+      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#if-addrs@0.15.0",
+      "author": "MaidSafe Developers <dev@maidsafe.net>, Messense Lv <messense@icloud.com>",
+      "name": "if-addrs",
+      "version": "0.15.0",
+      "description": "Return interface IP addresses on Posix and windows systems",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "c0a05c691e1fae256cf7013d99dad472dc52d5543322761f83ec8d47eab40d2b"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR BSD-3-Clause"
+        }
+      ],
+      "purl": "pkg:cargo/if-addrs@0.15.0",
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/messense/if-addrs"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#inout@0.2.2",
       "author": "RustCrypto Developers",
       "name": "inout",
@@ -2598,6 +2625,7 @@
         "registry+https://github.com/rust-lang/crates.io-index#clap@4.6.6",
         "registry+https://github.com/rust-lang/crates.io-index#crossterm@0.29.0",
         "registry+https://github.com/rust-lang/crates.io-index#ctr@0.10.1",
+        "registry+https://github.com/rust-lang/crates.io-index#if-addrs@0.15.0",
         "registry+https://github.com/rust-lang/crates.io-index#serde@1.0.229",
         "registry+https://github.com/rust-lang/crates.io-index#serde_json@1.0.151",
         "registry+https://github.com/rust-lang/crates.io-index#sha2@0.11.0",
@@ -2866,6 +2894,12 @@
         "registry+https://github.com/rust-lang/crates.io-index#pin-project-lite@0.2.17",
         "registry+https://github.com/rust-lang/crates.io-index#smallvec@1.15.2",
         "registry+https://github.com/rust-lang/crates.io-index#tokio@1.53.1"
+      ]
+    },
+    {
+      "ref": "registry+https://github.com/rust-lang/crates.io-index#if-addrs@0.15.0",
+      "dependsOn": [
+        "registry+https://github.com/rust-lang/crates.io-index#libc@0.2.189"
       ]
     },
     {

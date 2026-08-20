@@ -36,7 +36,7 @@ compile it without spending benchmark time:
 ```bash
 git checkout 2c19cca
 VOLMAP_BENCH_SCALE=full VOLMAP_BENCH_SAMPLES=30 \
-  cargo test --release --locked --offline \
+  cargo test --release --locked \
   --test resource_benchmark -- --ignored --nocapture
 ```
 

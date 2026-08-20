@@ -1,7 +1,7 @@
 # LibFuzzer verification
 
 This isolated workspace is not part of Volmap's runtime dependency graph. It
-uses a separately locked and vendored `libfuzzer-sys` graph and exercises the
+uses a separately locked `libfuzzer-sys` graph and exercises the
 checked byte access, physical envelope, volume/bitmap, slotted record,
 file/overflow/vacuum, and TDE key-info seams under LibFuzzer's sanitizer build.
 

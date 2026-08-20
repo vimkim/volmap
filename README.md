@@ -106,6 +106,10 @@ To accept remote clients, explicitly listen on all IPv4 interfaces:
 volmap serve --vinf /snapshot/db_vinf --listen 0.0.0.0:8080
 ```
 
+After binding, `serve` prints a sorted, deduplicated list of copyable URLs for
+the active local IPv4 interfaces. Loopback-only listeners print their single
+reachable URL.
+
 This mode is deliberately unauthenticated: anyone who can reach the port can
 inspect metadata and request bounded enrichment. Use a firewall, SSH, a VPN, or
 a trusted TLS reverse proxy when the network is not fully trusted. Binding a

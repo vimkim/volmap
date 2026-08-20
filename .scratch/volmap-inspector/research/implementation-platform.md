@@ -36,7 +36,7 @@ decision.
 | TUI | Ratatui provides an immediate-mode TUI with Crossterm as its default backend. | Bubble Tea provides an Elm-style model/update/view TUI. | Both are capable; this does not decide the language. |
 | Embedded web | Axum/Tokio plus compile-time embedded assets work well but add third-party packages. | `net/http` and `embed` are standard-library facilities. | Go has the clear dependency-simplicity advantage. |
 | Dependency and license surface | Rust itself is MIT/Apache-2.0; the likely web/TUI stack is permissive but produces a larger transitive package graph that must be audited. | Go is BSD-style; the HTTP server and asset embedding require no third-party module, while Bubble Tea is MIT. | Go is easier to audit. Rust remains acceptable only with a locked, reviewed dependency set and generated notices/SBOM. |
-| Reproducibility | `Cargo.lock`, `--locked`/`--offline`, vendoring, a pinned toolchain, fixed build environment, and path remapping are required. | `go.mod`/`go.sum`, a pinned toolchain, `-trimpath`, and controlled VCS/build IDs give a shorter recipe. | Go is easier; both need a release pipeline and byte-for-byte checks. |
+| Reproducibility | `Cargo.lock`, `--locked`, a pinned toolchain, fixed build environment, and path remapping are required. Build-time downloads are allowed. | `go.mod`/`go.sum`, a pinned toolchain, `-trimpath`, and controlled VCS/build IDs give a shorter recipe. | Go is easier; both need a release pipeline and byte-for-byte checks. |
 | Executable size | Static musl plus LTO/strip/panic-abort was small in the local representative check. | The Go runtime and `net/http` made the representative binary larger even after stripping. | Rust led this check, but final size must be measured again with the actual TUI and decoder. |
 | Decoder maintainability | Algebraic enums, exhaustive matching, newtypes, borrowing, and compiler-checked ownership fit a growing family of page-specific decoders. | Simpler syntax, fast compilation, a strong compatibility promise, and fewer framework dependencies lower onboarding cost. | Rust is preferred for correctness-oriented evolution; Go wins if team fluency dominates. |
 
@@ -133,9 +133,8 @@ Cargo documents that `Cargo.lock` records the versions used by a successful
 build, and `--locked` prevents resolution from changing them
 ([Cargo FAQ](https://doc.rust-lang.org/cargo/faq.html#why-have-cargolock-in-version-control),
 [Cargo command options](https://doc.rust-lang.org/cargo/commands/cargo.html#manifest-options)).
-`cargo vendor` can capture all registry and Git dependencies and `--frozen`
-combines locked and offline behavior
-([Cargo vendor](https://doc.rust-lang.org/cargo/commands/cargo-vendor.html)). Rustc
+Builds may fetch the sources named by the lockfile from their registries; an
+offline dependency mirror is not part of the product requirement. Rustc
 supports source-path remapping for output normalization
 ([rustc path remapping](https://doc.rust-lang.org/rustc/remap-source-paths.html)).
 
@@ -216,9 +215,10 @@ hashes in CI before claiming reproducibility.
 1. Pin an exact stable Rust toolchain and the `x86_64-unknown-linux-musl` target in
    `rust-toolchain.toml`; build in a pinned Linux container with a fixed source
    path.
-2. Commit `Cargo.lock`. Release with `cargo build --release --locked --offline
-   --target x86_64-unknown-linux-musl`; vendor dependencies when an offline release
-   environment is required.
+2. Commit `Cargo.lock`. Release with `cargo build --release --locked --target
+   x86_64-unknown-linux-musl`. Build-time network access is allowed; the final
+   ELF and runtime distribution tests, not dependency-source location, prove
+   binary mobility.
 3. Use a release profile with LTO, one codegen unit, symbol stripping, and
    `panic = "abort"`. Keep overflow checks enabled in release for the decoder or
    use checked arithmetic everywhere; performance tests may decide the exact

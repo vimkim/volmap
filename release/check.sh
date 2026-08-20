@@ -18,7 +18,6 @@ fi
 [[ $(cargo about --version) == "$ABOUT_VERSION" ]]
 [[ $(cargo cyclonedx --version) == "$CYCLONEDX_VERSION" ]]
 [[ $(cargo deny --version) == "$DENY_VERSION" ]]
-cmp LICENSE vendor/aes-0.9.2/LICENSE-APACHE
 
 audit_root=$(mktemp -d /tmp/volmap-release-audit.XXXXXX)
 cleanup() {
@@ -32,17 +31,15 @@ git archive HEAD | tar -x -C "$audit_root/source-a"
 git archive HEAD | tar -x -C "$audit_root/source-b"
 
 env \
-  CARGO_NET_OFFLINE=true \
   LC_ALL=C \
   TZ=UTC \
   cargo deny check
 
 env \
-  CARGO_NET_OFFLINE=true \
   LC_ALL=C \
   TZ=UTC \
   cargo about generate \
-    --frozen \
+    --locked \
     --all-features \
     --target "$TARGET" \
     --fail \
@@ -80,12 +77,11 @@ build_one() {
     env \
       CARGO_HOME="$audit_root/cargo-home" \
       CARGO_INCREMENTAL=0 \
-      CARGO_NET_OFFLINE=true \
       LC_ALL=C \
       RUSTFLAGS="$remap_flags" \
       SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH \
       TZ=UTC \
-      cargo build --release --locked --offline --target "$TARGET"
+      cargo build --release --locked --target "$TARGET"
   )
 }
 
@@ -104,7 +100,6 @@ ldd "$BIN_A" 2>&1 | rg -q 'statically linked|not a dynamic executable'
 
 env \
   CARGO_HOME="$audit_root/cargo-home" \
-  CARGO_NET_OFFLINE=true \
   LC_ALL=C \
   SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH \
   TZ=UTC \
@@ -112,10 +107,9 @@ env \
     --manifest-path "$audit_root/source-a/Cargo.toml" \
     --release \
     --locked \
-    --offline \
     --all-targets \
     --all-features \
     --target "$TARGET"
 
 sha256sum Cargo.lock THIRD_PARTY_NOTICES.txt SBOM.cdx.json "$BIN_A"
-echo 'release audit passed: vendored metadata, notices, SBOM, policy, tests, reproducibility, and static ELF'
+echo 'release audit passed: locked metadata, notices, SBOM, policy, tests, reproducibility, and static ELF'

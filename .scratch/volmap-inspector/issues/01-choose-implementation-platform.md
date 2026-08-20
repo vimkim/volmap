@@ -20,8 +20,9 @@ static requirement by itself does not decide the language; both platforms passed
 representative local no-`INTERP`/no-`DT_NEEDED` checks.
 
 Release builds must pin the Rust toolchain, musl target, and `Cargo.lock`, build
-locked/offline in a fixed environment, exclude native/shared-library dependencies,
-and verify the final ELF plus execution in a glibc-free container. The parsing
+with `--locked` in a fixed environment, exclude native/shared-library dependencies,
+and verify the final ELF plus execution in a glibc-free container. Build-time
+network access is allowed; it is not part of the binary-mobility requirement. The parsing
 crate must forbid unsafe code, decode explicit byte offsets and endianness, use
 checked arithmetic and bounded positional reads, and never cast C/C++ layouts over
 disk bytes. CLI, TUI, and web interfaces remain adapters over the same immutable
