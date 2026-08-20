@@ -1222,10 +1222,11 @@ async fn enrich(
         Ok(session) => session.latest,
         Err(_) => return error_response(StatusCode::INTERNAL_SERVER_ERROR, "session-unavailable"),
     };
-    if current_revision != revision
-        || base.overview().validity == crate::model::SnapshotValidity::Invalidated
-    {
-        return error_response(StatusCode::CONFLICT, "base-revision-unusable");
+    if current_revision != revision {
+        return stale_revision_response(revision, current_revision);
+    }
+    if base.overview().validity == crate::model::SnapshotValidity::Invalidated {
+        return invalidated_snapshot_response();
     }
     let Some(target) = parse_enrichment_target(&request.selector) else {
         return error_response(StatusCode::BAD_REQUEST, "invalid-selector");
@@ -1270,7 +1271,7 @@ async fn enrich(
             return error_response(StatusCode::INTERNAL_SERVER_ERROR, "session-unavailable");
         };
         if session.latest != revision {
-            return error_response(StatusCode::CONFLICT, "base-revision-unusable");
+            return stale_revision_response(revision, session.latest);
         }
         session.views.insert(result_revision, enriched);
         session.jobs.insert(result_revision);
@@ -1447,19 +1448,91 @@ struct ErrorEnvelope {
 #[derive(Serialize)]
 struct ErrorDetail {
     code: &'static str,
+    message: String,
 }
 
 fn error_response(status: StatusCode, code: &'static str) -> Response {
+    error_response_with_message(status, code, default_error_message(code))
+}
+
+fn error_response_with_message(
+    status: StatusCode,
+    code: &'static str,
+    message: impl Into<String>,
+) -> Response {
     (
         status,
         Json(ErrorEnvelope {
             schema: SCHEMA_NAME,
             schema_version: SCHEMA_VERSION,
             document_type: "error",
-            error: ErrorDetail { code },
+            error: ErrorDetail {
+                code,
+                message: message.into(),
+            },
         }),
     )
         .into_response()
+}
+
+fn stale_revision_response(requested_revision: u64, current_revision: u64) -> Response {
+    error_response_with_message(
+        StatusCode::CONFLICT,
+        "base-revision-unusable",
+        format!(
+            "This page inspection started at revision {requested_revision}, but another inspection already published revision {current_revision}. Reload the latest revision and try again."
+        ),
+    )
+}
+
+fn invalidated_snapshot_response() -> Response {
+    error_response_with_message(
+        StatusCode::CONFLICT,
+        "base-revision-unusable",
+        "The source volumes changed after this inspection started, so the snapshot was invalidated and cannot be enriched. Restart Volmap against a stable snapshot.",
+    )
+}
+
+fn default_error_message(code: &str) -> &'static str {
+    match code {
+        "base-revision-unusable" => {
+            "This inspection revision cannot be enriched because a newer revision exists or the snapshot was invalidated. Reload the latest revision and try again."
+        }
+        "enrichment-failed" => {
+            "Volmap could not inspect the requested page structure because an internal enrichment operation failed."
+        }
+        "entity-not-found" => {
+            "The requested volume, sector, page, slot, or OOS chain does not exist in this revision."
+        }
+        "fetch-context-rejected" => {
+            "The request was blocked because it did not come from this Volmap page."
+        }
+        "headers-too-large" => "The request headers exceed the server limit.",
+        "invalid-collection-limit" => "The requested collection size is outside the allowed range.",
+        "invalid-collection-query" => "The collection query is malformed.",
+        "invalid-cursor" => {
+            "This collection cursor is invalid or belongs to a different inspection revision."
+        }
+        "invalid-host" => "The request Host does not match this Volmap listener.",
+        "invalid-selector" => "The page, slot, or OOS selector is malformed.",
+        "job-not-found" => "The requested enrichment job does not exist in this session.",
+        "json-content-type-required" => {
+            "Enrichment requests must use the application/json content type."
+        }
+        "malformed-request" => "The request body is malformed or exceeds the accepted JSON shape.",
+        "method-not-allowed" => "This HTTP method is not allowed for the requested resource.",
+        "origin-rejected" => "The request Origin does not match this Volmap page.",
+        "resource-admission-refused" => {
+            "Volmap is already processing the allowed amount of inspection work. Wait for it to finish and try again."
+        }
+        "resource-not-found" => "The requested Volmap resource does not exist.",
+        "revision-not-found" => {
+            "This inspection revision does not exist in the current Volmap session."
+        }
+        "session-unavailable" => "The Volmap inspection session is unavailable.",
+        "uri-too-long" => "The request URL exceeds the server limit.",
+        _ => "The Volmap request failed.",
+    }
 }
 
 fn validate_listener(options: &ServeOptions) -> Result<(), ServeError> {
@@ -1485,7 +1558,7 @@ const INDEX_HTML: &str = r#"<!doctype html>
 <script src="/app.js"></script></body></html>"#;
 
 #[allow(clippy::needless_raw_string_hashes)]
-const APP_CSS: &str = r#":root{color-scheme:dark;--bg:#071014;--panel:#0d1820;--line:#29404b;--text:#dce8ec;--muted:#8fa5ae;--cyan:#68d8d0;--unreserved:#24323a;--reserved:#315f8a;--allocated:#2f845e;--system:#7658a5;--finding:#d25569}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,sans-serif}button{font:inherit}header{position:sticky;top:0;z-index:4;height:54px;display:flex;align-items:center;gap:18px;padding:0 18px;border-bottom:1px solid var(--line);background:#0a1319}header strong{letter-spacing:.08em}.spacer{flex:1}button{padding:8px 11px;background:var(--cyan);color:#071014;border:0;font-weight:700;cursor:pointer}button:focus-visible,[role=gridcell]:focus-visible{outline:2px solid #ffd376;outline-offset:2px}main{min-height:calc(100vh - 54px);display:grid;grid-template-columns:220px minmax(560px,1fr)}aside,.workspace{min-width:0}aside{position:sticky;top:54px;height:calc(100vh - 54px);align-self:start;overflow:auto;border-right:1px solid var(--line)}h1,h2,h3,p{margin:0}h2{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);padding:14px;border-bottom:1px solid var(--line)}#volumes{padding:10px}.nav{display:block;width:100%;text-align:left;background:transparent;color:var(--text);border:0;padding:7px;margin:0}.nav.active{background:#16303b;color:var(--cyan)}#drillBreadcrumb{display:flex;align-items:center;gap:8px;min-height:50px;padding:9px 18px;border-bottom:1px solid var(--line);color:var(--muted)}#drillBreadcrumb button{padding:6px 9px;border:1px solid var(--line);background:var(--panel);color:var(--cyan)}#drillBreadcrumb .back{margin-right:8px;background:var(--cyan);color:var(--bg)}#workspaceContent{padding-bottom:24px}.workspace-title{display:flex;gap:18px;align-items:end;padding:18px}.workspace-title p,#legend,#mapStatus,.muted{color:var(--muted);font-size:12px}#legend{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:5px 12px;margin-left:auto;max-width:620px}.swatch{display:inline-block;width:9px;height:9px;margin-right:5px;border-radius:2px;background:var(--unreserved)}.swatch.reserved-unallocated,.swatch.free{background:var(--reserved)}.swatch.allocated{background:var(--allocated)}.swatch.system-metadata{background:var(--system)}.swatch.finding{background:transparent;border:2px solid var(--finding)}#volumeMap{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;padding:0 18px 18px}.sector-card{min-width:0;padding:0;border:1px solid var(--line);background:var(--panel);color:var(--text);text-align:left}.sector-card:hover{border-color:var(--cyan)}.sector-heading{display:flex;gap:7px;padding:6px 7px;color:var(--muted);font-size:11px}.sector-heading strong{color:var(--text)}.sector-heading span{margin-left:auto}.sector-preview-pages,.sector-focus-grid{display:grid;grid-template-columns:repeat(8,1fr)}.sector-preview-pages{gap:2px;padding:0 7px 7px}.page{aspect-ratio:1;min-width:0;margin:0;padding:0;border:1px solid transparent;border-radius:1px;background:var(--unreserved)}.page.unreserved{background:var(--unreserved)}.page.reserved-unallocated{background:var(--reserved)}.page.allocated{background:var(--allocated)}.page.allocated.occupancy-known{background:linear-gradient(to top,var(--allocated) 0 var(--occupied),var(--reserved) var(--occupied) 100%)}.page.allocated.occupancy-unknown{background:repeating-linear-gradient(135deg,var(--allocated) 0 4px,var(--reserved) 4px 8px)}.page.system-metadata{background:var(--system)}.page.finding{outline:2px solid var(--finding);outline-offset:-2px}.preview-page{display:block}.sector-focus{max-width:790px;margin:0 auto;padding:0 18px 30px}.sector-focus-grid{gap:7px}.focus-page{position:relative;color:var(--text);text-align:left}.focus-page.selected{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan),0 0 8px var(--cyan)}.focus-page .page-id{position:absolute;left:6px;bottom:5px;font-size:11px}.focus-page .page-kind{position:absolute;top:5px;left:6px;right:6px;overflow:hidden;color:#d5e0e4;font-size:9px;text-overflow:ellipsis;white-space:nowrap}#mapStatus{padding:0 18px 24px}#mapSentinel{height:1px;grid-column:1/-1}.page-workspace{display:grid;grid-template-columns:minmax(300px,1fr) minmax(360px,1.15fr);gap:18px;padding:0 18px 24px}.panel{min-width:0;padding:16px;border:1px solid var(--line);background:var(--panel)}.panel h2{padding:0 0 10px;border:0;color:var(--text);font-size:17px;letter-spacing:0;text-transform:none}.panel h3{margin:18px 0 8px}.page-facts{grid-template-columns:125px 1fr}.structure-facts{margin-top:16px}.slot-map{display:block;width:100%;height:82px;margin:10px 0;border:1px solid var(--line);background:#16242c}.slot-table{width:100%;border-collapse:collapse}.slot-table th,.slot-table td{padding:7px;border-bottom:1px solid var(--line);text-align:right}.slot-table th:first-child,.slot-table td:first-child{text-align:left}.slot-action{padding:3px 6px;background:transparent;color:var(--cyan);border:1px solid var(--line)}.slot-detail{grid-column:1/-1}.status-note{margin-top:12px;padding:9px;border:1px solid var(--line);color:var(--muted)}dl{display:grid;grid-template-columns:115px 1fr;gap:7px}dt{color:var(--muted)}dd{margin:0;overflow-wrap:anywhere}.withheld{padding:8px;border:1px solid var(--line);color:var(--muted);font-family:ui-monospace,monospace;white-space:pre-wrap}dialog{max-width:min(860px,90vw);max-height:80vh;background:var(--panel);color:var(--text);border:1px solid var(--cyan)}dialog::backdrop{background:#000b}@media(max-width:900px){main{grid-template-columns:190px 1fr}.page-workspace{grid-template-columns:1fr}}@media(max-width:720px){header{position:static;height:auto;min-height:54px;flex-wrap:wrap;padding:10px 14px}main{display:block}aside{position:static;height:auto;border:0;border-bottom:1px solid var(--line)}.workspace-title{display:block}.workspace-title #legend{justify-content:flex-start;margin:10px 0 0}#volumeMap{grid-template-columns:repeat(2,minmax(135px,1fr));gap:8px;padding:0 12px 16px}.sector-focus-grid{gap:4px}.page-workspace{padding:0 12px 18px}}"#;
+const APP_CSS: &str = r#":root{color-scheme:dark;--bg:#071014;--panel:#0d1820;--line:#29404b;--text:#dce8ec;--muted:#8fa5ae;--cyan:#68d8d0;--unreserved:#24323a;--reserved:#315f8a;--allocated:#2f845e;--system:#7658a5;--finding:#d25569}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,sans-serif}button{font:inherit}header{position:sticky;top:0;z-index:4;height:54px;display:flex;align-items:center;gap:18px;padding:0 18px;border-bottom:1px solid var(--line);background:#0a1319}header strong{letter-spacing:.08em}.spacer{flex:1}button{padding:8px 11px;background:var(--cyan);color:#071014;border:0;font-weight:700;cursor:pointer}button:focus-visible,[role=gridcell]:focus-visible{outline:2px solid #ffd376;outline-offset:2px}main{min-height:calc(100vh - 54px);display:grid;grid-template-columns:220px minmax(560px,1fr)}aside,.workspace{min-width:0}aside{position:sticky;top:54px;height:calc(100vh - 54px);align-self:start;overflow:auto;border-right:1px solid var(--line)}h1,h2,h3,p{margin:0}h2{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);padding:14px;border-bottom:1px solid var(--line)}#volumes{padding:10px}.nav{display:block;width:100%;text-align:left;background:transparent;color:var(--text);border:0;padding:7px;margin:0}.nav.active{background:#16303b;color:var(--cyan)}#drillBreadcrumb{display:flex;align-items:center;gap:8px;min-height:50px;padding:9px 18px;border-bottom:1px solid var(--line);color:var(--muted)}#drillBreadcrumb button{padding:6px 9px;border:1px solid var(--line);background:var(--panel);color:var(--cyan)}#drillBreadcrumb .back{margin-right:8px;background:var(--cyan);color:var(--bg)}#workspaceContent{padding-bottom:24px}.workspace-title{display:flex;gap:18px;align-items:end;padding:18px}.workspace-title p,#legend,#mapStatus,.muted{color:var(--muted);font-size:12px}#legend{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:5px 12px;margin-left:auto;max-width:620px}.swatch{display:inline-block;width:9px;height:9px;margin-right:5px;border-radius:2px;background:var(--unreserved)}.swatch.reserved-unallocated,.swatch.free{background:var(--reserved)}.swatch.allocated{background:var(--allocated)}.swatch.system-metadata{background:var(--system)}.swatch.finding{background:transparent;border:2px solid var(--finding)}#volumeMap{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;padding:0 18px 18px}.sector-card{min-width:0;padding:0;border:1px solid var(--line);background:var(--panel);color:var(--text);text-align:left}.sector-card:hover{border-color:var(--cyan)}.sector-heading{display:flex;gap:7px;padding:6px 7px;color:var(--muted);font-size:11px}.sector-heading strong{color:var(--text)}.sector-heading span{margin-left:auto}.sector-preview-pages,.sector-focus-grid{display:grid;grid-template-columns:repeat(8,1fr)}.sector-preview-pages{gap:2px;padding:0 7px 7px}.page{aspect-ratio:1;min-width:0;margin:0;padding:0;border:1px solid transparent;border-radius:1px;background:var(--unreserved)}.page.unreserved{background:var(--unreserved)}.page.reserved-unallocated{background:var(--reserved)}.page.allocated{background:var(--allocated)}.page.allocated.occupancy-known{background:linear-gradient(to top,var(--allocated) 0 var(--occupied),var(--reserved) var(--occupied) 100%)}.page.allocated.occupancy-unknown{background:repeating-linear-gradient(135deg,var(--allocated) 0 4px,var(--reserved) 4px 8px)}.page.system-metadata{background:var(--system)}.page.finding{outline:2px solid var(--finding);outline-offset:-2px}.preview-page{display:block}.sector-focus{max-width:790px;margin:0 auto;padding:0 18px 30px}.sector-focus-grid{gap:7px}.focus-page{position:relative;color:var(--text);text-align:left}.focus-page.selected{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan),0 0 8px var(--cyan)}.focus-page .page-id{position:absolute;left:6px;bottom:5px;font-size:11px}.focus-page .page-kind{position:absolute;top:5px;left:6px;right:6px;overflow:hidden;color:#d5e0e4;font-size:9px;text-overflow:ellipsis;white-space:nowrap}#mapStatus{padding:0 18px 24px}#mapSentinel{height:1px;grid-column:1/-1}.page-workspace{display:grid;grid-template-columns:minmax(300px,1fr) minmax(360px,1.15fr);gap:18px;padding:0 18px 24px}.panel{min-width:0;padding:16px;border:1px solid var(--line);background:var(--panel)}.panel h2{padding:0 0 10px;border:0;color:var(--text);font-size:17px;letter-spacing:0;text-transform:none}.panel h3{margin:18px 0 8px}.page-facts{grid-template-columns:125px 1fr}.structure-facts{margin-top:16px}.slot-map{display:block;width:100%;height:82px;margin:10px 0;border:1px solid var(--line);background:#16242c}.slot-table{width:100%;border-collapse:collapse}.slot-table th,.slot-table td{padding:7px;border-bottom:1px solid var(--line);text-align:right}.slot-table th:first-child,.slot-table td:first-child{text-align:left}.slot-action{padding:3px 6px;background:transparent;color:var(--cyan);border:1px solid var(--line)}.slot-detail{grid-column:1/-1}.status-note{margin-top:12px;padding:9px;border:1px solid var(--line);color:var(--muted)}.error-note{display:grid;gap:5px;margin:12px 18px;padding:12px 14px;border-color:var(--finding);background:#281a20;color:var(--text)}.error-note strong{color:#f0a1af}.error-note small{color:var(--muted);font:11px ui-monospace,monospace}dl{display:grid;grid-template-columns:115px 1fr;gap:7px}dt{color:var(--muted)}dd{margin:0;overflow-wrap:anywhere}.withheld{padding:8px;border:1px solid var(--line);color:var(--muted);font-family:ui-monospace,monospace;white-space:pre-wrap}dialog{max-width:min(860px,90vw);max-height:80vh;background:var(--panel);color:var(--text);border:1px solid var(--cyan)}dialog::backdrop{background:#000b}@media(max-width:900px){main{grid-template-columns:190px 1fr}.page-workspace{grid-template-columns:1fr}}@media(max-width:720px){header{position:static;height:auto;min-height:54px;flex-wrap:wrap;padding:10px 14px}main{display:block}aside{position:static;height:auto;border:0;border-bottom:1px solid var(--line)}.workspace-title{display:block}.workspace-title #legend{justify-content:flex-start;margin:10px 0 0}#volumeMap{grid-template-columns:repeat(2,minmax(135px,1fr));gap:8px;padding:0 12px 16px}.sector-focus-grid{gap:4px}.page-workspace{padding:0 12px 18px}}"#;
 
 const DISTRIBUTION_CSS: &str = r"
 .page-distribution{display:grid;gap:14px}
@@ -1544,7 +1617,7 @@ function browserRoutePath(route){const prefix=`/s/${route.snapshot}/r/${route.re
 function browserParentPath(route){if(route.kind==='volume')return null;if(route.kind==='sector')return browserRoutePath({...route,kind:'volume'});if(route.kind==='page')return browserRoutePath({...route,kind:'sector',sector:currentSector.sector_id});if(route.kind==='slot')return browserRoutePath({...route,kind:'page'});return browserRoutePath({...route,kind:'slot'})}
 function syncBrowserRoute(kind,mode='push'){if(mode==='none')return;const route=browserRoute(kind),path=browserRoutePath(route),parent=browserParentPath(route);if(location.pathname===path){if(!history.state?.volmap)history.replaceState({volmap:true,previous:null,parent},'',path);return}if(mode==='replace')history.replaceState({volmap:true,previous:history.state?.previous||null,parent},'',path);else history.pushState({volmap:true,previous:location.pathname,parent},'',path)}
 function installBrowserRouteState(route){const current=browserRoute(route.kind);history.replaceState({volmap:true,previous:null,parent:browserParentPath(current)},'',browserRoutePath(current))}
-async function api(path,options={}){const response=await fetch(path,{...options,cache:'no-store',credentials:'same-origin'});if(!response.ok)throw new Error(`request failed (${response.status})`);return response.json()}
+async function api(path,options={}){const response=await fetch(path,{...options,cache:'no-store',credentials:'same-origin'});if(!response.ok){let payload=null;try{payload=await response.json()}catch{}const detail=payload&&payload.error,reason=detail&&typeof payload.error.message==='string'?payload.error.message:`The server rejected this request (HTTP ${response.status}).`,error=new Error(reason);error.status=response.status;error.code=detail&&typeof detail.code==='string'?detail.code:'http-error';throw error}return response.json()}
 function base(){return `/api/v1/s/${session.snapshot.id}/r/${session.snapshot.revision}`}
 function updateSession(payload){session.snapshot=payload.snapshot;session.outcome=payload.outcome;$('outcome').textContent=payload.outcome;$('crumb').textContent=`snapshot ${payload.snapshot.id.slice(0,12)} · revision ${payload.snapshot.revision}`}
 async function start(){try{const route=parseBrowserRoute();if(!route)throw new Error('invalid inspector URL');session=await api('/api/v1/session');if(route.kind!=='root'){if(route.snapshot!==session.snapshot.id)throw new Error('this URL belongs to a different snapshot');session.snapshot.revision=route.revision}updateSession(session);await loadVolumes(route)}catch(error){renderWorkspaceError(error)}}
@@ -1584,7 +1657,7 @@ async function showOos(page,slotId,historyMode='push'){try{const payload=await a
 async function enrichOos(page,slotId){try{const receipt=await api(`${base()}/enrichments`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selector:`oos:${page.vol_id}:${page.page_id}:${slotId}`})});updateSession(receipt);invalidateVolumeView();const sectorPayload=await api(`${base()}/sector/${page.vol_id}/${page.sector_id}`);currentSector=sectorPayload.data;const refreshed=await showPage(page.page_id,true,'none');if(refreshed)await showOos(refreshed,slotId,'push')}catch(error){renderWorkspaceError(error)}}
 async function restoreBrowserRoute(route){if(route.kind==='volume'){await showVolume('none');return}if(route.kind==='sector'){const payload=await api(`${base()}/sector/${route.vol}/${route.sector}`);showSector(payload.data,'none');return}const page=await showPage(route.page,true,'none');if(!page)return;if(route.kind==='slot')await showSlot(page,route.slot,'none');if(route.kind==='oos')await showOos(page,route.slot,'none')}
 async function restoreBrowserLocation(){const generation=++routeGeneration;try{const route=parseBrowserRoute();if(!route)throw new Error('invalid inspector URL');if(route.kind==='root'){session=await api('/api/v1/session');updateSession(session);if(generation===routeGeneration)await loadVolumes(route);return}if(route.snapshot!==session.snapshot.id)throw new Error('this URL belongs to a different snapshot');session.snapshot.revision=route.revision;if(generation===routeGeneration)await loadVolumes(route)}catch(error){if(generation===routeGeneration)renderWorkspaceError(error)}}
-function renderWorkspaceError(error){const note=document.createElement('p');note.className='status-note';note.setAttribute('role','alert');note.textContent=error.message;$('workspaceContent').append(note)}
+function renderWorkspaceError(error){const old=document.querySelector('.error-note'),note=document.createElement('section'),title=document.createElement('strong'),message=document.createElement('span'),detail=document.createElement('small');if(old)old.remove();note.className='status-note error-note';note.setAttribute('role','alert');title.textContent='Could not complete this view';message.textContent=error.message;detail.textContent=error.status?`HTTP ${error.status} · ${error.code||'unknown-error'}`:`Browser error · ${error.code||'unknown-error'}`;note.append(title,message,detail);$('workspaceContent').append(note)}
 async function showLicenses(){const payload=await api('/api/v1/licenses');$('infoContent').textContent=payload.notice;$('infoDialog').showModal()}
 window.addEventListener('popstate',()=>{if(session)restoreBrowserLocation()});$('closeInfo').addEventListener('click',()=>$('infoDialog').close());$('licenses').addEventListener('click',showLicenses);start()})();";
 
@@ -1782,6 +1855,53 @@ mod tests {
         assert!(!APP_CSS.contains("#unlock"));
         assert!(APP_JS.contains("async function start()"));
         assert!(APP_JS.contains("start()"));
+    }
+
+    #[test]
+    fn browser_preserves_the_structured_reason_for_a_conflict() {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        runtime.block_on(async {
+            let response = error_response(StatusCode::CONFLICT, "base-revision-unusable");
+            let bytes = axum::body::to_bytes(response.into_body(), 64 * 1024)
+                .await
+                .unwrap();
+            let document: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+
+            assert_eq!(document["error"]["code"], "base-revision-unusable");
+            assert_eq!(
+                document["error"]["message"],
+                "This inspection revision cannot be enriched because a newer revision exists or the snapshot was invalidated. Reload the latest revision and try again."
+            );
+
+            let response = stale_revision_response(4, 5);
+            let bytes = axum::body::to_bytes(response.into_body(), 64 * 1024)
+                .await
+                .unwrap();
+            let document: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+            assert_eq!(
+                document["error"]["message"],
+                "This page inspection started at revision 4, but another inspection already published revision 5. Reload the latest revision and try again."
+            );
+
+            let response = invalidated_snapshot_response();
+            let bytes = axum::body::to_bytes(response.into_body(), 64 * 1024)
+                .await
+                .unwrap();
+            let document: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+            assert_eq!(
+                document["error"]["message"],
+                "The source volumes changed after this inspection started, so the snapshot was invalidated and cannot be enriched. Restart Volmap against a stable snapshot."
+            );
+        });
+
+        assert!(APP_JS.contains("payload.error.message"));
+        assert!(APP_JS.contains("error.status"));
+        assert!(APP_JS.contains("error.code"));
+        assert!(APP_JS.contains("Could not complete this view"));
+        assert!(APP_CSS.contains(".error-note"));
     }
 
     #[test]
