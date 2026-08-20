@@ -12,6 +12,10 @@ _Avoid_: Presentation tree, adapter model
 A CLI-human, JSON/JSONL, TUI, HTML, or web projection of the shared inspection module's normalized query results. An adapter never reads or parses volume bytes and never invents adapter-specific storage facts.
 _Avoid_: Parser frontend, independent inspector
 
+**Terminal interaction parity**:
+The TUI preserves the web viewer's Volume → Sector → Page drill-down and semantic visual distinctions, including page occupancy and structural distribution, while expressing them through terminal-native layout, rendering, and controls. It does not require pixel matching or reproduction of browser-only mechanics.
+_Avoid_: Cosmetic parity, pixel parity
+
 **Inspection revision**:
 A monotonically advancing version of one inspection graph as explicit deep-inspection targets add evidence and details. Revisions preserve the snapshot and entity identities; an export freezes one revision.
 _Avoid_: Database version, schema version
