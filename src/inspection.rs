@@ -19,18 +19,20 @@ use crate::bytes::ByteView;
 use crate::diagnostics::{InspectionOutcome, OutcomeInputs};
 use crate::format::{
     BOOT_DB_PARM_SIZE, BtreePageFact, CatalogClassInfoFact, CatalogPageFact,
-    CatalogRepresentationHeaderFact, DB_PAGE_SIZE, DecodeError, DroppedFilesPageFact, FileHeader,
-    FileType, HeapPageFact, OosNext, PageContent, PageType, RecordType, SLOTTED_HEADER_SIZE,
-    SlottedPage, TDE_KEY_INFO_RECORD_SIZE, TdeAlgorithm, TrackerItemFact, UserPageFact,
-    VacuumPageFact, VolumePurpose, VolumeType, decode_bigone_target, decode_boot_db_parm,
-    decode_btree_page, decode_catalog_class_info, decode_catalog_directory, decode_catalog_page,
-    decode_catalog_representation_header, decode_decrypted_page_envelope,
-    decode_dropped_files_page, decode_extdata_header, decode_file_header, decode_full_sectors,
-    decode_heap_page, decode_heap_record_envelope, decode_oos_chunk, decode_overflow_continuation,
+    CatalogRepresentationHeaderFact, ClassRepresentationFact, DB_PAGE_SIZE, DecodeError,
+    DroppedFilesPageFact, FileHeader, FileType, HeapPageFact, InterpretedAttribute, OosNext,
+    PageContent, PageType, RecordType, RepresentationTarget, SLOTTED_HEADER_SIZE, SlottedPage,
+    TDE_KEY_INFO_RECORD_SIZE, TdeAlgorithm, TrackerItemFact, UserPageFact, VacuumPageFact,
+    VolumePurpose, VolumeType, decode_bigone_target, decode_boot_db_parm, decode_btree_page,
+    decode_catalog_class_info, decode_catalog_directory, decode_catalog_page,
+    decode_catalog_representation_header, decode_class_representation,
+    decode_decrypted_page_envelope, decode_dropped_files_page, decode_extdata_header,
+    decode_file_header, decode_full_sectors, decode_heap_page, decode_heap_record_body,
+    decode_heap_record_envelope, decode_oos_chunk, decode_overflow_continuation,
     decode_overflow_head, decode_page_envelope, decode_page_envelope_parts, decode_partial_sectors,
-    decode_relocation_target, decode_sector_bitmap, decode_slotted_free_space_header,
-    decode_slotted_page, decode_tracker_items, decode_user_pages, decode_vacuum_page,
-    decode_volume_header,
+    decode_record_attributes, decode_relocation_target, decode_sector_bitmap,
+    decode_slotted_free_space_header, decode_slotted_page, decode_tracker_items, decode_user_pages,
+    decode_vacuum_page, decode_volume_header,
 };
 use crate::model::{
     Availability, Coverage, Hfid, InspectionRevision, Oid, PageAllocationClass, PageId, SectorId,
@@ -1004,6 +1006,58 @@ struct SessionData {
     oos_chains: BTreeMap<crate::model::Oid, OosChainFact>,
     overflow_chains: BTreeMap<Oid, OverflowChainFact>,
     relocation_edges: BTreeMap<Oid, RelocationEdgeFact>,
+    class_representations: BTreeMap<(Oid, u32), ClassRepresentationEvidence>,
+    /// A heap sector belongs to exactly one file and a class has exactly one
+    /// heap file, so the class a sector's pages hold is cacheable. The key must
+    /// carry the volume: one class's data pages may span permanent volumes
+    /// (`docs/adr/0002-classrepr-from-class-record.md`).
+    sector_classes: BTreeMap<(VolId, SectorId), Oid>,
+    record_interpretations: BTreeMap<Oid, RecordInterpretationEvidence>,
+}
+
+/// One representation of one class, as revision-scoped graph evidence.
+#[derive(Clone, Debug)]
+struct ClassRepresentationEvidence {
+    representation: Option<ClassRepresentationFact>,
+    diagnostic_rule: Option<&'static str>,
+}
+
+/// One record's decoded attribute values, as revision-scoped graph evidence.
+#[derive(Clone, Debug)]
+struct RecordInterpretationEvidence {
+    class_oid: Oid,
+    representation_id: u32,
+    record_type: RecordType,
+    /// Set when this interpretation was reached by following a relocation from
+    /// another slot, so both the forward reference and the values stay visible.
+    relocated_from: Option<Oid>,
+    attributes: Vec<InterpretedAttribute>,
+    diagnostic_rule: Option<&'static str>,
+}
+
+/// One representation of one class as the graph exposes it.
+#[derive(Clone, Debug)]
+pub struct ClassRepresentationView {
+    pub class_oid: Oid,
+    pub representation_id: u32,
+    pub revision: InspectionRevision,
+    /// Absent when the class record could not be interpreted; `diagnostic_rule`
+    /// then says why, so the failure stays visible instead of vanishing.
+    pub representation: Option<ClassRepresentationFact>,
+    pub diagnostic_rule: Option<&'static str>,
+}
+
+/// One record's decoded attribute values as the graph exposes them.
+#[derive(Clone, Debug)]
+pub struct RecordInterpretationView {
+    pub record: Oid,
+    pub revision: InspectionRevision,
+    pub class_oid: Oid,
+    pub representation_id: u32,
+    pub record_type: RecordType,
+    pub relocated_from: Option<Oid>,
+    pub attributes: Vec<InterpretedAttribute>,
+    pub diagnostic_rule: Option<&'static str>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -1677,6 +1731,9 @@ impl Inspection {
                 oos_chains: BTreeMap::new(),
                 overflow_chains: BTreeMap::new(),
                 relocation_edges: BTreeMap::new(),
+                class_representations: BTreeMap::new(),
+                sector_classes: BTreeMap::new(),
+                record_interpretations: BTreeMap::new(),
             }),
         };
         inspection.bootstrap_file_inventory(policy, cancel)
@@ -3224,6 +3281,589 @@ impl GraphView {
             .collect()
     }
 
+    /// The sector a page belongs to. Sector `s` is exactly pages `64s` through
+    /// `64s + 63`, with no sub-sector aliasing.
+    fn sector_of(page_id: PageId) -> Option<SectorId> {
+        let raw = u32::try_from(page_id.get()).ok()? / SECTOR_PAGES;
+        SectorId::new(i32::try_from(raw).ok()?).ok()
+    }
+
+    /// The class OID whose heap holds `vpid`, from the sector cache when a page
+    /// of that sector has already been resolved, otherwise from slot 0.
+    ///
+    /// A heap sector belongs to exactly one file for the file's whole lifetime
+    /// and a class has exactly one heap file, so one resolution serves every
+    /// page of the sector (research §5).
+    fn class_oid_for_heap_page(&self, vpid: Vpid) -> Result<Oid, &'static str> {
+        if let Some(oid) = Self::sector_of(vpid.page_id)
+            .and_then(|sector| self.data.sector_classes.get(&(vpid.vol_id, sector)))
+        {
+            return Ok(*oid);
+        }
+        let owned = OwnedInspectionPage::read(&self.data, vpid)
+            .map_err(|_| "heap page could not be read")?;
+        let envelope = owned
+            .envelope(vpid)
+            .map_err(|_| "heap page envelope is invalid")?;
+        if envelope.page_type() != PageType::Heap {
+            return Err("page is not a heap page");
+        }
+        let slotted =
+            decode_slotted_page(&envelope).map_err(|_| "heap page is not a valid slotted page")?;
+        // Slot 0 is HEAP_HDR_STATS on a heap header page and HEAP_CHAIN on a
+        // data page; the class OID is field 0 of both, so try each role.
+        let fact = decode_heap_page(&envelope, &slotted, true)
+            .or_else(|_| decode_heap_page(&envelope, &slotted, false))
+            .map_err(|_| "heap page slot 0 is not a recognized heap record")?;
+        let class_oid = match fact {
+            HeapPageFact::Header(header) => header.class_oid,
+            HeapPageFact::Chain(chain) => chain.class_oid,
+        };
+        // A NULL class OID is the root and boot heaps. Interpreting those needs
+        // boot_dbparm, which version one does not read.
+        class_oid.ok_or("root and system heap records are not interpreted")
+    }
+
+    /// Parses one representation out of a class object's own heap record,
+    /// following `REC_RELOCATION` with a bounded, cycle-checked walk.
+    fn resolve_class_representation(
+        &self,
+        class_oid: Oid,
+        target: RepresentationTarget,
+    ) -> Result<ClassRepresentationFact, &'static str> {
+        let mut current = class_oid;
+        let mut visited = BTreeSet::new();
+        for _ in 0..8 {
+            if !visited.insert(current) {
+                return Err("class record relocation cycle");
+            }
+            let vpid = Vpid::new(current.vol_id, current.page_id);
+            let owned = OwnedInspectionPage::read(&self.data, vpid)
+                .map_err(|_| "class record page could not be read")?;
+            let envelope = owned
+                .envelope(vpid)
+                .map_err(|_| "class record page envelope is invalid")?;
+            let slotted = decode_slotted_page(&envelope)
+                .map_err(|_| "class record page is not a valid heap page")?;
+            let slot_id = u16::try_from(current.slot_id.get())
+                .map_err(|_| "class record slot identifier is invalid")?;
+            let slot = slotted
+                .slots()
+                .get(usize::from(slot_id))
+                .ok_or("class record slot does not exist")?;
+            match slot.record_type() {
+                RecordType::Home | RecordType::NewHome => {
+                    let (header, body) =
+                        decode_heap_record_body(&envelope, &slotted, slot_id, true)
+                            .map_err(|_| "class record could not be read")?;
+                    return decode_class_representation(
+                        body,
+                        header.variable_offset_width,
+                        header.representation_id,
+                        target,
+                    )
+                    .map_err(|_| match target {
+                        RepresentationTarget::Current => {
+                            "the class record could not be interpreted"
+                        }
+                        RepresentationTarget::Id(_) => {
+                            "the record's representation is not described by its class"
+                        }
+                    });
+                }
+                RecordType::Relocation => {
+                    current = decode_relocation_target(&envelope, &slotted, slot_id)
+                        .map_err(|_| "class record relocation target is invalid")?;
+                }
+                RecordType::BigOne => {
+                    return Err("multipage class records are not yet decoded");
+                }
+                RecordType::Unknown
+                | RecordType::AssignAddress
+                | RecordType::MarkDeleted
+                | RecordType::DeletedWillReuse
+                | RecordType::Reserved(_) => return Err("class record slot is not live"),
+            }
+        }
+        Err("class record relocation limit reached")
+    }
+
+    /// Resolve and publish the current representation of the class whose heap
+    /// holds `vpid`. Schema evidence is useful on its own — the representation
+    /// is an independently renderable entity — and it seeds the sector cache
+    /// that record interpretation then reuses.
+    pub fn enrich_class_representation(
+        &self,
+        vpid: Vpid,
+        policy: ResourcePolicy,
+        cancel: &CancelToken,
+    ) -> Result<Self, OperationError> {
+        if cancel.is_cancelled() {
+            return Err(OperationError::Interrupted);
+        }
+        if policy.max_decoded_bytes < crate::format::IO_PAGE_SIZE as u64
+            || policy.memory_limit < crate::format::IO_PAGE_SIZE as u64
+        {
+            return Err(OperationError::Unsupported);
+        }
+        if !self
+            .data
+            .sources
+            .verify_unchanged()
+            .map_err(OperationError::Source)?
+        {
+            return self.invalidated_revision();
+        }
+        let class_oid = match self.class_oid_for_heap_page(vpid) {
+            Ok(oid) => oid,
+            Err(reason) => {
+                return self.publish_interpretation(
+                    vpid,
+                    Vec::new(),
+                    Vec::new(),
+                    None,
+                    Some(reason),
+                );
+            }
+        };
+        let representation =
+            match self.resolve_class_representation(class_oid, RepresentationTarget::Current) {
+                Ok(representation) => representation,
+                Err(reason) => {
+                    return self.publish_interpretation(
+                        vpid,
+                        Vec::new(),
+                        Vec::new(),
+                        Some((vpid, class_oid)),
+                        Some(reason),
+                    );
+                }
+            };
+        let key = (class_oid, representation.representation_id);
+        if self
+            .data
+            .class_representations
+            .get(&key)
+            .is_some_and(|existing| existing.representation.is_some())
+            && Self::sector_of(vpid.page_id).is_some_and(|sector| {
+                self.data
+                    .sector_classes
+                    .contains_key(&(vpid.vol_id, sector))
+            })
+        {
+            // Already committed to this revision; re-requesting it is a no-op
+            // rather than a new revision carrying identical facts.
+            return Ok(self.clone());
+        }
+        if !self
+            .data
+            .sources
+            .verify_unchanged()
+            .map_err(OperationError::Source)?
+        {
+            return self.invalidated_revision();
+        }
+        self.publish_interpretation(
+            vpid,
+            vec![(key, representation)],
+            Vec::new(),
+            Some((vpid, class_oid)),
+            None,
+        )
+    }
+
+    /// Interpret every home record of one heap page as a single enrichment.
+    ///
+    /// Page granularity is deliberate: resolving the page's class record once
+    /// amortizes over every record on it, so one operator action produces one
+    /// revision (`docs/adr/0002-classrepr-from-class-record.md`).
+    #[allow(clippy::too_many_lines)]
+    pub fn enrich_record_page(
+        &self,
+        vpid: Vpid,
+        policy: ResourcePolicy,
+        cancel: &CancelToken,
+    ) -> Result<Self, OperationError> {
+        if cancel.is_cancelled() {
+            return Err(OperationError::Interrupted);
+        }
+        if policy.max_decoded_bytes < crate::format::IO_PAGE_SIZE as u64
+            || policy.memory_limit < crate::format::IO_PAGE_SIZE as u64
+        {
+            return Err(OperationError::Unsupported);
+        }
+        if !self
+            .data
+            .sources
+            .verify_unchanged()
+            .map_err(OperationError::Source)?
+        {
+            return self.invalidated_revision();
+        }
+        let class_oid = match self.class_oid_for_heap_page(vpid) {
+            Ok(oid) => oid,
+            Err(reason) => {
+                return self.publish_interpretation(
+                    vpid,
+                    Vec::new(),
+                    Vec::new(),
+                    None,
+                    Some(reason),
+                );
+            }
+        };
+
+        let owned = match OwnedInspectionPage::read(&self.data, vpid) {
+            Ok(page) => page,
+            Err(InspectionPageError::Source(error)) => return Err(OperationError::Source(error)),
+            Err(InspectionPageError::Format(rule)) => {
+                return self.publish_interpretation(vpid, Vec::new(), Vec::new(), None, Some(rule));
+            }
+            Err(InspectionPageError::EncryptedOpaque) => {
+                return self.publish_interpretation(
+                    vpid,
+                    Vec::new(),
+                    Vec::new(),
+                    None,
+                    Some("the page's user region is encrypted and was not decrypted"),
+                );
+            }
+            Err(InspectionPageError::Decrypt) => {
+                return self.publish_interpretation(
+                    vpid,
+                    Vec::new(),
+                    Vec::new(),
+                    None,
+                    Some("tde.page.decrypt"),
+                );
+            }
+        };
+        let envelope = match owned.envelope(vpid) {
+            Ok(value) if value.page_type() == PageType::Heap => value,
+            Ok(_) => {
+                return self.publish_interpretation(
+                    vpid,
+                    Vec::new(),
+                    Vec::new(),
+                    None,
+                    Some("page is not a heap page"),
+                );
+            }
+            Err(error) => {
+                return self.publish_interpretation(
+                    vpid,
+                    Vec::new(),
+                    Vec::new(),
+                    None,
+                    Some(error.rule()),
+                );
+            }
+        };
+        let slotted = match decode_slotted_page(&envelope) {
+            Ok(value) => value,
+            Err(error) => {
+                return self.publish_interpretation(
+                    vpid,
+                    Vec::new(),
+                    Vec::new(),
+                    None,
+                    Some(error.rule()),
+                );
+            }
+        };
+
+        let mut representations: BTreeMap<(Oid, u32), ClassRepresentationFact> = BTreeMap::new();
+        let mut records: Vec<(Oid, RecordInterpretationEvidence)> = Vec::new();
+        // Slot 0 carries the page's own heap metadata, never a user record.
+        for slot in slotted.slots().iter().skip(1) {
+            if cancel.is_cancelled() {
+                return Err(OperationError::Interrupted);
+            }
+            if slot.is_empty() {
+                continue;
+            }
+            let slot_id = slot.slot_id();
+            let Ok(record_oid) = i16::try_from(slot_id)
+                .map_err(|_| ())
+                .and_then(|raw| SlotId::new(raw).map_err(|_| ()))
+                .map(|slot| Oid::new(vpid.vol_id, vpid.page_id, slot))
+            else {
+                continue;
+            };
+            match slot.record_type() {
+                RecordType::Home | RecordType::NewHome => {
+                    let evidence = self.interpret_one_record(
+                        &envelope,
+                        &slotted,
+                        slot_id,
+                        class_oid,
+                        None,
+                        &mut representations,
+                    );
+                    records.push((record_oid, evidence));
+                }
+                RecordType::Relocation => {
+                    // Both facts matter: the forward reference is the record's
+                    // own content, and the target carries the values.
+                    if let Ok(target) = decode_relocation_target(&envelope, &slotted, slot_id)
+                        && let Some(evidence) = self.interpret_relocated_record(
+                            target,
+                            record_oid,
+                            &mut representations,
+                        )
+                    {
+                        records.push((target, evidence));
+                    }
+                }
+                // A REC_BIGONE record's values live in an overflow file; only
+                // its forward reference is a fact of this page (backlog B3).
+                RecordType::BigOne
+                | RecordType::Unknown
+                | RecordType::AssignAddress
+                | RecordType::MarkDeleted
+                | RecordType::DeletedWillReuse
+                | RecordType::Reserved(_) => {}
+            }
+        }
+
+        if !self
+            .data
+            .sources
+            .verify_unchanged()
+            .map_err(OperationError::Source)?
+        {
+            return self.invalidated_revision();
+        }
+        let already_published = !records.is_empty()
+            && records
+                .iter()
+                .all(|(oid, _)| self.data.record_interpretations.contains_key(oid));
+        if already_published {
+            return Ok(self.clone());
+        }
+        self.publish_interpretation(
+            vpid,
+            representations.into_iter().collect(),
+            records,
+            Some((vpid, class_oid)),
+            None,
+        )
+    }
+
+    /// Interprets one home record, resolving whichever representation its own
+    /// header names and caching it for the rest of the page.
+    fn interpret_one_record(
+        &self,
+        envelope: &crate::format::DecodedPageEnvelope<'_>,
+        slotted: &SlottedPage,
+        slot_id: u16,
+        class_oid: Oid,
+        relocated_from: Option<Oid>,
+        representations: &mut BTreeMap<(Oid, u32), ClassRepresentationFact>,
+    ) -> RecordInterpretationEvidence {
+        let record_type = slotted
+            .slots()
+            .get(usize::from(slot_id))
+            .map_or(RecordType::Unknown, |slot| slot.record_type());
+        let failed = |reason: &'static str, representation_id: u32| RecordInterpretationEvidence {
+            class_oid,
+            representation_id,
+            record_type,
+            relocated_from,
+            attributes: Vec::new(),
+            diagnostic_rule: Some(reason),
+        };
+        let Ok((header, body)) = decode_heap_record_body(envelope, slotted, slot_id, true) else {
+            return failed("the record could not be read", 0);
+        };
+        let key = (class_oid, header.representation_id);
+        if let std::collections::btree_map::Entry::Vacant(slot) = representations.entry(key) {
+            // Prefer a representation already committed to the graph; resolving
+            // it again would re-read the class record for every page.
+            let resolved = self
+                .data
+                .class_representations
+                .get(&key)
+                .and_then(|evidence| evidence.representation.clone())
+                .map_or_else(
+                    || {
+                        self.resolve_class_representation(
+                            class_oid,
+                            RepresentationTarget::Id(header.representation_id),
+                        )
+                    },
+                    Ok,
+                );
+            match resolved {
+                Ok(representation) => {
+                    slot.insert(representation);
+                }
+                Err(reason) => return failed(reason, header.representation_id),
+            }
+        }
+        let representation = &representations[&key];
+        match decode_record_attributes(
+            body,
+            header.variable_offset_width,
+            header.has_bound_bits,
+            representation,
+        ) {
+            Ok(attributes) => RecordInterpretationEvidence {
+                class_oid,
+                representation_id: header.representation_id,
+                record_type,
+                relocated_from,
+                attributes,
+                diagnostic_rule: None,
+            },
+            Err(_) => failed(
+                "the record's layout does not match its representation",
+                header.representation_id,
+            ),
+        }
+    }
+
+    /// Interprets the one-hop target of a relocation, which may live on another
+    /// page and therefore under another class.
+    fn interpret_relocated_record(
+        &self,
+        target: Oid,
+        source: Oid,
+        representations: &mut BTreeMap<(Oid, u32), ClassRepresentationFact>,
+    ) -> Option<RecordInterpretationEvidence> {
+        let vpid = Vpid::new(target.vol_id, target.page_id);
+        let class_oid = self.class_oid_for_heap_page(vpid).ok()?;
+        let owned = OwnedInspectionPage::read(&self.data, vpid).ok()?;
+        let envelope = owned.envelope(vpid).ok()?;
+        if envelope.page_type() != PageType::Heap {
+            return None;
+        }
+        let slotted = decode_slotted_page(&envelope).ok()?;
+        let slot_id = u16::try_from(target.slot_id.get()).ok()?;
+        Some(self.interpret_one_record(
+            &envelope,
+            &slotted,
+            slot_id,
+            class_oid,
+            Some(source),
+            representations,
+        ))
+    }
+
+    #[must_use]
+    pub fn class_representation(
+        &self,
+        class_oid: Oid,
+        representation_id: u32,
+    ) -> Option<ClassRepresentationView> {
+        self.data
+            .class_representations
+            .get(&(class_oid, representation_id))
+            .map(|evidence| ClassRepresentationView {
+                class_oid,
+                representation_id,
+                revision: self.data.revision,
+                representation: evidence.representation.clone(),
+                diagnostic_rule: evidence.diagnostic_rule,
+            })
+    }
+
+    #[must_use]
+    pub fn class_representations(&self) -> Vec<ClassRepresentationView> {
+        self.data
+            .class_representations
+            .keys()
+            .filter_map(|(class_oid, representation_id)| {
+                self.class_representation(*class_oid, *representation_id)
+            })
+            .collect()
+    }
+
+    #[must_use]
+    pub fn record_interpretation(&self, record: Oid) -> Option<RecordInterpretationView> {
+        self.data
+            .record_interpretations
+            .get(&record)
+            .map(|evidence| RecordInterpretationView {
+                record,
+                revision: self.data.revision,
+                class_oid: evidence.class_oid,
+                representation_id: evidence.representation_id,
+                record_type: evidence.record_type,
+                relocated_from: evidence.relocated_from,
+                attributes: evidence.attributes.clone(),
+                diagnostic_rule: evidence.diagnostic_rule,
+            })
+    }
+
+    #[must_use]
+    pub fn record_interpretations(&self) -> Vec<RecordInterpretationView> {
+        self.data
+            .record_interpretations
+            .keys()
+            .filter_map(|record| self.record_interpretation(*record))
+            .collect()
+    }
+
+    /// Commits one interpretation enrichment: any representations it resolved,
+    /// any records it interpreted, and the sector-to-class association, as a
+    /// single revision.
+    fn publish_interpretation(
+        &self,
+        vpid: Vpid,
+        representations: Vec<((Oid, u32), ClassRepresentationFact)>,
+        records: Vec<(Oid, RecordInterpretationEvidence)>,
+        sector_class: Option<(Vpid, Oid)>,
+        failure: Option<&'static str>,
+    ) -> Result<Self, OperationError> {
+        let mut next = (*self.data).clone();
+        next.revision = next
+            .revision
+            .next()
+            .map_err(|_| OperationError::Arithmetic)?;
+        for (key, representation) in representations {
+            next.class_representations.insert(
+                key,
+                ClassRepresentationEvidence {
+                    representation: Some(representation),
+                    diagnostic_rule: None,
+                },
+            );
+        }
+        for (oid, evidence) in records {
+            next.record_interpretations.insert(oid, evidence);
+        }
+        if let Some((page, class_oid)) = sector_class
+            && let Some(sector) = Self::sector_of(page.page_id)
+        {
+            next.sector_classes.insert((page.vol_id, sector), class_oid);
+        }
+        if let Some(reason) = failure {
+            // The whole page degrades to its structural view, and the reason is
+            // durable evidence rather than a dropped request.
+            next.diagnostics.push(DiagnosticRecord {
+                code: "record.interpretation.unavailable",
+                severity: "warning",
+                message: "The selected page's records were not interpreted.",
+                subject: format!("page:{}:{}", vpid.vol_id.get(), vpid.page_id.get()),
+                rule: reason,
+            });
+            if let Ok(class_oid) = self.class_oid_for_heap_page(vpid) {
+                next.class_representations.entry((class_oid, 0)).or_insert(
+                    ClassRepresentationEvidence {
+                        representation: None,
+                        diagnostic_rule: Some(reason),
+                    },
+                );
+            }
+        }
+        refresh_interpretation_coverage(&mut next, failure);
+        next.outcome = classify_session_outcome(&next);
+        Ok(Self {
+            data: Arc::new(next),
+        })
+    }
+
     /// Validate the overflow chain referenced by one explicitly selected
     /// `REC_BIGONE`. The record payload and overflow payload bytes are never
     /// retained; only typed links and byte extents are published.
@@ -4667,6 +5307,49 @@ fn refresh_relocation_coverage(data: &mut SessionData, failure: Option<&'static 
         evaluated: total,
         conclusive,
         trusted_total: Some(total),
+        stop_reason: failure,
+    });
+}
+
+fn refresh_interpretation_coverage(data: &mut SessionData, failure: Option<&'static str>) {
+    data.coverage
+        .retain(|coverage| coverage.facet != "record-interpretations");
+    let total = data.record_interpretations.len() as u64;
+    let conclusive = data
+        .record_interpretations
+        .values()
+        .filter(|evidence| evidence.diagnostic_rule.is_none())
+        .count() as u64;
+    data.coverage.push(CoverageRecord {
+        facet: "record-interpretations",
+        coverage: if conclusive == total {
+            Coverage::Complete
+        } else {
+            Coverage::Partial
+        },
+        evaluated: total,
+        conclusive,
+        trusted_total: Some(total),
+        stop_reason: failure,
+    });
+    data.coverage
+        .retain(|coverage| coverage.facet != "class-representations");
+    let classes = data.class_representations.len() as u64;
+    let resolved = data
+        .class_representations
+        .values()
+        .filter(|evidence| evidence.representation.is_some())
+        .count() as u64;
+    data.coverage.push(CoverageRecord {
+        facet: "class-representations",
+        coverage: if resolved == classes {
+            Coverage::Complete
+        } else {
+            Coverage::Partial
+        },
+        evaluated: classes,
+        conclusive: resolved,
+        trusted_total: Some(classes),
         stop_reason: failure,
     });
 }
