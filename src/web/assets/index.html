@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Volmap Inspector</title>
+    <link rel="stylesheet" href="/app.css" />
+    <link rel="stylesheet" href="/distribution.css" />
+  </head>
+  <body>
+    <header>
+      <strong>VOLMAP</strong><span id="crumb">loading session</span
+      ><span class="spacer"></span
+      ><button id="licenses">About &amp; licenses</button
+      ><span id="outcome">loading</span>
+    </header>
+    <main id="app">
+      <aside>
+        <h2>Snapshot hierarchy</h2>
+        <div id="volumes"></div>
+      </aside>
+      <section class="workspace">
+        <nav id="drillBreadcrumb" aria-label="Inspection hierarchy"></nav>
+        <div id="workspaceContent"></div>
+      </section>
+    </main>
+    <dialog id="infoDialog">
+      <button id="closeInfo">Close</button>
+      <pre id="infoContent" class="withheld"></pre>
+    </dialog>
+    <script src="/routes.js"></script>
+    <script src="/distribution.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>
