@@ -60,6 +60,7 @@ linux-raw-sys 0.12.1 — Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT
 litrs 1.0.0 — MIT OR Apache-2.0
 lock_api 0.4.14 — MIT OR Apache-2.0
 log 0.4.33 — MIT OR Apache-2.0
+lz4_flex 0.14.0 — MIT
 matchit 0.8.4 — MIT AND BSD-3-Clause
 memchr 2.8.3 — Unlicense OR MIT
 mime 0.3.17 — MIT OR Apache-2.0

@@ -1388,6 +1388,37 @@
     },
     {
       "type": "library",
+      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#lz4_flex@0.14.0",
+      "author": "Pascal Seitz <pascal.seitz@gmail.com>, Arthur Silva <arthurprs@gmail.com>, ticki <Ticki@users.noreply.github.com>",
+      "name": "lz4_flex",
+      "version": "0.14.0",
+      "description": "Fastest LZ4 implementation in Rust, no unsafe by default.",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "ecbdfe44b1bd960b68170b417450a628c43f7cf56bb3c5317e61cb230ee7f226"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "purl": "pkg:cargo/lz4_flex@0.14.0",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/pseitz/lz4_flex"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/pseitz/lz4_flex"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#matchit@0.8.4",
       "author": "Ibraheem Ahmed <ibraheem@ibraheem.ca>",
       "name": "matchit",
@@ -2626,6 +2657,7 @@
         "registry+https://github.com/rust-lang/crates.io-index#crossterm@0.29.0",
         "registry+https://github.com/rust-lang/crates.io-index#ctr@0.10.1",
         "registry+https://github.com/rust-lang/crates.io-index#if-addrs@0.15.0",
+        "registry+https://github.com/rust-lang/crates.io-index#lz4_flex@0.14.0",
         "registry+https://github.com/rust-lang/crates.io-index#serde@1.0.229",
         "registry+https://github.com/rust-lang/crates.io-index#serde_json@1.0.151",
         "registry+https://github.com/rust-lang/crates.io-index#sha2@0.11.0",
@@ -2928,6 +2960,9 @@
     },
     {
       "ref": "registry+https://github.com/rust-lang/crates.io-index#log@0.4.33"
+    },
+    {
+      "ref": "registry+https://github.com/rust-lang/crates.io-index#lz4_flex@0.14.0"
     },
     {
       "ref": "registry+https://github.com/rust-lang/crates.io-index#matchit@0.8.4"

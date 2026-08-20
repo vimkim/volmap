@@ -17,8 +17,16 @@ Pure byte-level decoding in `src/format/` (no inspection-module state):
      doc §3.5 has the cited constants (ORC_* enums, substructure-set layout).
    - **Old representations (D9)**: when target reprid ≠ current, walk the
      `ORC_REPRESENTATIONS_INDEX` (=2) substructure set comparing
-     `ORC_REP_ID_OFFSET`; research §3.5. Attribute names for old reprs come
-     from rep_attribute substructures (ORC_REPATT_* constants).
+     `ORC_REP_ID_OFFSET`; research §3.5.
+   - ~~Attribute names for old reprs come from rep_attribute substructures
+     (ORC_REPATT_* constants).~~ **Corrected while implementing:** a
+     `rep_attribute` stores no name. Its metaclass is exactly
+     `{id INTEGER, type INTEGER, domain SET}` (`transform.c:159`) and
+     `OR_ATTRIBUTE` has no name field (`object_representation_sr.h:100`), so a
+     dropped column's name is not on disk anywhere. The implementation
+     recovers a name by attribute id from the class's current attribute set —
+     authoritative for any id that still exists — and leaves it `None`
+     otherwise.
    - Class records always use 4-byte offsets; validate, don't assume.
 2. Record value decoding against a parsed representation: per-attribute
    three-state result (Decoded(value) / Null / Undecodable{reason}) plus the

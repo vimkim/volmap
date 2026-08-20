@@ -360,6 +360,8 @@ The reprid in a heap record header resolves against the **class object's heap re
 
 `or_get_classrep` (`src/base/object_representation_sr.c:3351`) branches three ways: `NULL_REPRID` → `or_get_current_representation` (`:3360`); reprid equal to the class record's own `or_rep_id` → the current representation (`:3365`, `:3369`); otherwise → `or_get_old_representation` (`:3373`), which linearly searches the class record's `ORC_REPRESENTATIONS_INDEX` variable attribute — a packed set of old-representation objects — comparing `OR_GET_INT (fixed + ORC_REP_ID_OFFSET)` (`src/base/object_representation_sr.c:2934`, scan at `:2972`, `ER_CT_UNKNOWN_REPRID` at `:2986`). Sub-layout constants: `ORC_REP_ID_OFFSET 0`, `ORC_REP_FIXED_COUNT_OFFSET 4`, `ORC_REP_VARIABLE_COUNT_OFFSET 8` (`src/base/object_representation.h:830`–`:832`); `ORC_REP_ATTRIBUTES_INDEX 0` (`:837`).
 
+An old representation's attributes carry **no name**. The `rep_attribute` metaclass is exactly `{"id", INTEGER}, {"type", INTEGER}, {"domain", SET}` (`src/object/transform.c:159`–`:165`) and `OR_ATTRIBUTE` has no name member at all (`src/base/object_representation_sr.h:100`–`:141`), so `or_get_old_representation` populates only id, type, domain, position, and location. A reader that wants to label a historical row must recover names by attribute id from the class's *current* attribute set; an attribute id dropped since that representation was current has no name recorded anywhere on disk.
+
 The two representation sets stay keyed identically because both derive the id from the same place — `catalog_insert` does `new_repr_id = (REPR_ID) or_rep_id (record_p)` (`src/storage/system_catalog.c:4358`) and `catalog_update` the same (`:4432`) — but they are parallel structures with different consumers.
 
 `or_get_current_representation` (`src/base/object_representation_sr.c:2414`) is the function a reimplementer should port. Its shape:
@@ -414,13 +416,18 @@ From the `PR_TYPE` table in `src/object/object_primitive.c`, with `{name, id, va
 | `DATE` | 0 | `OR_DATE_SIZE` = 4 | `:1249` |
 | `OBJECT` | 0 | `OR_OID_SIZE` = 8 | `:1282` |
 | `ENUMERATION` | 0 | 2 | `:1664` |
+| **`BIT`** | **0** | `(precision + 7) / 8` | `:13458` |
 | **`CHAR`** | **1** | 0 (length-prefixed) | `:12733` |
 | **`NUMERIC`** | **1** | 0 (length-prefixed) | `:1639` |
-| `VARCHAR`, `NCHAR`, `VARNCHAR`, `BIT`, `VARBIT` | 1 | 0 | `tp_NChar` aliases `tp_Char` at `:1696`; string/bit tables in the same file |
+| `VARCHAR`, `NCHAR`, `VARNCHAR`, `VARBIT` | 1 | 0 | `tp_NChar` aliases `tp_Char` at `:1696`; `tp_VarBit` at `:14148`; string tables in the same file |
 | `SET`, `MULTISET`, `SEQUENCE` | 1 | 0 | `:1514`, `:1539`, `:1564` |
 | `BLOB`, `CLOB` | 1 | 0 | `:1332`, `:1357` |
 
 `CHAR` and `NUMERIC` being variable-region types is counterintuitive and is the most likely source of a wrong reimplementation. The doc comment on `pr_is_variable_type` (`src/object/object_primitive.c:9005`) explains the intent — parameterized types are "the same size for any particular attribute" — but `CHAR` and `NUMERIC` opted out of the fixed region anyway, because both compress or vary by actual value width.
+
+`BIT` runs the other way and is the mirror-image trap: it is a *fixed*-region type whose width is not a constant. `tp_Bit` declares `variable_p = 0` with a zero `disksize` (`src/object/object_primitive.c:13458`), and the real width comes from `mr_data_lengthmem_bit` → `STR_SIZE (precision, INTL_CODESET_RAW_BITS)` = `(precision + 7) / 8` (`:12886`, macro at `:134`). So a fixed-region walk must consult each `BIT` attribute's precision; a table with `BIT(16)` places 2 bytes in the fixed region, and every attribute after it shifts if that is missed. `BIT VARYING` is a different type (`tp_VarBit`, `variable_p = 1`) and stays in the variable region. This was confirmed empirically: `interp_placeholders` in `fixtures/e1e651de-records` stores `id INTEGER`, `c_enum ENUM`, and `c_bit BIT(16)` as its three fixed attributes with `fixed_length = 8`.
+
+One further storage fact a decoder should not be surprised by: `NCHAR` and `NCHAR VARYING` columns are stored under the `DB_TYPE_CHAR` and `DB_TYPE_STRING` codes, not `DB_TYPE_NCHAR`/`DB_TYPE_VARNCHAR`. Those two codes are retained only for enum compatibility and are marked deprecated (`src/compat/dbtype_def.h:776`–`:783`).
 
 `tp_domain_disk_size` returns -1 for always-variable types and for floating-precision `CHAR`/`BIT` (`src/object/object_domain.c:10896`, checks at `:10898`, `:10903`).
 

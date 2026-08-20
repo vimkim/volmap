@@ -1,0 +1,143 @@
+schema = "volmap.fixture-corpus"
+schema_version = 1
+profile = "cubrid-feat-oos-linux-x86_64-gcc-e1e651de"
+engine_commit = "e1e651debf6cc100172bde96603b17424f9c135a"
+page_size = 16384
+clean_standalone_shutdown = true
+synthetic_content_only = true
+corpus_purpose = "record-interpretation"
+
+[generator]
+cubrid_version = "11.5.0.2540 debug"
+kernel = "Linux 6.19.10-300.fc44.x86_64 x86_64"
+locale = "en_US.utf8"
+database_name = "volmap_records"
+createdb_arguments = "--db-page-size=16K --db-volume-size=32M --log-volume-size=20M"
+load_script = "generate.sql"
+
+# Volume digests identify this specific generated snapshot. `createdb` stamps
+# creation-time state into the volume headers, so a fresh run reproduces the
+# page and slot layout but not these whole-volume digests. The per-page digests
+# below are the integrity record for what is committed here.
+[[source_volume]]
+vol_id = 0
+size = 67108864
+sha256 = "44e21a321ae581b3b905c99d92e868562b147ccc46343f690a59616330991480"
+
+[[source_volume]]
+vol_id = 1
+size = 134217728
+sha256 = "ad7b58829421d1c550b38e92f04231ac490832281f6d2b5cd87adce9b69d9241"
+
+# Class objects. Each page holds the class records whose representations the
+# interpretation of the matching data pages resolves through.
+#
+# Page 195 carries more than the two fixture classes, which is what gives this
+# corpus its system-class coverage without extra pages. Slots 3 and 4 hold
+# system class records stored as REC_NEWHOME — they are the targets of
+# relocations from their classes' own OIDs, which is why a class-record reader
+# must follow REC_RELOCATION rather than assume REC_HOME. Slot 6 is such a
+# relocation. `_db_serial` is the most useful of them: its `current_val` is
+# NUMERIC(38), the widest NUMERIC domain the engine has.
+[[page]]
+file = "pages/vol0-page195.bin"
+vol_id = 0
+page_id = 195
+role = "class-objects-fixture-and-system"
+classes = [
+  "dual@slot1",
+  "dba.interp_scalars@slot2",
+  "_db_serial@slot3",
+  "_db_ha_apply_info@slot4",
+  "dba.interp_reference@slot5",
+]
+relocations = ["slot6"]
+sha256 = "4b65735a9b5e3a58afacd213fa063126bc6c4ce1727913917c030b8beb112359"
+
+[[page]]
+file = "pages/vol0-page199.bin"
+vol_id = 0
+page_id = 199
+role = "class-object-oos"
+classes = ["dba.interp_oos@slot1"]
+sha256 = "9ffd211397854aa6d501984550a93f023a73e749e6c808f3bad353a5155e8c8a"
+
+[[page]]
+file = "pages/vol0-page207.bin"
+vol_id = 0
+page_id = 207
+role = "class-object-altered-two-representations"
+classes = ["dba.interp_altered@slot4"]
+sha256 = "712ebb9576e232e3ecc29b4e7c4de259a75579e5d69723d1d3a1a579fce91672"
+
+[[page]]
+file = "pages/vol0-page209.bin"
+vol_id = 0
+page_id = 209
+role = "class-object-placeholders"
+classes = ["dba.interp_placeholders@slot3"]
+sha256 = "037ad9279e02e46120c32db4f241993d348da0dd4bb25f71f717b9bfa8da78ca"
+
+[[page]]
+file = "pages/vol0-page210.bin"
+vol_id = 0
+page_id = 210
+role = "class-object-target"
+classes = ["dba.interp_target@slot3"]
+sha256 = "6201df681892519af31a5c3be112b34eb011d06a3e96ac0a660843071c87cb22"
+
+# Data pages. Each is the heap header page of its table's heap, which for these
+# small tables is also where the rows live.
+[[page]]
+file = "pages/vol1-page641.bin"
+vol_id = 1
+page_id = 641
+role = "interp-scalars-rows"
+class_oid = "0|195|2"
+records = "slot1=all-bound, slot2=all-null, slot3=lz4-compressed-varchar"
+sha256 = "eeb6e79d4b3c2d133f67d4085dee7bb8f04a8313a2a116878ca8381d0ec72495"
+
+[[page]]
+file = "pages/vol1-page769.bin"
+vol_id = 1
+page_id = 769
+role = "interp-target-rows"
+class_oid = "0|210|3"
+records = "slot1=object-reference-target"
+sha256 = "582c79551c94857c86069f424c02066d19c85f3864d1e06ba6dc9fea26588c24"
+
+[[page]]
+file = "pages/vol1-page897.bin"
+vol_id = 1
+page_id = 897
+role = "interp-reference-rows"
+class_oid = "0|195|5"
+records = "slot1=bound-object, slot2=null-object"
+sha256 = "9527b8b00967f79c6a7e268763b8b74835c3f9173f763147eed25daf1acf154f"
+
+[[page]]
+file = "pages/vol1-page1025.bin"
+vol_id = 1
+page_id = 1025
+role = "interp-placeholders-rows"
+class_oid = "0|209|3"
+records = "slot1=all-bound-undecodable-types, slot2=all-null"
+sha256 = "79bc1f482a67228c4d2ac4f54c9bf7d19963796b2ab72b870f0fc75dc9e63e30"
+
+[[page]]
+file = "pages/vol1-page1153.bin"
+vol_id = 1
+page_id = 1153
+role = "interp-oos-rows"
+class_oid = "0|199|1"
+records = "slot1=inline-value, slot2=out-of-row-stub"
+sha256 = "cc167f6f0336ff2a2869ff85555a77b4d96faa2c1a107c08650f137068220b7b"
+
+[[page]]
+file = "pages/vol1-page1345.bin"
+vol_id = 1
+page_id = 1345
+role = "interp-altered-rows-two-representations"
+class_oid = "0|207|4"
+records = "slot1=representation-1, slot2=representation-2"
+sha256 = "1b1e7f84bf24451be5febe79868151ca182f24c8fa9f7b22e78e0a4eb4dbe079"

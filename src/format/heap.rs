@@ -165,6 +165,29 @@ pub fn decode_heap_record_envelope(
     })
 }
 
+/// Decodes a heap record's envelope and returns its value-bearing body.
+///
+/// The body is what the class-representation parser and the attribute-value
+/// decoder both consume: offsets inside it are relative to its own start, since
+/// the engine's `OR_VAR_OFFSET` measures from the end of the object header.
+pub fn decode_heap_record_body<'a>(
+    envelope: &DecodedPageEnvelope<'a>,
+    slotted: &SlottedPage,
+    slot_id: u16,
+    is_mvcc: bool,
+) -> Result<(HeapRecordEnvelopeFact, &'a [u8]), DecodeError> {
+    let fact = decode_heap_record_envelope(envelope, slotted, slot_id, is_mvcc)?;
+    let view = envelope.plaintext("heap.record.encrypted")?;
+    let body = view
+        .range(
+            usize::from(fact.body_offset),
+            usize::from(fact.body_length),
+            "heap.record.body",
+        )
+        .map_err(|_| error(DecodeErrorKind::ByteAccess, "heap.record.body"))?;
+    Ok((fact, body))
+}
+
 fn decode_mvcc_fields(
     view: &ByteView<'_>,
     base: usize,

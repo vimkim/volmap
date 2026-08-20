@@ -8,10 +8,13 @@
 mod boot;
 mod btree;
 mod catalog;
+mod classrep;
 mod file_table;
 mod heap;
+mod object_layout;
 mod overflow;
 mod page;
+mod record_interpretation;
 mod sector;
 mod slotted;
 mod vacuum;
@@ -111,6 +114,10 @@ pub use catalog::{
     CatalogRepresentationItemFact, decode_catalog_class_info, decode_catalog_directory,
     decode_catalog_page, decode_catalog_representation_header,
 };
+pub use classrep::{
+    AttributeDomainFact, ClassAttributeFact, ClassRepresentationFact, DbType, RepresentationTarget,
+    decode_class_representation,
+};
 pub use file_table::{
     ExtDataHeader, FileHeader, FileType, PartialSectorFact, TrackerItemFact, UserPageFact,
     decode_extdata_header, decode_file_header, decode_full_sectors, decode_partial_sectors,
@@ -118,6 +125,11 @@ pub use file_table::{
 };
 pub use heap::{
     HeapChainFact, HeapHeaderFact, HeapPageFact, HeapRecordEnvelopeFact, decode_bigone_target,
-    decode_heap_page, decode_heap_record_envelope, decode_relocation_target,
+    decode_heap_page, decode_heap_record_body, decode_heap_record_envelope,
+    decode_relocation_target,
 };
 pub use overflow::{OverflowPageFact, decode_overflow_continuation, decode_overflow_head};
+pub use record_interpretation::{
+    AttributeInterpretation, AttributeValue, CalendarDate, ClockTime, InterpretedAttribute,
+    decode_record_attributes,
+};

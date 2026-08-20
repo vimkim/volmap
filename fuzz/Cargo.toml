@@ -40,6 +40,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "record_interpretation"
+path = "fuzz_targets/record_interpretation.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "metadata_pages"
 path = "fuzz_targets/metadata_pages.rs"
 test = false
