@@ -113,6 +113,8 @@ pub enum DataProjection {
         selected_slot: SlotProjection,
         overflow_chain: Option<OverflowChainProjection>,
         relocation_edge: Option<Box<RelocationEdgeProjection>>,
+        interpretation: Option<Box<RecordInterpretationProjection>>,
+        class_representation: Option<Box<ClassRepresentationProjection>>,
     },
     InspectOos {
         chain: OosChainProjection,
@@ -515,6 +517,94 @@ pub struct RelocationEdgeProjection {
     pub valid: bool,
     pub diagnostic: OptionalTextProjection,
     pub bytes: BytesWithheldProjection,
+}
+
+/// An attribute's name, or why there isn't one.
+///
+/// An old representation stores no attribute names, so a column dropped since
+/// that representation was current genuinely has no name on disk.
+#[derive(Clone, Debug, Serialize)]
+#[serde(tag = "state", rename_all = "kebab-case")]
+pub enum AttributeNameProjection {
+    Resolved { value: String },
+    Unresolved { reason: &'static str },
+}
+
+/// One attribute of one interpreted record.
+///
+/// The value is a tagged state, never an omitted field or an empty string, so
+/// an adapter cannot mistake "unknown" for "empty".
+#[derive(Clone, Debug, Serialize)]
+pub struct InterpretedAttributeProjection {
+    pub name: AttributeNameProjection,
+    pub attribute_id: i32,
+    pub position: u32,
+    pub type_name: &'static str,
+    pub precision: i32,
+    pub scale: i32,
+    pub value: AttributeValueProjection,
+}
+
+/// What one attribute turned out to hold.
+///
+/// `Withheld` names the extent and the reason but carries no bytes: the
+/// disclosure rule withholds raw and undecodable payload bytes everywhere, so
+/// there is deliberately no hex arm.
+#[derive(Clone, Debug, Serialize)]
+#[serde(tag = "state", rename_all = "kebab-case")]
+pub enum AttributeValueProjection {
+    Decoded {
+        value: String,
+    },
+    Null,
+    OutOfRow {
+        head: OidProjection,
+        total_length: String,
+    },
+    Withheld {
+        reason: &'static str,
+        offset: u32,
+        length: u32,
+    },
+}
+
+/// One record's interpretation, as an adapter receives it.
+#[derive(Clone, Debug, Serialize)]
+pub struct RecordInterpretationProjection {
+    pub record: OidProjection,
+    pub class_oid: OidProjection,
+    pub representation_id: u32,
+    pub record_type: &'static str,
+    /// Set when the values were read from a relocation target rather than the
+    /// selected slot itself.
+    pub relocated_from: OptionalOidProjection,
+    pub diagnostic: OptionalTextProjection,
+    pub attributes: Vec<InterpretedAttributeProjection>,
+    pub bytes: BytesWithheldProjection,
+}
+
+/// One class representation, renderable on its own as schema evidence.
+#[derive(Clone, Debug, Serialize)]
+pub struct ClassRepresentationProjection {
+    pub class_oid: OidProjection,
+    pub representation_id: u32,
+    pub class_name: ClassNameProjection,
+    pub is_current: OptionalTextProjection,
+    pub fixed_count: String,
+    pub variable_count: String,
+    pub diagnostic: OptionalTextProjection,
+    pub attributes: Vec<ClassAttributeProjection>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct ClassAttributeProjection {
+    pub name: AttributeNameProjection,
+    pub attribute_id: i32,
+    pub position: u32,
+    pub type_name: &'static str,
+    pub precision: i32,
+    pub scale: i32,
+    pub storage: &'static str,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -1114,6 +1204,180 @@ pub fn relocation_edge_projection(edge: RelocationEdgeView) -> RelocationEdgePro
         bytes: BytesWithheldProjection {
             state: "bytes-withheld",
         },
+    }
+}
+
+#[must_use]
+pub fn record_interpretation_projection(
+    view: crate::inspection::RecordInterpretationView,
+) -> RecordInterpretationProjection {
+    RecordInterpretationProjection {
+        record: oid_projection(view.record),
+        class_oid: oid_projection(view.class_oid),
+        representation_id: view.representation_id,
+        record_type: view.record_type.as_str(),
+        relocated_from: optional_oid_projection(view.relocated_from),
+        diagnostic: view.diagnostic_rule.map_or(
+            OptionalTextProjection::Unknown,
+            OptionalTextProjection::Known,
+        ),
+        attributes: view
+            .attributes
+            .into_iter()
+            .map(interpreted_attribute_projection)
+            .collect(),
+        bytes: BytesWithheldProjection {
+            state: "bytes-withheld",
+        },
+    }
+}
+
+fn interpreted_attribute_projection(
+    attribute: crate::format::InterpretedAttribute,
+) -> InterpretedAttributeProjection {
+    InterpretedAttributeProjection {
+        name: attribute_name_projection(attribute.name),
+        attribute_id: attribute.id,
+        position: attribute.position,
+        type_name: attribute.domain.db_type.as_str(),
+        precision: attribute.domain.precision,
+        scale: attribute.domain.scale,
+        value: attribute_value_projection(attribute.interpretation),
+    }
+}
+
+fn attribute_name_projection(name: Option<String>) -> AttributeNameProjection {
+    name.map_or(
+        AttributeNameProjection::Unresolved {
+            reason: "this attribute's name is not recorded in the representation it belongs to",
+        },
+        |value| AttributeNameProjection::Resolved { value },
+    )
+}
+
+fn attribute_value_projection(
+    interpretation: crate::format::AttributeInterpretation,
+) -> AttributeValueProjection {
+    use crate::format::AttributeInterpretation as Interpretation;
+    match interpretation {
+        Interpretation::Null => AttributeValueProjection::Null,
+        Interpretation::OutOfRow { head, total_length } => AttributeValueProjection::OutOfRow {
+            head: oid_projection(head),
+            total_length: total_length.to_string(),
+        },
+        Interpretation::Undecodable {
+            reason,
+            offset,
+            length,
+        } => AttributeValueProjection::Withheld {
+            reason,
+            offset,
+            length,
+        },
+        Interpretation::Decoded(value) => AttributeValueProjection::Decoded {
+            value: render_attribute_value(&value),
+        },
+    }
+}
+
+/// Renders one decoded value for display.
+///
+/// Formatting lives here rather than in each adapter so every surface shows the
+/// same text for the same fact.
+#[must_use]
+pub fn render_attribute_value(value: &crate::format::AttributeValue) -> String {
+    use crate::format::AttributeValue as Value;
+    match value {
+        Value::Integer(v) => v.to_string(),
+        Value::Short(v) => v.to_string(),
+        Value::BigInt(v) => v.to_string(),
+        Value::Float(v) => v.to_string(),
+        Value::Double(v) => v.to_string(),
+        Value::Numeric(v) => v.clone(),
+        Value::Monetary {
+            currency_code,
+            amount,
+        } => format!("{amount} (currency {currency_code})"),
+        Value::Date(date) => format!("{:04}-{:02}-{:02}", date.year, date.month, date.day),
+        Value::Time(time) => {
+            format!("{:02}:{:02}:{:02}", time.hour, time.minute, time.second)
+        }
+        // A TIMESTAMP is stored as an instant, not calendar fields; rendering it
+        // as a local date would invent a time zone the volume does not record.
+        Value::Timestamp(seconds) => format!("epoch {seconds}"),
+        Value::DateTime {
+            date,
+            time,
+            millisecond,
+        } => format!(
+            "{:04}-{:02}-{:02} {:02}:{:02}:{:02}.{millisecond:03}",
+            date.year, date.month, date.day, time.hour, time.minute, time.second
+        ),
+        Value::Text(text) => text.clone(),
+        Value::Object(oid) => format!(
+            "{}|{}|{}",
+            oid.vol_id.get(),
+            oid.page_id.get(),
+            oid.slot_id.get()
+        ),
+    }
+}
+
+#[must_use]
+pub fn class_representation_projection(
+    view: crate::inspection::ClassRepresentationView,
+) -> ClassRepresentationProjection {
+    let diagnostic = view.diagnostic_rule.map_or(
+        OptionalTextProjection::Unknown,
+        OptionalTextProjection::Known,
+    );
+    let Some(representation) = view.representation else {
+        return ClassRepresentationProjection {
+            class_oid: oid_projection(view.class_oid),
+            representation_id: view.representation_id,
+            class_name: ClassNameProjection::Unresolved {
+                reason: view
+                    .diagnostic_rule
+                    .unwrap_or("the class representation could not be read"),
+            },
+            is_current: OptionalTextProjection::Unknown,
+            fixed_count: "0".to_owned(),
+            variable_count: "0".to_owned(),
+            diagnostic,
+            attributes: Vec::new(),
+        };
+    };
+    ClassRepresentationProjection {
+        class_oid: oid_projection(view.class_oid),
+        representation_id: view.representation_id,
+        class_name: ClassNameProjection::Resolved {
+            value: representation.class_name,
+        },
+        is_current: OptionalTextProjection::Known(if representation.is_current {
+            "current"
+        } else {
+            "historical"
+        }),
+        fixed_count: representation.fixed_count.to_string(),
+        variable_count: representation.variable_count.to_string(),
+        diagnostic,
+        attributes: representation
+            .attributes
+            .into_iter()
+            .map(|attribute| ClassAttributeProjection {
+                name: attribute_name_projection(attribute.name),
+                attribute_id: attribute.id,
+                position: attribute.position,
+                type_name: attribute.domain.db_type.as_str(),
+                precision: attribute.domain.precision,
+                scale: attribute.domain.scale,
+                storage: if attribute.is_fixed {
+                    "fixed"
+                } else {
+                    "variable"
+                },
+            })
+            .collect(),
     }
 }
 

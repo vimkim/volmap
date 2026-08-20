@@ -16,9 +16,12 @@ use crate::inspection::{
 };
 use crate::model::{FileId, Oid, PageId, SectorId, SlotId, Vfid, VolId, Vpid};
 use crate::projection::{
-    DataProjection, ResultDocument, deep_page_projection, file_header_projection,
-    oos_chain_projection, overflow_chain_projection, page_projection, relocation_edge_projection,
-    result_document, sector_projection, slot_projection, summary_projection, volume_projection,
+    AttributeNameProjection, AttributeValueProjection, ClassRepresentationProjection,
+    DataProjection, RecordInterpretationProjection, ResultDocument,
+    class_representation_projection, deep_page_projection, file_header_projection,
+    oos_chain_projection, overflow_chain_projection, page_projection,
+    record_interpretation_projection, relocation_edge_projection, result_document,
+    sector_projection, slot_projection, summary_projection, volume_projection,
 };
 use crate::source::InputSpec;
 
@@ -605,12 +608,48 @@ fn run_inspect(command: InspectCommand) -> Result<i32, CliError> {
                     } else {
                         None
                     };
+                // Interpretation is page-granular: one selected slot enriches
+                // every home record of its page, which is what makes the
+                // class-record read pay for itself.
+                view = view
+                    .enrich_record_page(vpid, enrichment_policy, &CancelToken::new())
+                    .map_err(operation_error)?;
+                // A relocation's values live in its target, so follow the edge
+                // the graph just published rather than reporting nothing.
+                let interpreted_oid = view
+                    .relocation_edge(oid)
+                    .and_then(|edge| edge.target)
+                    .unwrap_or(oid);
+                if interpreted_oid != oid {
+                    let target_page = Vpid::new(interpreted_oid.vol_id, interpreted_oid.page_id);
+                    view = view
+                        .enrich_record_page(target_page, enrichment_policy, &CancelToken::new())
+                        .map_err(operation_error)?;
+                }
+                // Read the schema the record actually resolved through, rather
+                // than re-deriving its identity from the projection.
+                let interpreted = view.record_interpretation(interpreted_oid);
+                let class_representation = interpreted
+                    .as_ref()
+                    .and_then(|interpretation| {
+                        view.class_representation(
+                            interpretation.class_oid,
+                            interpretation.representation_id,
+                        )
+                    })
+                    .map(class_representation_projection)
+                    .map(Box::new);
+                let interpretation = interpreted
+                    .map(record_interpretation_projection)
+                    .map(Box::new);
                 DataProjection::InspectSlot {
                     page: page_projection(view.page(vpid).map_err(CliError::Query)?),
                     deep: deep_page_projection(Some(deep)),
                     selected_slot: slot_projection(selected_slot),
                     overflow_chain,
                     relocation_edge,
+                    interpretation,
+                    class_representation,
                 }
             }
             EntitySelector::Oos(oid) => {
@@ -920,16 +959,20 @@ fn write_jsonl(document: &ResultDocument) -> Result<(), CliError> {
             selected_slot,
             overflow_chain,
             relocation_edge,
+            interpretation,
+            class_representation,
         } => {
             write_jsonl_record(document, &mut sequence, "page", page)?;
             write_jsonl_record(document, &mut sequence, "deep-page", deep)?;
             write_jsonl_record(document, &mut sequence, "slot", selected_slot)?;
-            if let Some(chain) = overflow_chain {
-                write_jsonl_record(document, &mut sequence, "overflow-chain", chain)?;
-            }
-            if let Some(edge) = relocation_edge {
-                write_jsonl_record(document, &mut sequence, "relocation-edge", edge)?;
-            }
+            write_jsonl_slot_details(
+                document,
+                &mut sequence,
+                overflow_chain.as_ref(),
+                relocation_edge.as_deref(),
+                class_representation.as_deref(),
+                interpretation.as_deref(),
+            )?;
         }
         DataProjection::InspectOos { chain } => {
             write_jsonl_record(document, &mut sequence, "oos-chain", chain)?;
@@ -948,6 +991,30 @@ fn write_jsonl(document: &ResultDocument) -> Result<(), CliError> {
         "completion",
         &(document.outcome, emitted_records),
     )
+}
+
+/// Emits the optional records that accompany one selected slot.
+fn write_jsonl_slot_details(
+    document: &ResultDocument,
+    sequence: &mut u64,
+    overflow_chain: Option<&crate::projection::OverflowChainProjection>,
+    relocation_edge: Option<&crate::projection::RelocationEdgeProjection>,
+    class_representation: Option<&ClassRepresentationProjection>,
+    interpretation: Option<&RecordInterpretationProjection>,
+) -> Result<(), CliError> {
+    if let Some(chain) = overflow_chain {
+        write_jsonl_record(document, sequence, "overflow-chain", chain)?;
+    }
+    if let Some(edge) = relocation_edge {
+        write_jsonl_record(document, sequence, "relocation-edge", edge)?;
+    }
+    if let Some(representation) = class_representation {
+        write_jsonl_record(document, sequence, "class-representation", representation)?;
+    }
+    if let Some(interpretation) = interpretation {
+        write_jsonl_record(document, sequence, "record-interpretation", interpretation)?;
+    }
+    Ok(())
 }
 
 fn write_jsonl_record<T: Serialize>(
@@ -1254,6 +1321,8 @@ fn render_human(document: &ResultDocument) -> String {
             selected_slot,
             overflow_chain,
             relocation_edge,
+            interpretation,
+            class_representation,
         } => {
             let _ = writeln!(
                 output,
@@ -1307,6 +1376,12 @@ fn render_human(document: &ResultDocument) -> String {
                         );
                     }
                 }
+            }
+            if let Some(representation) = class_representation {
+                write_class_representation(&mut output, representation);
+            }
+            if let Some(interpretation) = interpretation {
+                write_record_interpretation(&mut output, interpretation);
             }
         }
         DataProjection::InspectOos { chain } => {
@@ -1518,4 +1593,72 @@ fn parse_oid(vol: &str, page: &str, slot: &str) -> Result<Oid, CliError> {
 
 fn escape_control(value: &str) -> String {
     value.chars().flat_map(char::escape_default).collect()
+}
+
+/// Renders the schema a record was interpreted against.
+fn write_class_representation(output: &mut String, representation: &ClassRepresentationProjection) {
+    use std::fmt::Write as _;
+
+    let name = match &representation.class_name {
+        crate::projection::ClassNameProjection::Resolved { value } => value.clone(),
+        crate::projection::ClassNameProjection::Unresolved { reason }
+        | crate::projection::ClassNameProjection::NotApplicable { reason } => {
+            format!("unresolved ({reason})")
+        }
+    };
+    let _ = writeln!(
+        output,
+        "class: {name} oid={}:{}:{} representation={} fixed={} variable={}",
+        representation.class_oid.vol_id,
+        representation.class_oid.page_id,
+        representation.class_oid.slot_id,
+        representation.representation_id,
+        representation.fixed_count,
+        representation.variable_count
+    );
+    if let crate::projection::OptionalTextProjection::Known(state) = representation.is_current {
+        let _ = writeln!(output, "representation state: {state}");
+    }
+}
+
+/// Renders one record's attribute values, one per line.
+fn write_record_interpretation(
+    output: &mut String,
+    interpretation: &RecordInterpretationProjection,
+) {
+    use std::fmt::Write as _;
+
+    if let crate::projection::OptionalOidProjection::Present { oid } = interpretation.relocated_from
+    {
+        let _ = writeln!(
+            output,
+            "interpreted via relocation from {}:{}:{}",
+            oid.vol_id, oid.page_id, oid.slot_id
+        );
+    }
+    if let crate::projection::OptionalTextProjection::Known(reason) = interpretation.diagnostic {
+        let _ = writeln!(output, "interpretation: unavailable ({reason})");
+        return;
+    }
+    let _ = writeln!(output, "interpretation:");
+    for attribute in &interpretation.attributes {
+        let name = match &attribute.name {
+            AttributeNameProjection::Resolved { value } => value.clone(),
+            AttributeNameProjection::Unresolved { reason } => format!("unnamed ({reason})"),
+        };
+        let value = match &attribute.value {
+            AttributeValueProjection::Decoded { value } => value.clone(),
+            AttributeValueProjection::Null => "NULL".to_owned(),
+            AttributeValueProjection::OutOfRow { head, total_length } => format!(
+                "out-of-row oos:{}:{}:{} total-length={total_length} bytes=withheld",
+                head.vol_id, head.page_id, head.slot_id
+            ),
+            AttributeValueProjection::Withheld {
+                reason,
+                offset,
+                length,
+            } => format!("withheld offset={offset} length={length} bytes=withheld ({reason})"),
+        };
+        let _ = writeln!(output, "  {name} {} = {value}", attribute.type_name);
+    }
 }

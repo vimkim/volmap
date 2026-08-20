@@ -397,3 +397,94 @@ fn a_page_with_no_class_degrades_with_a_reason_and_keeps_structural_facts() {
     // The page itself is still queryable: degradation is not an error page.
     assert!(degraded.page(vpid(0, 3)).is_ok());
 }
+
+#[test]
+fn projections_carry_tagged_states_and_never_carry_bytes() {
+    use volmap::projection::{
+        AttributeNameProjection, AttributeValueProjection, ClassNameProjection,
+        class_representation_projection, record_interpretation_projection,
+    };
+
+    let (_directory, vinf) = fixture();
+    let enriched = open(vinf)
+        .enrich_record_page(vpid(1, SCALARS_ROWS_PAGE), policy(), &CancelToken::new())
+        .unwrap();
+
+    let interpretation = record_interpretation_projection(
+        enriched
+            .record_interpretation(record_oid(1, SCALARS_ROWS_PAGE, 1))
+            .unwrap(),
+    );
+    assert_eq!(interpretation.record_type, "home");
+    assert_eq!(interpretation.bytes.state, "bytes-withheld");
+    let by_name = |name: &str| {
+        interpretation
+            .attributes
+            .iter()
+            .find(|attribute| {
+                matches!(
+                    &attribute.name,
+                    AttributeNameProjection::Resolved { value } if value == name
+                )
+            })
+            .unwrap()
+            .value
+            .clone()
+    };
+    assert!(matches!(
+        by_name("c_numeric"),
+        AttributeValueProjection::Decoded { ref value } if value == "-12345678.90"
+    ));
+
+    // Serialized form must expose the state tag and no byte content anywhere.
+    let json = serde_json::to_string(&interpretation).unwrap();
+    assert!(json.contains("\"state\":\"decoded\""));
+    for forbidden in ["\"hex\"", "\"raw\"", "\"bytes\":[", "0x"] {
+        assert!(!json.contains(forbidden), "projection leaked {forbidden}");
+    }
+
+    let representation = class_representation_projection(
+        enriched
+            .class_representation(record_oid(0, CLASS_PAGE, 2), 1)
+            .unwrap(),
+    );
+    assert!(matches!(
+        representation.class_name,
+        ClassNameProjection::Resolved { ref value } if value == "dba.interp_scalars"
+    ));
+    // Storage placement is a fact adapters must not have to re-derive.
+    assert!(
+        representation
+            .attributes
+            .iter()
+            .any(|attribute| attribute.storage == "variable")
+    );
+}
+
+#[test]
+fn an_undecodable_attribute_projects_a_reason_and_an_extent_but_no_value() {
+    use volmap::projection::{AttributeValueProjection, record_interpretation_projection};
+
+    let (_directory, vinf) = fixture();
+    let enriched = open(vinf)
+        .enrich_record_page(vpid(1, OOS_ROWS_PAGE), policy(), &CancelToken::new())
+        .unwrap();
+    let interpretation = record_interpretation_projection(
+        enriched
+            .record_interpretation(record_oid(1, OOS_ROWS_PAGE, 1))
+            .unwrap(),
+    );
+    // The inline BIT VARYING is a type version one does not render.
+    let withheld = interpretation
+        .attributes
+        .iter()
+        .find(|attribute| matches!(attribute.value, AttributeValueProjection::Withheld { .. }))
+        .expect("a withheld attribute");
+    let AttributeValueProjection::Withheld { reason, length, .. } = withheld.value else {
+        unreachable!("filtered above");
+    };
+    assert!(length > 0);
+    assert!(!reason.is_empty());
+    let json = serde_json::to_string(withheld).unwrap();
+    assert!(json.contains("\"state\":\"withheld\""));
+}
