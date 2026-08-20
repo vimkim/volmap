@@ -9,6 +9,9 @@ target := "x86_64-unknown-linux-musl"
 artifact := "target/" + target + "/release/volmap"
 install_root := env_var_or_default("VOLMAP_INSTALL_ROOT", env_var("HOME") + "/.local")
 
+# Throwaway, manually driven examples live in their own command namespace.
+mod example 'example.just'
+
 default:
     @just --list
 

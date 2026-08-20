@@ -15,18 +15,19 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
+use crate::bytes::ByteView;
 use crate::diagnostics::{InspectionOutcome, OutcomeInputs};
 use crate::format::{
     BOOT_DB_PARM_SIZE, BtreePageFact, CatalogClassInfoFact, CatalogPageFact,
     CatalogRepresentationHeaderFact, DB_PAGE_SIZE, DecodeError, DroppedFilesPageFact, FileHeader,
-    HeapPageFact, OosNext, PageContent, PageType, RecordType, SLOTTED_HEADER_SIZE, SlottedPage,
-    TDE_KEY_INFO_RECORD_SIZE, TdeAlgorithm, TrackerItemFact, UserPageFact, VacuumPageFact,
-    VolumePurpose, VolumeType, decode_bigone_target, decode_boot_db_parm, decode_btree_page,
-    decode_catalog_class_info, decode_catalog_directory, decode_catalog_page,
+    FileType, HeapPageFact, OosNext, PageContent, PageType, RecordType, SLOTTED_HEADER_SIZE,
+    SlottedPage, TDE_KEY_INFO_RECORD_SIZE, TdeAlgorithm, TrackerItemFact, UserPageFact,
+    VacuumPageFact, VolumePurpose, VolumeType, decode_bigone_target, decode_boot_db_parm,
+    decode_btree_page, decode_catalog_class_info, decode_catalog_directory, decode_catalog_page,
     decode_catalog_representation_header, decode_decrypted_page_envelope,
     decode_dropped_files_page, decode_extdata_header, decode_file_header, decode_full_sectors,
-    decode_heap_page, decode_oos_chunk, decode_overflow_continuation, decode_overflow_head,
-    decode_page_envelope, decode_page_envelope_parts, decode_partial_sectors,
+    decode_heap_page, decode_heap_record_envelope, decode_oos_chunk, decode_overflow_continuation,
+    decode_overflow_head, decode_page_envelope, decode_page_envelope_parts, decode_partial_sectors,
     decode_relocation_target, decode_sector_bitmap, decode_slotted_free_space_header,
     decode_slotted_page, decode_tracker_items, decode_user_pages, decode_vacuum_page,
     decode_volume_header,
@@ -221,6 +222,24 @@ pub struct PageView {
     pub slotted_occupied_percent: Option<u8>,
     pub lsa_word: Option<u64>,
     pub diagnostic_code: Option<&'static str>,
+}
+
+/// Throwaway POC result for one physical page-to-table lookup.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PrototypePageTableLookup {
+    pub page: PageView,
+    pub owner_file: Option<Vfid>,
+    pub file_type: Option<FileType>,
+    pub class_oid: Option<Oid>,
+    pub table_name: PrototypeTableName,
+}
+
+/// Why the POC did or did not produce a stored class/table name.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum PrototypeTableName {
+    Resolved(String),
+    NotApplicable(&'static str),
+    Unresolved(&'static str),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1873,6 +1892,91 @@ impl GraphView {
         self.page_from_record(volume, vpid.page_id)
     }
 
+    /// PROTOTYPE: follow one allocated page to its file descriptor and stored
+    /// class name. OOS and multipage class records are deliberately deferred.
+    pub fn prototype_page_table_lookup(
+        &self,
+        vpid: Vpid,
+    ) -> Result<PrototypePageTableLookup, QueryError> {
+        let page = self.page(vpid)?;
+        let Some(owner_file) = self.data.file_allocations.get(&vpid).copied() else {
+            let inventory_complete = self.data.coverage.iter().any(|record| {
+                record.facet == "file-inventory" && record.coverage == Coverage::Complete
+            });
+            return Ok(PrototypePageTableLookup {
+                page,
+                owner_file: None,
+                file_type: None,
+                class_oid: None,
+                table_name: if inventory_complete {
+                    PrototypeTableName::NotApplicable("page is not allocated to a tracked file")
+                } else {
+                    PrototypeTableName::Unresolved(
+                        "file inventory is incomplete, so allocation is unknown",
+                    )
+                },
+            });
+        };
+        let Some(header) = self.data.tracked_files.get(&owner_file).copied() else {
+            return Ok(PrototypePageTableLookup {
+                page,
+                owner_file: Some(owner_file),
+                file_type: None,
+                class_oid: None,
+                table_name: PrototypeTableName::Unresolved("allocating file header is unavailable"),
+            });
+        };
+        let file_type = header.file_type();
+        let class_oid = match self.prototype_descriptor_class_oid(header) {
+            Ok(value) => value,
+            Err(reason) => {
+                return Ok(PrototypePageTableLookup {
+                    page,
+                    owner_file: Some(owner_file),
+                    file_type: Some(file_type),
+                    class_oid: None,
+                    table_name: PrototypeTableName::Unresolved(reason),
+                });
+            }
+        };
+        let Some(class_oid) = class_oid else {
+            let reason = if file_type == FileType::Oos {
+                "OOS class attribution is intentionally deferred"
+            } else if matches!(
+                file_type,
+                FileType::Heap
+                    | FileType::HeapReuseSlots
+                    | FileType::MultipageObjectHeap
+                    | FileType::Btree
+                    | FileType::BtreeOverflowKey
+                    | FileType::ExtensibleHash
+                    | FileType::HashDirectory
+            ) {
+                "file descriptor has a null class OID"
+            } else {
+                "file type has no single class association"
+            };
+            return Ok(PrototypePageTableLookup {
+                page,
+                owner_file: Some(owner_file),
+                file_type: Some(file_type),
+                class_oid: None,
+                table_name: PrototypeTableName::NotApplicable(reason),
+            });
+        };
+        let table_name = match self.prototype_resolve_class_name(class_oid) {
+            Ok(name) => PrototypeTableName::Resolved(name),
+            Err(reason) => PrototypeTableName::Unresolved(reason),
+        };
+        Ok(PrototypePageTableLookup {
+            page,
+            owner_file: Some(owner_file),
+            file_type: Some(file_type),
+            class_oid: Some(class_oid),
+            table_name,
+        })
+    }
+
     pub fn file_pages(&self, vfid: Vfid) -> Result<Vec<PageView>, QueryError> {
         let pages = self
             .data
@@ -1885,6 +1989,82 @@ impl GraphView {
             return Err(QueryError::EntityNotFound);
         }
         Ok(pages)
+    }
+
+    fn prototype_descriptor_class_oid(
+        &self,
+        header: FileHeader,
+    ) -> Result<Option<Oid>, &'static str> {
+        let descriptor_offset = match header.file_type() {
+            FileType::Heap | FileType::HeapReuseSlots => return Ok(header.class_oid()),
+            FileType::MultipageObjectHeap | FileType::BtreeOverflowKey => 52,
+            FileType::Btree | FileType::ExtensibleHash | FileType::HashDirectory => 40,
+            FileType::Oos
+            | FileType::Tracker
+            | FileType::Catalog
+            | FileType::DroppedFiles
+            | FileType::VacuumData
+            | FileType::QueryArea
+            | FileType::Temporary
+            | FileType::Unknown => return Ok(None),
+        };
+        let header_page = Vpid::new(
+            header.vfid().vol_id,
+            PageId::new(header.vfid().file_id.get())
+                .map_err(|_| "file header page identifier is invalid")?,
+        );
+        let owned = OwnedInspectionPage::read(&self.data, header_page)
+            .map_err(|_| "file descriptor page could not be read")?;
+        let envelope = owned
+            .envelope(header_page)
+            .map_err(|_| "file descriptor page envelope is invalid")?;
+        let view = envelope
+            .plaintext("prototype.file_descriptor.encrypted")
+            .map_err(|_| "file descriptor is encrypted and unavailable")?;
+        prototype_optional_oid(&view, descriptor_offset)
+    }
+
+    fn prototype_resolve_class_name(&self, class_oid: Oid) -> Result<String, &'static str> {
+        let charset = prototype_database_charset(&self.data)?;
+        let mut current = class_oid;
+        let mut visited = BTreeSet::new();
+        for _ in 0..8 {
+            if !visited.insert(current) {
+                return Err("class record relocation cycle");
+            }
+            let vpid = Vpid::new(current.vol_id, current.page_id);
+            let owned = OwnedInspectionPage::read(&self.data, vpid)
+                .map_err(|_| "class record page could not be read")?;
+            let envelope = owned
+                .envelope(vpid)
+                .map_err(|_| "class record page envelope is invalid")?;
+            let slotted = decode_slotted_page(&envelope)
+                .map_err(|_| "class record page is not a valid heap page")?;
+            let slot_id = u16::try_from(current.slot_id.get())
+                .map_err(|_| "class record slot identifier is invalid")?;
+            let slot = slotted
+                .slots()
+                .get(usize::from(slot_id))
+                .ok_or("class record slot does not exist")?;
+            match slot.record_type() {
+                RecordType::Home | RecordType::NewHome => {
+                    return prototype_decode_class_name(&envelope, &slotted, slot_id, charset);
+                }
+                RecordType::Relocation => {
+                    current = decode_relocation_target(&envelope, &slotted, slot_id)
+                        .map_err(|_| "class record relocation target is invalid")?;
+                }
+                RecordType::BigOne => {
+                    return Err("REC_BIGONE class records are deferred in this POC");
+                }
+                RecordType::Unknown
+                | RecordType::AssignAddress
+                | RecordType::MarkDeleted
+                | RecordType::DeletedWillReuse
+                | RecordType::Reserved(_) => return Err("class record slot is not live"),
+            }
+        }
+        Err("class record relocation limit reached")
     }
 
     /// Decode one page body into a new immutable revision. The prior view is
@@ -4021,6 +4201,169 @@ impl GraphView {
             lsa_word: fact.and_then(|value| value.lsa_word),
             diagnostic_code: fact.and_then(|value| value.diagnostic_code),
         })
+    }
+}
+
+fn prototype_optional_oid(view: &ByteView<'_>, offset: usize) -> Result<Option<Oid>, &'static str> {
+    let page = view
+        .read_i32_le(offset, "prototype descriptor class page")
+        .map_err(|_| "class OID page field is out of bounds")?;
+    let slot = view
+        .read_i16_le(offset + 4, "prototype descriptor class slot")
+        .map_err(|_| "class OID slot field is out of bounds")?;
+    let volume = view
+        .read_i16_le(offset + 6, "prototype descriptor class volume")
+        .map_err(|_| "class OID volume field is out of bounds")?;
+    if page == -1 && slot == -1 && volume == -1 {
+        return Ok(None);
+    }
+    if page < 0 || slot < 0 || volume < 0 {
+        return Err("class OID has a partially null or negative identity");
+    }
+    Ok(Some(Oid::new(
+        VolId::new(volume).map_err(|_| "class OID volume is invalid")?,
+        PageId::new(page).map_err(|_| "class OID page is invalid")?,
+        SlotId::new(slot).map_err(|_| "class OID slot is invalid")?,
+    )))
+}
+
+fn prototype_database_charset(data: &SessionData) -> Result<u8, &'static str> {
+    let source = data
+        .sources
+        .volumes()
+        .iter()
+        .find(|volume| volume.declared_id().get() == 0)
+        .ok_or("primary volume is unavailable")?;
+    let page_id = PageId::new(0).map_err(|_| "primary volume header page is invalid")?;
+    let bytes = source
+        .read_page(page_id)
+        .map_err(|_| "primary volume header could not be read")?;
+    let envelope = decode_page_envelope(bytes.as_slice(), Vpid::new(source.declared_id(), page_id))
+        .map_err(|_| "primary volume header envelope is invalid")?;
+    let header = decode_volume_header(&envelope, source.stamp().length)
+        .map_err(|_| "primary volume header is invalid")?;
+    Ok(header.database_charset())
+}
+
+fn prototype_decode_class_name(
+    envelope: &crate::format::DecodedPageEnvelope<'_>,
+    slotted: &SlottedPage,
+    slot_id: u16,
+    charset: u8,
+) -> Result<String, &'static str> {
+    let slot = slotted
+        .slots()
+        .get(usize::from(slot_id))
+        .ok_or("class record slot does not exist")?;
+    let record = decode_heap_record_envelope(envelope, slotted, slot_id, false)
+        .map_err(|_| "class object header is invalid")?;
+    let view = envelope
+        .plaintext("prototype.class_record.encrypted")
+        .map_err(|_| "class record is encrypted and unavailable")?;
+    let record_start = usize::from(slot.offset());
+    let header_length = usize::from(record.header_length);
+    let offset_width = usize::from(record.variable_offset_width);
+    let table_start = record_start
+        .checked_add(header_length)
+        .ok_or("class variable table offset overflow")?;
+    let first_raw = prototype_read_var_offset(&view, table_start, offset_width)?;
+    let next_entry = table_start
+        .checked_add(offset_width)
+        .ok_or("class variable table offset overflow")?;
+    let second_raw = prototype_read_var_offset(&view, next_entry, offset_width)?;
+    if first_raw & 1 != 0 {
+        return Err("out-of-row class names are outside this POC");
+    }
+    let first =
+        usize::try_from(first_raw & !3).map_err(|_| "class name offset does not fit in memory")?;
+    let second = usize::try_from(second_raw & !3)
+        .map_err(|_| "class name end offset does not fit in memory")?;
+    if first >= second {
+        return Err("class name variable attribute is empty or inverted");
+    }
+    let variable_start = record_start
+        .checked_add(header_length)
+        .and_then(|base| base.checked_add(first))
+        .ok_or("class name offset overflow")?;
+    let variable_length = second
+        .checked_sub(first)
+        .ok_or("class name length underflow")?;
+    let record_end = record_start
+        .checked_add(usize::from(slot.length()))
+        .ok_or("class record length overflow")?;
+    let variable_end = variable_start
+        .checked_add(variable_length)
+        .ok_or("class name length overflow")?;
+    if variable_end > record_end {
+        return Err("class name exceeds its record slot");
+    }
+    let variable = view
+        .range(variable_start, variable_length, "prototype class name")
+        .map_err(|_| "class name bytes are out of bounds")?;
+    let (name_start, name_length) = prototype_varchar_shape(variable)?;
+    let name_end = name_start
+        .checked_add(name_length)
+        .ok_or("class name length overflow")?;
+    if name_length > 255 || name_end >= variable.len() || variable[name_end] != 0 {
+        return Err("class name length or terminator is invalid");
+    }
+    prototype_decode_identifier(&variable[name_start..name_end], charset)
+}
+
+fn prototype_read_var_offset(
+    view: &ByteView<'_>,
+    offset: usize,
+    width: usize,
+) -> Result<u32, &'static str> {
+    let bytes = view
+        .range(offset, width, "prototype class variable offset")
+        .map_err(|_| "class variable offset is out of bounds")?;
+    match bytes {
+        [value] => Ok(u32::from(*value)),
+        [first, second] => Ok(u32::from(u16::from_be_bytes([*first, *second]))),
+        [first, second, third, fourth] => {
+            Ok(u32::from_be_bytes([*first, *second, *third, *fourth]))
+        }
+        _ => Err("class variable offset width is unsupported"),
+    }
+}
+
+fn prototype_varchar_shape(variable: &[u8]) -> Result<(usize, usize), &'static str> {
+    let prefix = *variable.first().ok_or("class name VARCHAR is empty")?;
+    if prefix != 0xff {
+        return Ok((1, usize::from(prefix)));
+    }
+    let compressed = variable
+        .get(1..5)
+        .and_then(|bytes| <[u8; 4]>::try_from(bytes).ok())
+        .map(u32::from_be_bytes)
+        .ok_or("class name compression header is truncated")?;
+    let decompressed = variable
+        .get(5..9)
+        .and_then(|bytes| <[u8; 4]>::try_from(bytes).ok())
+        .map(u32::from_be_bytes)
+        .ok_or("class name compression header is truncated")?;
+    if compressed != 0 {
+        return Err("compressed class names are deferred in this POC");
+    }
+    Ok((
+        9,
+        usize::try_from(decompressed).map_err(|_| "class name length does not fit in memory")?,
+    ))
+}
+
+fn prototype_decode_identifier(bytes: &[u8], charset: u8) -> Result<String, &'static str> {
+    if bytes.is_ascii() {
+        return String::from_utf8(bytes.to_vec()).map_err(|_| "ASCII class name is invalid");
+    }
+    match charset {
+        3 => Ok(bytes.iter().copied().map(char::from).collect()),
+        5 => std::str::from_utf8(bytes)
+            .map(str::to_owned)
+            .map_err(|_| "UTF-8 class name is invalid"),
+        4 => Err("EUC-KR class names are deferred in this POC"),
+        0 => Err("ASCII database contains a non-ASCII class name"),
+        _ => Err("database codeset is unsupported by this POC"),
     }
 }
 
