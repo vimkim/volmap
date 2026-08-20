@@ -186,6 +186,8 @@ fn inspection_opens_sparse_volume_and_scans_only_reserved_sector_envelopes() {
     assert_eq!(projected["occupancy"]["state"], "known");
     assert_eq!(projected["occupancy"]["occupied_percent"], 7);
     assert_eq!(projected["occupancy"]["free_percent"], 93);
+    // No file tables exist in this fixture, so attribution stays fail-closed.
+    assert_eq!(projected["file_association"]["state"], "none");
     let oos = view
         .page(Vpid::new(VolId::new(0).unwrap(), PageId::new(20).unwrap()))
         .unwrap();
@@ -200,6 +202,16 @@ fn inspection_opens_sparse_volume_and_scans_only_reserved_sector_envelopes() {
             .pages
             .iter()
             .all(|page| page.availability == Availability::Unsupported)
+    );
+    let sector_json =
+        serde_json::to_value(volmap::projection::sector_projection(unreserved)).unwrap();
+    assert_eq!(sector_json["attribution"]["state"], "unclaimed");
+    assert!(
+        sector_json["pages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|page| page["file_association"]["state"] == "none")
     );
 }
 

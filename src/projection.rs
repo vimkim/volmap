@@ -5,8 +5,9 @@ use serde::Serialize;
 use crate::diagnostics::InspectionOutcome;
 use crate::format::{PageType, VolumePurpose, VolumeType};
 use crate::inspection::{
-    CoverageRecord, DeepPageView, DiagnosticRecord, OosChainView, OverflowChainView, OverviewView,
-    PageView, RawPageView, RelocationEdgeView, SectorView, VolumeView,
+    ClassAssociation, ClassNameResolution, CoverageRecord, DeepPageView, DiagnosticRecord,
+    FileAssociation, OosChainView, OverflowChainView, OverviewView, PageFileAssociation, PageView,
+    RawPageView, RelocationEdgeView, SectorAttribution, SectorClaimKind, SectorView, VolumeView,
 };
 use crate::model::{
     Availability, Coverage, PageAllocationClass, SnapshotId, SnapshotValidity, TdeInspectionState,
@@ -151,7 +152,33 @@ pub struct SectorProjection {
     pub vol_id: i16,
     pub sector_id: i32,
     pub reserved: bool,
+    pub attribution: SectorAttributionProjection,
     pub pages: Vec<PageProjection>,
+}
+
+/// Additive since schema version 1: which validated file table(s) claim a
+/// sector's reservation, and the class/table each claim resolves to.
+#[derive(Clone, Debug, Serialize)]
+#[serde(tag = "state", rename_all = "kebab-case")]
+pub enum SectorAttributionProjection {
+    Unclaimed,
+    Single {
+        file: FileAssociationBodyProjection,
+        full: bool,
+        allocated_pages: u8,
+        reserved_unallocated_pages: u8,
+    },
+    Mixed {
+        claims: Vec<SectorClaimProjection>,
+    },
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct SectorClaimProjection {
+    pub vol_id: i16,
+    pub file_id: i32,
+    pub full: bool,
+    pub allocated_pages: u8,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -168,6 +195,35 @@ pub struct PageProjection {
     pub lsa_word: OptionalCountProjection,
     pub diagnostic: OptionalTextProjection,
     pub bytes: BytesWithheldProjection,
+    pub file_association: FileAssociationProjection,
+}
+
+/// Additive since schema version 1: how a page relates to the validated file
+/// inventory, and the class/table that relationship resolves to.
+#[derive(Clone, Debug, Serialize)]
+#[serde(tag = "state", rename_all = "kebab-case")]
+pub enum FileAssociationProjection {
+    None,
+    MixedClaims,
+    Allocated { file: FileAssociationBodyProjection },
+    ReservedFor { file: FileAssociationBodyProjection },
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct FileAssociationBodyProjection {
+    pub vol_id: i16,
+    pub file_id: i32,
+    pub file_type: OptionalTextProjection,
+    pub class_oid: OptionalOidProjection,
+    pub class_name: ClassNameProjection,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(tag = "state", rename_all = "kebab-case")]
+pub enum ClassNameProjection {
+    NotApplicable { reason: &'static str },
+    Resolved { value: String },
+    Unresolved { reason: &'static str },
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -581,7 +637,82 @@ pub fn sector_projection(sector: SectorView) -> SectorProjection {
         vol_id: sector.vol_id.get(),
         sector_id: sector.sector_id.get(),
         reserved: sector.reserved,
+        attribution: sector_attribution_projection(sector.attribution),
         pages: sector.pages.into_iter().map(page_projection).collect(),
+    }
+}
+
+#[must_use]
+pub fn sector_attribution_projection(
+    attribution: SectorAttribution,
+) -> SectorAttributionProjection {
+    match attribution {
+        SectorAttribution::Unclaimed => SectorAttributionProjection::Unclaimed,
+        SectorAttribution::Single { association, kind } => {
+            let allocated_pages = kind.allocated_pages();
+            SectorAttributionProjection::Single {
+                file: file_association_body(association),
+                full: matches!(kind, SectorClaimKind::Full),
+                allocated_pages,
+                reserved_unallocated_pages: 64_u8.saturating_sub(allocated_pages),
+            }
+        }
+        SectorAttribution::Mixed { claims } => SectorAttributionProjection::Mixed {
+            claims: claims
+                .into_iter()
+                .map(|claim| SectorClaimProjection {
+                    vol_id: claim.vfid.vol_id.get(),
+                    file_id: claim.vfid.file_id.get(),
+                    full: matches!(claim.kind, SectorClaimKind::Full),
+                    allocated_pages: claim.kind.allocated_pages(),
+                })
+                .collect(),
+        },
+    }
+}
+
+#[must_use]
+pub fn file_association_projection(association: PageFileAssociation) -> FileAssociationProjection {
+    match association {
+        PageFileAssociation::None => FileAssociationProjection::None,
+        PageFileAssociation::MixedClaims => FileAssociationProjection::MixedClaims,
+        PageFileAssociation::Allocated(association) => FileAssociationProjection::Allocated {
+            file: file_association_body(association),
+        },
+        PageFileAssociation::ReservedFor(association) => FileAssociationProjection::ReservedFor {
+            file: file_association_body(association),
+        },
+    }
+}
+
+fn file_association_body(association: FileAssociation) -> FileAssociationBodyProjection {
+    let (class_oid, class_name) = match association.class {
+        ClassAssociation::None(reason) => (
+            OptionalOidProjection::Absent,
+            ClassNameProjection::NotApplicable { reason },
+        ),
+        ClassAssociation::Class { oid, name } => (
+            optional_oid_projection(Some(oid)),
+            match name {
+                ClassNameResolution::Resolved(value) => ClassNameProjection::Resolved {
+                    value: value.as_ref().to_owned(),
+                },
+                ClassNameResolution::Unresolved(reason) => {
+                    ClassNameProjection::Unresolved { reason }
+                }
+            },
+        ),
+    };
+    FileAssociationBodyProjection {
+        vol_id: association.vfid.vol_id.get(),
+        file_id: association.vfid.file_id.get(),
+        file_type: association
+            .file_type
+            .map_or(OptionalTextProjection::Unknown, |kind| {
+                OptionalTextProjection::Known(kind.as_str())
+            }),
+        class_oid,
+        class_name,
     }
 }
 
@@ -623,6 +754,7 @@ pub fn page_projection(page: PageView) -> PageProjection {
         bytes: BytesWithheldProjection {
             state: "bytes-withheld",
         },
+        file_association: file_association_projection(page.file_association),
     }
 }
 

@@ -224,10 +224,17 @@ pub fn decode_file_header(envelope: &DecodedPageEnvelope<'_>) -> Result<FileHead
     if flags & !0x0f != 0 || flags & 0x0c == 0x0c {
         return Err(error(DecodeErrorKind::InvalidFlags, "file.header.flags"));
     }
-    let class_oid = if matches!(file_type, FileType::Heap | FileType::HeapReuseSlots) {
-        optional_oid(&view, 40, "file.header.heap_class")?
-    } else {
-        None
+    let class_oid = match file_type {
+        FileType::Heap | FileType::HeapReuseSlots => {
+            optional_oid(&view, 40, "file.header.heap_class")?
+        }
+        FileType::Btree | FileType::ExtensibleHash | FileType::HashDirectory => {
+            optional_oid(&view, 40, "file.header.descriptor_class")?
+        }
+        FileType::MultipageObjectHeap | FileType::BtreeOverflowKey => {
+            optional_oid(&view, 52, "file.header.descriptor_class")?
+        }
+        _ => None,
     };
     let heap_header_page = if matches!(file_type, FileType::Heap | FileType::HeapReuseSlots) {
         let descriptor_file = read_i32(&view, 48, "file.header.heap_hfid")?;

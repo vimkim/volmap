@@ -210,7 +210,7 @@ pub struct VolumeView {
     pub reserved_sectors: u32,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PageView {
     pub vpid: Vpid,
     pub sector_id: SectorId,
@@ -222,24 +222,84 @@ pub struct PageView {
     pub slotted_occupied_percent: Option<u8>,
     pub lsa_word: Option<u64>,
     pub diagnostic_code: Option<&'static str>,
+    pub file_association: PageFileAssociation,
 }
 
-/// Throwaway POC result for one physical page-to-table lookup.
+/// The stored class/table name a class OID resolved to, or the typed reason
+/// it did not. A name is never manufactured; the OID stays visible either way.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct PrototypePageTableLookup {
-    pub page: PageView,
-    pub owner_file: Option<Vfid>,
-    pub file_type: Option<FileType>,
-    pub class_oid: Option<Oid>,
-    pub table_name: PrototypeTableName,
-}
-
-/// Why the POC did or did not produce a stored class/table name.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum PrototypeTableName {
-    Resolved(String),
-    NotApplicable(&'static str),
+pub enum ClassNameResolution {
+    Resolved(Arc<str>),
     Unresolved(&'static str),
+}
+
+/// Class association carried by a file descriptor.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ClassAssociation {
+    /// The file type carries no single class association (typed reason).
+    None(&'static str),
+    Class {
+        oid: Oid,
+        name: ClassNameResolution,
+    },
+}
+
+/// One file's association facts, joined from the validated file inventory.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FileAssociation {
+    pub vfid: Vfid,
+    pub file_type: Option<FileType>,
+    pub class: ClassAssociation,
+}
+
+/// How a physical page relates to the file inventory.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum PageFileAssociation {
+    /// No file allocates or reserves this page.
+    None,
+    /// The page is an allocated page of this file.
+    Allocated(FileAssociation),
+    /// The page is inside a sector reserved by this file but not allocated.
+    ReservedFor(FileAssociation),
+    /// Multiple file tables claim this page's sector; no owner is selected.
+    MixedClaims,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SectorClaimKind {
+    Full,
+    Partial { bitmap: u64 },
+}
+
+impl SectorClaimKind {
+    #[must_use]
+    #[allow(clippy::cast_possible_truncation)] // a u64 popcount is at most 64
+    pub const fn allocated_pages(self) -> u8 {
+        match self {
+            Self::Full => 64,
+            Self::Partial { bitmap } => bitmap.count_ones() as u8,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SectorClaimView {
+    pub vfid: Vfid,
+    pub kind: SectorClaimKind,
+}
+
+/// How a sector relates to the file inventory's reservation claims.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum SectorAttribution {
+    /// No validated file table claims this sector.
+    Unclaimed,
+    /// Exactly one file claims the sector.
+    Single {
+        association: FileAssociation,
+        kind: SectorClaimKind,
+    },
+    /// Multiple file tables claim this sector; every claim is retained.
+    Mixed { claims: Vec<SectorClaimView> },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -247,6 +307,7 @@ pub struct SectorView {
     pub vol_id: VolId,
     pub sector_id: SectorId,
     pub reserved: bool,
+    pub attribution: SectorAttribution,
     pub pages: Vec<PageView>,
 }
 
@@ -938,6 +999,8 @@ struct SessionData {
     deep_pages: BTreeMap<Vpid, DeepPageFact>,
     file_allocations: BTreeMap<Vpid, Vfid>,
     tracked_files: BTreeMap<Vfid, FileHeader>,
+    sector_claims: BTreeMap<(VolId, SectorId), Vec<SectorClaimView>>,
+    class_names: BTreeMap<Oid, ClassNameResolution>,
     oos_chains: BTreeMap<crate::model::Oid, OosChainFact>,
     overflow_chains: BTreeMap<Oid, OverflowChainFact>,
     relocation_edges: BTreeMap<Oid, RelocationEdgeFact>,
@@ -956,6 +1019,13 @@ enum FileTableKind {
     Full,
     User,
     Tracker,
+}
+
+/// Everything one validated file table proves about its space: the allocated
+/// pages and the per-sector reservation claims those pages came from.
+struct FileAllocationFacts {
+    pages: BTreeSet<Vpid>,
+    claims: Vec<((VolId, SectorId), SectorClaimKind)>,
 }
 
 #[derive(Default)]
@@ -1602,6 +1672,8 @@ impl Inspection {
                 deep_pages: BTreeMap::new(),
                 file_allocations: BTreeMap::new(),
                 tracked_files: BTreeMap::new(),
+                sector_claims: BTreeMap::new(),
+                class_names: BTreeMap::new(),
                 oos_chains: BTreeMap::new(),
                 overflow_chains: BTreeMap::new(),
                 relocation_edges: BTreeMap::new(),
@@ -1874,6 +1946,7 @@ impl GraphView {
             vol_id,
             sector_id,
             reserved: volume.is_reserved(sector),
+            attribution: self.sector_attribution(vol_id, sector_id),
             pages,
         })
     }
@@ -1892,89 +1965,72 @@ impl GraphView {
         self.page_from_record(volume, vpid.page_id)
     }
 
-    /// PROTOTYPE: follow one allocated page to its file descriptor and stored
-    /// class name. OOS and multipage class records are deliberately deferred.
-    pub fn prototype_page_table_lookup(
-        &self,
-        vpid: Vpid,
-    ) -> Result<PrototypePageTableLookup, QueryError> {
-        let page = self.page(vpid)?;
-        let Some(owner_file) = self.data.file_allocations.get(&vpid).copied() else {
-            let inventory_complete = self.data.coverage.iter().any(|record| {
-                record.facet == "file-inventory" && record.coverage == Coverage::Complete
-            });
-            return Ok(PrototypePageTableLookup {
-                page,
-                owner_file: None,
+    /// Join one file's inventory facts into a shared association view.
+    /// Names are never copied per page; they resolve once per class OID.
+    fn file_association(&self, vfid: Vfid) -> FileAssociation {
+        let header = self.data.tracked_files.get(&vfid).copied().or_else(|| {
+            PageId::new(vfid.file_id.get()).ok().and_then(|page_id| {
+                self.data
+                    .deep_pages
+                    .get(&Vpid::new(vfid.vol_id, page_id))
+                    .and_then(|fact| fact.file_header)
+            })
+        });
+        let Some(header) = header else {
+            return FileAssociation {
+                vfid,
                 file_type: None,
-                class_oid: None,
-                table_name: if inventory_complete {
-                    PrototypeTableName::NotApplicable("page is not allocated to a tracked file")
-                } else {
-                    PrototypeTableName::Unresolved(
-                        "file inventory is incomplete, so allocation is unknown",
-                    )
-                },
-            });
-        };
-        let Some(header) = self.data.tracked_files.get(&owner_file).copied() else {
-            return Ok(PrototypePageTableLookup {
-                page,
-                owner_file: Some(owner_file),
-                file_type: None,
-                class_oid: None,
-                table_name: PrototypeTableName::Unresolved("allocating file header is unavailable"),
-            });
-        };
-        let file_type = header.file_type();
-        let class_oid = match self.prototype_descriptor_class_oid(header) {
-            Ok(value) => value,
-            Err(reason) => {
-                return Ok(PrototypePageTableLookup {
-                    page,
-                    owner_file: Some(owner_file),
-                    file_type: Some(file_type),
-                    class_oid: None,
-                    table_name: PrototypeTableName::Unresolved(reason),
-                });
-            }
-        };
-        let Some(class_oid) = class_oid else {
-            let reason = if file_type == FileType::Oos {
-                "OOS class attribution is intentionally deferred"
-            } else if matches!(
-                file_type,
-                FileType::Heap
-                    | FileType::HeapReuseSlots
-                    | FileType::MultipageObjectHeap
-                    | FileType::Btree
-                    | FileType::BtreeOverflowKey
-                    | FileType::ExtensibleHash
-                    | FileType::HashDirectory
-            ) {
-                "file descriptor has a null class OID"
-            } else {
-                "file type has no single class association"
+                class: ClassAssociation::None("allocating file header is unavailable"),
             };
-            return Ok(PrototypePageTableLookup {
-                page,
-                owner_file: Some(owner_file),
-                file_type: Some(file_type),
-                class_oid: None,
-                table_name: PrototypeTableName::NotApplicable(reason),
-            });
         };
-        let table_name = match self.prototype_resolve_class_name(class_oid) {
-            Ok(name) => PrototypeTableName::Resolved(name),
-            Err(reason) => PrototypeTableName::Unresolved(reason),
-        };
-        Ok(PrototypePageTableLookup {
-            page,
-            owner_file: Some(owner_file),
-            file_type: Some(file_type),
-            class_oid: Some(class_oid),
-            table_name,
-        })
+        let class = header.class_oid().map_or_else(
+            || ClassAssociation::None(class_absence_reason(header.file_type())),
+            |oid| ClassAssociation::Class {
+                oid,
+                name: self.data.class_names.get(&oid).cloned().unwrap_or(
+                    ClassNameResolution::Unresolved("class name was not resolved"),
+                ),
+            },
+        );
+        FileAssociation {
+            vfid,
+            file_type: Some(header.file_type()),
+            class,
+        }
+    }
+
+    fn page_file_association(&self, vpid: Vpid, sector_id: SectorId) -> PageFileAssociation {
+        if let Some(owner) = self.data.file_allocations.get(&vpid) {
+            return PageFileAssociation::Allocated(self.file_association(*owner));
+        }
+        match self
+            .data
+            .sector_claims
+            .get(&(vpid.vol_id, sector_id))
+            .map(Vec::as_slice)
+        {
+            None | Some([]) => PageFileAssociation::None,
+            Some([claim]) => PageFileAssociation::ReservedFor(self.file_association(claim.vfid)),
+            Some(_) => PageFileAssociation::MixedClaims,
+        }
+    }
+
+    fn sector_attribution(&self, vol_id: VolId, sector_id: SectorId) -> SectorAttribution {
+        match self
+            .data
+            .sector_claims
+            .get(&(vol_id, sector_id))
+            .map(Vec::as_slice)
+        {
+            None | Some([]) => SectorAttribution::Unclaimed,
+            Some([claim]) => SectorAttribution::Single {
+                association: self.file_association(claim.vfid),
+                kind: claim.kind,
+            },
+            Some(claims) => SectorAttribution::Mixed {
+                claims: claims.to_vec(),
+            },
+        }
     }
 
     pub fn file_pages(&self, vfid: Vfid) -> Result<Vec<PageView>, QueryError> {
@@ -1991,41 +2047,42 @@ impl GraphView {
         Ok(pages)
     }
 
-    fn prototype_descriptor_class_oid(
+    /// Resolve every distinct descriptor class OID among `headers` exactly
+    /// once. Failures stay typed and per-OID; they never abort the inventory.
+    fn resolve_tracked_class_names(
         &self,
-        header: FileHeader,
-    ) -> Result<Option<Oid>, &'static str> {
-        let descriptor_offset = match header.file_type() {
-            FileType::Heap | FileType::HeapReuseSlots => return Ok(header.class_oid()),
-            FileType::MultipageObjectHeap | FileType::BtreeOverflowKey => 52,
-            FileType::Btree | FileType::ExtensibleHash | FileType::HashDirectory => 40,
-            FileType::Oos
-            | FileType::Tracker
-            | FileType::Catalog
-            | FileType::DroppedFiles
-            | FileType::VacuumData
-            | FileType::QueryArea
-            | FileType::Temporary
-            | FileType::Unknown => return Ok(None),
-        };
-        let header_page = Vpid::new(
-            header.vfid().vol_id,
-            PageId::new(header.vfid().file_id.get())
-                .map_err(|_| "file header page identifier is invalid")?,
-        );
-        let owned = OwnedInspectionPage::read(&self.data, header_page)
-            .map_err(|_| "file descriptor page could not be read")?;
-        let envelope = owned
-            .envelope(header_page)
-            .map_err(|_| "file descriptor page envelope is invalid")?;
-        let view = envelope
-            .plaintext("prototype.file_descriptor.encrypted")
-            .map_err(|_| "file descriptor is encrypted and unavailable")?;
-        prototype_optional_oid(&view, descriptor_offset)
+        headers: &BTreeMap<Vfid, FileHeader>,
+        cancel: &CancelToken,
+    ) -> Result<BTreeMap<Oid, ClassNameResolution>, OperationError> {
+        let charset = database_charset(&self.data);
+        let mut class_names = BTreeMap::new();
+        for header in headers.values() {
+            let Some(oid) = header.class_oid() else {
+                continue;
+            };
+            if class_names.contains_key(&oid) {
+                continue;
+            }
+            if cancel.is_cancelled() {
+                return Err(OperationError::Interrupted);
+            }
+            let resolution = match charset {
+                Ok(charset) => match self.resolve_class_name(oid, charset) {
+                    Ok(name) => ClassNameResolution::Resolved(name),
+                    Err(reason) => ClassNameResolution::Unresolved(reason),
+                },
+                Err(reason) => ClassNameResolution::Unresolved(reason),
+            };
+            class_names.insert(oid, resolution);
+        }
+        Ok(class_names)
     }
 
-    fn prototype_resolve_class_name(&self, class_oid: Oid) -> Result<String, &'static str> {
-        let charset = prototype_database_charset(&self.data)?;
+    /// Read the class record at `class_oid` and decode its stored name.
+    /// Bounded and fail-closed: relocations are followed a fixed number of
+    /// steps; multipage (`REC_BIGONE`) class records and compressed names
+    /// stay typed-unresolved rather than guessed.
+    fn resolve_class_name(&self, class_oid: Oid, charset: u8) -> Result<Arc<str>, &'static str> {
         let mut current = class_oid;
         let mut visited = BTreeSet::new();
         for _ in 0..8 {
@@ -2048,14 +2105,14 @@ impl GraphView {
                 .ok_or("class record slot does not exist")?;
             match slot.record_type() {
                 RecordType::Home | RecordType::NewHome => {
-                    return prototype_decode_class_name(&envelope, &slotted, slot_id, charset);
+                    return decode_class_name(&envelope, &slotted, slot_id, charset);
                 }
                 RecordType::Relocation => {
                     current = decode_relocation_target(&envelope, &slotted, slot_id)
                         .map_err(|_| "class record relocation target is invalid")?;
                 }
                 RecordType::BigOne => {
-                    return Err("REC_BIGONE class records are deferred in this POC");
+                    return Err("multipage class records are not yet decoded");
                 }
                 RecordType::Unknown
                 | RecordType::AssignAddress
@@ -2323,7 +2380,7 @@ impl GraphView {
             Ok(_) => return self.page_decode_failure(header_page, "file.header.self_identity"),
             Err(error) => return self.page_decode_failure(header_page, error.rule()),
         };
-        let allocations = match self.collect_file_allocations(file_header, policy, cancel) {
+        let facts = match self.collect_file_allocations(file_header, policy, cancel) {
             Ok(value) => value,
             Err(FileTraversalError::Decode(rule)) => {
                 return self.page_decode_failure(header_page, rule);
@@ -2341,7 +2398,7 @@ impl GraphView {
         {
             return self.invalidated_revision();
         }
-        self.publish_file(header_page, file_header, allocations)
+        self.publish_file(header_page, file_header, facts, cancel)
     }
 
     /// Validate the permanent-file tracker and every referenced file header.
@@ -2448,8 +2505,9 @@ impl GraphView {
             headers.insert(item.vfid, header);
         }
         let mut allocations = BTreeMap::new();
+        let mut sector_claims: BTreeMap<(VolId, SectorId), Vec<SectorClaimView>> = BTreeMap::new();
         for header in headers.values().copied() {
-            let owned = self
+            let facts = self
                 .collect_file_allocations(header, policy, cancel)
                 .map_err(|error| match error {
                     FileTraversalError::Decode(rule) => OperationError::Structural(format!(
@@ -2459,7 +2517,7 @@ impl GraphView {
                     )),
                     FileTraversalError::Operation(error) => error,
                 })?;
-            for vpid in owned {
+            for vpid in facts.pages {
                 if allocations.insert(vpid, header.vfid()).is_some() {
                     return Err(OperationError::Structural(format!(
                         "file.table.owner_unique at page:{}:{}",
@@ -2468,7 +2526,25 @@ impl GraphView {
                     )));
                 }
             }
+            for (key, kind) in facts.claims {
+                sector_claims.entry(key).or_default().push(SectorClaimView {
+                    vfid: header.vfid(),
+                    kind,
+                });
+            }
         }
+        let claim_conflicts: Vec<DiagnosticRecord> = sector_claims
+            .iter()
+            .filter(|(_, claims)| claims.len() > 1)
+            .map(|((vol_id, sector_id), _)| DiagnosticRecord {
+                code: "file.sector.claim_conflict",
+                severity: "error",
+                message: "Multiple validated file tables claim the same sector.",
+                subject: format!("sector:{}:{}", vol_id.get(), sector_id.get()),
+                rule: "file.table.sector_owner_unique",
+            })
+            .collect();
+        let class_names = self.resolve_tracked_class_names(&headers, cancel)?;
         let retained = (allocations.len() as u64)
             .checked_mul(size_of::<(Vpid, Vfid)>() as u64)
             .ok_or(OperationError::Arithmetic)?;
@@ -2490,6 +2566,9 @@ impl GraphView {
             .map_err(|_| OperationError::Arithmetic)?;
         next.tracked_files = headers;
         next.file_allocations = allocations;
+        next.sector_claims = sector_claims;
+        next.class_names = class_names;
+        next.diagnostics.extend(claim_conflicts);
         for header in next.tracked_files.values().copied() {
             let header_page = Vpid::new(
                 header.vfid().vol_id,
@@ -2529,7 +2608,7 @@ impl GraphView {
         header: FileHeader,
         policy: ResourcePolicy,
         cancel: &CancelToken,
-    ) -> Result<BTreeSet<Vpid>, FileTraversalError> {
+    ) -> Result<FileAllocationFacts, FileTraversalError> {
         let temporary = header.flags() & 0x2 != 0;
         let numerable = header.flags() & 0x1 != 0;
         let partial_offset = header
@@ -2605,10 +2684,17 @@ impl GraphView {
         }
         let mut sectors = BTreeSet::new();
         let mut allocations = BTreeSet::new();
+        let mut claims = Vec::new();
         for partial in traversal.partial_sectors {
             if !sectors.insert((partial.vol_id, partial.sector_id)) {
                 return Err(FileTraversalError::Decode("file.table.sector_unique"));
             }
+            claims.push((
+                (partial.vol_id, partial.sector_id),
+                SectorClaimKind::Partial {
+                    bitmap: partial.page_bitmap,
+                },
+            ));
             let first = i64::from(partial.sector_id.get()) * i64::from(SECTOR_PAGES);
             for bit in 0..SECTOR_PAGES {
                 if partial.page_bitmap & (1_u64 << bit) != 0 {
@@ -2628,6 +2714,7 @@ impl GraphView {
             if !sectors.insert((vol_id, sector_id)) {
                 return Err(FileTraversalError::Decode("file.table.sector_unique"));
             }
+            claims.push(((vol_id, sector_id), SectorClaimKind::Full));
             let first = i64::from(sector_id.get()) * i64::from(SECTOR_PAGES);
             for bit in 0..SECTOR_PAGES {
                 let page = first + i64::from(bit);
@@ -2656,11 +2743,20 @@ impl GraphView {
         }
         let retained = (allocations.len() as u64)
             .checked_mul(size_of::<(Vpid, Vfid)>() as u64)
+            .and_then(|bytes| {
+                bytes.checked_add(
+                    (claims.len() as u64)
+                        .checked_mul(size_of::<((VolId, SectorId), SectorClaimKind)>() as u64)?,
+                )
+            })
             .ok_or(FileTraversalError::Operation(OperationError::Arithmetic))?;
         if retained > policy.memory_limit {
             return Err(FileTraversalError::Operation(OperationError::ResourceLimit));
         }
-        Ok(allocations)
+        Ok(FileAllocationFacts {
+            pages: allocations,
+            claims,
+        })
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -4079,9 +4175,10 @@ impl GraphView {
         &self,
         header_page: Vpid,
         header: FileHeader,
-        allocations: BTreeSet<Vpid>,
+        facts: FileAllocationFacts,
+        cancel: &CancelToken,
     ) -> Result<Self, OperationError> {
-        if allocations.iter().any(|vpid| {
+        if facts.pages.iter().any(|vpid| {
             self.data
                 .file_allocations
                 .get(vpid)
@@ -4089,6 +4186,9 @@ impl GraphView {
         }) {
             return self.page_decode_failure(header_page, "file.table.owner_unique");
         }
+        let mut single = BTreeMap::new();
+        single.insert(header.vfid(), header);
+        let class_names = self.resolve_tracked_class_names(&single, cancel)?;
         let mut next = (*self.data).clone();
         next.revision = next
             .revision
@@ -4103,9 +4203,23 @@ impl GraphView {
                 diagnostic_rule: None,
             },
         );
-        for vpid in allocations {
+        for vpid in facts.pages {
             next.file_allocations.insert(vpid, header.vfid());
         }
+        for claims in next.sector_claims.values_mut() {
+            claims.retain(|claim| claim.vfid != header.vfid());
+        }
+        next.sector_claims.retain(|_, claims| !claims.is_empty());
+        for (key, kind) in facts.claims {
+            next.sector_claims
+                .entry(key)
+                .or_default()
+                .push(SectorClaimView {
+                    vfid: header.vfid(),
+                    kind,
+                });
+        }
+        next.class_names.extend(class_names);
         refresh_deep_coverage(&mut next, None);
         let inspected_files = next
             .deep_pages
@@ -4200,34 +4314,33 @@ impl GraphView {
                 .map(slotted_occupied_percent),
             lsa_word: fact.and_then(|value| value.lsa_word),
             diagnostic_code: fact.and_then(|value| value.diagnostic_code),
+            file_association: self.page_file_association(vpid, sector_id),
         })
     }
 }
 
-fn prototype_optional_oid(view: &ByteView<'_>, offset: usize) -> Result<Option<Oid>, &'static str> {
-    let page = view
-        .read_i32_le(offset, "prototype descriptor class page")
-        .map_err(|_| "class OID page field is out of bounds")?;
-    let slot = view
-        .read_i16_le(offset + 4, "prototype descriptor class slot")
-        .map_err(|_| "class OID slot field is out of bounds")?;
-    let volume = view
-        .read_i16_le(offset + 6, "prototype descriptor class volume")
-        .map_err(|_| "class OID volume field is out of bounds")?;
-    if page == -1 && slot == -1 && volume == -1 {
-        return Ok(None);
+/// Typed reason a file type carries no single class association.
+const fn class_absence_reason(file_type: FileType) -> &'static str {
+    match file_type {
+        FileType::Oos => "OOS class attribution is intentionally deferred",
+        FileType::Heap
+        | FileType::HeapReuseSlots
+        | FileType::MultipageObjectHeap
+        | FileType::Btree
+        | FileType::BtreeOverflowKey
+        | FileType::ExtensibleHash
+        | FileType::HashDirectory => "file descriptor has a null class OID",
+        FileType::Tracker
+        | FileType::Catalog
+        | FileType::DroppedFiles
+        | FileType::VacuumData
+        | FileType::QueryArea
+        | FileType::Temporary
+        | FileType::Unknown => "file type has no single class association",
     }
-    if page < 0 || slot < 0 || volume < 0 {
-        return Err("class OID has a partially null or negative identity");
-    }
-    Ok(Some(Oid::new(
-        VolId::new(volume).map_err(|_| "class OID volume is invalid")?,
-        PageId::new(page).map_err(|_| "class OID page is invalid")?,
-        SlotId::new(slot).map_err(|_| "class OID slot is invalid")?,
-    )))
 }
 
-fn prototype_database_charset(data: &SessionData) -> Result<u8, &'static str> {
+fn database_charset(data: &SessionData) -> Result<u8, &'static str> {
     let source = data
         .sources
         .volumes()
@@ -4245,12 +4358,12 @@ fn prototype_database_charset(data: &SessionData) -> Result<u8, &'static str> {
     Ok(header.database_charset())
 }
 
-fn prototype_decode_class_name(
+fn decode_class_name(
     envelope: &crate::format::DecodedPageEnvelope<'_>,
     slotted: &SlottedPage,
     slot_id: u16,
     charset: u8,
-) -> Result<String, &'static str> {
+) -> Result<Arc<str>, &'static str> {
     let slot = slotted
         .slots()
         .get(usize::from(slot_id))
@@ -4258,7 +4371,7 @@ fn prototype_decode_class_name(
     let record = decode_heap_record_envelope(envelope, slotted, slot_id, false)
         .map_err(|_| "class object header is invalid")?;
     let view = envelope
-        .plaintext("prototype.class_record.encrypted")
+        .plaintext("class.record.encrypted")
         .map_err(|_| "class record is encrypted and unavailable")?;
     let record_start = usize::from(slot.offset());
     let header_length = usize::from(record.header_length);
@@ -4266,11 +4379,11 @@ fn prototype_decode_class_name(
     let table_start = record_start
         .checked_add(header_length)
         .ok_or("class variable table offset overflow")?;
-    let first_raw = prototype_read_var_offset(&view, table_start, offset_width)?;
+    let first_raw = read_class_var_offset(&view, table_start, offset_width)?;
     let next_entry = table_start
         .checked_add(offset_width)
         .ok_or("class variable table offset overflow")?;
-    let second_raw = prototype_read_var_offset(&view, next_entry, offset_width)?;
+    let second_raw = read_class_var_offset(&view, next_entry, offset_width)?;
     if first_raw & 1 != 0 {
         return Err("out-of-row class names are outside this POC");
     }
@@ -4298,25 +4411,25 @@ fn prototype_decode_class_name(
         return Err("class name exceeds its record slot");
     }
     let variable = view
-        .range(variable_start, variable_length, "prototype class name")
+        .range(variable_start, variable_length, "class.record.name")
         .map_err(|_| "class name bytes are out of bounds")?;
-    let (name_start, name_length) = prototype_varchar_shape(variable)?;
+    let (name_start, name_length) = class_varchar_shape(variable)?;
     let name_end = name_start
         .checked_add(name_length)
         .ok_or("class name length overflow")?;
     if name_length > 255 || name_end >= variable.len() || variable[name_end] != 0 {
         return Err("class name length or terminator is invalid");
     }
-    prototype_decode_identifier(&variable[name_start..name_end], charset)
+    decode_class_identifier(&variable[name_start..name_end], charset)
 }
 
-fn prototype_read_var_offset(
+fn read_class_var_offset(
     view: &ByteView<'_>,
     offset: usize,
     width: usize,
 ) -> Result<u32, &'static str> {
     let bytes = view
-        .range(offset, width, "prototype class variable offset")
+        .range(offset, width, "class.record.var_offset")
         .map_err(|_| "class variable offset is out of bounds")?;
     match bytes {
         [value] => Ok(u32::from(*value)),
@@ -4328,7 +4441,7 @@ fn prototype_read_var_offset(
     }
 }
 
-fn prototype_varchar_shape(variable: &[u8]) -> Result<(usize, usize), &'static str> {
+fn class_varchar_shape(variable: &[u8]) -> Result<(usize, usize), &'static str> {
     let prefix = *variable.first().ok_or("class name VARCHAR is empty")?;
     if prefix != 0xff {
         return Ok((1, usize::from(prefix)));
@@ -4344,7 +4457,7 @@ fn prototype_varchar_shape(variable: &[u8]) -> Result<(usize, usize), &'static s
         .map(u32::from_be_bytes)
         .ok_or("class name compression header is truncated")?;
     if compressed != 0 {
-        return Err("compressed class names are deferred in this POC");
+        return Err("compressed class names are not yet decoded");
     }
     Ok((
         9,
@@ -4352,18 +4465,25 @@ fn prototype_varchar_shape(variable: &[u8]) -> Result<(usize, usize), &'static s
     ))
 }
 
-fn prototype_decode_identifier(bytes: &[u8], charset: u8) -> Result<String, &'static str> {
+fn decode_class_identifier(bytes: &[u8], charset: u8) -> Result<Arc<str>, &'static str> {
     if bytes.is_ascii() {
-        return String::from_utf8(bytes.to_vec()).map_err(|_| "ASCII class name is invalid");
+        return std::str::from_utf8(bytes)
+            .map(Arc::from)
+            .map_err(|_| "ASCII class name is invalid");
     }
     match charset {
-        3 => Ok(bytes.iter().copied().map(char::from).collect()),
+        3 => Ok(bytes
+            .iter()
+            .copied()
+            .map(char::from)
+            .collect::<String>()
+            .into()),
         5 => std::str::from_utf8(bytes)
-            .map(str::to_owned)
+            .map(Arc::from)
             .map_err(|_| "UTF-8 class name is invalid"),
-        4 => Err("EUC-KR class names are deferred in this POC"),
+        4 => Err("EUC-KR class names are not yet decoded"),
         0 => Err("ASCII database contains a non-ASCII class name"),
-        _ => Err("database codeset is unsupported by this POC"),
+        _ => Err("database codeset is unsupported"),
     }
 }
 

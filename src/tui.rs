@@ -16,9 +16,14 @@ use crossterm::terminal::{
 };
 use crossterm::{execute, queue};
 
-use crate::inspection::{GraphView, QueryError};
+use crate::inspection::{
+    ClassAssociation, ClassNameResolution, GraphView, QueryError, SectorAttribution, SectorView,
+};
 use crate::model::SectorId;
-use crate::projection::{OptionalTextProjection, PageProjection, page_projection};
+use crate::projection::{
+    ClassNameProjection, FileAssociationBodyProjection, FileAssociationProjection,
+    OptionalTextProjection, PageProjection, page_projection,
+};
 
 const GRID_TOP: u16 = 4;
 const DETAIL_TOP: u16 = GRID_TOP + 9;
@@ -567,7 +572,7 @@ fn draw(stdout: &mut Stdout, view: &GraphView, state: &State) -> Result<(), TuiE
     let selected = sector
         .pages
         .get(usize::from(state.cell))
-        .copied()
+        .cloned()
         .ok_or(QueryError::EntityNotFound)?;
     let page = page_projection(selected);
     let fingerprint = crate::projection::snapshot_id_hex(overview.snapshot_id);
@@ -591,7 +596,7 @@ fn draw(stdout: &mut Stdout, view: &GraphView, state: &State) -> Result<(), TuiE
         1,
         width,
         &format!(
-            "volume {} ({}/{}) / sector {} ({}) / page {}",
+            "volume {} ({}/{}) / sector {} ({}){} / page {}",
             volume.vol_id.get(),
             state.volume_index + 1,
             volumes.len(),
@@ -601,6 +606,9 @@ fn draw(stdout: &mut Stdout, view: &GraphView, state: &State) -> Result<(), TuiE
             } else {
                 "unreserved"
             },
+            sector_table_label(&sector)
+                .map(|label| format!(" [{label}]"))
+                .unwrap_or_default(),
             page.page_id
         ),
     )?;
@@ -615,7 +623,7 @@ fn draw(stdout: &mut Stdout, view: &GraphView, state: &State) -> Result<(), TuiE
     for (index, item) in sector.pages.iter().enumerate() {
         let row = GRID_TOP + u16::try_from(index / 8).unwrap_or(0);
         let column = u16::try_from(index % 8).unwrap_or(0) * cell_width;
-        let projected = page_projection(*item);
+        let projected = page_projection(item.clone());
         let marker = if matches!(projected.diagnostic, OptionalTextProjection::Unknown) {
             match projected.allocation {
                 "system-metadata" => 'S',
@@ -674,6 +682,54 @@ fn draw(stdout: &mut Stdout, view: &GraphView, state: &State) -> Result<(), TuiE
     Ok(())
 }
 
+/// One ellipsizable label for a sector's file/table attribution, or `None`
+/// when no validated file table claims the sector.
+fn sector_table_label(sector: &SectorView) -> Option<String> {
+    match &sector.attribution {
+        SectorAttribution::Unclaimed => None,
+        SectorAttribution::Mixed { claims } => Some(format!("mixed:{} claims", claims.len())),
+        SectorAttribution::Single { association, .. } => Some(match &association.class {
+            ClassAssociation::Class {
+                name: ClassNameResolution::Resolved(value),
+                ..
+            } => value.as_ref().to_owned(),
+            ClassAssociation::Class { .. } => "unresolved".to_owned(),
+            ClassAssociation::None(_) => association.file_type.map_or_else(
+                || "internal".to_owned(),
+                |kind| format!("internal:{}", kind.as_str()),
+            ),
+        }),
+    }
+}
+
+/// One Structure-tab line describing the page's file and class association.
+fn association_line(association: &FileAssociationProjection) -> String {
+    match association {
+        FileAssociationProjection::None => "file:none".to_owned(),
+        FileAssociationProjection::MixedClaims => {
+            "file:mixed claims (multiple file tables claim this sector)".to_owned()
+        }
+        FileAssociationProjection::Allocated { file } => association_body(file, "allocated"),
+        FileAssociationProjection::ReservedFor { file } => association_body(file, "reserved-for"),
+    }
+}
+
+fn association_body(file: &FileAssociationBodyProjection, relationship: &str) -> String {
+    let role = match file.file_type {
+        OptionalTextProjection::Known(value) => value,
+        _ => "unavailable",
+    };
+    let class = match &file.class_name {
+        ClassNameProjection::Resolved { value } => format!("table:{value}"),
+        ClassNameProjection::Unresolved { reason } => format!("table:unresolved ({reason})"),
+        ClassNameProjection::NotApplicable { reason } => format!("class:none ({reason})"),
+    };
+    format!(
+        "file:{}:{} ({relationship})  role:{role}  {class}",
+        file.vol_id, file.file_id
+    )
+}
+
 fn detail_lines(view: &GraphView, state: &State, page: &PageProjection) -> Vec<String> {
     match state.tab {
         Tab::Structure => vec![
@@ -688,6 +744,7 @@ fn detail_lines(view: &GraphView, state: &State, page: &PageProjection) -> Vec<S
                 optional_text(&page.detail_support),
                 page.tde_state
             ),
+            association_line(&page.file_association),
             format!(
                 "LSA:{}  evidence:page:{}:{}  structural ranges only · bytes withheld",
                 optional_count(&page.lsa_word),

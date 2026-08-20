@@ -1,8 +1,8 @@
-//! PROTOTYPE: resolve one physical CUBRID page to its associated table name.
+//! Resolve one physical CUBRID page to its associated table name.
 //!
-//! The question is intentionally narrow: given `(volid, pageid)`, can the
-//! existing offline allocation inventory identify the file, follow its
-//! descriptor `class_oid`, and read the stored class name?
+//! Given `(volid, pageid)`, the offline allocation inventory identifies the
+//! allocating (or reserving) file, its descriptor `class_oid`, and the stored
+//! class name resolved once per class.
 //!
 //! Example:
 //! `cargo run --example page_table_poc -- --vinf /copy/demodb_vinf 1 1000`
@@ -12,7 +12,8 @@ use std::path::PathBuf;
 
 use clap::{ArgGroup, Parser};
 use volmap::inspection::{
-    CancelToken, Inspection, OpenRequest, PrototypeTableName, ResourcePolicy, RevisionSelector,
+    CancelToken, ClassAssociation, ClassNameResolution, FileAssociation, Inspection, OpenRequest,
+    PageFileAssociation, ResourcePolicy, RevisionSelector,
 };
 use volmap::model::{PageAllocationClass, PageId, VolId, Vpid};
 use volmap::source::InputSpec;
@@ -20,7 +21,7 @@ use volmap::source::InputSpec;
 #[derive(Debug, Parser)]
 #[command(
     name = "page-table-poc",
-    about = "PROTOTYPE: resolve one allocated physical page to a CUBRID table name",
+    about = "Resolve one physical page to a CUBRID table name",
     group(
         ArgGroup::new("snapshot-input")
             .required(true)
@@ -83,50 +84,64 @@ fn main() -> Result<(), Box<dyn Error>> {
     )?;
     let view = inspection.view(RevisionSelector::Latest)?;
     let vpid = Vpid::new(VolId::new(args.volume)?, PageId::new(args.page)?);
-    let result = view.prototype_page_table_lookup(vpid)?;
+    let page = view.page(vpid)?;
 
     println!(
         "requested: volume={}, page={}",
-        result.page.vpid.vol_id.get(),
-        result.page.vpid.page_id.get()
+        page.vpid.vol_id.get(),
+        page.vpid.page_id.get()
     );
-    println!("allocation: {}", allocation_name(result.page.allocation));
+    println!("allocation: {}", allocation_name(page.allocation));
     println!(
         "page_type: {}",
-        result
-            .page
-            .page_type
-            .map_or("unknown", |kind| kind.as_str())
+        page.page_type.map_or("unknown", |kind| kind.as_str())
     );
-    match result.owner_file {
-        Some(owner) => println!(
-            "allocated_by_file: volume={}, file={}",
-            owner.vol_id.get(),
-            owner.file_id.get()
-        ),
-        None => println!("allocated_by_file: none"),
-    }
-    println!(
-        "file_role: {}",
-        result.file_type.map_or("none", |kind| kind.as_str())
-    );
-    match result.class_oid {
-        Some(oid) => println!(
-            "class_oid: volume={}, page={}, slot={}",
-            oid.vol_id.get(),
-            oid.page_id.get(),
-            oid.slot_id.get()
-        ),
-        None => println!("class_oid: none"),
-    }
-    match result.table_name {
-        PrototypeTableName::Resolved(name) => println!("table: {name}"),
-        PrototypeTableName::NotApplicable(reason) => {
-            println!("table: not-applicable ({reason})");
+    match page.file_association {
+        PageFileAssociation::None => println!("file: none"),
+        PageFileAssociation::MixedClaims => {
+            println!("file: mixed (multiple file tables claim this sector)");
         }
-        PrototypeTableName::Unresolved(reason) => println!("table: unresolved ({reason})"),
+        PageFileAssociation::Allocated(association) => {
+            println!("relationship: allocated");
+            print_association(&association);
+        }
+        PageFileAssociation::ReservedFor(association) => {
+            println!("relationship: reserved-for");
+            print_association(&association);
+        }
     }
     Ok(())
+}
+
+fn print_association(association: &FileAssociation) {
+    println!(
+        "file: volume={}, file={}",
+        association.vfid.vol_id.get(),
+        association.vfid.file_id.get()
+    );
+    println!(
+        "file_role: {}",
+        association
+            .file_type
+            .map_or("unavailable", |kind| kind.as_str())
+    );
+    match &association.class {
+        ClassAssociation::None(reason) => println!("table: not-applicable ({reason})"),
+        ClassAssociation::Class { oid, name } => {
+            println!(
+                "class_oid: volume={}, page={}, slot={}",
+                oid.vol_id.get(),
+                oid.page_id.get(),
+                oid.slot_id.get()
+            );
+            match name {
+                ClassNameResolution::Resolved(value) => println!("table: {value}"),
+                ClassNameResolution::Unresolved(reason) => {
+                    println!("table: unresolved ({reason})");
+                }
+            }
+        }
+    }
 }
 
 const fn allocation_name(allocation: PageAllocationClass) -> &'static str {

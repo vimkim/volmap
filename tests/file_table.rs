@@ -210,3 +210,75 @@ fn overflow_file_descriptor_pins_its_related_heap() {
     assert_eq!(heap.file_id.get(), 128);
     assert_eq!(heap_header.page_id.get(), 129);
 }
+
+fn write_descriptor_oid(user: &mut [u8], offset: usize, page: i32, slot: i16, volume: i16) {
+    user[offset..offset + 4].copy_from_slice(&page.to_le_bytes());
+    user[offset + 4..offset + 6].copy_from_slice(&slot.to_le_bytes());
+    user[offset + 6..offset + 8].copy_from_slice(&volume.to_le_bytes());
+}
+
+#[test]
+fn btree_and_hash_descriptors_pin_the_associated_class_at_offset_forty() {
+    for file_type in [4_i32, 6, 7] {
+        let mut bytes = file_page();
+        let user = &mut bytes[32..IO_PAGE_SIZE - 8];
+        user[140..144].copy_from_slice(&file_type.to_le_bytes());
+        write_descriptor_oid(user, 40, 195, 2, 0);
+        let header = decode_file_header(&envelope(&bytes)).unwrap();
+        let class_oid = header.class_oid().unwrap();
+        assert_eq!(class_oid.page_id.get(), 195);
+        assert_eq!(class_oid.slot_id.get(), 2);
+        assert_eq!(class_oid.vol_id.get(), 0);
+    }
+}
+
+#[test]
+fn overflow_descriptors_pin_the_class_after_their_parent_reference() {
+    // FILE_OVF_HEAP_DES { hfid, class_oid } and FILE_OVF_BTREE_DES
+    // { btid, class_oid } both place the class OID at descriptor offset 12.
+    for file_type in [3_i32, 5] {
+        let mut bytes = file_page();
+        let user = &mut bytes[32..IO_PAGE_SIZE - 8];
+        user[140..144].copy_from_slice(&file_type.to_le_bytes());
+        if file_type == 3 {
+            user[40..44].copy_from_slice(&128_i32.to_le_bytes());
+            user[44..46].copy_from_slice(&0_i16.to_le_bytes());
+            user[48..52].copy_from_slice(&129_i32.to_le_bytes());
+        }
+        write_descriptor_oid(user, 52, 77, 3, 1);
+        let header = decode_file_header(&envelope(&bytes)).unwrap();
+        let class_oid = header.class_oid().unwrap();
+        assert_eq!(class_oid.page_id.get(), 77);
+        assert_eq!(class_oid.slot_id.get(), 3);
+        assert_eq!(class_oid.vol_id.get(), 1);
+    }
+}
+
+#[test]
+fn null_and_partial_descriptor_classes_stay_fail_closed() {
+    // An entirely null class OID is a legal descriptor state for a hash.
+    let mut null_bytes = file_page();
+    let user = &mut null_bytes[32..IO_PAGE_SIZE - 8];
+    user[140..144].copy_from_slice(&6_i32.to_le_bytes());
+    write_descriptor_oid(user, 40, -1, -1, -1);
+    let header = decode_file_header(&envelope(&null_bytes)).unwrap();
+    assert!(header.class_oid().is_none());
+
+    // A partially null class OID is corruption, not a null association.
+    let mut partial_bytes = file_page();
+    let user = &mut partial_bytes[32..IO_PAGE_SIZE - 8];
+    user[140..144].copy_from_slice(&4_i32.to_le_bytes());
+    write_descriptor_oid(user, 40, 195, -1, 0);
+    assert_eq!(
+        decode_file_header(&envelope(&partial_bytes))
+            .unwrap_err()
+            .rule(),
+        "file.header.descriptor_class"
+    );
+
+    // The OOS descriptor never yields a class association in version one.
+    let oos_bytes = file_page();
+    let header = decode_file_header(&envelope(&oos_bytes)).unwrap();
+    assert_eq!(header.file_type().as_str(), "oos");
+    assert!(header.class_oid().is_none());
+}
