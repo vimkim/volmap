@@ -21,16 +21,16 @@ use crate::format::{
     BOOT_DB_PARM_SIZE, BtreePageFact, CatalogClassInfoFact, CatalogPageFact,
     CatalogRepresentationHeaderFact, ClassRepresentationFact, DB_PAGE_SIZE, DecodeError,
     DroppedFilesPageFact, FileHeader, FileType, HeapPageFact, InterpretedAttribute, OosNext,
-    PageContent, PageType, RecordType, RepresentationTarget, SLOTTED_HEADER_SIZE, SlottedPage,
-    TDE_KEY_INFO_RECORD_SIZE, TdeAlgorithm, TrackerItemFact, UserPageFact, VacuumPageFact,
-    VolumePurpose, VolumeType, decode_bigone_target, decode_boot_db_parm, decode_btree_page,
-    decode_catalog_class_info, decode_catalog_directory, decode_catalog_page,
+    PageContent, PageType, RecordLayoutFact, RecordType, RepresentationTarget, SLOTTED_HEADER_SIZE,
+    SlottedPage, TDE_KEY_INFO_RECORD_SIZE, TdeAlgorithm, TrackerItemFact, UserPageFact,
+    VacuumPageFact, VolumePurpose, VolumeType, decode_bigone_target, decode_boot_db_parm,
+    decode_btree_page, decode_catalog_class_info, decode_catalog_directory, decode_catalog_page,
     decode_catalog_representation_header, decode_class_representation,
     decode_decrypted_page_envelope, decode_dropped_files_page, decode_extdata_header,
     decode_file_header, decode_full_sectors, decode_heap_page, decode_heap_record_body,
     decode_heap_record_envelope, decode_oos_chunk, decode_overflow_continuation,
     decode_overflow_head, decode_page_envelope, decode_page_envelope_parts, decode_partial_sectors,
-    decode_record_attributes, decode_relocation_target, decode_sector_bitmap,
+    decode_record_interpretation, decode_relocation_target, decode_sector_bitmap,
     decode_slotted_free_space_header, decode_slotted_page, decode_tracker_items, decode_user_pages,
     decode_vacuum_page, decode_volume_header,
 };
@@ -1035,6 +1035,7 @@ struct RecordInterpretationEvidence {
     /// Set when this interpretation was reached by following a relocation from
     /// another slot, so both the forward reference and the values stay visible.
     relocated_from: Option<Oid>,
+    layout: Option<RecordLayoutFact>,
     attributes: Vec<InterpretedAttribute>,
     diagnostic_rule: Option<&'static str>,
 }
@@ -1060,6 +1061,8 @@ pub struct RecordInterpretationView {
     pub representation_id: u32,
     pub record_type: RecordType,
     pub relocated_from: Option<Oid>,
+    /// Absent when the record could not be interpreted at all.
+    pub layout: Option<RecordLayoutFact>,
     pub attributes: Vec<InterpretedAttribute>,
     pub diagnostic_rule: Option<&'static str>,
 }
@@ -3311,7 +3314,9 @@ impl GraphView {
             .envelope(vpid)
             .map_err(|_| "heap page envelope is invalid")?;
         if envelope.page_type() != PageType::Heap {
-            return Err("page is not a heap page");
+            return Err(
+                "only heap pages hold class instances, so this page's records carry no attribute values",
+            );
         }
         let slotted =
             decode_slotted_page(&envelope).map_err(|_| "heap page is not a valid slotted page")?;
@@ -3551,7 +3556,9 @@ impl GraphView {
                     Vec::new(),
                     Vec::new(),
                     None,
-                    Some("page is not a heap page"),
+                    Some(
+                        "only heap pages hold class instances, so this page's records carry no attribute values",
+                    ),
                 );
             }
             Err(error) => {
@@ -3675,6 +3682,7 @@ impl GraphView {
             representation_id,
             record_type,
             relocated_from,
+            layout: None,
             attributes: Vec::new(),
             diagnostic_rule: Some(reason),
         };
@@ -3707,18 +3715,14 @@ impl GraphView {
             }
         }
         let representation = &representations[&key];
-        match decode_record_attributes(
-            body,
-            header.variable_offset_width,
-            header.has_bound_bits,
-            representation,
-        ) {
-            Ok(attributes) => RecordInterpretationEvidence {
+        match decode_record_interpretation(body, &header, representation) {
+            Ok(record) => RecordInterpretationEvidence {
                 class_oid,
                 representation_id: header.representation_id,
                 record_type,
                 relocated_from,
-                attributes,
+                layout: Some(record.layout),
+                attributes: record.attributes,
                 diagnostic_rule: None,
             },
             Err(_) => failed(
@@ -3796,9 +3800,24 @@ impl GraphView {
                 representation_id: evidence.representation_id,
                 record_type: evidence.record_type,
                 relocated_from: evidence.relocated_from,
+                layout: evidence.layout,
                 attributes: evidence.attributes.clone(),
                 diagnostic_rule: evidence.diagnostic_rule,
             })
+    }
+
+    /// The interpretation that speaks for `slot`, following a published
+    /// relocation edge to its target.
+    ///
+    /// Deciding this is graph navigation, not presentation, so every adapter
+    /// asks rather than each re-deriving it.
+    #[must_use]
+    pub fn slot_interpretation(&self, slot: Oid) -> Option<RecordInterpretationView> {
+        let target = self
+            .relocation_edge(slot)
+            .and_then(|edge| edge.target)
+            .unwrap_or(slot);
+        self.record_interpretation(target)
     }
 
     /// Why the records of `vpid` were not interpreted, when a requested
@@ -3844,6 +3863,17 @@ impl GraphView {
         }
         let interpreted_any = !records.is_empty();
         for (oid, evidence) in records {
+            // A record already attributed to the relocation that reached it
+            // keeps that attribution: re-interpreting the target page on its own
+            // would otherwise erase where the values were requested from.
+            if evidence.relocated_from.is_none()
+                && next
+                    .record_interpretations
+                    .get(&oid)
+                    .is_some_and(|existing| existing.relocated_from.is_some())
+            {
+                continue;
+            }
             next.record_interpretations.insert(oid, evidence);
         }
         if interpreted_any {

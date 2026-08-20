@@ -246,13 +246,14 @@ mod tests {
         // An unresolved class name reads the way it does everywhere else, and a
         // whole-record failure states its reason instead of showing an error.
         assert!(APP_JS.contains("classNameLabel(schema.class_name)"));
-        assert!(APP_JS.contains("not interpreted (${interpretation.diagnostic.value})"));
-        // A page that degraded as a whole states its reason instead of
-        // offering the enrichment again.
-        assert!(APP_JS.contains("not interpreted (${data.interpretation_unavailable})"));
+        // One place renders every "why there are no values" case: a per-record
+        // failure, a whole-page degradation, or a slot that holds no instance.
+        assert!(APP_JS.contains("not interpreted (${reason})"));
+        assert!(javascript.contains("interpretationNote(interpretation.diagnostic.value)"));
+        assert!(javascript.contains("interpretationNote(data.interpretation_unavailable)"));
 
         // An out-of-row value links into the existing chain view.
-        assert!(javascript.contains("showOos({vol_id:head.vol_id,page_id:head.page_id}"));
+        assert!(javascript.contains("enrichOos(payload.data,head.slot_id)"));
         assert!(APP_CSS.contains(".interpretation"));
         assert!(APP_CSS.contains(".interpretation td.withheld"));
 

@@ -498,3 +498,70 @@ dialog::backdrop {
   color: var(--cyan);
   border: 1px solid var(--line);
 }
+
+/* Where a record's bytes go. */
+.record-map {
+  display: flex;
+  height: 22px;
+  margin: 6px 0;
+  border: 1px solid var(--line);
+  background: #111d23;
+  overflow: hidden;
+}
+.record-region {
+  height: 100%;
+}
+.record-region.region-object-header {
+  background: #7658a5;
+}
+.record-region.region-offset-table {
+  background: #315f8a;
+}
+.record-region.region-fixed-region {
+  background: #2f845e;
+}
+.record-region.region-bound-bits {
+  background: #b08a3e;
+}
+.record-region.region-variable-region {
+  background: #3f7f9c;
+}
+.record-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 12px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.record-legend i {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  margin-right: 5px;
+  vertical-align: -2px;
+  border: 1px solid #ffffff20;
+}
+.record-legend i.region-object-header {
+  background: #7658a5;
+}
+.record-legend i.region-offset-table {
+  background: #315f8a;
+}
+.record-legend i.region-fixed-region {
+  background: #2f845e;
+}
+.record-legend i.region-bound-bits {
+  background: #b08a3e;
+}
+.record-legend i.region-variable-region {
+  background: #3f7f9c;
+}
+.record-largest {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+.interpretation td.record-bytes {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

@@ -2,15 +2,19 @@
 
 Volmap is a read-only offline inspector for the CUBRID `feat/oos` physical
 volume format pinned at commit `e1e651debf6cc100172bde96603b17424f9c135a`.
-It produces structural and allocation facts without returning database record
-payloads or raw page bytes.
+It produces structural and allocation facts, and never returns raw page or
+record bytes. Decoded attribute values are shown only for records an operator
+explicitly asks it to interpret, under the disclosure rule in
+[ADR-0001](docs/adr/0001-explicit-target-disclosure.md).
 
 The implementation is under active development. Plaintext fast scans, volume
 and sector maps, explicit file allocation maps, slotted-page inspection
 (including role-gated E-hash buckets), OOS and `REC_BIGONE` overflow-chain
 validation, heap header/chain metadata, caller-proven value-free heap object
 envelopes (including MVCC header structure), validated same-heap relocation
-edges, vacuum metadata, structural B-tree
+edges, record interpretation against the class object's own representation
+(attribute names, domains, typed values, and the record's byte layout),
+vacuum metadata, structural B-tree
 root/node/OID-overflow metadata, validated catalog directory/class/representation
 metadata, terminal browsing,
 deterministic HTML export, and the live web viewer are usable. TDE
@@ -82,8 +86,8 @@ volmap export html --vinf /snapshot/db_vinf --output report.html \
 
 `human`, `json`, and `jsonl` finite outputs share the same inspection graph.
 Machine output includes snapshot identity, revision, validity, coverage,
-outcome, and diagnostics. It omits input paths, source bytes, and application
-values.
+outcome, and diagnostics. It omits input paths and source bytes. It carries
+decoded attribute values only for records that were explicitly interpreted.
 
 ## Web access
 
@@ -140,8 +144,10 @@ controls return to the preceding level.
 - The tool never repairs or writes a CUBRID volume.
 - Deep decoding is selective and resource-bounded. A stopped boundary is
   represented in coverage and diagnostics rather than silently sampled.
-- Application payload bytes, decoded values, ciphertext, and TDE secrets are
-  outside every output surface.
+- Raw application payload bytes, ciphertext, and TDE secrets are outside every
+  output surface. Decoded attribute values appear only for records explicitly
+  interpreted, and a value that cannot be decoded is reported as a typed
+  placeholder naming its type, extent, and reason — never as bytes or hex.
 
 ## Resource defaults
 

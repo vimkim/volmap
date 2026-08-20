@@ -1640,6 +1640,16 @@ fn write_record_interpretation(
         let _ = writeln!(output, "interpretation: unavailable ({reason})");
         return;
     }
+    if let Some(layout) = &interpretation.layout {
+        let _ = writeln!(output, "record bytes: {}", layout.record_length);
+        for region in &layout.regions {
+            let _ = writeln!(
+                output,
+                "  region {:<16} offset={:<6} length={}",
+                region.region, region.offset, region.length
+            );
+        }
+    }
     let _ = writeln!(output, "interpretation:");
     for attribute in &interpretation.attributes {
         let name = match &attribute.name {
@@ -1659,6 +1669,10 @@ fn write_record_interpretation(
                 length,
             } => format!("withheld offset={offset} length={length} bytes=withheld ({reason})"),
         };
-        let _ = writeln!(output, "  {name} {} = {value}", attribute.type_name);
+        let _ = writeln!(
+            output,
+            "  {name} {} [{} offset={} length={}] = {value}",
+            attribute.type_name, attribute.storage, attribute.offset, attribute.length,
+        );
     }
 }

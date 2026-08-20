@@ -359,6 +359,71 @@
       return `out of row · ${value.total_length} bytes`;
     return `withheld (${value.reason})`;
   }
+  const RECORD_REGION_LABELS = {
+    "object-header": "Object header",
+    "offset-table": "Offset table",
+    "fixed-region": "Fixed attributes",
+    "bound-bits": "Bound bits",
+    "variable-region": "Variable attributes",
+  };
+  // Where a record's bytes go, as proportional bands over its own length.
+  // Widths come from the projection; the percentages are this view's choice.
+  function renderRecordLayout(root, layout, attributes) {
+    const total = Number(layout.record_length);
+    if (!Number.isFinite(total) || total <= 0) return;
+    const heading = document.createElement("h4");
+    heading.textContent = `Record bytes (${total})`;
+    const map = document.createElement("div");
+    map.className = "record-map";
+    map.setAttribute("aria-label", `Byte layout of a ${total}-byte record`);
+    for (const region of layout.regions) {
+      const length = Number(region.length);
+      if (length <= 0) continue;
+      const band = document.createElement("span"),
+        share = (length / total) * 100,
+        name = RECORD_REGION_LABELS[region.region] ?? region.region,
+        label = `${name}: offset ${region.offset}, ${length} bytes, ${share.toFixed(1)}%`;
+      band.className = `record-region region-${region.region}`;
+      band.style.width = `${share}%`;
+      band.title = label;
+      band.setAttribute("aria-label", label);
+      map.append(band);
+    }
+    const legend = document.createElement("div");
+    legend.className = "record-legend";
+    for (const region of layout.regions) {
+      const length = Number(region.length);
+      if (length <= 0) continue;
+      const entry = document.createElement("span"),
+        swatch = document.createElement("i"),
+        text = document.createElement("span");
+      swatch.className = `region-${region.region}`;
+      text.textContent = `${RECORD_REGION_LABELS[region.region] ?? region.region} ${length} B (${((length / total) * 100).toFixed(1)}%)`;
+      entry.append(swatch, text);
+      legend.append(entry);
+    }
+    root.append(heading, map, legend);
+    // The widest attributes are usually what a reader came to find out about.
+    const ranked = attributes
+      .map((attribute) => ({
+        name: attributeNameLabel(attribute.name),
+        length: Number(attribute.length),
+      }))
+      .filter((entry) => entry.length > 0)
+      .sort((left, right) => right.length - left.length)
+      .slice(0, 3);
+    if (ranked.length) {
+      const note = document.createElement("p");
+      note.className = "record-largest";
+      note.textContent = `Largest attributes: ${ranked
+        .map(
+          (entry) =>
+            `${entry.name} ${entry.length} B (${((entry.length / total) * 100).toFixed(1)}%)`,
+        )
+        .join(" · ")}`;
+      root.append(note);
+    }
+  }
   // A record's values, one row per attribute. Undecodable attributes state a
   // reason and their extent; no arm of this renders bytes.
   function renderInterpretation(root, page, slotId, data) {
@@ -368,10 +433,7 @@
       // A page that degraded as a whole says why; one merely not yet
       // interpreted offers the enrichment.
       if (data.interpretation_unavailable) {
-        const reason = document.createElement("p");
-        reason.className = "withheld";
-        reason.textContent = `not interpreted (${data.interpretation_unavailable})`;
-        root.append(reason);
+        root.append(interpretationNote(data.interpretation_unavailable));
         return;
       }
       root.append(
@@ -406,16 +468,15 @@
       );
     }
     if (interpretation.diagnostic.state === "known") {
-      const reason = document.createElement("p");
-      reason.className = "withheld";
-      reason.textContent = `not interpreted (${interpretation.diagnostic.value})`;
-      root.append(reason);
+      root.append(interpretationNote(interpretation.diagnostic.value));
       return;
     }
+    if (interpretation.layout)
+      renderRecordLayout(root, interpretation.layout, interpretation.attributes);
     const table = document.createElement("table");
     table.className = "interpretation";
     const head = document.createElement("tr");
-    for (const label of ["Attribute", "Type", "Value"]) {
+    for (const label of ["Attribute", "Type", "Bytes", "Value"]) {
       const cell = document.createElement("th");
       cell.textContent = label;
       head.append(cell);
@@ -425,26 +486,72 @@
       const row = document.createElement("tr"),
         name = document.createElement("td"),
         type = document.createElement("td"),
+        size = document.createElement("td"),
         value = document.createElement("td");
       name.textContent = attributeNameLabel(attribute.name);
       type.textContent = attribute.type_name;
+      size.className = "record-bytes";
+      size.textContent = attribute.length;
+      size.title = `${attribute.storage} region, offset ${attribute.offset}, ${attribute.length} bytes`;
       if (attribute.value.state === "out-of-row") {
-        // The chain already has a view; link into it rather than inlining.
+        // The chain has its own view, but it only exists once validated, so
+        // follow the same enrich-then-show path the OOS button uses.
         const head = attribute.value.head,
-          link = button(
-            `out of row · ${attribute.value.total_length} bytes`,
-            () => showOos({ vol_id: head.vol_id, page_id: head.page_id }, head.slot_id),
-            "oos-link",
-          );
+          label = `out of row · oos:${head.vol_id}:${head.page_id}:${head.slot_id} · ${attribute.value.total_length} bytes`,
+          link = button(label, () => openOosChain(head), "oos-link");
+        link.title = label;
         value.append(link);
       } else {
         value.textContent = attributeValueLabel(attribute.value);
         if (attribute.value.state !== "decoded") value.className = "withheld";
       }
-      row.append(name, type, value);
+      row.append(name, type, size, value);
       table.append(row);
     }
     root.append(table);
+  }
+  // Navigates to the OOS chain a stub references. A chain lives on the OOS
+  // file's own page, which is usually a different volume and sector from the
+  // record that points at it, so the workspace is moved there first — otherwise
+  // the breadcrumb and the browser route would describe a page nobody loaded.
+  async function openOosChain(head) {
+    try {
+      if (currentVolume?.vol_id !== head.vol_id) {
+        const listing = await api(`${base()}/volumes`),
+          volume = listing.data.items.find(
+            (candidate) => candidate.vol_id === head.vol_id,
+          );
+        if (volume) activateVolume(volume);
+      }
+      const payload = await api(`${base()}/page/${head.vol_id}/${head.page_id}`);
+      await enrichOos(payload.data, head.slot_id);
+    } catch (error) {
+      renderWorkspaceError(error);
+    }
+  }
+  function interpretationNote(reason) {
+    const note = document.createElement("p");
+    note.className = "withheld";
+    note.textContent = `not interpreted (${reason})`;
+    return note;
+  }
+  // Only a heap page's data slots hold class instances. Slot 0 is the page's
+  // own heap metadata, and other page types store their own structures, so
+  // neither is something the interpreter can speak about.
+  function interpretationScope(page, slot) {
+    if (Number(slot.slot_id) === 0)
+      return "slot 0 holds this page's own heap metadata, not a class instance — see the page's heap header facts above";
+    if (page.page_type.state !== "known")
+      return "this page's type is unknown, so its records cannot be attributed to a class";
+    if (page.page_type.value !== "heap")
+      return `records on a ${page.page_type.value} page are not class instances, so they carry no attribute values`;
+    if (
+      slot.record_type !== "home" &&
+      slot.record_type !== "new-home" &&
+      slot.record_type !== "relocation"
+    )
+      return `a ${slot.record_type} slot holds no interpretable record`;
+    return null;
   }
   async function enrichRecords(page, slotId) {
     try {
@@ -877,12 +984,24 @@
         root.append(
           button("Validate OOS chain", () => enrichOos(page, slot.slot_id)),
         );
-      if (
-        slot.record_type === "home" ||
-        slot.record_type === "new-home" ||
-        slot.record_type === "relocation"
-      )
-        renderInterpretation(root, page, slot.slot_id, payload.data);
+      // A relocation's own content is its forward reference; show it whether or
+      // not the target has been interpreted yet.
+      if (payload.data.relocation_edge) {
+        const edge = payload.data.relocation_edge,
+          target =
+            edge.target.state === "present"
+              ? `${edge.target.oid.vol_id}:${edge.target.oid.page_id}:${edge.target.oid.slot_id}`
+              : "unknown";
+        root.append(
+          fieldList([
+            ["Relocated to", target],
+            ["Edge valid", edge.valid],
+          ]),
+        );
+      }
+      const outOfScope = interpretationScope(page, slot);
+      if (outOfScope) root.append(interpretationNote(outOfScope));
+      else renderInterpretation(root, page, slot.slot_id, payload.data);
       root.append(
         withheld(`slot:${page.vol_id}:${page.page_id}:${slot.slot_id}`),
       );

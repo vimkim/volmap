@@ -1163,11 +1163,7 @@ async fn slot(
     // A relocation's values live in its target, so report the target's
     // interpretation alongside the forward reference rather than nothing.
     let relocation_edge = view.relocation_edge(oid);
-    let interpreted_oid = relocation_edge
-        .as_ref()
-        .and_then(|edge| edge.target)
-        .unwrap_or(oid);
-    let interpreted = view.record_interpretation(interpreted_oid);
+    let interpreted = view.slot_interpretation(oid);
     let class_representation = interpreted
         .as_ref()
         .and_then(|interpretation| {
@@ -1477,12 +1473,38 @@ fn run_enrichment(
 ) -> Result<crate::inspection::GraphView, crate::inspection::OperationError> {
     match target {
         EnrichmentTarget::Page(vpid) => base.enrich_page(vpid, policy, cancel),
-        EnrichmentTarget::Slot(oid) => {
-            base.enrich_page(Vpid::new(oid.vol_id, oid.page_id), policy, cancel)
-        }
+        // Selecting a slot establishes its structure and, for a relocation, the
+        // edge it carries — the same facts `volmap inspect slot:` establishes.
+        EnrichmentTarget::Slot(oid) => enrich_slot_selection(base, oid, policy, cancel),
         EnrichmentTarget::Oos(oid) => base.enrich_oos(oid, policy, cancel),
         EnrichmentTarget::Record(oid) => enrich_record_selection(base, oid, policy, cancel),
     }
+}
+
+/// Establishes one slot's structure, and its relocation edge when it has one.
+fn enrich_slot_selection(
+    base: &crate::inspection::GraphView,
+    oid: Oid,
+    policy: crate::inspection::ResourcePolicy,
+    cancel: &CancelToken,
+) -> Result<crate::inspection::GraphView, crate::inspection::OperationError> {
+    let vpid = Vpid::new(oid.vol_id, oid.page_id);
+    let view = base.enrich_page(vpid, policy, cancel)?;
+    if slot_is_relocation(&view, oid) {
+        return view.enrich_relocation(oid, policy, cancel);
+    }
+    Ok(view)
+}
+
+fn slot_is_relocation(view: &crate::inspection::GraphView, oid: Oid) -> bool {
+    view.deep_page(Vpid::new(oid.vol_id, oid.page_id))
+        .and_then(|deep| deep.slotted)
+        .and_then(|slotted| {
+            usize::try_from(oid.slot_id.get())
+                .ok()
+                .and_then(|index| slotted.slots().get(index).copied())
+        })
+        .is_some_and(|slot| slot.record_type() == crate::format::RecordType::Relocation)
 }
 
 /// Interprets the page holding `oid`, first making the slot's own structure and
@@ -1494,21 +1516,7 @@ fn enrich_record_selection(
     cancel: &CancelToken,
 ) -> Result<crate::inspection::GraphView, crate::inspection::OperationError> {
     let vpid = Vpid::new(oid.vol_id, oid.page_id);
-    let view = base.enrich_page(vpid, policy, cancel)?;
-    let is_relocation = view
-        .deep_page(vpid)
-        .and_then(|deep| deep.slotted)
-        .and_then(|slotted| {
-            usize::try_from(oid.slot_id.get())
-                .ok()
-                .and_then(|index| slotted.slots().get(index).copied())
-        })
-        .is_some_and(|slot| slot.record_type() == crate::format::RecordType::Relocation);
-    let view = if is_relocation {
-        view.enrich_relocation(oid, policy, cancel)?
-    } else {
-        view
-    };
+    let view = enrich_slot_selection(base, oid, policy, cancel)?;
     let view = view.enrich_record_page(vpid, policy, cancel)?;
     // Follow the edge so the target page's records are interpreted too.
     match view.relocation_edge(oid).and_then(|edge| edge.target) {
@@ -1978,6 +1986,34 @@ mod tests {
         }
     }
 
+    /// Removes a fixture directory when its test ends, including on panic. A
+    /// per-call counter keeps two tests in one thread from colliding, which a
+    /// thread-derived name would not.
+    struct FixtureDirectory(std::path::PathBuf);
+
+    impl FixtureDirectory {
+        fn new() -> Self {
+            static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+            let sequence = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let path = std::env::temp_dir().join(format!(
+                "volmap-web-interpretation-{}-{sequence}",
+                std::process::id()
+            ));
+            std::fs::create_dir_all(&path).unwrap();
+            Self(path)
+        }
+
+        fn path(&self) -> &std::path::Path {
+            &self.0
+        }
+    }
+
+    impl Drop for FixtureDirectory {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
     fn fixture_corpus(name: &str) -> Vec<u8> {
         std::fs::read(
             std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -1990,18 +2026,13 @@ mod tests {
     /// Builds a snapshot from the pinned record-interpretation corpus: the class
     /// objects sit on volume 0 and the rows on volume 1, exactly as the engine
     /// wrote them, so a class OID has to resolve across volumes.
-    fn interpretation_session() -> (std::path::PathBuf, WebState, GraphView) {
+    fn interpretation_session() -> (FixtureDirectory, WebState, GraphView) {
         use std::io::Write as _;
 
-        let directory = std::env::temp_dir().join(format!(
-            "volmap-web-interpretation-{}-{:?}",
-            std::process::id(),
-            std::thread::current().id()
-        ));
-        std::fs::create_dir_all(&directory).unwrap();
-        let volume0 = directory.join("interp");
-        let volume1 = directory.join("interp_x001");
-        let vinf = directory.join("interp_vinf");
+        let directory = FixtureDirectory::new();
+        let volume0 = directory.path().join("interp");
+        let volume1 = directory.path().join("interp_x001");
+        let vinf = directory.path().join("interp_vinf");
         fixture_write_volume(&volume0, 0, &[(195, fixture_corpus("vol0-page195.bin"))]);
         fixture_write_volume(&volume1, 1, &[(641, fixture_corpus("vol1-page641.bin"))]);
         let mut manifest = std::fs::File::create(&vinf).unwrap();
@@ -2065,7 +2096,7 @@ mod tests {
 
     #[test]
     fn clicking_a_record_enriches_its_page_and_returns_interpreted_values() {
-        let (directory, state, view) = interpretation_session();
+        let (_directory, state, view) = interpretation_session();
         let snapshot = crate::projection::snapshot_id_hex(view.overview().snapshot_id);
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
@@ -2166,12 +2197,11 @@ mod tests {
                 assert!(!rendered.contains(forbidden), "leaked {forbidden}");
             }
         });
-        std::fs::remove_dir_all(&directory).unwrap();
     }
 
     #[test]
     fn a_page_that_cannot_be_interpreted_states_its_reason_in_the_panel() {
-        let (directory, state, view) = interpretation_session();
+        let (_directory, state, view) = interpretation_session();
         let snapshot = crate::projection::snapshot_id_hex(view.overview().snapshot_id);
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
@@ -2231,7 +2261,6 @@ mod tests {
             assert_eq!(data["selected_slot"]["record_type"], "home");
             assert!(!data["selected_slot"]["length"].is_null());
         });
-        std::fs::remove_dir_all(&directory).unwrap();
     }
 
     #[test]

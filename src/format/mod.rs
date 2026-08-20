@@ -130,6 +130,6 @@ pub use heap::{
 };
 pub use overflow::{OverflowPageFact, decode_overflow_continuation, decode_overflow_head};
 pub use record_interpretation::{
-    AttributeInterpretation, AttributeValue, CalendarDate, ClockTime, InterpretedAttribute,
-    decode_record_attributes,
+    AttributeExtent, AttributeInterpretation, AttributeValue, CalendarDate, ClockTime,
+    InterpretedAttribute, InterpretedRecord, RecordLayoutFact, decode_record_interpretation,
 };

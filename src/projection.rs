@@ -542,7 +542,29 @@ pub struct InterpretedAttributeProjection {
     pub type_name: &'static str,
     pub precision: i32,
     pub scale: i32,
+    /// Byte offset from the start of the record, header included.
+    pub offset: String,
+    /// Bytes this attribute occupies, known whether or not its value decoded.
+    pub length: String,
+    pub storage: &'static str,
     pub value: AttributeValueProjection,
+}
+
+/// How one record's bytes divide between its regions.
+///
+/// Widths are reported, not percentages: what share of a record a region takes
+/// is a presentation choice, and every adapter can compute it from these.
+#[derive(Clone, Debug, Serialize)]
+pub struct RecordLayoutProjection {
+    pub record_length: String,
+    pub regions: Vec<RecordRegionProjection>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct RecordRegionProjection {
+    pub region: &'static str,
+    pub offset: String,
+    pub length: String,
 }
 
 /// What one attribute turned out to hold.
@@ -575,6 +597,8 @@ pub struct RecordInterpretationProjection {
     pub class_oid: OidProjection,
     pub representation_id: u32,
     pub record_type: &'static str,
+    /// Absent when the record could not be interpreted at all.
+    pub layout: Option<RecordLayoutProjection>,
     /// Set when the values were read from a relocation target rather than the
     /// selected slot itself.
     pub relocated_from: OptionalOidProjection,
@@ -1216,6 +1240,7 @@ pub fn record_interpretation_projection(
         class_oid: oid_projection(view.class_oid),
         representation_id: view.representation_id,
         record_type: view.record_type.as_str(),
+        layout: view.layout.map(record_layout_projection),
         relocated_from: optional_oid_projection(view.relocated_from),
         diagnostic: view.diagnostic_rule.map_or(
             OptionalTextProjection::Unknown,
@@ -1232,6 +1257,32 @@ pub fn record_interpretation_projection(
     }
 }
 
+/// The regions of one record, in the order the engine writes them.
+fn record_layout_projection(layout: crate::format::RecordLayoutFact) -> RecordLayoutProjection {
+    let mut regions = Vec::with_capacity(5);
+    let mut offset = 0_u32;
+    for (region, length) in [
+        ("object-header", layout.header_length),
+        ("offset-table", layout.offset_table_length),
+        ("fixed-region", layout.fixed_region_length),
+        ("bound-bits", layout.bound_bits_length),
+        ("variable-region", layout.variable_region_length),
+    ] {
+        // A region of zero width is still reported, so a reader can tell a
+        // record with no variable attributes from one whose table was unread.
+        regions.push(RecordRegionProjection {
+            region,
+            offset: offset.to_string(),
+            length: length.to_string(),
+        });
+        offset = offset.saturating_add(length);
+    }
+    RecordLayoutProjection {
+        record_length: layout.record_length.to_string(),
+        regions,
+    }
+}
+
 fn interpreted_attribute_projection(
     attribute: crate::format::InterpretedAttribute,
 ) -> InterpretedAttributeProjection {
@@ -1242,6 +1293,13 @@ fn interpreted_attribute_projection(
         type_name: attribute.domain.db_type.as_str(),
         precision: attribute.domain.precision,
         scale: attribute.domain.scale,
+        offset: attribute.extent.offset.to_string(),
+        length: attribute.extent.length.to_string(),
+        storage: if attribute.domain.fixed_disk_size().is_some() {
+            "fixed"
+        } else {
+            "variable"
+        },
         value: attribute_value_projection(attribute.interpretation),
     }
 }

@@ -10,7 +10,8 @@ use volmap::format::{
     AttributeDomainFact, AttributeInterpretation, AttributeValue, CalendarDate, ClassAttributeFact,
     ClassRepresentationFact, ClockTime, DbType, DecodedPageEnvelope, IO_PAGE_SIZE,
     InterpretedAttribute, RepresentationTarget, decode_class_representation,
-    decode_heap_record_body, decode_page_envelope, decode_record_attributes, decode_slotted_page,
+    decode_heap_record_body, decode_page_envelope, decode_record_interpretation,
+    decode_slotted_page,
 };
 use volmap::model::{Oid, PageId, SlotId, VolId, Vpid};
 
@@ -150,13 +151,9 @@ fn row(
     let envelope = envelope(bytes, vol, page);
     let slotted = decode_slotted_page(&envelope).unwrap();
     let (header, body) = decode_heap_record_body(&envelope, &slotted, slot, true).unwrap();
-    decode_record_attributes(
-        body,
-        header.variable_offset_width,
-        header.has_bound_bits,
-        representation,
-    )
-    .unwrap()
+    decode_record_interpretation(body, &header, representation)
+        .unwrap()
+        .attributes
 }
 
 fn named<'a>(row: &'a [InterpretedAttribute], name: &str) -> &'a AttributeInterpretation {
@@ -177,6 +174,32 @@ fn text(row: &[InterpretedAttribute], name: &str) -> String {
     match decoded(row, name) {
         AttributeValue::Text(text) => text.clone(),
         other => panic!("{name} is {other:?}, expected text"),
+    }
+}
+
+/// A synthetic record header for tests that build a body by hand.
+fn synthetic_header(
+    offset_width: u8,
+    has_bound_bits: bool,
+    body_length: u16,
+) -> volmap::format::HeapRecordEnvelopeFact {
+    volmap::format::HeapRecordEnvelopeFact {
+        slot_id: 1,
+        record_type: volmap::format::RecordType::Home,
+        is_mvcc: false,
+        representation_id: 1,
+        chn: 0,
+        record_flags: 0,
+        mvcc_flags: 0,
+        has_bound_bits,
+        has_oos: false,
+        variable_offset_width: offset_width,
+        header_length: 8,
+        insert_mvccid: None,
+        delete_mvccid: None,
+        previous_version_lsa_word: None,
+        body_offset: 8,
+        body_length,
     }
 }
 
@@ -649,7 +672,10 @@ fn a_numeric_at_the_engines_widest_stored_size_decodes() {
         }],
     };
 
-    let attributes = decode_record_attributes(&body, 4, false, &representation).unwrap();
+    let header = synthetic_header(4, false, u16::try_from(body.len()).unwrap());
+    let attributes = decode_record_interpretation(&body, &header, &representation)
+        .unwrap()
+        .attributes;
     assert_eq!(
         attributes[0].interpretation,
         AttributeInterpretation::Decoded(AttributeValue::Numeric("0.42".to_owned()))
@@ -658,7 +684,9 @@ fn a_numeric_at_the_engines_widest_stored_size_decodes() {
     // One byte past the engine's maximum is not a NUMERIC and stays withheld.
     let mut overlong = body.clone();
     overlong[8] = TOTAL + 1;
-    let attributes = decode_record_attributes(&overlong, 4, false, &representation).unwrap();
+    let attributes = decode_record_interpretation(&overlong, &header, &representation)
+        .unwrap()
+        .attributes;
     assert!(matches!(
         attributes[0].interpretation,
         AttributeInterpretation::Undecodable { .. }
@@ -711,14 +739,10 @@ fn corrupting_any_single_byte_of_a_record_never_panics_or_invents_a_value() {
         for replacement in [0x00_u8, 0x7f, 0xff] {
             let mut damaged = body.to_vec();
             damaged[index] = replacement;
-            let Ok(attributes) = decode_record_attributes(
-                &damaged,
-                header.variable_offset_width,
-                header.has_bound_bits,
-                &scalars,
-            ) else {
+            let Ok(record) = decode_record_interpretation(&damaged, &header, &scalars) else {
                 continue;
             };
+            let attributes = record.attributes;
             for attribute in &attributes {
                 // Whatever a damaged record yields, a withheld value must never
                 // carry bytes and text must stay within the record's own size.
@@ -758,7 +782,12 @@ fn arbitrary_bytes_never_panic_in_either_decoder() {
                     let _ = decode_class_representation(&body, width, 1, target);
                 }
                 for has_bound_bits in [false, true] {
-                    let _ = decode_record_attributes(&body, width, has_bound_bits, &scalars);
+                    let header = synthetic_header(
+                        width,
+                        has_bound_bits,
+                        u16::try_from(length.min(65535)).unwrap(),
+                    );
+                    let _ = decode_record_interpretation(&body, &header, &scalars);
                 }
             }
         }
@@ -781,4 +810,57 @@ fn a_class_record_offset_width_other_than_four_is_refused() {
         .unwrap_err();
         assert_eq!(error.rule(), "classrep.record.offset_width");
     }
+}
+
+#[test]
+fn a_records_regions_account_for_every_byte_it_occupies() {
+    let scalars = representation(CLASS_SCALARS, 0, 195, 2, RepresentationTarget::Current);
+    let envelope = envelope(ROWS_SCALARS, 1, 641);
+    let slotted = decode_slotted_page(&envelope).unwrap();
+    let (header, body) = decode_heap_record_body(&envelope, &slotted, 1, true).unwrap();
+    let record = decode_record_interpretation(body, &header, &scalars).unwrap();
+    let layout = record.layout;
+
+    // The record's own slot length is the sum of its regions, so a byte-level
+    // view of it leaves nothing unexplained.
+    assert_eq!(layout.record_length, u32::from(slotted.slots()[1].length()));
+    assert_eq!(
+        layout.header_length
+            + layout.offset_table_length
+            + layout.fixed_region_length
+            + layout.bound_bits_length
+            + layout.variable_region_length,
+        layout.record_length
+    );
+    // Ten fixed attributes need one 4-byte word of bound bits; five variable
+    // attributes need a six-entry offset table.
+    assert_eq!(layout.fixed_region_length, scalars.fixed_length);
+    assert_eq!(layout.bound_bits_length, 4);
+    assert_eq!(layout.offset_table_length, 12);
+
+    // Every attribute reports where it lives, measured from the record start,
+    // and each extent lies inside the record.
+    for attribute in &record.attributes {
+        let end = attribute.extent.offset + attribute.extent.length;
+        assert!(
+            end <= layout.record_length,
+            "{:?} runs past the record",
+            attribute.name
+        );
+        assert!(attribute.extent.offset >= layout.header_length);
+    }
+
+    // A fixed attribute's extent is its domain's disk size, and the widest
+    // variable value is the one that dominates the record.
+    let by_name = |name: &str| {
+        record
+            .attributes
+            .iter()
+            .find(|attribute| attribute.name.as_deref() == Some(name))
+            .unwrap()
+            .extent
+    };
+    assert_eq!(by_name("c_short").length, 2);
+    assert_eq!(by_name("c_monetary").length, 12);
+    assert_eq!(by_name("id").length, 4);
 }

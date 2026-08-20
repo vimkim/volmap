@@ -106,26 +106,63 @@ pub struct InterpretedAttribute {
     pub name: Option<String>,
     pub domain: AttributeDomainFact,
     pub position: u32,
+    /// Where this attribute's bytes sit, measured from the start of the record
+    /// including its object header. Known whether or not the value decoded, so
+    /// a byte-level view of the record is always complete.
+    pub extent: AttributeExtent,
     pub interpretation: AttributeInterpretation,
 }
 
-/// Decodes every attribute of one record body against `representation`.
+/// One attribute's byte span within its record.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct AttributeExtent {
+    pub offset: u32,
+    pub length: u32,
+}
+
+/// How one record's bytes divide between its regions.
 ///
-/// `body`, `offset_width`, and `has_bound_bits` come from the record's already
-/// validated object header. The representation must be the one the record's own
-/// representation id selects; passing a mismatched representation is what
-/// produces nonsense rather than an error, so callers resolve it first.
+/// The engine writes a record as header, then the variable-offset table, then
+/// the fixed region, then the bound-bit vector, then the variable values
+/// (`docs/record-interpretation-research.md` §1.6). Reporting each region's
+/// width lets a reader see where a record's space actually goes.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct RecordLayoutFact {
+    pub record_length: u32,
+    pub header_length: u32,
+    pub offset_table_length: u32,
+    pub fixed_region_length: u32,
+    pub bound_bits_length: u32,
+    /// Bytes after the bound-bit vector, which hold the variable values and any
+    /// alignment padding between them.
+    pub variable_region_length: u32,
+}
+
+/// One record's interpretation: its layout and its attributes.
+#[derive(Clone, Debug, PartialEq)]
+pub struct InterpretedRecord {
+    pub layout: RecordLayoutFact,
+    pub attributes: Vec<InterpretedAttribute>,
+}
+
+/// Decodes one record body against `representation`.
+///
+/// `envelope` is the record's already validated object header, taken together
+/// with `body` from [`super::decode_heap_record_body`] so the two cannot be
+/// mismatched. The representation must be the one the record's own
+/// representation id selects; passing another produces nonsense rather than an
+/// error, so callers resolve it first.
 ///
 /// Frame-level damage — an unreadable offset table, a fixed region that does
 /// not fit — fails the call. A single value that cannot be decoded does not:
 /// it becomes [`AttributeInterpretation::Undecodable`] so the rest of the
 /// record still interprets.
-pub fn decode_record_attributes(
+pub fn decode_record_interpretation(
     body: &[u8],
-    offset_width: u8,
-    has_bound_bits: bool,
+    envelope: &super::HeapRecordEnvelopeFact,
     representation: &ClassRepresentationFact,
-) -> Result<Vec<InterpretedAttribute>, DecodeError> {
+) -> Result<InterpretedRecord, DecodeError> {
+    let offset_width = envelope.variable_offset_width;
     if !is_supported_offset_width(offset_width) {
         return Err(error(
             DecodeErrorKind::InvalidGeometry,
@@ -134,15 +171,18 @@ pub fn decode_record_attributes(
     }
     let view = ByteView::new(body, 0);
     let frame = RecordFrame::new(&view, offset_width, representation)?;
+    // Extents are reported from the start of the record, header included, so a
+    // byte-level view of the record needs no further arithmetic.
+    let header_length = usize::from(envelope.header_length);
 
     let mut attributes = Vec::with_capacity(representation.attributes.len());
     for attribute in &representation.attributes {
-        let interpretation = if attribute.is_fixed {
+        let (extent, interpretation) = if attribute.is_fixed {
             frame.fixed_attribute(
                 &view,
                 attribute.location,
                 attribute.position,
-                has_bound_bits,
+                envelope.has_bound_bits,
                 attribute.domain,
             )?
         } else {
@@ -153,10 +193,52 @@ pub fn decode_record_attributes(
             name: attribute.name.clone(),
             domain: attribute.domain,
             position: attribute.position,
+            extent: AttributeExtent {
+                offset: saturating_u32(header_length.saturating_add(extent.0)),
+                length: saturating_u32(extent.1),
+            },
             interpretation,
         });
     }
-    Ok(attributes)
+    Ok(InterpretedRecord {
+        layout: record_layout(envelope, representation, &frame),
+        attributes,
+    })
+}
+
+/// How the record's bytes divide between its regions.
+fn record_layout(
+    envelope: &super::HeapRecordEnvelopeFact,
+    representation: &ClassRepresentationFact,
+    frame: &RecordFrame,
+) -> RecordLayoutFact {
+    let header_length = u32::from(envelope.header_length);
+    let record_length = header_length.saturating_add(u32::from(envelope.body_length));
+    let offset_table_length = saturating_u32(frame.fixed_base);
+    let fixed_region_length = saturating_u32(frame.bound_bits.saturating_sub(frame.fixed_base));
+    // The vector covers the fixed attributes, rounded up to whole 4-byte words
+    // (`OR_BOUND_BIT_BYTES`). Without the record's bound-bit flag there is none.
+    let bound_bits_length = if envelope.has_bound_bits && representation.fixed_count > 0 {
+        representation.fixed_count.div_ceil(32).saturating_mul(4)
+    } else {
+        0
+    };
+    let accounted = header_length
+        .saturating_add(offset_table_length)
+        .saturating_add(fixed_region_length)
+        .saturating_add(bound_bits_length);
+    RecordLayoutFact {
+        record_length,
+        header_length,
+        offset_table_length,
+        fixed_region_length,
+        bound_bits_length,
+        variable_region_length: record_length.saturating_sub(accounted),
+    }
+}
+
+fn saturating_u32(value: usize) -> u32 {
+    u32::try_from(value).unwrap_or(u32::MAX)
 }
 
 /// Where the regions of one record body begin.
@@ -199,16 +281,13 @@ impl RecordFrame {
         position: u32,
         has_bound_bits: bool,
         domain: AttributeDomainFact,
-    ) -> Result<AttributeInterpretation, DecodeError> {
+    ) -> Result<(BodyExtent, AttributeInterpretation), DecodeError> {
         let Some(size) = domain.fixed_disk_size() else {
             return Err(error(
                 DecodeErrorKind::InvalidGeometry,
                 "interpretation.fixed.variable_type",
             ));
         };
-        if has_bound_bits && self.is_unbound(view, position)? {
-            return Ok(AttributeInterpretation::Null);
-        }
         let rule = "interpretation.fixed.offset";
         let location = usize::try_from(location)
             .map_err(|_| error(DecodeErrorKind::ArithmeticOverflow, rule))?;
@@ -216,6 +295,10 @@ impl RecordFrame {
             .fixed_base
             .checked_add(location)
             .ok_or_else(|| error(DecodeErrorKind::ArithmeticOverflow, rule))?;
+        // A NULL fixed attribute still occupies its slot in the fixed region.
+        if has_bound_bits && self.is_unbound(view, position)? {
+            return Ok(((offset, size), AttributeInterpretation::Null));
+        }
         // A fixed attribute must lie wholly inside the fixed region. Reading
         // past it would pull in bound bits or another attribute's bytes and
         // present them as this attribute's value.
@@ -228,7 +311,7 @@ impl RecordFrame {
                 "interpretation.fixed.region_bounds",
             ));
         }
-        Ok(decode_value(view, offset, size, domain))
+        Ok(((offset, size), decode_value(view, offset, size, domain)))
     }
 
     /// A clear bound-bit flag in the record header means every fixed attribute
@@ -250,7 +333,7 @@ impl RecordFrame {
         view: &ByteView<'_>,
         location: u32,
         domain: AttributeDomainFact,
-    ) -> Result<AttributeInterpretation, DecodeError> {
+    ) -> Result<(BodyExtent, AttributeInterpretation), DecodeError> {
         let rule = "interpretation.variable.offset_table";
         let raw = var_entry_raw(view, 0, self.offset_width, location, rule)?;
         let start = var_entry_offset(view, 0, self.offset_width, location, rule)?;
@@ -266,14 +349,17 @@ impl RecordFrame {
         // The out-of-row flag wins over the attribute's own type: whatever the
         // column holds, the record itself holds only the stub.
         if raw & OR_VAR_BIT_OOS != 0 {
-            return Ok(decode_out_of_row_stub(view, start, length));
+            return Ok(((start, length), decode_out_of_row_stub(view, start, length)));
         }
         if length == 0 {
-            return Ok(AttributeInterpretation::Null);
+            return Ok(((start, 0), AttributeInterpretation::Null));
         }
-        Ok(decode_value(view, start, length, domain))
+        Ok(((start, length), decode_value(view, start, length, domain)))
     }
 }
+
+/// A body-relative `(offset, length)` pair, before the record header is added.
+type BodyExtent = (usize, usize);
 
 /// Decodes one value of known extent, or explains why it stays withheld.
 fn decode_value(

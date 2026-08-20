@@ -120,13 +120,9 @@ impl Volumes {
             owned = older;
             &owned
         };
-        match volmap::format::decode_record_attributes(
-            body,
-            header.variable_offset_width,
-            header.has_bound_bits,
-            rep,
-        ) {
-            Ok(attributes) => attributes
+        match volmap::format::decode_record_interpretation(body, &header, rep) {
+            Ok(record) => record
+                .attributes
                 .iter()
                 .map(|attribute| {
                     format!(
