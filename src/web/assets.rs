@@ -227,4 +227,41 @@ mod tests {
         assert!(javascript.contains("Number(slot.offset)>0&&slot.record_type===\"home\""));
         assert!(!distribution_javascript.contains("width/16384"));
     }
+
+    #[test]
+    fn browser_contract_renders_record_interpretation_states() {
+        let javascript = compact(APP_JS);
+
+        // Clicking a record asks for the page's interpretation.
+        assert!(javascript.contains("`record:${page.vol_id}:${page.page_id}:${slotId}`"));
+        assert!(APP_JS.contains("Interpret records"));
+
+        // Every value state has a rendering, and none of them is a byte dump.
+        assert!(javascript.contains("value.state===\"decoded\""));
+        assert!(javascript.contains("value.state===\"null\""));
+        assert!(javascript.contains("value.state===\"out-of-row\""));
+        assert!(APP_JS.contains("withheld (${value.reason})"));
+        assert!(APP_JS.contains("unnamed (${name.reason})"));
+
+        // An unresolved class name reads the way it does everywhere else, and a
+        // whole-record failure states its reason instead of showing an error.
+        assert!(APP_JS.contains("classNameLabel(schema.class_name)"));
+        assert!(APP_JS.contains("not interpreted (${interpretation.diagnostic.value})"));
+        // A page that degraded as a whole states its reason instead of
+        // offering the enrichment again.
+        assert!(APP_JS.contains("not interpreted (${data.interpretation_unavailable})"));
+
+        // An out-of-row value links into the existing chain view.
+        assert!(javascript.contains("showOos({vol_id:head.vol_id,page_id:head.page_id}"));
+        assert!(APP_CSS.contains(".interpretation"));
+        assert!(APP_CSS.contains(".interpretation td.withheld"));
+
+        // No hex or raw-byte rendering anywhere in the panel.
+        for forbidden in ["toString(16)", "charCodeAt", "0x"] {
+            assert!(
+                !javascript.contains(forbidden),
+                "app.js renders {forbidden}"
+            );
+        }
+    }
 }

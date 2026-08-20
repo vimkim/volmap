@@ -469,3 +469,32 @@ dialog::backdrop {
     padding: 0 12px 18px;
   }
 }
+
+/* Interpreted attribute values in the slot panel. */
+.interpretation {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+}
+.interpretation th,
+.interpretation td {
+  padding: 7px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+.interpretation th {
+  color: var(--muted);
+}
+.interpretation td:last-child {
+  overflow-wrap: anywhere;
+}
+.interpretation td.withheld {
+  color: var(--muted);
+}
+.interpretation .oos-link {
+  padding: 3px 6px;
+  background: transparent;
+  color: var(--cyan);
+  border: 1px solid var(--line);
+}

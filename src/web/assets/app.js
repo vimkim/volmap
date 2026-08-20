@@ -348,6 +348,116 @@
     if (name.state === "unresolved") return `unresolved (${name.reason})`;
     return `not applicable (${name.reason})`;
   }
+  function attributeNameLabel(name) {
+    if (name.state === "resolved") return name.value;
+    return `unnamed (${name.reason})`;
+  }
+  function attributeValueLabel(value) {
+    if (value.state === "decoded") return value.value;
+    if (value.state === "null") return "NULL";
+    if (value.state === "out-of-row")
+      return `out of row · ${value.total_length} bytes`;
+    return `withheld (${value.reason})`;
+  }
+  // A record's values, one row per attribute. Undecodable attributes state a
+  // reason and their extent; no arm of this renders bytes.
+  function renderInterpretation(root, page, slotId, data) {
+    const schema = data.class_representation,
+      interpretation = data.interpretation;
+    if (!interpretation) {
+      // A page that degraded as a whole says why; one merely not yet
+      // interpreted offers the enrichment.
+      if (data.interpretation_unavailable) {
+        const reason = document.createElement("p");
+        reason.className = "withheld";
+        reason.textContent = `not interpreted (${data.interpretation_unavailable})`;
+        root.append(reason);
+        return;
+      }
+      root.append(
+        button("Interpret records", () => enrichRecords(page, slotId), "slot-action"),
+      );
+      return;
+    }
+    const heading = document.createElement("h3");
+    heading.textContent = "Interpretation";
+    root.append(heading);
+    if (schema)
+      root.append(
+        fieldList([
+          ["Class", classNameLabel(schema.class_name)],
+          [
+            "Representation",
+            schema.is_current.state === "known"
+              ? `${schema.representation_id} (${schema.is_current.value})`
+              : schema.representation_id,
+          ],
+        ]),
+      );
+    if (interpretation.relocated_from.state === "present") {
+      const origin = interpretation.relocated_from.oid;
+      root.append(
+        fieldList([
+          [
+            "Interpreted via relocation from",
+            `${origin.vol_id}:${origin.page_id}:${origin.slot_id}`,
+          ],
+        ]),
+      );
+    }
+    if (interpretation.diagnostic.state === "known") {
+      const reason = document.createElement("p");
+      reason.className = "withheld";
+      reason.textContent = `not interpreted (${interpretation.diagnostic.value})`;
+      root.append(reason);
+      return;
+    }
+    const table = document.createElement("table");
+    table.className = "interpretation";
+    const head = document.createElement("tr");
+    for (const label of ["Attribute", "Type", "Value"]) {
+      const cell = document.createElement("th");
+      cell.textContent = label;
+      head.append(cell);
+    }
+    table.append(head);
+    for (const attribute of interpretation.attributes) {
+      const row = document.createElement("tr"),
+        name = document.createElement("td"),
+        type = document.createElement("td"),
+        value = document.createElement("td");
+      name.textContent = attributeNameLabel(attribute.name);
+      type.textContent = attribute.type_name;
+      if (attribute.value.state === "out-of-row") {
+        // The chain already has a view; link into it rather than inlining.
+        const head = attribute.value.head,
+          link = button(
+            `out of row · ${attribute.value.total_length} bytes`,
+            () => showOos({ vol_id: head.vol_id, page_id: head.page_id }, head.slot_id),
+            "oos-link",
+          );
+        value.append(link);
+      } else {
+        value.textContent = attributeValueLabel(attribute.value);
+        if (attribute.value.state !== "decoded") value.className = "withheld";
+      }
+      row.append(name, type, value);
+      table.append(row);
+    }
+    root.append(table);
+  }
+  async function enrichRecords(page, slotId) {
+    try {
+      const refreshed = await enrichAndRefreshPage(
+        `record:${page.vol_id}:${page.page_id}:${slotId}`,
+        page,
+        "none",
+      );
+      if (refreshed) await showSlot(refreshed, slotId, "push");
+    } catch (error) {
+      renderWorkspaceError(error);
+    }
+  }
   function sectorAttributionLabel(sector) {
     const attribution = sector.attribution;
     if (!attribution || attribution.state === "unclaimed") return "";
@@ -767,6 +877,12 @@
         root.append(
           button("Validate OOS chain", () => enrichOos(page, slot.slot_id)),
         );
+      if (
+        slot.record_type === "home" ||
+        slot.record_type === "new-home" ||
+        slot.record_type === "relocation"
+      )
+        renderInterpretation(root, page, slot.slot_id, payload.data);
       root.append(
         withheld(`slot:${page.vol_id}:${page.page_id}:${slot.slot_id}`),
       );

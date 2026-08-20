@@ -1013,6 +1013,10 @@ struct SessionData {
     /// (`docs/adr/0002-classrepr-from-class-record.md`).
     sector_classes: BTreeMap<(VolId, SectorId), Oid>,
     record_interpretations: BTreeMap<Oid, RecordInterpretationEvidence>,
+    /// Why one page's records were not interpreted. Kept per page because a
+    /// whole-page degradation produces no per-record fact to hang a reason on,
+    /// and the adapter still has to explain itself.
+    interpretation_failures: BTreeMap<Vpid, &'static str>,
 }
 
 /// One representation of one class, as revision-scoped graph evidence.
@@ -1734,6 +1738,7 @@ impl Inspection {
                 class_representations: BTreeMap::new(),
                 sector_classes: BTreeMap::new(),
                 record_interpretations: BTreeMap::new(),
+                interpretation_failures: BTreeMap::new(),
             }),
         };
         inspection.bootstrap_file_inventory(policy, cancel)
@@ -3796,6 +3801,13 @@ impl GraphView {
             })
     }
 
+    /// Why the records of `vpid` were not interpreted, when a requested
+    /// interpretation degraded the whole page.
+    #[must_use]
+    pub fn record_page_interpretation_failure(&self, vpid: Vpid) -> Option<&'static str> {
+        self.data.interpretation_failures.get(&vpid).copied()
+    }
+
     #[must_use]
     pub fn record_interpretations(&self) -> Vec<RecordInterpretationView> {
         self.data
@@ -3830,8 +3842,13 @@ impl GraphView {
                 },
             );
         }
+        let interpreted_any = !records.is_empty();
         for (oid, evidence) in records {
             next.record_interpretations.insert(oid, evidence);
+        }
+        if interpreted_any {
+            // A later successful pass supersedes an earlier reason.
+            next.interpretation_failures.remove(&vpid);
         }
         if let Some((page, class_oid)) = sector_class
             && let Some(sector) = Self::sector_of(page.page_id)
@@ -3841,6 +3858,7 @@ impl GraphView {
         if let Some(reason) = failure {
             // The whole page degrades to its structural view, and the reason is
             // durable evidence rather than a dropped request.
+            next.interpretation_failures.insert(vpid, reason);
             next.diagnostics.push(DiagnosticRecord {
                 code: "record.interpretation.unavailable",
                 severity: "warning",

@@ -31,9 +31,10 @@ use crate::model::{FileId, Oid, PageId, SectorId, SlotId, Vfid, VolId, Vpid};
 use crate::projection::{
     CoverageProjection, DeepPageProjection, DiagnosticProjection, OosChainProjection,
     PageProjection, SCHEMA_NAME, SCHEMA_VERSION, SlotProjection, SnapshotProjection,
-    coverage_projection, deep_page_projection, diagnostic_projection, file_header_projection,
-    oos_chain_projection, outcome_name, page_projection, sector_projection, slot_projection,
-    snapshot_id_hex, summary_projection, volume_projection,
+    class_representation_projection, coverage_projection, deep_page_projection,
+    diagnostic_projection, file_header_projection, oos_chain_projection, outcome_name,
+    page_projection, record_interpretation_projection, relocation_edge_projection,
+    sector_projection, slot_projection, snapshot_id_hex, summary_projection, volume_projection,
 };
 
 const MAX_URI_BYTES: usize = 8192;
@@ -1159,6 +1160,20 @@ async fn slot(
     let (Ok(page), Some(selected)) = (view.page(vpid), selected) else {
         return error_response(StatusCode::NOT_FOUND, "entity-not-found");
     };
+    // A relocation's values live in its target, so report the target's
+    // interpretation alongside the forward reference rather than nothing.
+    let relocation_edge = view.relocation_edge(oid);
+    let interpreted_oid = relocation_edge
+        .as_ref()
+        .and_then(|edge| edge.target)
+        .unwrap_or(oid);
+    let interpreted = view.record_interpretation(interpreted_oid);
+    let class_representation = interpreted
+        .as_ref()
+        .and_then(|interpretation| {
+            view.class_representation(interpretation.class_oid, interpretation.representation_id)
+        })
+        .map(class_representation_projection);
     let overview = projected_overview(&state, &view);
     Json(api_envelope(
         &overview,
@@ -1166,6 +1181,10 @@ async fn slot(
             page: page_projection(page),
             deep: deep_page_projection(view.deep_page(vpid)),
             selected_slot: slot_projection(selected),
+            relocation_edge: relocation_edge.map(relocation_edge_projection),
+            interpretation: interpreted.map(record_interpretation_projection),
+            class_representation,
+            interpretation_unavailable: view.record_page_interpretation_failure(vpid),
         },
     ))
     .into_response()
@@ -1176,6 +1195,16 @@ struct SlotResourceProjection {
     page: PageProjection,
     deep: DeepPageProjection,
     selected_slot: SlotProjection,
+    /// Absent until the slot's page has been enriched; the panel then offers
+    /// the enrichment rather than showing an empty interpretation.
+    relocation_edge: Option<crate::projection::RelocationEdgeProjection>,
+    interpretation: Option<crate::projection::RecordInterpretationProjection>,
+    class_representation: Option<crate::projection::ClassRepresentationProjection>,
+    /// Set when interpretation was requested for this page and degraded as a
+    /// whole — a root or system heap, an unreadable class record, an encrypted
+    /// page. The panel states the reason instead of silently offering the
+    /// enrichment again.
+    interpretation_unavailable: Option<&'static str>,
 }
 
 async fn oos(
@@ -1226,6 +1255,10 @@ enum EnrichmentTarget {
     Page(Vpid),
     Slot(Oid),
     Oos(Oid),
+    /// Interpret the records of the page holding this slot. Page granularity is
+    /// the unit: one click resolves the class record once and interprets every
+    /// home record it covers.
+    Record(Oid),
 }
 
 #[derive(Serialize)]
@@ -1273,14 +1306,7 @@ async fn enrich(
         return error_response(StatusCode::BAD_REQUEST, "invalid-selector");
     };
     let cancel = CancelToken::new();
-    let enriched = match target {
-        EnrichmentTarget::Page(vpid) => base.enrich_page(vpid, state.policy, &cancel),
-        EnrichmentTarget::Slot(oid) => {
-            base.enrich_page(Vpid::new(oid.vol_id, oid.page_id), state.policy, &cancel)
-        }
-        EnrichmentTarget::Oos(oid) => base.enrich_oos(oid, state.policy, &cancel),
-    };
-    let enriched = match enriched {
+    let enriched = match run_enrichment(&base, target, state.policy, &cancel) {
         Ok(value) => value,
         Err(crate::inspection::OperationError::ResourceLimit) => {
             return error_response(StatusCode::TOO_MANY_REQUESTS, "resource-admission-refused");
@@ -1291,7 +1317,7 @@ async fn enrich(
         ) => return error_response(StatusCode::NOT_FOUND, "entity-not-found"),
         Err(_) => return error_response(StatusCode::INTERNAL_SERVER_ERROR, "enrichment-failed"),
     };
-    if let EnrichmentTarget::Slot(oid) = target {
+    if let EnrichmentTarget::Slot(oid) | EnrichmentTarget::Record(oid) = target {
         let slot_exists = enriched
             .deep_page(Vpid::new(oid.vol_id, oid.page_id))
             .and_then(|deep| deep.slotted)
@@ -1388,6 +1414,11 @@ fn parse_enrichment_target(value: &str) -> Option<EnrichmentTarget> {
             parse_page(page)?,
             parse_slot(slot)?,
         ))),
+        ["record", vol, page, slot] => Some(EnrichmentTarget::Record(Oid::new(
+            parse_vol(vol)?,
+            parse_page(page)?,
+            parse_slot(slot)?,
+        ))),
         _ => None,
     }
 }
@@ -1421,7 +1452,9 @@ fn target_result_path(snapshot: &str, revision: u64, target: EnrichmentTarget) -
             vpid.vol_id.get(),
             vpid.page_id.get()
         ),
-        EnrichmentTarget::Slot(oid) => format!(
+        // An interpretation is read back through the slot it was requested for,
+        // so both selectors resolve to the same resource.
+        EnrichmentTarget::Slot(oid) | EnrichmentTarget::Record(oid) => format!(
             "/s/{snapshot}/r/{revision}/slot/{}/{}/{}",
             oid.vol_id.get(),
             oid.page_id.get(),
@@ -1433,6 +1466,56 @@ fn target_result_path(snapshot: &str, revision: u64, target: EnrichmentTarget) -
             oid.page_id.get(),
             oid.slot_id.get()
         ),
+    }
+}
+
+fn run_enrichment(
+    base: &crate::inspection::GraphView,
+    target: EnrichmentTarget,
+    policy: crate::inspection::ResourcePolicy,
+    cancel: &CancelToken,
+) -> Result<crate::inspection::GraphView, crate::inspection::OperationError> {
+    match target {
+        EnrichmentTarget::Page(vpid) => base.enrich_page(vpid, policy, cancel),
+        EnrichmentTarget::Slot(oid) => {
+            base.enrich_page(Vpid::new(oid.vol_id, oid.page_id), policy, cancel)
+        }
+        EnrichmentTarget::Oos(oid) => base.enrich_oos(oid, policy, cancel),
+        EnrichmentTarget::Record(oid) => enrich_record_selection(base, oid, policy, cancel),
+    }
+}
+
+/// Interprets the page holding `oid`, first making the slot's own structure and
+/// any relocation edge available so a relocated record's values are reachable.
+fn enrich_record_selection(
+    base: &crate::inspection::GraphView,
+    oid: Oid,
+    policy: crate::inspection::ResourcePolicy,
+    cancel: &CancelToken,
+) -> Result<crate::inspection::GraphView, crate::inspection::OperationError> {
+    let vpid = Vpid::new(oid.vol_id, oid.page_id);
+    let view = base.enrich_page(vpid, policy, cancel)?;
+    let is_relocation = view
+        .deep_page(vpid)
+        .and_then(|deep| deep.slotted)
+        .and_then(|slotted| {
+            usize::try_from(oid.slot_id.get())
+                .ok()
+                .and_then(|index| slotted.slots().get(index).copied())
+        })
+        .is_some_and(|slot| slot.record_type() == crate::format::RecordType::Relocation);
+    let view = if is_relocation {
+        view.enrich_relocation(oid, policy, cancel)?
+    } else {
+        view
+    };
+    let view = view.enrich_record_page(vpid, policy, cancel)?;
+    // Follow the edge so the target page's records are interpreted too.
+    match view.relocation_edge(oid).and_then(|edge| edge.target) {
+        Some(target) => {
+            view.enrich_record_page(Vpid::new(target.vol_id, target.page_id), policy, cancel)
+        }
+        None => Ok(view),
     }
 }
 
@@ -1799,6 +1882,394 @@ mod tests {
                 "http://192.168.4.2:8080",
             ]
         );
+    }
+
+    const FIXTURE_TOTAL_SECTORS: u32 = 64;
+    const FIXTURE_SECTOR_PAGES: u32 = 64;
+
+    fn fixture_envelope_page(
+        vol_id: i16,
+        page_id: i32,
+        page_type: crate::format::PageType,
+    ) -> [u8; crate::format::IO_PAGE_SIZE] {
+        let mut page = [0_u8; crate::format::IO_PAGE_SIZE];
+        let lsa = u64::try_from(page_id).unwrap().to_le_bytes();
+        page[0..8].copy_from_slice(&lsa);
+        page[8..12].copy_from_slice(&page_id.to_le_bytes());
+        page[12..14].copy_from_slice(&vol_id.to_le_bytes());
+        page[14] = page_type.ordinal();
+        page[crate::format::IO_PAGE_SIZE - 8..].copy_from_slice(&lsa);
+        page
+    }
+
+    fn fixture_header_page(vol_id: i16) -> [u8; crate::format::IO_PAGE_SIZE] {
+        let mut page = fixture_envelope_page(vol_id, 0, crate::format::PageType::VolumeHeader);
+        let user = &mut page[32..crate::format::IO_PAGE_SIZE - 8];
+        user[..25].copy_from_slice(b"CUBRID/Volume\0\0\0\0\0\0\0\0\0\0\0\0");
+        user[26..28].copy_from_slice(&16_384_i16.to_le_bytes());
+        user[28..30].copy_from_slice(&vol_id.to_le_bytes());
+        user[40..44].copy_from_slice(&i32::try_from(FIXTURE_SECTOR_PAGES).unwrap().to_le_bytes());
+        user[44..48].copy_from_slice(&i32::try_from(FIXTURE_TOTAL_SECTORS).unwrap().to_le_bytes());
+        user[48..52].copy_from_slice(&i32::try_from(FIXTURE_TOTAL_SECTORS).unwrap().to_le_bytes());
+        user[52..56].copy_from_slice(&(-1_i32).to_le_bytes());
+        user[56..60].copy_from_slice(&1_i32.to_le_bytes());
+        user[60..64].copy_from_slice(&1_i32.to_le_bytes());
+        user[64..68].copy_from_slice(&1_i32.to_le_bytes());
+        user[96..100].copy_from_slice(&(-1_i32).to_le_bytes());
+        user[100..102].copy_from_slice(&(-1_i16).to_le_bytes());
+        user[104..108].copy_from_slice(&(-1_i32).to_le_bytes());
+        user[124..126].copy_from_slice(&(-1_i16).to_le_bytes());
+        user[126..128].copy_from_slice(&0_i16.to_le_bytes());
+        user[128..130].copy_from_slice(&1_i16.to_le_bytes());
+        user[130..132].copy_from_slice(&2_i16.to_le_bytes());
+        page
+    }
+
+    /// Writes one volume holding `pages` at their own page ids, reserving the
+    /// sectors those pages fall in.
+    fn fixture_write_volume(path: &std::path::Path, vol_id: i16, pages: &[(i32, Vec<u8>)]) {
+        use std::os::unix::fs::FileExt as _;
+
+        let file = std::fs::OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .open(path)
+            .unwrap();
+        file.set_len(
+            u64::from(FIXTURE_TOTAL_SECTORS * FIXTURE_SECTOR_PAGES)
+                * crate::format::IO_PAGE_SIZE as u64,
+        )
+        .unwrap();
+        file.write_all_at(&fixture_header_page(vol_id), 0).unwrap();
+        let mut reserved: u64 = 1;
+        for (page_id, _) in pages {
+            reserved |= 1_u64 << (u32::try_from(*page_id).unwrap() / FIXTURE_SECTOR_PAGES);
+        }
+        let mut bitmap = fixture_envelope_page(vol_id, 1, crate::format::PageType::VolumeBitmap);
+        bitmap[32..40].copy_from_slice(&reserved.to_le_bytes());
+        file.write_all_at(&bitmap, crate::format::IO_PAGE_SIZE as u64)
+            .unwrap();
+        for sector in 0..FIXTURE_TOTAL_SECTORS {
+            if reserved & (1_u64 << sector) == 0 {
+                continue;
+            }
+            let range = (sector * FIXTURE_SECTOR_PAGES)..((sector + 1) * FIXTURE_SECTOR_PAGES);
+            for page_id in range {
+                if page_id < 2 {
+                    continue;
+                }
+                let page_id = i32::try_from(page_id).unwrap();
+                let bytes = pages
+                    .iter()
+                    .find(|(candidate, _)| *candidate == page_id)
+                    .map_or_else(
+                        || {
+                            fixture_envelope_page(vol_id, page_id, crate::format::PageType::Unknown)
+                                .to_vec()
+                        },
+                        |(_, bytes)| bytes.clone(),
+                    );
+                file.write_all_at(
+                    &bytes,
+                    u64::try_from(page_id).unwrap() * crate::format::IO_PAGE_SIZE as u64,
+                )
+                .unwrap();
+            }
+        }
+    }
+
+    fn fixture_corpus(name: &str) -> Vec<u8> {
+        std::fs::read(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("fixtures/e1e651de-records/pages")
+                .join(name),
+        )
+        .unwrap()
+    }
+
+    /// Builds a snapshot from the pinned record-interpretation corpus: the class
+    /// objects sit on volume 0 and the rows on volume 1, exactly as the engine
+    /// wrote them, so a class OID has to resolve across volumes.
+    fn interpretation_session() -> (std::path::PathBuf, WebState, GraphView) {
+        use std::io::Write as _;
+
+        let directory = std::env::temp_dir().join(format!(
+            "volmap-web-interpretation-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::create_dir_all(&directory).unwrap();
+        let volume0 = directory.join("interp");
+        let volume1 = directory.join("interp_x001");
+        let vinf = directory.join("interp_vinf");
+        fixture_write_volume(&volume0, 0, &[(195, fixture_corpus("vol0-page195.bin"))]);
+        fixture_write_volume(&volume1, 1, &[(641, fixture_corpus("vol1-page641.bin"))]);
+        let mut manifest = std::fs::File::create(&vinf).unwrap();
+        writeln!(manifest, "0 {}", volume0.display()).unwrap();
+        writeln!(manifest, "1 {}", volume1.display()).unwrap();
+        drop(manifest);
+
+        let request = crate::inspection::OpenRequest {
+            input: crate::source::InputSpec::Vinf {
+                path: vinf,
+                volume_root: None,
+            },
+            tde_keys_file: None,
+            spill_directory: None,
+        };
+        let policy =
+            ResourcePolicy::new(8 * 1024 * 1024, 1024 * 1024, 1, 64, 8 * 1024 * 1024).unwrap();
+        let view = crate::inspection::Inspection::open(&request, policy, &CancelToken::new(), None)
+            .unwrap()
+            .view(crate::inspection::RevisionSelector::Latest)
+            .unwrap();
+        let state = WebState {
+            session: Arc::new(RwLock::new(LiveSession {
+                views: BTreeMap::from([(0, view.clone())]),
+                jobs: BTreeSet::new(),
+                latest: 0,
+            })),
+            enrichment: Arc::new(Mutex::new(())),
+            policy,
+            cursor_key: Arc::new([7_u8; 32]),
+            authority: Some(Arc::from("127.0.0.1:8787")),
+            semaphore: Arc::new(Semaphore::new(1)),
+        };
+        (directory, state, view)
+    }
+
+    /// A read answers 200; an accepted enrichment answers 202.
+    async fn response_document(response: Response) -> serde_json::Value {
+        let status = response.status();
+        let bytes = axum::body::to_bytes(response.into_body(), 4 * 1024 * 1024)
+            .await
+            .unwrap();
+        assert!(
+            matches!(status, StatusCode::OK | StatusCode::ACCEPTED),
+            "{status}: {}",
+            String::from_utf8_lossy(&bytes)
+        );
+        serde_json::from_slice(&bytes).unwrap()
+    }
+
+    /// The value state of one named attribute of a slot resource.
+    fn attribute_value(data: &serde_json::Value, name: &str) -> serde_json::Value {
+        data["interpretation"]["attributes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|attribute| attribute["name"]["value"] == name)
+            .unwrap_or_else(|| panic!("no attribute {name}"))["value"]
+            .clone()
+    }
+
+    #[test]
+    fn clicking_a_record_enriches_its_page_and_returns_interpreted_values() {
+        let (directory, state, view) = interpretation_session();
+        let snapshot = crate::projection::snapshot_id_hex(view.overview().snapshot_id);
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        runtime.block_on(async {
+            // Selecting a slot enriches its page structurally, which is what
+            // makes the slot addressable at all.
+            let structural = response_document(
+                enrich(
+                    State(state.clone()),
+                    Path((snapshot.clone(), 0)),
+                    Ok(Json(EnrichmentRequest {
+                        selector: "slot:1:641:1".to_owned(),
+                    })),
+                )
+                .await,
+            )
+            .await;
+            let structural_revision: u64 = structural["snapshot"]["revision"]
+                .as_str()
+                .unwrap()
+                .parse()
+                .unwrap();
+
+            // At that point the panel has the record's extent but no values,
+            // so it offers the interpretation rather than inventing one.
+            let before = response_document(
+                slot(
+                    State(state.clone()),
+                    Path((snapshot.clone(), structural_revision, 1, 641, 1)),
+                )
+                .await,
+            )
+            .await;
+            assert!(before["data"]["interpretation"].is_null());
+            assert!(before["data"]["class_representation"].is_null());
+            assert_eq!(before["data"]["selected_slot"]["record_type"], "home");
+
+            let enriched = response_document(
+                enrich(
+                    State(state.clone()),
+                    Path((snapshot.clone(), structural_revision)),
+                    Ok(Json(EnrichmentRequest {
+                        selector: "record:1:641:1".to_owned(),
+                    })),
+                )
+                .await,
+            )
+            .await;
+            let revision: u64 = enriched["snapshot"]["revision"]
+                .as_str()
+                .unwrap()
+                .parse()
+                .unwrap();
+            assert_eq!(
+                revision,
+                structural_revision + 1,
+                "one interpretation click advances the revision exactly once"
+            );
+
+            let after = response_document(
+                slot(
+                    State(state.clone()),
+                    Path((snapshot.clone(), revision, 1, 641, 1)),
+                )
+                .await,
+            )
+            .await;
+            let data = &after["data"];
+            assert_eq!(
+                data["class_representation"]["class_name"]["value"],
+                "dba.interp_scalars"
+            );
+            assert_eq!(data["interpretation"]["bytes"]["state"], "bytes-withheld");
+            assert_eq!(attribute_value(data, "id")["value"], "1");
+            assert_eq!(attribute_value(data, "c_numeric")["value"], "-12345678.90");
+            assert_eq!(attribute_value(data, "c_char")["value"], "fixed8ch");
+
+            // Every record of the page was interpreted by the one click, so the
+            // all-NULL row reads back as NULL rather than as missing.
+            let sibling = response_document(
+                slot(
+                    State(state.clone()),
+                    Path((snapshot.clone(), revision, 1, 641, 2)),
+                )
+                .await,
+            )
+            .await;
+            assert_eq!(
+                attribute_value(&sibling["data"], "c_varchar")["state"],
+                "null"
+            );
+
+            // No arm of the rendered document may carry value bytes.
+            let rendered = serde_json::to_string(&after).unwrap();
+            for forbidden in ["\"hex\"", "\"raw\"", "0x"] {
+                assert!(!rendered.contains(forbidden), "leaked {forbidden}");
+            }
+        });
+        std::fs::remove_dir_all(&directory).unwrap();
+    }
+
+    #[test]
+    fn a_page_that_cannot_be_interpreted_states_its_reason_in_the_panel() {
+        let (directory, state, view) = interpretation_session();
+        let snapshot = crate::projection::snapshot_id_hex(view.overview().snapshot_id);
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        runtime.block_on(async {
+            // Page 195 of volume 0 is the class-object page itself: its records
+            // live in a NULL-class root heap, which version one does not
+            // interpret. Its structure is still inspectable.
+            let structural = response_document(
+                enrich(
+                    State(state.clone()),
+                    Path((snapshot.clone(), 0)),
+                    Ok(Json(EnrichmentRequest {
+                        selector: "slot:0:195:2".to_owned(),
+                    })),
+                )
+                .await,
+            )
+            .await;
+            let revision: u64 = structural["snapshot"]["revision"]
+                .as_str()
+                .unwrap()
+                .parse()
+                .unwrap();
+
+            let attempted = response_document(
+                enrich(
+                    State(state.clone()),
+                    Path((snapshot.clone(), revision)),
+                    Ok(Json(EnrichmentRequest {
+                        selector: "record:0:195:2".to_owned(),
+                    })),
+                )
+                .await,
+            )
+            .await;
+            let revision: u64 = attempted["snapshot"]["revision"]
+                .as_str()
+                .unwrap()
+                .parse()
+                .unwrap();
+
+            let document = response_document(
+                slot(
+                    State(state.clone()),
+                    Path((snapshot.clone(), revision, 0, 195, 2)),
+                )
+                .await,
+            )
+            .await;
+            let data = &document["data"];
+            // No values, a stated reason, and the structural facts intact.
+            assert!(data["interpretation"].is_null());
+            let reason = data["interpretation_unavailable"].as_str().unwrap();
+            assert!(!reason.is_empty(), "the panel needs a reason to show");
+            assert_eq!(data["selected_slot"]["record_type"], "home");
+            assert!(!data["selected_slot"]["length"].is_null());
+        });
+        std::fs::remove_dir_all(&directory).unwrap();
+    }
+
+    #[test]
+    fn the_record_selector_targets_the_page_holding_one_slot() {
+        let Some(EnrichmentTarget::Record(oid)) = parse_enrichment_target("record:1:577:3") else {
+            panic!("record selector should parse");
+        };
+        assert_eq!(
+            (oid.vol_id.get(), oid.page_id.get(), oid.slot_id.get()),
+            (1, 577, 3)
+        );
+        // An interpretation is read back through the slot it was asked for, so
+        // both selectors resolve to the same resource path.
+        assert_eq!(
+            target_result_path("snap", 3, EnrichmentTarget::Record(oid)),
+            target_result_path("snap", 3, EnrichmentTarget::Slot(oid))
+        );
+        assert_eq!(
+            target_result_path("snap", 3, EnrichmentTarget::Record(oid)),
+            "/s/snap/r/3/slot/1/577/3"
+        );
+    }
+
+    #[test]
+    fn malformed_record_selectors_are_refused() {
+        for selector in [
+            "record:1:577",
+            "record:1:577:3:4",
+            "record:1:577:-1",
+            "record:1:577:03",
+            "record::577:3",
+            "records:1:577:3",
+        ] {
+            assert!(
+                parse_enrichment_target(selector).is_none(),
+                "{selector} should not parse"
+            );
+        }
     }
 
     #[test]
