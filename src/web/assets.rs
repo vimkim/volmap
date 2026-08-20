@@ -166,6 +166,9 @@ mod tests {
         assert!(javascript.contains("functionapplyPageFill("));
         assert!(javascript.contains("page.occupancy.occupied_percent"));
         assert!(javascript.contains("applyPageFill(node,page)"));
+        assert!(javascript.contains("functionsectorFileTypeLabel("));
+        assert!(javascript.contains("filetype${fileTypeLabel}"));
+        assert!(APP_CSS.contains(".sector-file-type"));
     }
 
     #[test]

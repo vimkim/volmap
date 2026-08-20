@@ -355,9 +355,14 @@
     const file = attribution.file;
     if (file.class_name.state === "resolved") return file.class_name.value;
     if (file.class_oid.state === "present") return "unresolved";
-    return file.file_type.state === "known"
-      ? `internal · ${file.file_type.value}`
-      : "internal";
+    return "internal";
+  }
+  function sectorFileTypeLabel(sector) {
+    const attribution = sector.attribution;
+    return attribution?.state === "single" &&
+      attribution.file.file_type.state === "known"
+      ? attribution.file.file_type.value
+      : "";
   }
   function sectorAttributionDetail(sector) {
     const attribution = sector.attribution;
@@ -402,10 +407,11 @@
     sectorCache.set(sector.sector_id, sector);
     const card = button("", () => showSector(sector), "sector-card");
     card.id = `sector-${sector.sector_id}`;
-    const tableLabel = sectorAttributionLabel(sector);
+    const tableLabel = sectorAttributionLabel(sector),
+      fileTypeLabel = sectorFileTypeLabel(sector);
     card.setAttribute(
       "aria-label",
-      `Sector ${sector.sector_id}, ${sector.reserved ? "reserved" : "unreserved"}${tableLabel ? `, ${tableLabel}` : ""}, 64 pages`,
+      `Sector ${sector.sector_id}, ${sector.reserved ? "reserved" : "unreserved"}${tableLabel ? `, ${tableLabel}` : ""}${fileTypeLabel ? `, file type ${fileTypeLabel}` : ""}, 64 pages`,
     );
     const heading = document.createElement("span");
     heading.className = "sector-heading";
@@ -413,13 +419,20 @@
     title.textContent = `Sector ${sector.sector_id}`;
     const state = document.createElement("span");
     state.textContent = sector.reserved ? "reserved" : "unreserved";
+    heading.append(title, state);
     if (tableLabel) {
       const table = document.createElement("em");
       table.className = "sector-table";
       table.textContent = tableLabel;
       table.title = sectorAttributionDetail(sector);
-      heading.append(title, state, table);
-    } else heading.append(title, state);
+      heading.append(table);
+    }
+    if (fileTypeLabel) {
+      const fileType = document.createElement("small");
+      fileType.className = "sector-file-type";
+      fileType.textContent = fileTypeLabel;
+      heading.append(fileType);
+    }
     const pages = document.createElement("span");
     pages.className = "sector-preview-pages";
     for (const page of sector.pages) {

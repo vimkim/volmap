@@ -202,14 +202,21 @@ h2 {
 .sector-heading span {
   margin-left: auto;
 }
-.sector-heading em {
+.sector-heading em,
+.sector-file-type {
   flex: 1 0 100%;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.sector-heading em {
   font-style: normal;
   color: var(--cyan);
+}
+.sector-file-type {
+  color: var(--muted);
+  font-size: 10px;
 }
 .sector-preview-pages,
 .sector-focus-grid {
