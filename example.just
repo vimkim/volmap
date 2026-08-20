@@ -9,3 +9,8 @@ cargo := "cargo +" + toolchain
 # Usage: just example page-table /copy/demodb_vinf 1 1000
 page-table vinf volume page:
     {{cargo}} run --quiet --locked --example page_table_poc -- --vinf "{{vinf}}" "{{volume}}" "{{page}}"
+
+# Interpret rows straight out of a database's volume files, by table name.
+# Usage: just example interpret /path/to/db/demodb stadium olympic game
+interpret db +tables:
+    {{cargo}} run --quiet --locked --example interpret_probe -- "{{db}}" {{tables}}
