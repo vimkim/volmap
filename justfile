@@ -74,6 +74,10 @@ serve-debug *args:
 serve-release-demodb:
     {{cargo}} run --release --locked --target {{target}} -- serve --database demodb --listen 0.0.0.0:7777
 
+# Start the optimized static musl TUI for the local demodb database.
+tui-release-demodb:
+    {{cargo}} run --release --locked --target {{target}} -- tui --database demodb
+
 # Regenerate deterministic notices and the CycloneDX SBOM with pinned tools.
 release-artifacts:
     release/regenerate-artifacts.sh
