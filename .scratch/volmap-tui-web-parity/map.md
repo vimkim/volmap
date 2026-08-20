@@ -10,10 +10,11 @@ An implementation-ready specification and decision index for redesigning the Vol
 ## Notes
 
 - This map plans the redesign; it does not implement the production TUI.
-- Source baseline: this repository at commit `74dce30` (`feat: clarify debug and release recipes`).
+- Source baseline: this repository at commit `cba72cd` (`feat: attribute pages and sectors to their table in web, TUI, and JSON`).
 - The implemented web viewer and [`docs/images`](../../docs/images) are the behavioral and visual reference. The TUI remains a projection of the same normalized inspection graph and must not parse volume bytes or invent terminal-only storage facts.
 - `Terminal interaction parity` has the meaning recorded in [`CONTEXT.md`](../../CONTEXT.md): preserve the web viewer's Volume → Sector → Page drill-down and semantic distinctions through terminal-native layout, rendering, and controls rather than pixel matching.
 - The accepted scope covers those three views with real page occupancy and real slot/record distribution. Browser-only Slot/OOS routes are not parity requirements, while existing TUI Chain, Findings, Coverage, filters, search, mouse, and keyboard accelerators remain in scope.
+- Page and Sector file/class/table attribution introduced by `cba72cd` is shared semantic data and a compatibility requirement; web and TUI adapters may format it differently but must consume the same typed facts.
 - Shared production code may change where needed to extract web-private distribution logic and provide revision-aware TUI state, but the redesign must not change web behavior.
 - Target layouts are optimized for 120×36 and larger, provide full stacked parity at 80×24, and retain a functional compact fallback down to the current 60×20 minimum.
 - Navigation uses replacement screens: `Enter` descends, `Esc` or `Backspace` ascends, and existing sector/volume/search/finding accelerators remain available. Wide page detail uses facts plus distribution panes; narrow detail stacks or tabs them.
@@ -26,11 +27,9 @@ An implementation-ready specification and decision index for redesigning the Vol
 ## Decisions so far
 
 - [Prototype terminal interaction parity across Volume, Sector, and Page](issues/01-prototype-terminal-interaction-parity.md) — Atlas is accepted as the replacement-screen hierarchy, with simultaneous wide Page panes, stacked 80×24 parity, tabbed 60×20 fallback, and equivalent semantic/input fallbacks.
-
-## Not yet specified
-
-- The safe migration shape and implementation sequence cannot yet be ticketed precisely. The current TUI is a manual `crossterm` renderer with one fixed sector screen, while parity may require reusable widgets and a revision-aware session controller; the prototype, shared-projection boundary, and rendering-architecture decisions must reveal whether incremental migration or replacement is coherent.
-- Additional terminal-compatibility decisions may surface from testing the accepted 60×20 compact fallback, Unicode display widths, monochrome rendering, and mouse hit regions against concrete prototypes. These remain one coarse patch of fog until failures expose a precise question.
+- [Define the shared projection boundary for terminal parity](issues/02-define-shared-projection-boundary.md) — A shared Projection workspace owns exact-revision semantic projections and cooperative enrichment, while web and TUI retain navigation, scheduling, transport, and rendering state.
+- [Define the TUI navigation, focus, and history state model](issues/03-define-navigation-focus-history-model.md) — A deterministic AtlasMachine reducer owns the structural Atlas trail, focus restoration, modal precedence, semantic scrolling, input equivalence, and atomic exact-revision adoption.
+- [Choose the terminal rendering architecture and dependency boundary](issues/04-choose-rendering-architecture.md) — A repository-owned AtlasRenderer over pinned Crossterm atomically composes cell frames and semantic layout commits, with private Atlas-specific primitives, post-flush activation, and replace-don't-layer migration.
 
 ## Out of scope
 

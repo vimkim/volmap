@@ -1,7 +1,7 @@
 Label: wayfinder:grilling
 Type: grilling
-Status: open
-Assignee: unassigned
+Status: claimed
+Assignee: codex
 Parent: [Chart terminal interaction parity for the Volmap TUI](../map.md)
 Blocked by: [Define the shared projection boundary for terminal parity](02-define-shared-projection-boundary.md), [Define the TUI navigation, focus, and history state model](03-define-navigation-focus-history-model.md)
 
