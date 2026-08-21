@@ -640,6 +640,7 @@
     for (const label of ["Attribute", "Type", "Bytes", "Value"]) {
       const cell = document.createElement("th");
       cell.textContent = label;
+      if (label === "Bytes") cell.className = "record-bytes";
       head.append(cell);
     }
     table.append(head);
