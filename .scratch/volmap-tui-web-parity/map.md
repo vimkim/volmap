@@ -32,6 +32,7 @@ An implementation-ready specification and decision index for redesigning the Vol
 - [Choose the terminal rendering architecture and dependency boundary](issues/04-choose-rendering-architecture.md) — A repository-owned AtlasRenderer over pinned Crossterm atomically composes cell frames and semantic layout commits, with private Atlas-specific primitives, post-flush activation, and replace-don't-layer migration.
 - [Define automatic enrichment and immutable-revision transitions](issues/05-define-enrichment-revision-lifecycle.md) — Atlas privately manages one bounded exact-base attempt, trusted progress, deterministic cancellation, atomic whole-trail adoption, and explicit late revision offers while the Projection workspace owns eligibility and immutable publication.
 - [Define semantic color, glyph, and fallback mappings](issues/06-define-semantic-terminal-rendering.md) — A closed Atlas semantic encoder preserves allocation, type, occupancy, findings, focus, selection, Page geometry, and Slot state across four equivalent ANSI/monochrome and Unicode/ASCII profiles with safe display-column text.
+- [Set volume viewport and rendering resource budgets](issues/07-set-viewport-resource-budgets.md) — Atlas uses a private 64-Sector exact-revision reservoir, fixed complete-card row windows with one-row overscan, semantic focus and row virtualization, deterministic invalidation/redraw, and a separate 16 MiB terminal-rendering budget with measurable work and latency gates.
 
 ## Out of scope
 

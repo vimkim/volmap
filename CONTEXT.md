@@ -28,6 +28,10 @@ _Avoid_: Cosmetic parity, pixel parity
 The resolved pairing of ANSI or monochrome color capability with Unicode or ASCII glyph capability used to present one Atlas semantic scene. A profile may change glyphs and styling but never facts, actions, focus topology, hit regions, or scroll regions.
 _Avoid_: Theme, terminal mode, semantic mode
 
+**Terminal rendering budget**:
+The adapter-local ceiling on active terminal cells, exact-revision projection windows retained by Atlas, prepared detail rows, presentation caches, redraw cadence, and frame latency. It bounds presentation work without changing Inspection coverage, outcome, diagnostics, or operational budgets.
+_Avoid_: ResourcePolicy, inspection budget, sampling limit
+
 **Inspection revision**:
 A monotonically advancing version of one inspection graph as explicit deep-inspection targets add evidence and details. Revisions preserve the snapshot and entity identities; an export freezes one revision.
 _Avoid_: Database version, schema version
