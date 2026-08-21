@@ -1,5 +1,5 @@
 Label: wayfinder:map
-Status: open
+Status: resolved
 
 # Chart terminal interaction parity for the Volmap TUI
 
@@ -34,6 +34,7 @@ An implementation-ready specification and decision index for redesigning the Vol
 - [Define semantic color, glyph, and fallback mappings](issues/06-define-semantic-terminal-rendering.md) — A closed Atlas semantic encoder preserves allocation, type, occupancy, findings, focus, selection, Page geometry, and Slot state across four equivalent ANSI/monochrome and Unicode/ASCII profiles with safe display-column text.
 - [Set volume viewport and rendering resource budgets](issues/07-set-viewport-resource-budgets.md) — Atlas uses a private 64-Sector exact-revision reservoir, fixed complete-card row windows with one-row overscan, semantic focus and row virtualization, deterministic invalidation/redraw, and a separate 16 MiB terminal-rendering budget with measurable work and latency gates.
 - [Define the TUI parity verification contract](issues/08-define-parity-verification-contract.md) — Acceptance uses interface-aligned Projection, Atlas state, semantic cell/geometry, scripted-host, real PTY/browser, non-disclosure, resource/performance, and release evidence from one exact candidate commit before the legacy TUI is removed.
+- [Assemble the implementation-ready TUI redesign specification](issues/09-assemble-tui-redesign-specification.md) — The [implementation specification](implementation-spec.md) indexes every accepted decision and supplies cross-module invariants plus a D0–D8 dependency-ordered `/to-tickets` handoff with no unresolved product decision.
 
 ## Out of scope
 
