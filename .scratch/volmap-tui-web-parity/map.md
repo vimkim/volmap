@@ -31,6 +31,7 @@ An implementation-ready specification and decision index for redesigning the Vol
 - [Define the TUI navigation, focus, and history state model](issues/03-define-navigation-focus-history-model.md) — A deterministic AtlasMachine reducer owns the structural Atlas trail, focus restoration, modal precedence, semantic scrolling, input equivalence, and atomic exact-revision adoption.
 - [Choose the terminal rendering architecture and dependency boundary](issues/04-choose-rendering-architecture.md) — A repository-owned AtlasRenderer over pinned Crossterm atomically composes cell frames and semantic layout commits, with private Atlas-specific primitives, post-flush activation, and replace-don't-layer migration.
 - [Define automatic enrichment and immutable-revision transitions](issues/05-define-enrichment-revision-lifecycle.md) — Atlas privately manages one bounded exact-base attempt, trusted progress, deterministic cancellation, atomic whole-trail adoption, and explicit late revision offers while the Projection workspace owns eligibility and immutable publication.
+- [Define semantic color, glyph, and fallback mappings](issues/06-define-semantic-terminal-rendering.md) — A closed Atlas semantic encoder preserves allocation, type, occupancy, findings, focus, selection, Page geometry, and Slot state across four equivalent ANSI/monochrome and Unicode/ASCII profiles with safe display-column text.
 
 ## Out of scope
 
