@@ -30,6 +30,7 @@ An implementation-ready specification and decision index for redesigning the Vol
 - [Define the shared projection boundary for terminal parity](issues/02-define-shared-projection-boundary.md) — A shared Projection workspace owns exact-revision semantic projections and cooperative enrichment, while web and TUI retain navigation, scheduling, transport, and rendering state.
 - [Define the TUI navigation, focus, and history state model](issues/03-define-navigation-focus-history-model.md) — A deterministic AtlasMachine reducer owns the structural Atlas trail, focus restoration, modal precedence, semantic scrolling, input equivalence, and atomic exact-revision adoption.
 - [Choose the terminal rendering architecture and dependency boundary](issues/04-choose-rendering-architecture.md) — A repository-owned AtlasRenderer over pinned Crossterm atomically composes cell frames and semantic layout commits, with private Atlas-specific primitives, post-flush activation, and replace-don't-layer migration.
+- [Define automatic enrichment and immutable-revision transitions](issues/05-define-enrichment-revision-lifecycle.md) — Atlas privately manages one bounded exact-base attempt, trusted progress, deterministic cancellation, atomic whole-trail adoption, and explicit late revision offers while the Projection workspace owns eligibility and immutable publication.
 
 ## Out of scope
 

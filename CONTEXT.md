@@ -28,6 +28,10 @@ _Avoid_: Cosmetic parity, pixel parity
 A monotonically advancing version of one inspection graph as explicit deep-inspection targets add evidence and details. Revisions preserve the snapshot and entity identities; an export freezes one revision.
 _Avoid_: Database version, schema version
 
+**Revision offer**:
+An exact immutable inspection revision which exists in the Projection workspace but no longer has automatic-adoption authority. An inspection adapter may present it for explicit transactional adoption, but it never means the latest revision and never silently changes the displayed context.
+_Avoid_: Latest revision, pending job, background update
+
 **Database snapshot**:
 The read-only set of CUBRID volumes inspected together as one stable input; it scopes every other inspection-graph identity.
 _Avoid_: Live database, scan run
