@@ -194,7 +194,7 @@ mod tests {
     }
 
     #[test]
-    fn browser_contract_uses_revision_pinned_canonical_history() {
+    fn browser_contract_uses_live_entity_canonical_history() {
         let javascript = compact(APP_JS);
         let routes = compact(ROUTES_JS);
 
@@ -204,11 +204,58 @@ mod tests {
         assert!(javascript.contains("history.replaceState"));
         assert!(javascript.contains("popstate"));
         assert!(routes.contains("constROUTE_KINDS="));
-        assert!(javascript.contains("route.snapshot!==session.snapshot.id"));
-        assert!(javascript.contains("session.snapshot.revision=route.revision"));
         assert!(javascript.contains("awaitrestoreBrowserRoute(route)"));
         assert!(javascript.contains("showPage(route.page,true,\"none\")"));
         assert!(!javascript.contains("token=${"));
+
+        // A path names an entity. Nothing in the address identifies a reading,
+        // so a copied link survives the viewer reading the input again.
+        assert!(routes.contains("return`/${route.kind}/${route.vol}"));
+        assert!(javascript.contains("constAPI_BASE=\"/api/v1\""));
+        assert!(!routes.contains("/s/${"));
+        assert!(!routes.contains("/r/${"));
+        assert!(!javascript.contains("route.snapshot"));
+        assert!(!javascript.contains("route.revision"));
+
+        // The browser therefore never reconciles a URL against a snapshot id,
+        // and an enrichment cannot push a revision into history.
+        assert!(!javascript.contains("session.snapshot.revision="));
+    }
+
+    #[test]
+    fn browser_contract_follows_generations_without_rewriting_history() {
+        let javascript = compact(APP_JS);
+
+        assert!(INDEX_HTML.contains("id=\"followStatus\""));
+        assert!(INDEX_HTML.contains("id=\"followToggle\""));
+        assert!(APP_CSS.contains(".follow-control"));
+        assert!(javascript.contains("/live/watch?generation=${watchedGeneration}"));
+        assert!(APP_JS.contains("live · gen ${viewed}"));
+        assert!(APP_JS.contains("paused at gen ${viewed} · newer: gen ${newest}"));
+        assert!(APP_JS.contains("disk ${hours}:${minutes}"));
+        assert!(javascript.contains("sectorCache.clear()"));
+        assert!(javascript.contains("awaitloadVolumes(route,\"none\")"));
+        assert!(javascript.contains("window.scrollTo(left,top)"));
+        assert!(javascript.contains("followPaused=!followPaused"));
+    }
+
+    #[test]
+    fn browser_contract_reestablishes_generation_local_views() {
+        let javascript = compact(APP_JS);
+
+        assert!(javascript.contains("asyncfunctionrefreshEnrichedDrillLevel(route)"));
+        assert!(
+            javascript
+                .contains("selector=`${route.kind}:${route.vol}:${route.page}:${route.slot}`")
+        );
+        assert!(javascript.contains("awaitfallBackFromEnrichedDrillLevel(route)"));
+        assert!(javascript.contains("`slot:${route.vol}:${route.page}:${route.slot}`"));
+        assert!(javascript.contains("showSlot(refreshed,route.slot,\"replace\")"));
+        assert!(javascript.contains("showPage(route.page,true,\"replace\")"));
+        assert!(javascript.contains("error.code===\"cursor-generation-changed\""));
+        assert!(javascript.contains("if(followPaused)"));
+        assert!(APP_JS.contains("Resume to refresh the mosaic"));
+        assert!(javascript.contains("awaitshowVolume(\"none\")"));
     }
 
     #[test]

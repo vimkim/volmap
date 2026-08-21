@@ -5,14 +5,16 @@ use std::fmt;
 use std::io::{self, IsTerminal, Write};
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::time::Duration;
 
 use clap::{ArgGroup, Args, Parser, Subcommand, ValueEnum};
 use serde::Serialize;
 
 use crate::diagnostics::InspectionOutcome;
+use crate::follow::FollowConfig;
 use crate::inspection::{
     CancelToken, GraphView, Inspection, OpenFailure, OpenRequest, OperationError, ProgressObserver,
-    QueryError, ResourcePolicy, RevisionSelector, ScanPhase, ScanProgress,
+    QueryError, ResourcePolicy, RevisionSelector, ScanPhase, ScanProgress, SourceMode,
 };
 use crate::model::{FileId, Oid, PageId, SectorId, SlotId, Vfid, VolId, Vpid};
 use crate::projection::{
@@ -128,6 +130,21 @@ struct ServeCommand {
     resources: ResourceArgs,
     #[arg(long, default_value = "127.0.0.1:0")]
     listen: SocketAddr,
+    /// Watch the input and publish a new generation when it changes. On by
+    /// default, and accepted explicitly so a script can state the intent.
+    #[arg(long, overrides_with = "no_follow")]
+    follow: bool,
+    /// Hold one immutable reading for the life of the process, so a changed
+    /// input invalidates the session instead of advancing it.
+    #[arg(long, overrides_with = "follow")]
+    no_follow: bool,
+    /// How often the input fingerprint manifest is read, in milliseconds.
+    #[arg(long, default_value_t = 500, value_parser = clap::value_parser!(u64).range(50..=60_000))]
+    follow_interval_ms: u64,
+    /// How many recent generations stay addressable, so a collection load
+    /// finishes on the generation it started on.
+    #[arg(long, default_value_t = 4, value_parser = clap::value_parser!(u16).range(1..=64))]
+    follow_retain: u16,
 }
 
 #[derive(Clone, Copy, Debug, Args)]
@@ -414,13 +431,32 @@ fn run(cli: Cli) -> Result<i32, CliError> {
         },
         Command::Serve(command) => {
             let policy = command.resources.clone().policy()?;
-            let (view, overview) =
-                open_view(&command.input, &command.resources, OutputFormat::Human)?;
+            // Follow is the default, and the only command that follows. The
+            // offline commands keep the immutable contract untouched.
+            let following = !command.no_follow;
+            let mode = if following {
+                SourceMode::Live
+            } else {
+                SourceMode::Immutable
+            };
+            let (view, overview, request) = open_reading(
+                &command.input,
+                &command.resources,
+                OutputFormat::Human,
+                mode,
+            )?;
+            let follow = following.then(|| FollowConfig {
+                poll_interval: Duration::from_millis(command.follow_interval_ms),
+                retain: usize::from(command.follow_retain),
+                ..FollowConfig::default()
+            });
             crate::web::serve(
                 view,
                 crate::web::ServeOptions {
                     listen: command.listen,
                     policy,
+                    request,
+                    follow,
                 },
             )
             .map_err(|error| CliError::OpenAdapter(error.to_string()))?;
@@ -719,6 +755,18 @@ fn open_view(
     resources: &ResourceArgs,
     format: OutputFormat,
 ) -> Result<(GraphView, crate::inspection::OverviewView), CliError> {
+    open_reading(input, resources, format, SourceMode::Immutable)
+        .map(|(view, overview, _)| (view, overview))
+}
+
+/// Reads the input once and hands back the request that produced the reading,
+/// so a caller that intends to read the same input again can do so.
+fn open_reading(
+    input: &InputArgs,
+    resources: &ResourceArgs,
+    format: OutputFormat,
+    mode: SourceMode,
+) -> Result<(GraphView, crate::inspection::OverviewView, OpenRequest), CliError> {
     let input_spec = input.input_spec()?;
     let progress_choice = resources.progress;
     let policy = resources.policy()?;
@@ -734,17 +782,21 @@ fn open_view(
         ProgressChoice::Auto => format == OutputFormat::Human && io::stderr().is_terminal(),
     };
     let mut observer = StderrProgress::default();
+    let open = match mode {
+        SourceMode::Immutable => Inspection::open,
+        SourceMode::Live => Inspection::open_live,
+    };
     let inspection = if show_progress {
-        Inspection::open(&request, policy, &cancel, Some(&mut observer))
+        open(&request, policy, &cancel, Some(&mut observer))
     } else {
-        Inspection::open(&request, policy, &cancel, None)
+        open(&request, policy, &cancel, None)
     }
     .map_err(CliError::Open)?;
     let view = inspection
         .view(RevisionSelector::Latest)
         .map_err(|error| CliError::Internal(error.to_string()))?;
     let overview = view.overview();
-    Ok((view, overview))
+    Ok((view, overview, request))
 }
 
 fn map_data(

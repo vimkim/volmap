@@ -289,7 +289,15 @@ pub enum PinnedFormatProfile {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SnapshotValidity {
+    /// The input fingerprint manifest still matches what was scanned.
     Valid,
+    /// The manifest changed during this reading's own scan, so its facts may
+    /// mix pre-change and post-change bytes. Live follow only.
+    Torn,
+    /// The manifest no longer matches the input. The facts stay exactly as
+    /// observed; they are simply no longer the current view. Live follow only.
+    Superseded,
+    /// The manifest changed and the immutable contract forbids re-reading.
     Invalidated,
 }
 

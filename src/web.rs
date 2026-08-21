@@ -2,11 +2,11 @@
 
 mod assets;
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::fs::OpenOptions;
 use std::io::{self, Read};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 use axum::Json;
 use axum::Router;
@@ -25,8 +25,11 @@ use subtle::ConstantTimeEq;
 use tokio::net::TcpListener;
 use tokio::sync::{Mutex, Semaphore};
 
+use crate::follow::{FollowConfig, LiveSource, Reading, WATCH_TIMEOUT};
 use crate::format::{DB_PAGE_SIZE, SlottedPage};
-use crate::inspection::{CancelToken, DiagnosticRecord, GraphView, QueryError, ResourcePolicy};
+use crate::inspection::{
+    CancelToken, DiagnosticRecord, GraphView, OpenRequest, QueryError, ResourcePolicy,
+};
 use crate::model::{FileId, Oid, PageId, SectorId, SlotId, Vfid, VolId, Vpid};
 use crate::projection::{
     CoverageProjection, DeepPageProjection, DiagnosticProjection, OosChainProjection,
@@ -42,6 +45,10 @@ const MAX_HEADER_BYTES: usize = 32 * 1024;
 const MAX_HEADER_FIELDS: usize = 64;
 const MAX_JSON_BYTES: usize = 64 * 1024;
 const MAX_CONCURRENT_REQUESTS: usize = 32;
+/// Long-poll waiters consume no inspection work, so they are admitted apart
+/// from the inspection concurrency limit and cannot starve real requests.
+const MAX_CONCURRENT_WATCHERS: usize = 64;
+const WATCH_PATH: &str = "/api/v1/live/watch";
 const DEFAULT_COLLECTION_LIMIT: usize = 100;
 const MAX_COLLECTION_LIMIT: usize = 512;
 const DEFAULT_SECTOR_COLLECTION_LIMIT: usize = 24;
@@ -51,22 +58,21 @@ const MAX_SECTOR_COLLECTION_LIMIT: usize = 64;
 pub struct ServeOptions {
     pub listen: SocketAddr,
     pub policy: ResourcePolicy,
+    /// How the input was opened, so a follower can read it again.
+    pub request: OpenRequest,
+    /// `Some` to follow a live input, `None` to hold one immutable reading.
+    pub follow: Option<FollowConfig>,
 }
 
 #[derive(Clone)]
 struct WebState {
-    session: Arc<RwLock<LiveSession>>,
+    source: Arc<LiveSource>,
     enrichment: Arc<Mutex<()>>,
     policy: ResourcePolicy,
     cursor_key: Arc<[u8; 32]>,
     authority: Option<Arc<str>>,
     semaphore: Arc<Semaphore>,
-}
-
-struct LiveSession {
-    views: BTreeMap<u64, GraphView>,
-    jobs: BTreeSet<u64>,
-    latest: u64,
+    watchers: Arc<Semaphore>,
 }
 
 #[derive(Debug)]
@@ -110,23 +116,27 @@ async fn serve_async(view: GraphView, options: ServeOptions) -> Result<(), Serve
         .map_err(ServeError::Io)?;
     let local = listener.local_addr().map_err(ServeError::Io)?;
     let cursor_key = Arc::new(generate_cursor_key()?);
-    let initial_revision = view.overview().revision.get();
-    let mut views = BTreeMap::new();
-    views.insert(initial_revision, view);
+    let config = options.follow.unwrap_or_default();
+    let source = LiveSource::new(view, config, options.follow.is_some());
     let state = WebState {
-        session: Arc::new(RwLock::new(LiveSession {
-            views,
-            jobs: BTreeSet::new(),
-            latest: initial_revision,
-        })),
+        source: Arc::clone(&source),
         enrichment: Arc::new(Mutex::new(())),
         policy: options.policy,
         cursor_key,
         authority: (!options.listen.ip().is_unspecified()).then(|| Arc::from(local.to_string())),
         semaphore: Arc::new(Semaphore::new(MAX_CONCURRENT_REQUESTS)),
+        watchers: Arc::new(Semaphore::new(MAX_CONCURRENT_WATCHERS)),
     };
+    if options.follow.is_some() {
+        tokio::spawn(crate::follow::follow(
+            source,
+            options.request.clone(),
+            options.policy,
+        ));
+    }
     let router = build_router(state);
     print_listener_urls(local);
+    print_follow_state(options.follow.as_ref());
     if !options.listen.ip().is_loopback() {
         eprintln!(
             "WARNING: unauthenticated plain HTTP is listening on all interfaces. Anyone who can reach this port can inspect metadata and request enrichment."
@@ -136,6 +146,18 @@ async fn serve_async(view: GraphView, options: ServeOptions) -> Result<(), Serve
         .with_graceful_shutdown(shutdown_signal())
         .await
         .map_err(|error| ServeError::Runtime(error.to_string()))
+}
+
+fn print_follow_state(follow: Option<&FollowConfig>) {
+    match follow {
+        Some(config) => eprintln!(
+            "Following the input every {} ms; a change publishes a new generation.",
+            config.poll_interval.as_millis()
+        ),
+        None => {
+            eprintln!("Holding one immutable reading; a changed input invalidates this session.");
+        }
+    }
 }
 
 fn print_listener_urls(local: SocketAddr) {
@@ -194,72 +216,30 @@ fn build_router(state: WebState) -> Router {
         .route("/routes.js", get(assets::routes_javascript))
         .route("/distribution.js", get(assets::distribution_javascript))
         .route("/app.js", get(assets::javascript))
-        .route(
-            "/s/{snapshot}/r/{revision}/volume/{vol}",
-            get(assets::index),
-        )
-        .route(
-            "/s/{snapshot}/r/{revision}/file/{vol}/{file}",
-            get(assets::index),
-        )
-        .route(
-            "/s/{snapshot}/r/{revision}/sector/{vol}/{sector}",
-            get(assets::index),
-        )
-        .route(
-            "/s/{snapshot}/r/{revision}/page/{vol}/{page}",
-            get(assets::index),
-        )
-        .route(
-            "/s/{snapshot}/r/{revision}/slot/{vol}/{page}/{slot}",
-            get(assets::index),
-        )
-        .route(
-            "/s/{snapshot}/r/{revision}/oos/{vol}/{page}/{slot}",
-            get(assets::index),
-        )
+        // A browser location names an entity, not a reading of one. The reading
+        // it resolves to is whichever generation is current when it is asked
+        // for, which is what keeps a copied link working while a database runs.
+        .route("/volume/{vol}", get(assets::index))
+        .route("/file/{vol}/{file}", get(assets::index))
+        .route("/sector/{vol}/{sector}", get(assets::index))
+        .route("/page/{vol}/{page}", get(assets::index))
+        .route("/slot/{vol}/{page}/{slot}", get(assets::index))
+        .route("/oos/{vol}/{page}/{slot}", get(assets::index))
         .route("/api/v1/session", get(session))
         .route("/api/v1/licenses", get(licenses))
-        .route("/api/v1/s/{snapshot}/r/{revision}/overview", get(overview))
-        .route("/api/v1/s/{snapshot}/r/{revision}/volumes", get(volumes))
-        .route(
-            "/api/v1/s/{snapshot}/r/{revision}/sectors/{vol}",
-            get(sectors),
-        )
-        .route(
-            "/api/v1/s/{snapshot}/r/{revision}/relationships",
-            get(relationships),
-        )
-        .route(
-            "/api/v1/s/{snapshot}/r/{revision}/diagnostics",
-            get(diagnostics),
-        )
-        .route("/api/v1/s/{snapshot}/r/{revision}/coverage", get(coverage))
-        .route(
-            "/api/v1/s/{snapshot}/r/{revision}/file/{vol}/{file}",
-            get(file),
-        )
-        .route(
-            "/api/v1/s/{snapshot}/r/{revision}/sector/{vol}/{sector}",
-            get(sector),
-        )
-        .route(
-            "/api/v1/s/{snapshot}/r/{revision}/page/{vol}/{page}",
-            get(page),
-        )
-        .route(
-            "/api/v1/s/{snapshot}/r/{revision}/slot/{vol}/{page}/{slot}",
-            get(slot),
-        )
-        .route(
-            "/api/v1/s/{snapshot}/r/{revision}/oos/{vol}/{page}/{slot}",
-            get(oos),
-        )
-        .route(
-            "/api/v1/s/{snapshot}/r/{revision}/enrichments",
-            post(enrich),
-        )
-        .route("/api/v1/jobs/{job}", get(job))
+        .route("/api/v1/live/watch", get(watch))
+        .route("/api/v1/overview", get(overview))
+        .route("/api/v1/volumes", get(volumes))
+        .route("/api/v1/sectors/{vol}", get(sectors))
+        .route("/api/v1/relationships", get(relationships))
+        .route("/api/v1/diagnostics", get(diagnostics))
+        .route("/api/v1/coverage", get(coverage))
+        .route("/api/v1/file/{vol}/{file}", get(file))
+        .route("/api/v1/sector/{vol}/{sector}", get(sector))
+        .route("/api/v1/page/{vol}/{page}", get(page))
+        .route("/api/v1/slot/{vol}/{page}/{slot}", get(slot))
+        .route("/api/v1/oos/{vol}/{page}/{slot}", get(oos))
+        .route("/api/v1/enrichments", post(enrich))
         .fallback(not_found)
         .with_state(state.clone())
         .layer(DefaultBodyLimit::max(MAX_JSON_BYTES))
@@ -283,8 +263,13 @@ async fn shutdown_signal() {
 }
 
 async fn request_guard(State(state): State<WebState>, request: Request, next: Next) -> Response {
+    let pool = if request.uri().path() == WATCH_PATH {
+        state.watchers.clone()
+    } else {
+        state.semaphore.clone()
+    };
     let mut response = match guard(&state, &request) {
-        Ok(()) => match state.semaphore.clone().try_acquire_owned() {
+        Ok(()) => match pool.try_acquire_owned() {
             Ok(permit) => {
                 let response = next.run(request).await;
                 drop(permit);
@@ -298,7 +283,7 @@ async fn request_guard(State(state): State<WebState>, request: Request, next: Ne
     response
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 struct GuardError {
     status: StatusCode,
     code: &'static str,
@@ -445,128 +430,209 @@ struct ApiEnvelope<T: Serialize> {
     data: T,
 }
 
-async fn session(State(state): State<WebState>) -> Response {
-    let view = match latest_view(&state) {
-        Ok(value) => value,
-        Err(error) => return error_response(error.status, error.code),
-    };
-    let overview = projected_overview(&state, &view);
-    Json(api_envelope(
-        &overview,
-        SessionProjection {
-            access: "unauthenticated-http",
-        },
-    ))
-    .into_response()
+/// One request's answer: the reading it was served from, and that reading's
+/// overview with its standing applied.
+struct Answer {
+    reading: Reading,
+    overview: crate::inspection::OverviewView,
+}
+
+/// Resolves the reading a fresh request is answered from.
+fn answer(state: &WebState) -> Result<Answer, GuardError> {
+    let reading = state.source.current().map_err(|_| GuardError {
+        status: StatusCode::INTERNAL_SERVER_ERROR,
+        code: "session-unavailable",
+    })?;
+    Ok(project(reading))
+}
+
+/// Resolves a reading a multi-request collection load is already bound to.
+fn retained_answer(state: &WebState, generation: u64) -> Result<Option<Answer>, GuardError> {
+    let reading = state.source.retained(generation).map_err(|_| GuardError {
+        status: StatusCode::INTERNAL_SERVER_ERROR,
+        code: "session-unavailable",
+    })?;
+    Ok(reading.map(project))
+}
+
+fn project(reading: Reading) -> Answer {
+    let mut overview = reading.view.overview();
+    apply_standing(&mut overview, reading.validity);
+    Answer { reading, overview }
+}
+
+/// Applies to one reading's facts the standing only the live session knows.
+///
+/// A reading cannot tell whether the input has moved past it, so the session
+/// says so here. Superseded is not a failure and must not be reported as one:
+/// the facts are exactly what was on disk, they are simply no longer current,
+/// and the follower is already reading the input again.
+fn apply_standing(
+    overview: &mut crate::inspection::OverviewView,
+    standing: crate::model::SnapshotValidity,
+) {
+    if standing != crate::model::SnapshotValidity::Superseded
+        || overview.validity == crate::model::SnapshotValidity::Superseded
+    {
+        return;
+    }
+    overview.validity = crate::model::SnapshotValidity::Superseded;
+    if !overview
+        .diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.code == "snapshot.source_advanced")
+    {
+        overview.diagnostics.push(DiagnosticRecord {
+            code: "snapshot.source_advanced",
+            severity: "warning",
+            message: "The input changed after this generation was read; a newer generation is being read.",
+            subject: "snapshot".to_owned(),
+            rule: "snapshot.file_stamp.stable",
+        });
+    }
 }
 
 #[derive(Serialize)]
 struct SessionProjection {
     access: &'static str,
+    follow: FollowProjection,
 }
 
-fn latest_view(state: &WebState) -> Result<GraphView, GuardError> {
-    let session = state.session.read().map_err(|_| GuardError {
-        status: StatusCode::INTERNAL_SERVER_ERROR,
-        code: "session-unavailable",
-    })?;
-    session
-        .views
-        .get(&session.latest)
-        .cloned()
-        .ok_or(GuardError {
-            status: StatusCode::INTERNAL_SERVER_ERROR,
-            code: "session-unavailable",
-        })
+#[derive(Serialize)]
+#[serde(tag = "state", rename_all = "kebab-case")]
+enum FollowProjection {
+    Following {
+        poll_interval_ms: String,
+        retained_generations: String,
+    },
+    Disabled,
 }
 
-fn revision_view(state: &WebState, snapshot: &str, revision: u64) -> Result<GraphView, GuardError> {
-    let session = state.session.read().map_err(|_| GuardError {
-        status: StatusCode::INTERNAL_SERVER_ERROR,
-        code: "session-unavailable",
-    })?;
-    let view = session.views.get(&revision).cloned().ok_or(GuardError {
-        status: StatusCode::NOT_FOUND,
-        code: "revision-not-found",
-    })?;
-    if !matches_revision(&view.overview(), snapshot, revision) {
-        return Err(GuardError {
-            status: StatusCode::NOT_FOUND,
-            code: "revision-not-found",
-        });
+fn follow_projection(state: &WebState) -> FollowProjection {
+    if !state.source.following() {
+        return FollowProjection::Disabled;
     }
-    Ok(view)
-}
-
-fn projected_overview(state: &WebState, view: &GraphView) -> crate::inspection::OverviewView {
-    let mut overview = view.overview();
-    let terminally_invalidated = state.session.read().map_or(true, |session| {
-        session.views.get(&session.latest).is_some_and(|latest| {
-            latest.overview().validity == crate::model::SnapshotValidity::Invalidated
-        })
-    });
-    apply_terminal_invalidation(&mut overview, terminally_invalidated);
-    overview
-}
-
-fn apply_terminal_invalidation(
-    overview: &mut crate::inspection::OverviewView,
-    terminally_invalidated: bool,
-) {
-    if terminally_invalidated && overview.validity != crate::model::SnapshotValidity::Invalidated {
-        overview.validity = crate::model::SnapshotValidity::Invalidated;
-        overview.outcome = crate::diagnostics::InspectionOutcome::Fatal;
-        if !overview
-            .diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic.code == "snapshot.modified")
-        {
-            overview.diagnostics.push(DiagnosticRecord {
-                code: "snapshot.modified",
-                severity: "fatal",
-                message: "The source changed after this revision was published; retained facts are diagnostic-only.",
-                subject: "snapshot".to_owned(),
-                rule: "snapshot.file_stamp.stable",
-            });
-        }
+    let config = state.source.config();
+    FollowProjection::Following {
+        poll_interval_ms: config.poll_interval.as_millis().to_string(),
+        retained_generations: config.retain.to_string(),
     }
 }
 
-async fn overview(
-    State(state): State<WebState>,
-    Path((snapshot, revision)): Path<(String, u64)>,
-) -> Response {
-    let view = match revision_view(&state, &snapshot, revision) {
+async fn session(State(state): State<WebState>) -> Response {
+    let answer = match answer(&state) {
         Ok(value) => value,
         Err(error) => return error_response(error.status, error.code),
     };
-    let canonical = projected_overview(&state, &view);
-    Json(api_envelope(&canonical, summary_projection(&canonical))).into_response()
+    Json(api_envelope(
+        &answer,
+        SessionProjection {
+            access: "unauthenticated-http",
+            follow: follow_projection(&state),
+        },
+    ))
+    .into_response()
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WatchQuery {
+    generation: Option<u64>,
+}
+
+#[derive(Serialize)]
+struct WatchProjection {
+    /// Whether the generation moved past the one the caller already had.
+    advanced: bool,
+    follow: FollowProjection,
+}
+
+/// Long-polls until the current generation differs from the caller's.
+///
+/// This is a poll the caller does not have to repeat on a timer: it returns the
+/// moment a re-read is published, and otherwise reports no change once the
+/// waiting window closes. It is deliberately not a server-sent-event stream —
+/// the release dependency graph is pinned, and a plain wait needs nothing new
+/// in it.
+async fn watch(
+    State(state): State<WebState>,
+    query: Result<Query<WatchQuery>, QueryRejection>,
+) -> Response {
+    let Ok(Query(query)) = query else {
+        return error_response(StatusCode::BAD_REQUEST, "invalid-collection-query");
+    };
+    let mut receiver = state.source.subscribe();
+    let known = query.generation;
+    if state.source.following() && known.is_some_and(|value| value == *receiver.borrow_and_update())
+    {
+        // Nothing to report yet, so hold the request open instead of asking the
+        // caller to come back and ask again.
+        let _ = tokio::time::timeout(WATCH_TIMEOUT, receiver.changed()).await;
+    }
+    let answer = match answer(&state) {
+        Ok(value) => value,
+        Err(error) => return error_response(error.status, error.code),
+    };
+    Json(api_envelope(
+        &answer,
+        WatchProjection {
+            advanced: known.is_none_or(|value| value != answer.reading.generation),
+            follow: follow_projection(&state),
+        },
+    ))
+    .into_response()
+}
+
+async fn overview(State(state): State<WebState>) -> Response {
+    let answer = match answer(&state) {
+        Ok(value) => value,
+        Err(error) => return error_response(error.status, error.code),
+    };
+    Json(api_envelope(&answer, summary_projection(&answer.overview))).into_response()
 }
 
 async fn volumes(
     State(state): State<WebState>,
-    Path((snapshot, revision)): Path<(String, u64)>,
     query: Result<Query<CollectionQuery>, QueryRejection>,
 ) -> Response {
-    let view = match revision_view(&state, &snapshot, revision) {
-        Ok(value) => value,
-        Err(error) => return error_response(error.status, error.code),
+    let Ok(Query(query)) = query else {
+        return error_response(StatusCode::BAD_REQUEST, "invalid-collection-query");
     };
-    let overview = projected_overview(&state, &view);
-    let data = view.volumes().into_iter().map(volume_projection).collect();
-    collection_response(&state, &overview, "volumes", query, data)
+    let (answer, offset) = match collection_start(&state, "volumes", query.cursor.as_deref()) {
+        Ok(value) => value,
+        Err(refusal) => return refusal.response(),
+    };
+    let data = answer
+        .reading
+        .view
+        .volumes()
+        .into_iter()
+        .map(volume_projection)
+        .collect();
+    collection_response(
+        &state,
+        &answer,
+        "volumes",
+        offset,
+        query.limit.unwrap_or(DEFAULT_COLLECTION_LIMIT),
+        data,
+    )
 }
 
 async fn sectors(
     State(state): State<WebState>,
-    Path((snapshot, revision, vol)): Path<(String, u64, i16)>,
+    Path(vol): Path<i16>,
     query: Result<Query<CollectionQuery>, QueryRejection>,
 ) -> Response {
-    let view = match revision_view(&state, &snapshot, revision) {
-        Ok(value) => value,
-        Err(error) => return error_response(error.status, error.code),
+    let Ok(Query(query)) = query else {
+        return error_response(StatusCode::BAD_REQUEST, "invalid-collection-query");
     };
+    let cursor_kind = format!("sectors:{vol}");
+    let (answer, offset) = match collection_start(&state, &cursor_kind, query.cursor.as_deref()) {
+        Ok(value) => value,
+        Err(refusal) => return refusal.response(),
+    };
+    let view = &answer.reading.view;
     let Some(vol_id) = VolId::new(vol).ok() else {
         return error_response(StatusCode::NOT_FOUND, "entity-not-found");
     };
@@ -576,18 +642,6 @@ async fn sectors(
         .find(|volume| volume.vol_id == vol_id)
     else {
         return error_response(StatusCode::NOT_FOUND, "entity-not-found");
-    };
-    let Ok(Query(query)) = query else {
-        return error_response(StatusCode::BAD_REQUEST, "invalid-collection-query");
-    };
-    let overview = projected_overview(&state, &view);
-    let cursor_kind = format!("sectors:{vol}");
-    let offset = match query.cursor {
-        Some(cursor) => match decode_cursor(&state, &overview, &cursor_kind, &cursor) {
-            Some(value) => value,
-            None => return error_response(StatusCode::BAD_REQUEST, "invalid-cursor"),
-        },
-        None => 0,
     };
     let limit = query.limit.unwrap_or(DEFAULT_SECTOR_COLLECTION_LIMIT);
     let Ok(total) = usize::try_from(volume.total_sectors) else {
@@ -617,13 +671,13 @@ async fn sectors(
     }
     let next_cursor = if end < total {
         NextCursorProjection::Present {
-            value: encode_cursor(&state, &overview, &cursor_kind, end),
+            value: encode_cursor(&state, answer.reading.generation, &cursor_kind, end),
         }
     } else {
         NextCursorProjection::End
     };
     Json(api_envelope(
-        &overview,
+        &answer,
         CollectionProjection { items, next_cursor },
     ))
     .into_response()
@@ -672,14 +726,17 @@ enum RelationshipProjection {
 
 async fn relationships(
     State(state): State<WebState>,
-    Path((snapshot, revision)): Path<(String, u64)>,
     query: Result<Query<CollectionQuery>, QueryRejection>,
 ) -> Response {
-    let view = match revision_view(&state, &snapshot, revision) {
-        Ok(value) => value,
-        Err(error) => return error_response(error.status, error.code),
+    let Ok(Query(query)) = query else {
+        return error_response(StatusCode::BAD_REQUEST, "invalid-collection-query");
     };
-    let overview = projected_overview(&state, &view);
+    let (answer, offset) = match collection_start(&state, "relationships", query.cursor.as_deref())
+    {
+        Ok(value) => value,
+        Err(refusal) => return refusal.response(),
+    };
+    let view = &answer.reading.view;
     let mut data = view
         .oos_chains()
         .into_iter()
@@ -697,68 +754,132 @@ async fn relationships(
             edge: crate::projection::relocation_edge_projection(edge),
         }
     }));
-    collection_response(&state, &overview, "relationships", query, data)
+    collection_response(
+        &state,
+        &answer,
+        "relationships",
+        offset,
+        query.limit.unwrap_or(DEFAULT_COLLECTION_LIMIT),
+        data,
+    )
 }
 
 async fn diagnostics(
     State(state): State<WebState>,
-    Path((snapshot, revision)): Path<(String, u64)>,
     query: Result<Query<CollectionQuery>, QueryRejection>,
 ) -> Response {
-    let view = match revision_view(&state, &snapshot, revision) {
-        Ok(value) => value,
-        Err(error) => return error_response(error.status, error.code),
+    let Ok(Query(query)) = query else {
+        return error_response(StatusCode::BAD_REQUEST, "invalid-collection-query");
     };
-    let overview = projected_overview(&state, &view);
-    let data = overview
+    let (answer, offset) = match collection_start(&state, "diagnostics", query.cursor.as_deref()) {
+        Ok(value) => value,
+        Err(refusal) => return refusal.response(),
+    };
+    let data = answer
+        .overview
         .diagnostics
         .iter()
         .cloned()
         .map(diagnostic_projection)
         .collect();
-    collection_response(&state, &overview, "diagnostics", query, data)
+    collection_response(
+        &state,
+        &answer,
+        "diagnostics",
+        offset,
+        query.limit.unwrap_or(DEFAULT_COLLECTION_LIMIT),
+        data,
+    )
 }
 
 async fn coverage(
     State(state): State<WebState>,
-    Path((snapshot, revision)): Path<(String, u64)>,
     query: Result<Query<CollectionQuery>, QueryRejection>,
 ) -> Response {
-    let view = match revision_view(&state, &snapshot, revision) {
-        Ok(value) => value,
-        Err(error) => return error_response(error.status, error.code),
+    let Ok(Query(query)) = query else {
+        return error_response(StatusCode::BAD_REQUEST, "invalid-collection-query");
     };
-    let overview = projected_overview(&state, &view);
-    let data = overview
+    let (answer, offset) = match collection_start(&state, "coverage", query.cursor.as_deref()) {
+        Ok(value) => value,
+        Err(refusal) => return refusal.response(),
+    };
+    let data = answer
+        .overview
         .coverage
         .iter()
         .copied()
         .map(coverage_projection)
         .collect();
-    collection_response(&state, &overview, "coverage", query, data)
+    collection_response(
+        &state,
+        &answer,
+        "coverage",
+        offset,
+        query.limit.unwrap_or(DEFAULT_COLLECTION_LIMIT),
+        data,
+    )
+}
+
+/// Resolves the reading a collection load continues on.
+///
+/// A load that spans several requests finishes on the generation it started on,
+/// so a mosaic is never stitched together from two different readings. Once
+/// that generation falls out of the retention window the load cannot be
+/// continued honestly, and the caller is told to restart it rather than handed
+/// a silent seam.
+fn collection_start(
+    state: &WebState,
+    kind: &str,
+    cursor: Option<&str>,
+) -> Result<(Answer, usize), CollectionRefusal> {
+    let Some(cursor) = cursor else {
+        return answer(state)
+            .map(|answer| (answer, 0))
+            .map_err(CollectionRefusal::Unavailable);
+    };
+    let Some(payload) = decode_cursor(state, kind, cursor) else {
+        return Err(CollectionRefusal::Unrecognised);
+    };
+    let retained =
+        retained_answer(state, payload.generation).map_err(CollectionRefusal::Unavailable)?;
+    let Some(answer) = retained else {
+        return Err(CollectionRefusal::Evicted(payload.generation));
+    };
+    Ok((answer, payload.offset))
+}
+
+/// Why a collection load cannot start.
+#[derive(Clone, Copy, Debug)]
+enum CollectionRefusal {
+    /// The cursor was not issued by this session.
+    Unrecognised,
+    /// The cursor is this session's, but names a generation it has read past.
+    Evicted(u64),
+    /// The session state could not be read at all.
+    Unavailable(GuardError),
+}
+
+impl CollectionRefusal {
+    fn response(self) -> Response {
+        match self {
+            Self::Unrecognised => error_response(StatusCode::BAD_REQUEST, "invalid-cursor"),
+            Self::Evicted(generation) => cursor_generation_changed_response(generation),
+            Self::Unavailable(error) => error_response(error.status, error.code),
+        }
+    }
 }
 
 fn collection_response<T: Serialize>(
     state: &WebState,
-    overview: &crate::inspection::OverviewView,
-    kind: &'static str,
-    query: Result<Query<CollectionQuery>, QueryRejection>,
+    answer: &Answer,
+    kind: &str,
+    offset: usize,
+    limit: usize,
     items: Vec<T>,
 ) -> Response {
-    let Ok(Query(query)) = query else {
-        return error_response(StatusCode::BAD_REQUEST, "invalid-collection-query");
-    };
-    let limit = query.limit.unwrap_or(DEFAULT_COLLECTION_LIMIT);
     if limit == 0 || limit > MAX_COLLECTION_LIMIT {
         return error_response(StatusCode::BAD_REQUEST, "invalid-collection-limit");
     }
-    let offset = match query.cursor {
-        Some(cursor) => match decode_cursor(state, overview, kind, &cursor) {
-            Some(value) => value,
-            None => return error_response(StatusCode::BAD_REQUEST, "invalid-cursor"),
-        },
-        None => 0,
-    };
     if offset > items.len() {
         return error_response(StatusCode::BAD_REQUEST, "invalid-cursor");
     }
@@ -767,13 +888,13 @@ fn collection_response<T: Serialize>(
     let page = items.into_iter().skip(offset).take(end - offset).collect();
     let next_cursor = if end < total {
         NextCursorProjection::Present {
-            value: encode_cursor(state, overview, kind, end),
+            value: encode_cursor(state, answer.reading.generation, kind, end),
         }
     } else {
         NextCursorProjection::End
     };
     Json(api_envelope(
-        overview,
+        answer,
         CollectionProjection {
             items: page,
             next_cursor,
@@ -782,42 +903,54 @@ fn collection_response<T: Serialize>(
     .into_response()
 }
 
-fn encode_cursor(
-    state: &WebState,
-    overview: &crate::inspection::OverviewView,
-    kind: &str,
+/// The authenticated part of a cursor: a generation and an offset, each a
+/// little-endian `u64`.
+const CURSOR_PAYLOAD_BYTES: usize = 16;
+const CURSOR_MAC_BYTES: usize = 32;
+/// A cursor is its payload and tag, hex encoded. Deriving the length here keeps
+/// the decoder from drifting out of step with the payload it is decoding.
+const CURSOR_HEX_LEN: usize = (CURSOR_PAYLOAD_BYTES + CURSOR_MAC_BYTES) * 2;
+
+/// Where a collection load stands: the generation it reads and how far it got.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct CursorPayload {
+    generation: u64,
     offset: usize,
-) -> String {
-    let payload = u64::try_from(offset).unwrap_or(u64::MAX).to_le_bytes();
-    let mac = cursor_mac(state, overview, kind, &payload);
+}
+
+fn encode_cursor(state: &WebState, generation: u64, kind: &str, offset: usize) -> String {
+    let mut payload = [0_u8; CURSOR_PAYLOAD_BYTES];
+    payload[..8].copy_from_slice(&generation.to_le_bytes());
+    payload[8..].copy_from_slice(&u64::try_from(offset).unwrap_or(u64::MAX).to_le_bytes());
+    let mac = cursor_mac(state, kind, &payload);
     hex_encode(&payload.into_iter().chain(mac).collect::<Vec<_>>())
 }
 
-fn decode_cursor(
-    state: &WebState,
-    overview: &crate::inspection::OverviewView,
-    kind: &str,
-    cursor: &str,
-) -> Option<usize> {
+/// Reads a cursor this session issued, or `None` if it did not issue it.
+///
+/// The generation travels inside the authenticated payload rather than the MAC
+/// key so that a cursor from a generation this session has since read past is
+/// still recognisably its own, and can be answered as stale rather than as a
+/// forgery.
+fn decode_cursor(state: &WebState, kind: &str, cursor: &str) -> Option<CursorPayload> {
     let bytes = hex_decode(cursor)?;
-    let (payload, supplied_mac) = bytes.split_at_checked(8)?;
-    if supplied_mac.len() != 32 {
+    let (payload, supplied_mac) = bytes.split_at_checked(CURSOR_PAYLOAD_BYTES)?;
+    if supplied_mac.len() != CURSOR_MAC_BYTES {
         return None;
     }
-    let expected_mac = cursor_mac(state, overview, kind, payload);
+    let expected_mac = cursor_mac(state, kind, payload);
     if !bool::from(supplied_mac.ct_eq(expected_mac.as_slice())) {
         return None;
     }
-    let offset = u64::from_le_bytes(payload.try_into().ok()?);
-    usize::try_from(offset).ok()
+    let generation = u64::from_le_bytes(payload.get(..8)?.try_into().ok()?);
+    let offset = u64::from_le_bytes(payload.get(8..)?.try_into().ok()?);
+    Some(CursorPayload {
+        generation,
+        offset: usize::try_from(offset).ok()?,
+    })
 }
 
-fn cursor_mac(
-    state: &WebState,
-    overview: &crate::inspection::OverviewView,
-    kind: &str,
-    payload: &[u8],
-) -> [u8; 32] {
+fn cursor_mac(state: &WebState, kind: &str, payload: &[u8]) -> [u8; 32] {
     let mut key = [0_u8; 64];
     key[..state.cursor_key.len()].copy_from_slice(state.cursor_key.as_ref());
     let mut inner_pad = [0x36_u8; 64];
@@ -831,8 +964,6 @@ fn cursor_mac(
     inner.update(b"volmap.cursor.v1\0");
     inner.update(kind.as_bytes());
     inner.update([0]);
-    inner.update(snapshot_id_hex(overview.snapshot_id).as_bytes());
-    inner.update(overview.revision.get().to_le_bytes());
     inner.update(payload);
     let inner = inner.finalize();
     let mut outer = Sha256::new();
@@ -851,7 +982,7 @@ fn hex_encode(bytes: &[u8]) -> String {
 }
 
 fn hex_decode(value: &str) -> Option<Vec<u8>> {
-    if value.len() != 80 || !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+    if value.len() != CURSOR_HEX_LEN || !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
         return None;
     }
     value
@@ -864,14 +995,12 @@ fn hex_decode(value: &str) -> Option<Vec<u8>> {
         .collect()
 }
 
-async fn file(
-    State(state): State<WebState>,
-    Path((snapshot, revision, vol, file)): Path<(String, u64, i16, i32)>,
-) -> Response {
-    let view = match revision_view(&state, &snapshot, revision) {
+async fn file(State(state): State<WebState>, Path((vol, file)): Path<(i16, i32)>) -> Response {
+    let answer = match answer(&state) {
         Ok(value) => value,
         Err(error) => return error_response(error.status, error.code),
     };
+    let view = &answer.reading.view;
     let Some(vfid) = VolId::new(vol)
         .ok()
         .zip(FileId::new(file).ok())
@@ -889,39 +1018,32 @@ async fn file(
     else {
         return error_response(StatusCode::NOT_FOUND, "entity-not-found");
     };
-    let overview = projected_overview(&state, &view);
-    Json(api_envelope(&overview, file_header_projection(header))).into_response()
+    Json(api_envelope(&answer, file_header_projection(header))).into_response()
 }
 
-async fn sector(
-    State(state): State<WebState>,
-    Path((snapshot, revision, vol, sector)): Path<(String, u64, i16, i32)>,
-) -> Response {
-    let view = match revision_view(&state, &snapshot, revision) {
+async fn sector(State(state): State<WebState>, Path((vol, sector)): Path<(i16, i32)>) -> Response {
+    let answer = match answer(&state) {
         Ok(value) => value,
         Err(error) => return error_response(error.status, error.code),
     };
-    let overview = projected_overview(&state, &view);
+    let view = &answer.reading.view;
     let result = VolId::new(vol)
         .ok()
         .zip(SectorId::new(sector).ok())
         .ok_or(QueryError::EntityNotFound)
         .and_then(|(vol_id, sector_id)| view.sector(vol_id, sector_id));
     match result {
-        Ok(value) => Json(api_envelope(&overview, sector_projection(value))).into_response(),
+        Ok(value) => Json(api_envelope(&answer, sector_projection(value))).into_response(),
         Err(_) => error_response(StatusCode::NOT_FOUND, "entity-not-found"),
     }
 }
 
-async fn page(
-    State(state): State<WebState>,
-    Path((snapshot, revision, vol, page)): Path<(String, u64, i16, i32)>,
-) -> Response {
-    let view = match revision_view(&state, &snapshot, revision) {
+async fn page(State(state): State<WebState>, Path((vol, page)): Path<(i16, i32)>) -> Response {
+    let answer = match answer(&state) {
         Ok(value) => value,
         Err(error) => return error_response(error.status, error.code),
     };
-    let overview = projected_overview(&state, &view);
+    let view = &answer.reading.view;
     let result = VolId::new(vol)
         .ok()
         .and_then(|vol_id| {
@@ -949,7 +1071,7 @@ async fn page(
                 page_distribution_projection,
             );
             Json(api_envelope(
-                &overview,
+                &answer,
                 PageResourceProjection {
                     page: page_projection(value),
                     deep: deep_page_projection(deep),
@@ -1140,12 +1262,13 @@ fn push_free_region(
 
 async fn slot(
     State(state): State<WebState>,
-    Path((snapshot, revision, vol, page, slot)): Path<(String, u64, i16, i32, i16)>,
+    Path((vol, page, slot)): Path<(i16, i32, i16)>,
 ) -> Response {
-    let view = match revision_view(&state, &snapshot, revision) {
+    let answer = match answer(&state) {
         Ok(value) => value,
         Err(error) => return error_response(error.status, error.code),
     };
+    let view = &answer.reading.view;
     let Some(oid) = parse_web_oid(vol, page, slot) else {
         return error_response(StatusCode::NOT_FOUND, "entity-not-found");
     };
@@ -1170,9 +1293,8 @@ async fn slot(
             view.class_representation(interpretation.class_oid, interpretation.representation_id)
         })
         .map(class_representation_projection);
-    let overview = projected_overview(&state, &view);
     Json(api_envelope(
-        &overview,
+        &answer,
         SlotResourceProjection {
             page: page_projection(page),
             deep: deep_page_projection(view.deep_page(vpid)),
@@ -1205,21 +1327,21 @@ struct SlotResourceProjection {
 
 async fn oos(
     State(state): State<WebState>,
-    Path((snapshot, revision, vol, page, slot)): Path<(String, u64, i16, i32, i16)>,
+    Path((vol, page, slot)): Path<(i16, i32, i16)>,
 ) -> Response {
-    let view = match revision_view(&state, &snapshot, revision) {
+    let answer = match answer(&state) {
         Ok(value) => value,
         Err(error) => return error_response(error.status, error.code),
     };
+    let view = &answer.reading.view;
     let Some(oid) = parse_web_oid(vol, page, slot) else {
         return error_response(StatusCode::NOT_FOUND, "entity-not-found");
     };
     let Some(chain) = view.oos_chain(oid) else {
         return error_response(StatusCode::NOT_FOUND, "entity-not-found");
     };
-    let overview = projected_overview(&state, &view);
     Json(api_envelope(
-        &overview,
+        &answer,
         OosResourceProjection {
             chain: oos_chain_projection(chain),
         },
@@ -1259,15 +1381,18 @@ enum EnrichmentTarget {
 
 #[derive(Serialize)]
 struct EnrichmentProjection {
-    job_id: String,
-    status: &'static str,
+    /// Whether the result was published as a new revision of the generation it
+    /// was computed on, or discarded because a re-read overtook it. A discarded
+    /// result is not an error: the entity path below still resolves, it simply
+    /// answers from the newer reading, so the caller may ask again.
+    retained: bool,
     result_revision: String,
+    /// The live path the enriched entity is read back from.
     result: String,
 }
 
 async fn enrich(
     State(state): State<WebState>,
-    Path((snapshot, revision)): Path<(String, u64)>,
     payload: Result<Json<EnrichmentRequest>, JsonRejection>,
 ) -> Response {
     let Json(request) = match payload {
@@ -1284,25 +1409,19 @@ async fn enrich(
     let Ok(_admission) = state.enrichment.try_lock() else {
         return error_response(StatusCode::TOO_MANY_REQUESTS, "resource-admission-refused");
     };
-    let base = match revision_view(&state, &snapshot, revision) {
+    let opened = match answer(&state) {
         Ok(value) => value,
         Err(error) => return error_response(error.status, error.code),
     };
-    let current_revision = match state.session.read() {
-        Ok(session) => session.latest,
-        Err(_) => return error_response(StatusCode::INTERNAL_SERVER_ERROR, "session-unavailable"),
-    };
-    if current_revision != revision {
-        return stale_revision_response(revision, current_revision);
-    }
-    if base.overview().validity == crate::model::SnapshotValidity::Invalidated {
+    let base = &opened.reading.view;
+    if opened.overview.validity == crate::model::SnapshotValidity::Invalidated {
         return invalidated_snapshot_response();
     }
     let Some(target) = parse_enrichment_target(&request.selector) else {
         return error_response(StatusCode::BAD_REQUEST, "invalid-selector");
     };
     let cancel = CancelToken::new();
-    let enriched = match run_enrichment(&base, target, state.policy, &cancel) {
+    let enriched = match run_enrichment(base, target, state.policy, &cancel) {
         Ok(value) => value,
         Err(crate::inspection::OperationError::ResourceLimit) => {
             return error_response(StatusCode::TOO_MANY_REQUESTS, "resource-admission-refused");
@@ -1326,68 +1445,24 @@ async fn enrich(
             return error_response(StatusCode::NOT_FOUND, "entity-not-found");
         }
     }
-    let overview = enriched.overview();
-    let result_revision = overview.revision.get();
-    let result = target_result_path(&snapshot, result_revision, target);
-    {
-        let Ok(mut session) = state.session.write() else {
-            return error_response(StatusCode::INTERNAL_SERVER_ERROR, "session-unavailable");
-        };
-        if session.latest != revision {
-            return stale_revision_response(revision, session.latest);
-        }
-        session.views.insert(result_revision, enriched);
-        session.jobs.insert(result_revision);
-        session.latest = result_revision;
-    }
-    let location = format!("/api/v1/jobs/{result_revision}");
-    let Ok(location_header) = HeaderValue::from_str(&location) else {
-        return error_response(StatusCode::INTERNAL_SERVER_ERROR, "enrichment-failed");
+    let result_revision = enriched.overview().revision.get();
+    let result = target_result_path(target);
+    let generation = opened.reading.generation;
+    let Ok(retained) = state.source.publish_revision(generation, enriched) else {
+        return error_response(StatusCode::INTERNAL_SERVER_ERROR, "session-unavailable");
     };
-    let mut response = (
-        StatusCode::ACCEPTED,
-        Json(api_envelope(
-            &overview,
-            EnrichmentProjection {
-                job_id: result_revision.to_string(),
-                status: "completed",
-                result_revision: result_revision.to_string(),
-                result,
-            },
-        )),
-    )
-        .into_response();
-    response
-        .headers_mut()
-        .insert(axum::http::header::LOCATION, location_header);
-    response
-}
-
-async fn job(State(state): State<WebState>, Path(job): Path<u64>) -> Response {
-    let view = {
-        let Ok(session) = state.session.read() else {
-            return error_response(StatusCode::INTERNAL_SERVER_ERROR, "session-unavailable");
-        };
-        if session.jobs.contains(&job) {
-            session.views.get(&job).cloned()
-        } else {
-            None
-        }
+    // Re-resolve so the envelope reports the reading the result actually landed
+    // in, which is the newer generation if a re-read overtook the enrichment.
+    let answer = match answer(&state) {
+        Ok(value) => value,
+        Err(error) => return error_response(error.status, error.code),
     };
-    let Some(view) = view else {
-        return error_response(StatusCode::NOT_FOUND, "job-not-found");
-    };
-    let overview = projected_overview(&state, &view);
     Json(api_envelope(
-        &overview,
+        &answer,
         EnrichmentProjection {
-            job_id: job.to_string(),
-            status: "completed",
-            result_revision: job.to_string(),
-            result: format!(
-                "/s/{}/r/{job}/",
-                crate::projection::snapshot_id_hex(overview.snapshot_id)
-            ),
+            retained,
+            result_revision: result_revision.to_string(),
+            result,
         },
     ))
     .into_response()
@@ -1441,23 +1516,26 @@ fn parse_slot(value: &str) -> Option<SlotId> {
     SlotId::new(i16::try_from(parse_canonical(value)?).ok()?).ok()
 }
 
-fn target_result_path(snapshot: &str, revision: u64, target: EnrichmentTarget) -> String {
+/// The live path an enrichment result is read back from.
+///
+/// The path names the entity only. A generation is deliberately absent: the
+/// caller reads the entity again and is answered from whatever reading is
+/// current, which is the behaviour that keeps a copied link working.
+fn target_result_path(target: EnrichmentTarget) -> String {
     match target {
-        EnrichmentTarget::Page(vpid) => format!(
-            "/s/{snapshot}/r/{revision}/page/{}/{}",
-            vpid.vol_id.get(),
-            vpid.page_id.get()
-        ),
+        EnrichmentTarget::Page(vpid) => {
+            format!("/page/{}/{}", vpid.vol_id.get(), vpid.page_id.get())
+        }
         // An interpretation is read back through the slot it was requested for,
         // so both selectors resolve to the same resource.
         EnrichmentTarget::Slot(oid) | EnrichmentTarget::Record(oid) => format!(
-            "/s/{snapshot}/r/{revision}/slot/{}/{}/{}",
+            "/slot/{}/{}/{}",
             oid.vol_id.get(),
             oid.page_id.get(),
             oid.slot_id.get()
         ),
         EnrichmentTarget::Oos(oid) => format!(
-            "/s/{snapshot}/r/{revision}/oos/{}/{}/{}",
+            "/oos/{}/{}/{}",
             oid.vol_id.get(),
             oid.page_id.get(),
             oid.slot_id.get()
@@ -1527,10 +1605,8 @@ fn enrich_record_selection(
     }
 }
 
-fn api_envelope<T: Serialize>(
-    overview: &crate::inspection::OverviewView,
-    data: T,
-) -> ApiEnvelope<T> {
+fn api_envelope<T: Serialize>(answer: &Answer, data: T) -> ApiEnvelope<T> {
+    let overview = &answer.overview;
     ApiEnvelope {
         schema: SCHEMA_NAME,
         schema_version: SCHEMA_VERSION,
@@ -1538,11 +1614,14 @@ fn api_envelope<T: Serialize>(
         snapshot: SnapshotProjection {
             id: snapshot_id_hex(overview.snapshot_id),
             revision: overview.revision.get().to_string(),
-            validity: match overview.validity {
-                crate::model::SnapshotValidity::Valid => "valid",
-                crate::model::SnapshotValidity::Invalidated => "invalidated",
-            },
+            validity: crate::projection::validity_name(overview.validity),
             format_profile: overview.format_profile,
+            generation: Some(answer.reading.generation.to_string()),
+            observed_at_unix_seconds: Some(answer.reading.observed_at_unix_seconds.to_string()),
+            input_modified_unix_seconds: answer
+                .reading
+                .input_modified_unix_seconds
+                .map(|seconds| seconds.to_string()),
         },
         outcome: outcome_name(overview.outcome),
         coverage: overview
@@ -1559,14 +1638,6 @@ fn api_envelope<T: Serialize>(
             .collect(),
         data,
     }
-}
-
-fn matches_revision(
-    overview: &crate::inspection::OverviewView,
-    snapshot: &str,
-    revision: u64,
-) -> bool {
-    snapshot_id_hex(overview.snapshot_id) == snapshot && overview.revision.get() == revision
 }
 
 #[derive(Serialize)]
@@ -1607,12 +1678,17 @@ fn error_response_with_message(
         .into_response()
 }
 
-fn stale_revision_response(requested_revision: u64, current_revision: u64) -> Response {
+/// Answers a cursor whose generation has fallen out of the retention window.
+///
+/// This is distinct from `invalid-cursor`: the cursor is authentic, the session
+/// simply cannot serve the reading it names any more, so the caller should
+/// restart the load rather than treat its own state as corrupt.
+fn cursor_generation_changed_response(requested_generation: u64) -> Response {
     error_response_with_message(
         StatusCode::CONFLICT,
-        "base-revision-unusable",
+        "cursor-generation-changed",
         format!(
-            "This page inspection started at revision {requested_revision}, but another inspection already published revision {current_revision}. Reload the latest revision and try again."
+            "This load started at generation {requested_generation}, which is no longer retained. Restart the load at the current generation."
         ),
     )
 }
@@ -1628,7 +1704,10 @@ fn invalidated_snapshot_response() -> Response {
 fn default_error_message(code: &str) -> &'static str {
     match code {
         "base-revision-unusable" => {
-            "This inspection revision cannot be enriched because a newer revision exists or the snapshot was invalidated. Reload the latest revision and try again."
+            "This reading cannot be enriched because the snapshot was invalidated. Restart Volmap against a stable input, or serve it with follow enabled."
+        }
+        "cursor-generation-changed" => {
+            "The generation this collection load started on is no longer retained. Restart the load at the current generation."
         }
         "enrichment-failed" => {
             "Volmap could not inspect the requested page structure because an internal enrichment operation failed."
@@ -1643,11 +1722,10 @@ fn default_error_message(code: &str) -> &'static str {
         "invalid-collection-limit" => "The requested collection size is outside the allowed range.",
         "invalid-collection-query" => "The collection query is malformed.",
         "invalid-cursor" => {
-            "This collection cursor is invalid or belongs to a different inspection revision."
+            "This collection cursor is invalid or was not issued by this Volmap session."
         }
         "invalid-host" => "The request Host does not match this Volmap listener.",
         "invalid-selector" => "The page, slot, or OOS selector is malformed.",
-        "job-not-found" => "The requested enrichment job does not exist in this session.",
         "json-content-type-required" => {
             "Enrichment requests must use the application/json content type."
         }
@@ -1658,9 +1736,6 @@ fn default_error_message(code: &str) -> &'static str {
             "Volmap is already processing the allowed amount of inspection work. Wait for it to finish and try again."
         }
         "resource-not-found" => "The requested Volmap resource does not exist.",
-        "revision-not-found" => {
-            "This inspection revision does not exist in the current Volmap session."
-        }
         "session-unavailable" => "The Volmap inspection session is unavailable.",
         "uri-too-long" => "The request URL exceeds the server limit.",
         _ => "The Volmap request failed.",
@@ -1688,26 +1763,53 @@ mod tests {
     use axum::body::Body;
     use axum::http::{Method, Request};
 
-    fn state() -> WebState {
-        WebState {
-            session: Arc::new(RwLock::new(LiveSession {
-                views: BTreeMap::new(),
-                jobs: BTreeSet::new(),
-                latest: 0,
-            })),
+    /// A session over one uninteresting volume, for the tests that exercise
+    /// the request guards and cursor authenticity and never read a page. A real
+    /// reading rather than an empty one, so the state under test is the state
+    /// the handlers actually see.
+    fn fixture_state(authority: Option<&str>) -> (FixtureDirectory, WebState) {
+        use std::io::Write as _;
+
+        let directory = FixtureDirectory::new();
+        let volume = directory.path().join("guard");
+        let vinf = directory.path().join("guard_vinf");
+        fixture_write_volume(&volume, 0, &[]);
+        let mut manifest = std::fs::File::create(&vinf).unwrap();
+        writeln!(manifest, "0 {}", volume.display()).unwrap();
+        drop(manifest);
+
+        let request = OpenRequest {
+            input: crate::source::InputSpec::Vinf {
+                path: vinf,
+                volume_root: None,
+            },
+            tde_keys_file: None,
+            spill_directory: None,
+        };
+        let policy =
+            ResourcePolicy::new(8 * 1024 * 1024, 1024 * 1024, 1, 64, 8 * 1024 * 1024).unwrap();
+        let view = crate::inspection::Inspection::open(&request, policy, &CancelToken::new(), None)
+            .unwrap()
+            .view(crate::inspection::RevisionSelector::Latest)
+            .unwrap();
+        let state = WebState {
+            source: LiveSource::new(view, FollowConfig::default(), false),
             enrichment: Arc::new(Mutex::new(())),
-            policy: ResourcePolicy::new(1024, 1024, 1, 1, 1024).unwrap(),
+            policy,
             cursor_key: Arc::new([7_u8; 32]),
-            authority: Some(Arc::from("127.0.0.1:8787")),
+            authority: authority.map(Arc::from),
             semaphore: Arc::new(Semaphore::new(1)),
-        }
+            watchers: Arc::new(Semaphore::new(1)),
+        };
+        (directory, state)
     }
 
-    fn wildcard_state() -> WebState {
-        WebState {
-            authority: None,
-            ..state()
-        }
+    fn state() -> (FixtureDirectory, WebState) {
+        fixture_state(Some("127.0.0.1:8787"))
+    }
+
+    fn wildcard_state() -> (FixtureDirectory, WebState) {
+        fixture_state(None)
     }
 
     fn request(method: Method, uri: &str) -> Request<Body> {
@@ -1721,14 +1823,14 @@ mod tests {
 
     #[test]
     fn api_requests_are_unauthenticated() {
-        let state = state();
+        let (_directory, state) = state();
         let request = request(Method::GET, "/api/v1/session");
         assert!(guard(&state, &request).is_ok());
     }
 
     #[test]
     fn wildcard_listener_accepts_any_valid_host_while_loopback_stays_exact() {
-        let state = state();
+        let (_directory, state) = state();
         let mut wrong_host = request(Method::GET, "/api/v1/session");
         wrong_host
             .headers_mut()
@@ -1741,7 +1843,7 @@ mod tests {
         assert_eq!(error.status, StatusCode::MISDIRECTED_REQUEST);
         assert_eq!(error.code, "invalid-host");
 
-        assert!(guard(&wildcard_state(), &wrong_host).is_ok());
+        assert!(guard(&wildcard_state().1, &wrong_host).is_ok());
 
         let mut duplicate = request(Method::GET, "/api/v1/session");
         duplicate
@@ -1755,7 +1857,7 @@ mod tests {
 
     #[test]
     fn post_requires_exact_json_origin_and_same_site_context() {
-        let state = state();
+        let (_directory, state) = state();
         let mut valid = request(Method::POST, "/api/v1/s/id/r/0/enrichments");
         valid
             .headers_mut()
@@ -1776,7 +1878,7 @@ mod tests {
             ORIGIN,
             HeaderValue::from_static("http://debug.internal:8787"),
         );
-        assert!(guard(&wildcard_state(), &wildcard).is_ok());
+        assert!(guard(&wildcard_state().1, &wildcard).is_ok());
 
         let mut missing_origin = request(Method::POST, "/api/v1/s/id/r/0/enrichments");
         missing_origin
@@ -1810,7 +1912,7 @@ mod tests {
 
     #[test]
     fn unsupported_methods_are_rejected_before_routing() {
-        let state = state();
+        let (_directory, state) = state();
         let invalid_post = request(Method::POST, "/api/v1/session");
         let error = guard(&state, &invalid_post).unwrap_err();
         assert_eq!(error.status, StatusCode::METHOD_NOT_ALLOWED);
@@ -1823,7 +1925,7 @@ mod tests {
 
     #[test]
     fn request_bounds_and_security_headers_fail_closed() {
-        let state = state();
+        let (_directory, state) = state();
         let long_uri = format!("/{}", "x".repeat(MAX_URI_BYTES));
         let request = request(Method::GET, &long_uri);
         assert_eq!(
@@ -1851,6 +1953,15 @@ mod tests {
         ServeOptions {
             listen: listen.parse().unwrap(),
             policy: ResourcePolicy::new(1024, 1024, 1, 1, 1024).unwrap(),
+            request: OpenRequest {
+                input: crate::source::InputSpec::Vinf {
+                    path: std::path::PathBuf::from("/nonexistent/volmap-listener-check"),
+                    volume_root: None,
+                },
+                tde_keys_file: None,
+                spill_directory: None,
+            },
+            follow: Some(FollowConfig::default()),
         }
     }
 
@@ -2055,28 +2166,26 @@ mod tests {
             .view(crate::inspection::RevisionSelector::Latest)
             .unwrap();
         let state = WebState {
-            session: Arc::new(RwLock::new(LiveSession {
-                views: BTreeMap::from([(0, view.clone())]),
-                jobs: BTreeSet::new(),
-                latest: 0,
-            })),
+            source: LiveSource::new(view.clone(), FollowConfig::default(), false),
             enrichment: Arc::new(Mutex::new(())),
             policy,
             cursor_key: Arc::new([7_u8; 32]),
             authority: Some(Arc::from("127.0.0.1:8787")),
             semaphore: Arc::new(Semaphore::new(1)),
+            watchers: Arc::new(Semaphore::new(1)),
         };
         (directory, state, view)
     }
 
-    /// A read answers 200; an accepted enrichment answers 202.
+    /// Every live read and every accepted enrichment answers 200: with entity
+    /// URLs there is no new revision resource to point a 202 at.
     async fn response_document(response: Response) -> serde_json::Value {
         let status = response.status();
         let bytes = axum::body::to_bytes(response.into_body(), 4 * 1024 * 1024)
             .await
             .unwrap();
         assert!(
-            matches!(status, StatusCode::OK | StatusCode::ACCEPTED),
+            status == StatusCode::OK,
             "{status}: {}",
             String::from_utf8_lossy(&bytes)
         );
@@ -2096,8 +2205,7 @@ mod tests {
 
     #[test]
     fn clicking_a_record_enriches_its_page_and_returns_interpreted_values() {
-        let (_directory, state, view) = interpretation_session();
-        let snapshot = crate::projection::snapshot_id_hex(view.overview().snapshot_id);
+        let (_directory, state, _view) = interpretation_session();
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
@@ -2108,7 +2216,6 @@ mod tests {
             let structural = response_document(
                 enrich(
                     State(state.clone()),
-                    Path((snapshot.clone(), 0)),
                     Ok(Json(EnrichmentRequest {
                         selector: "slot:1:641:1".to_owned(),
                     })),
@@ -2124,14 +2231,8 @@ mod tests {
 
             // At that point the panel has the record's extent but no values,
             // so it offers the interpretation rather than inventing one.
-            let before = response_document(
-                slot(
-                    State(state.clone()),
-                    Path((snapshot.clone(), structural_revision, 1, 641, 1)),
-                )
-                .await,
-            )
-            .await;
+            let before =
+                response_document(slot(State(state.clone()), Path((1, 641, 1))).await).await;
             assert!(before["data"]["interpretation"].is_null());
             assert!(before["data"]["class_representation"].is_null());
             assert_eq!(before["data"]["selected_slot"]["record_type"], "home");
@@ -2139,7 +2240,6 @@ mod tests {
             let enriched = response_document(
                 enrich(
                     State(state.clone()),
-                    Path((snapshot.clone(), structural_revision)),
                     Ok(Json(EnrichmentRequest {
                         selector: "record:1:641:1".to_owned(),
                     })),
@@ -2158,14 +2258,8 @@ mod tests {
                 "one interpretation click advances the revision exactly once"
             );
 
-            let after = response_document(
-                slot(
-                    State(state.clone()),
-                    Path((snapshot.clone(), revision, 1, 641, 1)),
-                )
-                .await,
-            )
-            .await;
+            let after =
+                response_document(slot(State(state.clone()), Path((1, 641, 1))).await).await;
             let data = &after["data"];
             assert_eq!(
                 data["class_representation"]["class_name"]["value"],
@@ -2178,14 +2272,8 @@ mod tests {
 
             // Every record of the page was interpreted by the one click, so the
             // all-NULL row reads back as NULL rather than as missing.
-            let sibling = response_document(
-                slot(
-                    State(state.clone()),
-                    Path((snapshot.clone(), revision, 1, 641, 2)),
-                )
-                .await,
-            )
-            .await;
+            let sibling =
+                response_document(slot(State(state.clone()), Path((1, 641, 2))).await).await;
             assert_eq!(
                 attribute_value(&sibling["data"], "c_varchar")["state"],
                 "null"
@@ -2201,8 +2289,7 @@ mod tests {
 
     #[test]
     fn a_page_that_cannot_be_interpreted_states_its_reason_in_the_panel() {
-        let (_directory, state, view) = interpretation_session();
-        let snapshot = crate::projection::snapshot_id_hex(view.overview().snapshot_id);
+        let (_directory, state, _view) = interpretation_session();
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
@@ -2214,7 +2301,6 @@ mod tests {
             let structural = response_document(
                 enrich(
                     State(state.clone()),
-                    Path((snapshot.clone(), 0)),
                     Ok(Json(EnrichmentRequest {
                         selector: "slot:0:195:2".to_owned(),
                     })),
@@ -2222,16 +2308,9 @@ mod tests {
                 .await,
             )
             .await;
-            let revision: u64 = structural["snapshot"]["revision"]
-                .as_str()
-                .unwrap()
-                .parse()
-                .unwrap();
-
             let attempted = response_document(
                 enrich(
                     State(state.clone()),
-                    Path((snapshot.clone(), revision)),
                     Ok(Json(EnrichmentRequest {
                         selector: "record:0:195:2".to_owned(),
                     })),
@@ -2239,20 +2318,13 @@ mod tests {
                 .await,
             )
             .await;
-            let revision: u64 = attempted["snapshot"]["revision"]
-                .as_str()
-                .unwrap()
-                .parse()
-                .unwrap();
+            // Nothing is re-reading this session, so both results are published
+            // as revisions of the generation they were computed on.
+            assert_eq!(structural["data"]["retained"], true);
+            assert_eq!(attempted["data"]["retained"], true);
 
-            let document = response_document(
-                slot(
-                    State(state.clone()),
-                    Path((snapshot.clone(), revision, 0, 195, 2)),
-                )
-                .await,
-            )
-            .await;
+            let document =
+                response_document(slot(State(state.clone()), Path((0, 195, 2))).await).await;
             let data = &document["data"];
             // No values, a stated reason, and the structural facts intact.
             assert!(data["interpretation"].is_null());
@@ -2275,12 +2347,12 @@ mod tests {
         // An interpretation is read back through the slot it was asked for, so
         // both selectors resolve to the same resource path.
         assert_eq!(
-            target_result_path("snap", 3, EnrichmentTarget::Record(oid)),
-            target_result_path("snap", 3, EnrichmentTarget::Slot(oid))
+            target_result_path(EnrichmentTarget::Record(oid)),
+            target_result_path(EnrichmentTarget::Slot(oid))
         );
         assert_eq!(
-            target_result_path("snap", 3, EnrichmentTarget::Record(oid)),
-            "/s/snap/r/3/slot/1/577/3"
+            target_result_path(EnrichmentTarget::Record(oid)),
+            "/slot/1/577/3"
         );
     }
 
@@ -2329,17 +2401,19 @@ mod tests {
             assert_eq!(document["error"]["code"], "base-revision-unusable");
             assert_eq!(
                 document["error"]["message"],
-                "This inspection revision cannot be enriched because a newer revision exists or the snapshot was invalidated. Reload the latest revision and try again."
+                "This reading cannot be enriched because the snapshot was invalidated. Restart Volmap against a stable input, or serve it with follow enabled."
             );
 
-            let response = stale_revision_response(4, 5);
+            let response = cursor_generation_changed_response(4);
+            assert_eq!(response.status(), StatusCode::CONFLICT);
             let bytes = axum::body::to_bytes(response.into_body(), 64 * 1024)
                 .await
                 .unwrap();
             let document: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+            assert_eq!(document["error"]["code"], "cursor-generation-changed");
             assert_eq!(
                 document["error"]["message"],
-                "This page inspection started at revision 4, but another inspection already published revision 5. Reload the latest revision and try again."
+                "This load started at generation 4, which is no longer retained. Restart the load at the current generation."
             );
 
             let response = invalidated_snapshot_response();
@@ -2453,30 +2527,67 @@ mod tests {
     }
 
     #[test]
-    fn collection_cursor_is_opaque_session_keyed_and_revision_bound() {
-        let state = state();
-        let mut overview = test_overview();
-        let cursor = encode_cursor(&state, &overview, "volumes", 100);
+    fn collection_cursor_is_opaque_session_keyed_and_generation_carrying() {
+        let (_directory, state) = state();
+        let cursor = encode_cursor(&state, 7, "volumes", 100);
 
-        assert_eq!(cursor.len(), 80);
+        assert_eq!(cursor.len(), CURSOR_HEX_LEN);
         assert_eq!(
-            decode_cursor(&state, &overview, "volumes", &cursor),
-            Some(100)
+            decode_cursor(&state, "volumes", &cursor),
+            Some(CursorPayload {
+                generation: 7,
+                offset: 100,
+            })
         );
-        assert_eq!(decode_cursor(&state, &overview, "coverage", &cursor), None);
+        // The collection is authenticated too, so a cursor cannot be replayed
+        // against a different one.
+        assert_eq!(decode_cursor(&state, "coverage", &cursor), None);
 
-        overview.revision = crate::model::InspectionRevision::new(1);
-        assert_eq!(decode_cursor(&state, &overview, "volumes", &cursor), None);
+        // A cursor issued in an older generation stays recognisably this
+        // session's, which is what lets a stale load be told apart from a
+        // forged one rather than both answering "invalid".
+        let older = encode_cursor(&state, 3, "volumes", 100);
+        assert_ne!(older, cursor);
+        assert_eq!(
+            decode_cursor(&state, "volumes", &older),
+            Some(CursorPayload {
+                generation: 3,
+                offset: 100,
+            })
+        );
 
         let mut tampered = cursor.into_bytes();
         tampered[0] = if tampered[0] == b'0' { b'1' } else { b'0' };
         let tampered = String::from_utf8(tampered).unwrap();
-        assert_eq!(
-            decode_cursor(&state, &test_overview(), "volumes", &tampered),
-            None
-        );
+        assert_eq!(decode_cursor(&state, "volumes", &tampered), None);
         assert_eq!(DEFAULT_COLLECTION_LIMIT, 100);
         assert_eq!(MAX_COLLECTION_LIMIT, 512);
+    }
+
+    /// A load whose generation is still retained continues on it; once that
+    /// generation has been read past, the load is answered as stale so the
+    /// caller restarts rather than treating its own state as corrupt.
+    #[test]
+    fn a_cursor_outlives_its_generation_only_while_that_generation_is_retained() {
+        let (_directory, state, view) = interpretation_session();
+        let cursor = encode_cursor(&state, 0, "volumes", 10);
+
+        let Ok((answer, offset)) = collection_start(&state, "volumes", Some(&cursor)) else {
+            panic!("a retained generation should still be continued");
+        };
+        assert_eq!((answer.reading.generation, offset), (0, 10));
+
+        for _ in 0..FollowConfig::default().retain {
+            state
+                .source
+                .publish(view.clone(), std::time::Duration::ZERO)
+                .unwrap();
+        }
+        let Err(refusal) = collection_start(&state, "volumes", Some(&cursor)) else {
+            panic!("an evicted generation should not be continued");
+        };
+        assert!(matches!(refusal, CollectionRefusal::Evicted(0)));
+        assert_eq!(refusal.response().status(), StatusCode::CONFLICT);
     }
 
     #[test]
@@ -2486,17 +2597,15 @@ mod tests {
             .build()
             .unwrap();
         runtime.block_on(async {
-            let state = state();
-            let overview = test_overview();
+            let (_directory, state) = state();
+            let answer = answer(&state).unwrap();
             let response = collection_response(
                 &state,
-                &overview,
+                &answer,
                 "test",
-                Ok(Query(CollectionQuery {
-                    cursor: None,
-                    limit: None,
-                })),
-                (0_u16..101).collect(),
+                0,
+                DEFAULT_COLLECTION_LIMIT,
+                (0_u16..101).collect::<Vec<_>>(),
             );
             assert_eq!(response.status(), StatusCode::OK);
             let bytes = axum::body::to_bytes(response.into_body(), 64 * 1024)
@@ -2509,15 +2618,17 @@ mod tests {
                 .unwrap()
                 .to_owned();
 
+            // The continuation cursor names this reading's generation, so the
+            // second page of the load comes from the same reading as the first.
+            let payload = decode_cursor(&state, "test", &cursor).unwrap();
+            assert_eq!(payload.generation, answer.reading.generation);
             let response = collection_response(
                 &state,
-                &overview,
+                &answer,
                 "test",
-                Ok(Query(CollectionQuery {
-                    cursor: Some(cursor),
-                    limit: None,
-                })),
-                (0_u16..101).collect(),
+                payload.offset,
+                DEFAULT_COLLECTION_LIMIT,
+                (0_u16..101).collect::<Vec<_>>(),
             );
             let bytes = axum::body::to_bytes(response.into_body(), 64 * 1024)
                 .await
@@ -2528,12 +2639,10 @@ mod tests {
 
             let response = collection_response(
                 &state,
-                &overview,
+                &answer,
                 "test",
-                Ok(Query(CollectionQuery {
-                    cursor: None,
-                    limit: Some(MAX_COLLECTION_LIMIT + 1),
-                })),
+                0,
+                MAX_COLLECTION_LIMIT + 1,
                 Vec::<u8>::new(),
             );
             assert_eq!(response.status(), StatusCode::BAD_REQUEST);
@@ -2560,29 +2669,513 @@ mod tests {
         }
     }
 
+    /// A superseded reading keeps every fact it observed and gains exactly one
+    /// note saying the input has moved on. Being superseded is not a failure and
+    /// must not be reported as one.
     #[test]
-    fn terminal_invalidation_overlays_old_revision_facts_once() {
+    fn superseded_standing_annotates_a_reading_once_without_failing_it() {
         let mut overview = test_overview();
-        apply_terminal_invalidation(&mut overview, false);
+        apply_standing(&mut overview, crate::model::SnapshotValidity::Valid);
         assert_eq!(overview.validity, crate::model::SnapshotValidity::Valid);
+        assert!(overview.diagnostics.is_empty());
 
-        apply_terminal_invalidation(&mut overview, true);
-        apply_terminal_invalidation(&mut overview, true);
+        apply_standing(&mut overview, crate::model::SnapshotValidity::Superseded);
+        apply_standing(&mut overview, crate::model::SnapshotValidity::Superseded);
         assert_eq!(
             overview.validity,
-            crate::model::SnapshotValidity::Invalidated
+            crate::model::SnapshotValidity::Superseded
         );
         assert_eq!(
             overview.outcome,
-            crate::diagnostics::InspectionOutcome::Fatal
+            crate::diagnostics::InspectionOutcome::SuccessLimited
         );
         assert_eq!(
             overview
                 .diagnostics
                 .iter()
-                .filter(|diagnostic| diagnostic.code == "snapshot.modified")
+                .filter(|diagnostic| diagnostic.code == "snapshot.source_advanced")
                 .count(),
             1
+        );
+    }
+
+    // ---- Live follow, proven over a real socket ---------------------------
+
+    /// A live session listening on a real port, with the fixture it reads.
+    struct LiveServer {
+        /// Held so the fixture outlives the requests made against it.
+        _directory: FixtureDirectory,
+        volume: std::path::PathBuf,
+        address: SocketAddr,
+        source: Arc<LiveSource>,
+    }
+
+    impl LiveServer {
+        /// Rewrites a page in place, moving the volume's file stamp exactly as a
+        /// running engine would, without making the volume unreadable.
+        fn write_to_the_volume(&self) {
+            rewrite_fixture_volume(&self.volume);
+        }
+    }
+
+    fn rewrite_fixture_volume(volume: &std::path::Path) {
+        use std::os::unix::fs::FileExt as _;
+
+        let file = std::fs::OpenOptions::new()
+            .write(true)
+            .open(volume)
+            .unwrap();
+        file.write_all_at(&fixture_header_page(0), 0).unwrap();
+        file.sync_all().unwrap();
+    }
+
+    /// Boots the adapter on `127.0.0.1:0` over a one-volume fixture, following
+    /// the input when `follow` is `Some`. The server runs on its own runtime
+    /// thread so the test thread can talk to it with a blocking socket.
+    fn boot(follow: Option<FollowConfig>) -> LiveServer {
+        boot_after_open(follow, false)
+    }
+
+    /// Optionally moves the input after its first reading but before the
+    /// follower starts. That is the deterministic scheduling state left by a
+    /// mid-scan change: the reading's recorded manifest is already stale.
+    fn boot_after_open(follow: Option<FollowConfig>, change_after_open: bool) -> LiveServer {
+        use std::io::Write as _;
+
+        let directory = FixtureDirectory::new();
+        let volume = directory.path().join("live");
+        let vinf = directory.path().join("live_vinf");
+        fixture_write_volume(&volume, 0, &[]);
+        let mut manifest = std::fs::File::create(&vinf).unwrap();
+        writeln!(manifest, "0 {}", volume.display()).unwrap();
+        drop(manifest);
+
+        let request = OpenRequest {
+            input: crate::source::InputSpec::Vinf {
+                path: vinf,
+                volume_root: None,
+            },
+            tde_keys_file: None,
+            spill_directory: None,
+        };
+        let policy =
+            ResourcePolicy::new(8 * 1024 * 1024, 1024 * 1024, 1, 64, 8 * 1024 * 1024).unwrap();
+        let cancel = CancelToken::new();
+        let inspection = if follow.is_some() {
+            crate::inspection::Inspection::open_live(&request, policy, &cancel, None)
+        } else {
+            crate::inspection::Inspection::open(&request, policy, &cancel, None)
+        }
+        .unwrap();
+        let view = inspection
+            .view(crate::inspection::RevisionSelector::Latest)
+            .unwrap();
+        if change_after_open {
+            rewrite_fixture_volume(&volume);
+        }
+        let following = follow.is_some();
+        let source = LiveSource::new(view, follow.unwrap_or_default(), following);
+        let server_source = Arc::clone(&source);
+
+        let (sender, receiver) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let runtime = tokio::runtime::Builder::new_multi_thread()
+                .worker_threads(2)
+                .enable_all()
+                .build()
+                .unwrap();
+            runtime.block_on(async move {
+                let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+                let address = listener.local_addr().unwrap();
+                let state = WebState {
+                    source: Arc::clone(&source),
+                    enrichment: Arc::new(Mutex::new(())),
+                    policy,
+                    cursor_key: Arc::new([7_u8; 32]),
+                    authority: Some(Arc::from(address.to_string())),
+                    semaphore: Arc::new(Semaphore::new(MAX_CONCURRENT_REQUESTS)),
+                    watchers: Arc::new(Semaphore::new(MAX_CONCURRENT_WATCHERS)),
+                };
+                if following {
+                    tokio::spawn(crate::follow::follow(source, request, policy));
+                }
+                sender.send(address).unwrap();
+                let _ = axum::serve(listener, build_router(state)).await;
+            });
+        });
+
+        LiveServer {
+            _directory: directory,
+            volume,
+            address: receiver.recv().unwrap(),
+            source: server_source,
+        }
+    }
+
+    /// A blocking HTTP/1.1 exchange over one connection. `Connection: close`
+    /// makes the response self-delimiting, which is all a test needs and keeps
+    /// the release dependency graph pinned.
+    fn exchange_raw(address: SocketAddr, request: &str) -> (u16, String) {
+        use std::io::{Read as _, Write as _};
+
+        let mut stream = std::net::TcpStream::connect(address).unwrap();
+        stream
+            .set_read_timeout(Some(std::time::Duration::from_secs(40)))
+            .unwrap();
+        stream.write_all(request.as_bytes()).unwrap();
+        let mut raw = Vec::new();
+        stream.read_to_end(&mut raw).unwrap();
+        let text = String::from_utf8_lossy(&raw).into_owned();
+        let status = text
+            .split_whitespace()
+            .nth(1)
+            .and_then(|code| code.parse().ok())
+            .unwrap_or(0);
+        let body = text
+            .split_once("\r\n\r\n")
+            .map_or("", |(_, body)| body)
+            .to_owned();
+        (status, body)
+    }
+
+    fn exchange(address: SocketAddr, request: &str) -> (u16, serde_json::Value) {
+        let (status, body) = exchange_raw(address, request);
+        (
+            status,
+            serde_json::from_str(&body).unwrap_or(serde_json::Value::Null),
+        )
+    }
+
+    fn shell(address: SocketAddr, path: &str) -> (u16, String) {
+        exchange_raw(
+            address,
+            &format!("GET {path} HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\n\r\n"),
+        )
+    }
+
+    fn get(address: SocketAddr, path: &str) -> (u16, serde_json::Value) {
+        exchange(
+            address,
+            &format!("GET {path} HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\n\r\n"),
+        )
+    }
+
+    fn enrichment(address: SocketAddr, selector: &str) -> (u16, serde_json::Value) {
+        let payload = format!("{{\"selector\":\"{selector}\"}}");
+        exchange(
+            address,
+            &format!(
+                "POST /api/v1/enrichments HTTP/1.1\r\nHost: {address}\r\nOrigin: http://{address}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{payload}",
+                payload.len()
+            ),
+        )
+    }
+
+    fn generation_of(document: &serde_json::Value) -> u64 {
+        document["snapshot"]["generation"]
+            .as_str()
+            .unwrap_or_else(|| panic!("no generation in {document}"))
+            .parse()
+            .unwrap()
+    }
+
+    /// A short-fused follow config, so the watcher's debounce runs its real
+    /// course inside a test rather than being bypassed.
+    fn brisk_follow() -> FollowConfig {
+        FollowConfig {
+            poll_interval: std::time::Duration::from_millis(25),
+            quiet_period: std::time::Duration::from_millis(25),
+            max_defer: std::time::Duration::from_millis(400),
+            min_idle: std::time::Duration::from_millis(25),
+            retain: 4,
+        }
+    }
+
+    /// Acceptance 1 and 2: writing to a followed volume advances the generation,
+    /// and the entity URL that answered before the write still answers after it.
+    #[test]
+    fn a_write_to_a_followed_input_advances_the_generation_and_keeps_urls_live() {
+        let server = boot(Some(brisk_follow()));
+
+        let (status, before) = get(server.address, "/api/v1/volumes");
+        assert_eq!(status, 200, "{before}");
+        assert_eq!(generation_of(&before), 0);
+        assert_eq!(before["snapshot"]["validity"], "valid");
+        let volumes = before["data"]["items"].as_array().unwrap().len();
+
+        // A followed input nobody writes to must not churn. Without this the
+        // advance asserted below would prove nothing: a watcher that published a
+        // generation every poll would pass just as happily.
+        std::thread::sleep(brisk_follow().max_defer * 2);
+        let (status, quiet) = get(server.address, "/api/v1/volumes");
+        assert_eq!(status, 200, "{quiet}");
+        assert_eq!(generation_of(&quiet), 0, "an unchanged input churned");
+        assert_eq!(quiet["snapshot"]["validity"], "valid");
+
+        server.write_to_the_volume();
+
+        // The long poll returns the moment the re-read is published, so the
+        // test waits on the event rather than on a sleep.
+        let (status, watched) = get(server.address, "/api/v1/live/watch?generation=0");
+        assert_eq!(status, 200, "{watched}");
+        assert_eq!(watched["data"]["advanced"], true);
+        let advanced = generation_of(&watched);
+        assert!(
+            advanced >= 1,
+            "the generation should have advanced: {watched}"
+        );
+
+        // The URL was never generation-scoped, so it needs no updating.
+        let (status, after) = get(server.address, "/api/v1/volumes");
+        assert_eq!(status, 200, "{after}");
+        assert!(generation_of(&after) >= advanced);
+        assert_eq!(after["data"]["items"].as_array().unwrap().len(), volumes);
+        assert_eq!(after["data"]["next_cursor"]["state"], "end");
+    }
+
+    /// Acceptance 2 names generations 3 and 40 deliberately: the copied URL
+    /// must not depend on the generation that first answered it, even after
+    /// that generation is far outside the retention window.
+    #[test]
+    fn a_generation_three_entity_url_still_resolves_at_generation_forty() {
+        let server = boot(Some(brisk_follow()));
+        let view = server.source.current().unwrap().view;
+        for expected in 1..=3 {
+            assert_eq!(
+                server
+                    .source
+                    .publish(view.clone(), std::time::Duration::ZERO)
+                    .unwrap(),
+                expected
+            );
+        }
+
+        let path = "/api/v1/page/0/2";
+        let (status, copied) = get(server.address, path);
+        assert_eq!(status, 200, "{copied}");
+        assert_eq!(generation_of(&copied), 3);
+        assert_eq!(copied["data"]["page"]["page_id"], 2);
+
+        for expected in 4..=40 {
+            assert_eq!(
+                server
+                    .source
+                    .publish(view.clone(), std::time::Duration::ZERO)
+                    .unwrap(),
+                expected
+            );
+        }
+        assert!(server.source.retained(3).unwrap().is_none());
+
+        let (status, resolved) = get(server.address, path);
+        assert_eq!(status, 200, "{resolved}");
+        assert_eq!(generation_of(&resolved), 40);
+        assert_eq!(resolved["data"]["page"]["page_id"], 2);
+    }
+
+    /// The session report tells the browser what it is looking at, which is what
+    /// the follow loop bootstraps from.
+    #[test]
+    fn a_followed_session_reports_its_follow_state_and_observation_time() {
+        let server = boot(Some(brisk_follow()));
+
+        let (status, session) = get(server.address, "/api/v1/session");
+        assert_eq!(status, 200, "{session}");
+        assert_eq!(session["data"]["follow"]["state"], "following");
+        assert_eq!(session["data"]["follow"]["poll_interval_ms"], "25");
+        assert_eq!(session["data"]["follow"]["retained_generations"], "4");
+        assert!(
+            session["snapshot"]["observed_at_unix_seconds"]
+                .as_str()
+                .unwrap()
+                .parse::<u64>()
+                .unwrap()
+                > 0
+        );
+    }
+
+    /// Acceptance 4's scheduling half, without a timing race. A mid-scan
+    /// change leaves the published reading's manifest behind the input; the
+    /// follower must notice that exact state and publish another scan.
+    #[test]
+    fn a_live_reading_with_a_stale_manifest_schedules_another_scan() {
+        let server = boot_after_open(Some(brisk_follow()), true);
+
+        let (status, watched) = get(server.address, "/api/v1/live/watch?generation=0");
+        assert_eq!(status, 200, "{watched}");
+        assert_eq!(watched["data"]["advanced"], true);
+        assert!(generation_of(&watched) >= 1, "{watched}");
+    }
+
+    /// Acceptance 3: with follow off the offline contract is untouched. Nothing
+    /// re-reads the input, so a change ends the session at an invalidated
+    /// snapshot instead of advancing past it.
+    #[test]
+    fn without_follow_a_changed_input_still_reaches_the_invalidated_snapshot() {
+        let server = boot(None);
+
+        let (status, session) = get(server.address, "/api/v1/session");
+        assert_eq!(status, 200, "{session}");
+        assert_eq!(session["data"]["follow"]["state"], "disabled");
+        assert_eq!(session["snapshot"]["validity"], "valid");
+
+        server.write_to_the_volume();
+
+        // No watcher, so the generation cannot move and the long poll says so
+        // at once rather than holding the request open.
+        let (status, watched) = get(server.address, "/api/v1/live/watch?generation=0");
+        assert_eq!(status, 200, "{watched}");
+        assert_eq!(watched["data"]["advanced"], false);
+        assert_eq!(generation_of(&watched), 0);
+
+        // The first deep read discovers the change and ends the session on it.
+        let (status, enriched) = enrichment(server.address, "page:0:2");
+        assert_eq!(status, 200, "{enriched}");
+        assert_eq!(enriched["snapshot"]["validity"], "invalidated");
+        assert_eq!(enriched["outcome"], "fatal");
+        assert!(
+            enriched["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|diagnostic| diagnostic["code"] == "snapshot.modified"),
+            "{enriched}"
+        );
+
+        // And it stays ended: a further enrichment is refused outright.
+        let (status, refused) = enrichment(server.address, "page:0:3");
+        assert_eq!(status, 409, "{refused}");
+        assert_eq!(refused["error"]["code"], "base-revision-unusable");
+    }
+
+    /// The asset contract test proves the browser asks for entity paths. This
+    /// proves the server answers them, which is the half a text assertion
+    /// cannot reach: the two halves drifted apart once already, and the asset
+    /// test stayed green throughout because it never spoke to a server.
+    #[test]
+    fn every_address_the_browser_builds_resolves() {
+        let server = boot(Some(brisk_follow()));
+
+        for path in [
+            "/api/v1/session",
+            "/api/v1/overview",
+            "/api/v1/volumes",
+            "/api/v1/sectors/0",
+            "/api/v1/relationships",
+            "/api/v1/diagnostics",
+            "/api/v1/coverage",
+            "/api/v1/sector/0/0",
+            "/api/v1/page/0/2",
+            // No generation given, so the long poll reports at once instead of
+            // holding the request open for its full window.
+            "/api/v1/live/watch",
+        ] {
+            let (status, document) = get(server.address, path);
+            assert_eq!(status, 200, "{path}: {document}");
+            assert_eq!(document["schema"], SCHEMA_NAME, "{path}: {document}");
+            assert_eq!(document["snapshot"]["generation"], "0", "{path}");
+        }
+
+        // The notices document is its own schema and carries no reading, so it
+        // is checked for reachability rather than for an envelope.
+        let (status, licenses) = get(server.address, "/api/v1/licenses");
+        assert_eq!(status, 200);
+        assert_eq!(licenses["schema"], "volmap.licenses");
+
+        // Every drill level is a real address the browser can be loaded at
+        // directly, and each one hands back the application shell.
+        for path in [
+            "/",
+            "/volume/0",
+            "/sector/0/0",
+            "/page/0/2",
+            "/slot/0/2/0",
+            "/oos/0/2/0",
+            "/file/0/0",
+        ] {
+            let (status, body) = shell(server.address, path);
+            assert_eq!(status, 200, "{path}: {body}");
+            assert!(
+                body.contains("Volmap Inspector"),
+                "{path} did not serve the application shell"
+            );
+        }
+
+        // The grammar the browser abandoned is gone from the server too, so a
+        // stale bookmark fails loudly rather than resolving to a stale reading.
+        for path in [
+            "/s/00000000000000000000000000000000/r/0/volume/0",
+            "/api/v1/jobs/1",
+        ] {
+            let (status, _body) = shell(server.address, path);
+            assert_eq!(status, 404, "{path} should no longer resolve");
+        }
+    }
+
+    /// The envelope reports when the input last changed on disk separately from
+    /// when Volmap read it, because a reader who has committed a change and
+    /// cannot see it is looking at the gap between those two times. Conflating
+    /// them would hide exactly the thing that reader needs.
+    #[test]
+    fn the_envelope_separates_the_disk_time_from_the_read_time() {
+        let server = boot(Some(brisk_follow()));
+
+        let (status, before) = get(server.address, "/api/v1/overview");
+        assert_eq!(status, 200, "{before}");
+        let read_at = before["snapshot"]["observed_at_unix_seconds"]
+            .as_str()
+            .unwrap()
+            .parse::<u64>()
+            .unwrap();
+        let disk_at = before["snapshot"]["input_modified_unix_seconds"]
+            .as_str()
+            .unwrap_or_else(|| panic!("no disk time in {before}"))
+            .parse::<u64>()
+            .unwrap();
+        // The fixture was written before it was read, so the disk time cannot
+        // be the later of the two.
+        assert!(
+            disk_at <= read_at,
+            "disk {disk_at} later than read {read_at}"
+        );
+        assert!(disk_at > 0);
+
+        server.write_to_the_volume();
+        let watched = get(server.address, "/api/v1/live/watch?generation=0").1;
+        assert_eq!(watched["data"]["advanced"], true);
+
+        // A write moves the disk time, and the generation that observed it
+        // reports the newer value rather than the one it superseded.
+        let (status, after) = get(server.address, "/api/v1/overview");
+        assert_eq!(status, 200, "{after}");
+        let disk_after = after["snapshot"]["input_modified_unix_seconds"]
+            .as_str()
+            .unwrap()
+            .parse::<u64>()
+            .unwrap();
+        assert!(
+            disk_after >= disk_at,
+            "the disk time went backwards: {disk_at} then {disk_after}"
+        );
+    }
+
+    /// An immutable session reports a disk time too. It reads the input once, so
+    /// the value never moves, but a reader still wants to know how old the
+    /// bytes in front of them are.
+    #[test]
+    fn an_immutable_session_still_reports_when_its_input_was_written() {
+        let server = boot(None);
+
+        let (status, document) = get(server.address, "/api/v1/session");
+        assert_eq!(status, 200, "{document}");
+        assert_eq!(document["data"]["follow"]["state"], "disabled");
+        assert!(
+            document["snapshot"]["input_modified_unix_seconds"]
+                .as_str()
+                .unwrap_or_else(|| panic!("no disk time in {document}"))
+                .parse::<u64>()
+                .unwrap()
+                > 0
         );
     }
 }

@@ -55,6 +55,61 @@ impl FileStamp {
     }
 }
 
+/// The ordered declared volume identities and file stamps observed for one
+/// reading of an input, including volume-set membership so an added or removed
+/// volume is a change.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct InputFingerprint {
+    input_kind: &'static str,
+    volumes: Vec<(VolId, FileStamp)>,
+}
+
+impl InputFingerprint {
+    #[must_use]
+    pub const fn input_kind(&self) -> &'static str {
+        self.input_kind
+    }
+
+    /// When the input last changed on disk, as a Unix second count.
+    ///
+    /// This is not when a transaction committed. A change committed to the log
+    /// but not yet written to a data volume has moved no stamp here, so a
+    /// reader comparing this against their own clock is seeing the engine's
+    /// flush cadence rather than anything the reader can hurry along.
+    #[must_use]
+    pub fn newest_modified_unix_seconds(&self) -> Option<u64> {
+        self.volumes
+            .iter()
+            .map(|(_, stamp)| stamp.modified_seconds)
+            .max()
+            .and_then(|seconds| u64::try_from(seconds).ok())
+    }
+
+    #[must_use]
+    pub fn volumes(&self) -> &[(VolId, FileStamp)] {
+        &self.volumes
+    }
+}
+
+/// Reads the input's fingerprint manifest without opening or reading volume
+/// pages. Volume-set membership comes from the manifest, so an extended
+/// database is observed as a change rather than missed.
+pub fn fingerprint(input: &InputSpec) -> Result<InputFingerprint, SourceError> {
+    let (vinf_path, volume_root) = resolve_manifest(input)?;
+    let entries = parse_vinf(&vinf_path, volume_root)?;
+    let mut volumes = Vec::with_capacity(entries.len());
+    for (declared_id, path) in entries {
+        let metadata = path
+            .metadata()
+            .map_err(|error| SourceError::io_path("inspect volume", path.clone(), error))?;
+        volumes.push((declared_id, FileStamp::from_metadata(&metadata)));
+    }
+    Ok(InputFingerprint {
+        input_kind: input.kind(),
+        volumes,
+    })
+}
+
 pub struct VolumeHandle {
     declared_id: VolId,
     file: File,
@@ -158,6 +213,19 @@ impl SourceSet {
             .binary_search_by_key(&vol_id.get(), |volume| volume.declared_id.get())
             .ok()
             .and_then(|index| self.volumes.get(index))
+    }
+
+    /// The fingerprint manifest observed when this set was discovered.
+    #[must_use]
+    pub fn fingerprint(&self) -> InputFingerprint {
+        InputFingerprint {
+            input_kind: self.input_kind,
+            volumes: self
+                .volumes
+                .iter()
+                .map(|volume| (volume.declared_id, volume.stamp))
+                .collect(),
+        }
     }
 
     pub fn verify_unchanged(&self) -> Result<bool, SourceError> {
@@ -269,14 +337,18 @@ impl std::error::Error for SourceError {
     }
 }
 
-pub fn discover(input: &InputSpec) -> Result<SourceSet, SourceError> {
-    let (vinf_path, volume_root) = match input {
+fn resolve_manifest(input: &InputSpec) -> Result<(PathBuf, Option<&Path>), SourceError> {
+    match input {
         InputSpec::Database {
             name,
             databases_file,
-        } => (resolve_database(name, databases_file.as_deref())?, None),
-        InputSpec::Vinf { path, volume_root } => (path.clone(), volume_root.as_deref()),
-    };
+        } => Ok((resolve_database(name, databases_file.as_deref())?, None)),
+        InputSpec::Vinf { path, volume_root } => Ok((path.clone(), volume_root.as_deref())),
+    }
+}
+
+pub fn discover(input: &InputSpec) -> Result<SourceSet, SourceError> {
+    let (vinf_path, volume_root) = resolve_manifest(input)?;
     let entries = parse_vinf(&vinf_path, volume_root)?;
     let mut volumes = Vec::with_capacity(entries.len());
     for (declared_id, path) in entries {

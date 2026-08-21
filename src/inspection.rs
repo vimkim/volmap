@@ -105,6 +105,17 @@ impl fmt::Display for ResourcePolicyError {
 
 impl std::error::Error for ResourcePolicyError {}
 
+/// Whether a reading treats its input as immutable or follows a live one.
+/// It selects the consequence of an input change, not the reading itself.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SourceMode {
+    /// The offline contract: a changed input invalidates the snapshot.
+    Immutable,
+    /// The follow contract: a changed input supersedes this generation and the
+    /// caller is expected to re-read.
+    Live,
+}
+
 #[derive(Clone, Debug)]
 pub struct OpenRequest {
     pub input: InputSpec,
@@ -987,6 +998,7 @@ pub struct DeepPageView {
 #[derive(Clone, Debug)]
 struct SessionData {
     sources: Arc<SourceSet>,
+    source_mode: SourceMode,
     tde_key: Option<Arc<PermanentDataKey>>,
     snapshot_id: SnapshotId,
     revision: InspectionRevision,
@@ -1241,10 +1253,64 @@ pub struct GraphView {
     data: Arc<SessionData>,
 }
 
+/// Classifies the same mid-scan source change under the two input contracts.
+///
+/// Keeping this decision free of I/O makes the immutable and live consequences
+/// directly testable; racing a writer against a scan would only test timing.
+fn classify_mid_scan_source_change(
+    source_mode: SourceMode,
+) -> (SnapshotValidity, DiagnosticRecord) {
+    match source_mode {
+        SourceMode::Immutable => (
+            SnapshotValidity::Invalidated,
+            DiagnosticRecord {
+                code: "snapshot.modified",
+                severity: "fatal",
+                message: "An input changed during inspection.",
+                subject: "snapshot".to_owned(),
+                rule: "snapshot.file_stamp.stable",
+            },
+        ),
+        SourceMode::Live => (
+            SnapshotValidity::Torn,
+            DiagnosticRecord {
+                code: "snapshot.torn_read",
+                severity: "warning",
+                message: "An input changed while this generation was read; its facts may mix states.",
+                subject: "snapshot".to_owned(),
+                rule: "snapshot.file_stamp.stable",
+            },
+        ),
+    }
+}
+
 impl Inspection {
-    #[allow(clippy::too_many_lines, clippy::single_match_else)]
+    /// Reads the input under the offline immutable contract.
     pub fn open(
         request: &OpenRequest,
+        policy: ResourcePolicy,
+        cancel: &CancelToken,
+        progress: Option<&mut dyn ProgressObserver>,
+    ) -> Result<Self, OpenFailure> {
+        Self::open_with_mode(request, SourceMode::Immutable, policy, cancel, progress)
+    }
+
+    /// Reads the input as one generation of a live follow. A change observed
+    /// during the scan produces a torn generation rather than ending the
+    /// session, because the caller re-reads instead of stopping.
+    pub fn open_live(
+        request: &OpenRequest,
+        policy: ResourcePolicy,
+        cancel: &CancelToken,
+        progress: Option<&mut dyn ProgressObserver>,
+    ) -> Result<Self, OpenFailure> {
+        Self::open_with_mode(request, SourceMode::Live, policy, cancel, progress)
+    }
+
+    #[allow(clippy::too_many_lines, clippy::single_match_else)]
+    fn open_with_mode(
+        request: &OpenRequest,
+        source_mode: SourceMode,
         policy: ResourcePolicy,
         cancel: &CancelToken,
         mut progress: Option<&mut dyn ProgressObserver>,
@@ -1629,14 +1695,12 @@ impl Inspection {
         report(&mut progress, ScanPhase::Reconciliation, 0, Some(1));
         let mut validity = SnapshotValidity::Valid;
         if !sources.verify_unchanged().map_err(OpenFailure::Source)? {
-            validity = SnapshotValidity::Invalidated;
-            diagnostics.push(DiagnosticRecord {
-                code: "snapshot.modified",
-                severity: "fatal",
-                message: "An input changed during inspection.",
-                subject: "snapshot".to_owned(),
-                rule: "snapshot.file_stamp.stable",
-            });
+            // The same observation means different things under the two
+            // contracts: offline it ends the session, following it only means
+            // this generation is internally inconsistent and another is due.
+            let (changed_validity, diagnostic) = classify_mid_scan_source_change(source_mode);
+            validity = changed_validity;
+            diagnostics.push(diagnostic);
         }
         let page_coverage = if stopped_reason.is_some() {
             Coverage::Partial
@@ -1719,6 +1783,7 @@ impl Inspection {
         let inspection = Self {
             data: Arc::new(SessionData {
                 sources,
+                source_mode,
                 tde_key,
                 snapshot_id: SnapshotId::from_bytes(snapshot_bytes),
                 revision: InspectionRevision::new(0),
@@ -1925,6 +1990,20 @@ impl Inspection {
 }
 
 impl GraphView {
+    /// The contract this reading was taken under.
+    #[must_use]
+    pub fn source_mode(&self) -> SourceMode {
+        self.data.source_mode
+    }
+
+    /// The input fingerprint manifest observed when this reading was
+    /// discovered. Comparing it with a fresh `source::fingerprint` of the same
+    /// input is how a follower decides the reading has been superseded.
+    #[must_use]
+    pub fn source_fingerprint(&self) -> crate::source::InputFingerprint {
+        self.data.sources.fingerprint()
+    }
+
     #[must_use]
     pub fn fast_scan_resources(&self) -> FastScanResources {
         self.data.fast_scan_resources
@@ -2201,13 +2280,8 @@ impl GraphView {
         if cancel.is_cancelled() {
             return Err(OperationError::Interrupted);
         }
-        if !self
-            .data
-            .sources
-            .verify_unchanged()
-            .map_err(OperationError::Source)?
-        {
-            return self.invalidated_revision();
+        if let Some(stopped) = self.source_stability_stop()? {
+            return Ok(stopped);
         }
         let page_view = self.page(vpid).map_err(OperationError::Query)?;
         if page_view.availability != Availability::Available {
@@ -2372,13 +2446,8 @@ impl GraphView {
             }
             Err(error) => return self.page_decode_failure(vpid, error.rule()),
         };
-        if !self
-            .data
-            .sources
-            .verify_unchanged()
-            .map_err(OperationError::Source)?
-        {
-            return self.invalidated_revision();
+        if let Some(stopped) = self.source_stability_stop()? {
+            return Ok(stopped);
         }
         self.publish_deep_page(vpid, fact)
     }
@@ -2412,13 +2481,8 @@ impl GraphView {
         {
             return Err(OperationError::ResourceLimit);
         }
-        if !self
-            .data
-            .sources
-            .verify_unchanged()
-            .map_err(OperationError::Source)?
-        {
-            return self.invalidated_revision();
+        if let Some(stopped) = self.source_stability_stop()? {
+            return Ok(stopped);
         }
         let page = self.page(header_page).map_err(OperationError::Query)?;
         if page.availability != Availability::Available
@@ -2455,13 +2519,8 @@ impl GraphView {
         if cancel.is_cancelled() {
             return Err(OperationError::Interrupted);
         }
-        if !self
-            .data
-            .sources
-            .verify_unchanged()
-            .map_err(OperationError::Source)?
-        {
-            return self.invalidated_revision();
+        if let Some(stopped) = self.source_stability_stop()? {
+            return Ok(stopped);
         }
         self.publish_file(header_page, file_header, facts, cancel)
     }
@@ -2616,13 +2675,8 @@ impl GraphView {
         if retained > policy.memory_limit {
             return Err(OperationError::ResourceLimit);
         }
-        if !self
-            .data
-            .sources
-            .verify_unchanged()
-            .map_err(OperationError::Source)?
-        {
-            return self.invalidated_revision();
+        if let Some(stopped) = self.source_stability_stop()? {
+            return Ok(stopped);
         }
         let mut next = (*self.data).clone();
         next.revision = next
@@ -3115,13 +3169,8 @@ impl GraphView {
         {
             return self.publish_relocation_edge(source, None, Some("resource-limit"));
         }
-        if !self
-            .data
-            .sources
-            .verify_unchanged()
-            .map_err(OperationError::Source)?
-        {
-            return self.invalidated_revision();
+        if let Some(stopped) = self.source_stability_stop()? {
+            return Ok(stopped);
         }
         let source_vpid = Vpid::new(source.vol_id, source.page_id);
         let Some(heap_owner) = self.data.file_allocations.get(&source_vpid).copied() else {
@@ -3255,13 +3304,8 @@ impl GraphView {
                 Some("heap.relocation.target_slot_role"),
             );
         }
-        if !self
-            .data
-            .sources
-            .verify_unchanged()
-            .map_err(OperationError::Source)?
-        {
-            return self.invalidated_revision();
+        if let Some(stopped) = self.source_stability_stop()? {
+            return Ok(stopped);
         }
         self.publish_relocation_edge(source, Some(target), None)
     }
@@ -3416,13 +3460,8 @@ impl GraphView {
         {
             return Err(OperationError::Unsupported);
         }
-        if !self
-            .data
-            .sources
-            .verify_unchanged()
-            .map_err(OperationError::Source)?
-        {
-            return self.invalidated_revision();
+        if let Some(stopped) = self.source_stability_stop()? {
+            return Ok(stopped);
         }
         let class_oid = match self.class_oid_for_heap_page(vpid) {
             Ok(oid) => oid,
@@ -3465,13 +3504,8 @@ impl GraphView {
             // rather than a new revision carrying identical facts.
             return Ok(self.clone());
         }
-        if !self
-            .data
-            .sources
-            .verify_unchanged()
-            .map_err(OperationError::Source)?
-        {
-            return self.invalidated_revision();
+        if let Some(stopped) = self.source_stability_stop()? {
+            return Ok(stopped);
         }
         self.publish_interpretation(
             vpid,
@@ -3502,13 +3536,8 @@ impl GraphView {
         {
             return Err(OperationError::Unsupported);
         }
-        if !self
-            .data
-            .sources
-            .verify_unchanged()
-            .map_err(OperationError::Source)?
-        {
-            return self.invalidated_revision();
+        if let Some(stopped) = self.source_stability_stop()? {
+            return Ok(stopped);
         }
         let class_oid = match self.class_oid_for_heap_page(vpid) {
             Ok(oid) => oid,
@@ -3638,13 +3667,8 @@ impl GraphView {
             }
         }
 
-        if !self
-            .data
-            .sources
-            .verify_unchanged()
-            .map_err(OperationError::Source)?
-        {
-            return self.invalidated_revision();
+        if let Some(stopped) = self.source_stability_stop()? {
+            return Ok(stopped);
         }
         let already_published = !records.is_empty()
             && records
@@ -3947,13 +3971,8 @@ impl GraphView {
                 Some("resource-limit"),
             );
         }
-        if !self
-            .data
-            .sources
-            .verify_unchanged()
-            .map_err(OperationError::Source)?
-        {
-            return self.invalidated_revision();
+        if let Some(stopped) = self.source_stability_stop()? {
+            return Ok(stopped);
         }
         let home = Vpid::new(source.vol_id, source.page_id);
         let Some(heap_owner) = self.data.file_allocations.get(&home).copied() else {
@@ -4310,13 +4329,8 @@ impl GraphView {
                 }
             }
         }
-        if !self
-            .data
-            .sources
-            .verify_unchanged()
-            .map_err(OperationError::Source)?
-        {
-            return self.invalidated_revision();
+        if let Some(stopped) = self.source_stability_stop()? {
+            return Ok(stopped);
         }
         self.publish_overflow_chain(
             source,
@@ -4366,13 +4380,8 @@ impl GraphView {
         if self.data.oos_chains.contains_key(&head) {
             return Ok(self.clone());
         }
-        if !self
-            .data
-            .sources
-            .verify_unchanged()
-            .map_err(OperationError::Source)?
-        {
-            return self.invalidated_revision();
+        if let Some(stopped) = self.source_stability_stop()? {
+            return Ok(stopped);
         }
         let mut visited = BTreeSet::new();
         let mut chunks = Vec::new();
@@ -4592,13 +4601,8 @@ impl GraphView {
                 .checked_add(1)
                 .ok_or(OperationError::Arithmetic)?;
         }
-        if !self
-            .data
-            .sources
-            .verify_unchanged()
-            .map_err(OperationError::Source)?
-        {
-            return self.invalidated_revision();
+        if let Some(stopped) = self.source_stability_stop()? {
+            return Ok(stopped);
         }
         self.publish_oos_chain(head, expected_total, validated_payload_bytes, chunks, None)
     }
@@ -4928,6 +4932,28 @@ impl GraphView {
         Ok(Self {
             data: Arc::new(next),
         })
+    }
+
+    /// Checks source stability before an enrichment.
+    ///
+    /// Under the immutable contract a changed input ends the session at an
+    /// invalidated revision, returned here for the caller to publish. Under
+    /// live follow the read proceeds: the watcher re-reads the input, and the
+    /// live session labels the generation superseded from the outside, so a
+    /// deep read is never refused just because the database is in use.
+    fn source_stability_stop(&self) -> Result<Option<Self>, OperationError> {
+        if self
+            .data
+            .sources
+            .verify_unchanged()
+            .map_err(OperationError::Source)?
+        {
+            return Ok(None);
+        }
+        match self.data.source_mode {
+            SourceMode::Immutable => self.invalidated_revision().map(Some),
+            SourceMode::Live => Ok(None),
+        }
     }
 
     fn invalidated_revision(&self) -> Result<Self, OperationError> {
@@ -5544,10 +5570,24 @@ mod tests {
     use std::mem::size_of;
 
     use super::{
-        PACKED_PAGE_FACT_SIZE_USIZE, PackedPageFact, PageFastFact, page_uses_slotted_layout,
+        PACKED_PAGE_FACT_SIZE_USIZE, PackedPageFact, PageFastFact, SourceMode,
+        classify_mid_scan_source_change, page_uses_slotted_layout,
     };
     use crate::format::{FileType, PageType};
-    use crate::model::{Availability, PageId, TdeInspectionState};
+    use crate::model::{Availability, PageId, SnapshotValidity, TdeInspectionState};
+
+    #[test]
+    fn a_mid_scan_change_is_fatal_offline_but_torn_when_following() {
+        let (validity, diagnostic) = classify_mid_scan_source_change(SourceMode::Immutable);
+        assert_eq!(validity, SnapshotValidity::Invalidated);
+        assert_eq!(diagnostic.code, "snapshot.modified");
+        assert_eq!(diagnostic.severity, "fatal");
+
+        let (validity, diagnostic) = classify_mid_scan_source_change(SourceMode::Live);
+        assert_eq!(validity, SnapshotValidity::Torn);
+        assert_eq!(diagnostic.code, "snapshot.torn_read");
+        assert_eq!(diagnostic.severity, "warning");
+    }
 
     #[test]
     fn packed_page_fact_is_exact_and_round_trips_canonical_fields() {

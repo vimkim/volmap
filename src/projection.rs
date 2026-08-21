@@ -37,6 +37,19 @@ pub struct SnapshotProjection {
     pub revision: String,
     pub validity: &'static str,
     pub format_profile: &'static str,
+    /// The live-follow generation this reading belongs to. Absent for the
+    /// offline adapters, which read one immutable input exactly once.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub generation: Option<String>,
+    /// When the generation was read. Absent for the offline adapters, whose
+    /// output stays deterministic.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub observed_at_unix_seconds: Option<String>,
+    /// When the input last changed on disk. Reported separately from the read
+    /// time because the two answer different questions: a reader who committed
+    /// a change and does not see it is looking at the gap between them.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub input_modified_unix_seconds: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -694,6 +707,9 @@ pub fn result_document(
             revision: overview.revision.get().to_string(),
             validity: validity_name(overview.validity),
             format_profile: overview.format_profile,
+            generation: None,
+            observed_at_unix_seconds: None,
+            input_modified_unix_seconds: None,
         },
         outcome: outcome_name(overview.outcome),
         coverage: overview
@@ -1495,9 +1511,12 @@ pub fn diagnostic_projection(diagnostic: DiagnosticRecord) -> DiagnosticProjecti
     }
 }
 
-const fn validity_name(validity: SnapshotValidity) -> &'static str {
+#[must_use]
+pub const fn validity_name(validity: SnapshotValidity) -> &'static str {
     match validity {
         SnapshotValidity::Valid => "valid",
+        SnapshotValidity::Torn => "torn",
+        SnapshotValidity::Superseded => "superseded",
         SnapshotValidity::Invalidated => "invalidated",
     }
 }

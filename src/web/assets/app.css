@@ -44,6 +44,23 @@ header strong {
 .spacer {
   flex: 1;
 }
+.follow-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 5px 4px 10px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.follow-control[hidden] {
+  display: none;
+}
+.follow-control button {
+  padding: 4px 7px;
+}
 button {
   padding: 8px 11px;
   background: var(--cyan);
@@ -440,6 +457,9 @@ dialog::backdrop {
     min-height: 54px;
     flex-wrap: wrap;
     padding: 10px 14px;
+  }
+  .follow-control {
+    order: 2;
   }
   main {
     display: block;

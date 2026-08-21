@@ -229,12 +229,40 @@ _Avoid_: OOS chain page
 ## Distribution
 
 **Live inspection session**:
-One foreground `serve` process, its private cursor-integrity key, current database snapshot with its immutable revision history, enrichment jobs, cursors, and browser/API locations. A snapshot refresh may replace the current snapshot; superseded snapshot state is discarded. The HTTP interface is unauthenticated; remote exposure requires an explicit IPv4 wildcard listener. All process state expires together when the process ends and is never reused as a persistent inspection index.
+One foreground `serve` process, its private cursor-integrity key, the snapshot generations it currently retains with their inspection revisions, cursors, and browser/API locations. Publishing a generation replaces the one on display; evicted generation state is discarded. The HTTP interface is unauthenticated; remote exposure requires an explicit IPv4 wildcard listener. All process state expires together when the process ends and is never reused as a persistent inspection index.
 _Avoid_: Web deployment, daemon, saved report
 
-**Snapshot refresh**:
-An explicit on-demand request that a live inspection session re-inspect its original volume inputs as a new database snapshot. The session adopts the new snapshot atomically only when its fast inspection succeeds and discards the superseded snapshot; on failure the current snapshot remains authoritative and unchanged. Deep-inspection enrichment never carries over between snapshots.
-_Avoid_: Auto-reload, live monitoring, in-place rescan
+**Source mode**:
+Whether an input is read under the offline `immutable` contract or as one generation of a `live` follow. It selects the consequence of an input change, not how the input is read. `serve` follows by default; every other command is immutable.
+_Avoid_: Read mode, online mode, live database
+
+**Snapshot generation**:
+One complete fast scan of a live input, numbered monotonically within a live inspection session, carrying its own database-snapshot identity and its own inspection-revision chain. Generations replace one another rather than revising one another, and deep-inspection enrichment never carries over between them.
+_Avoid_: Snapshot refresh, reload, rescan revision
+
+**Input fingerprint manifest**:
+The ordered declared data-volume identities and file stamps observed for one generation, including volume-set membership so an added or removed volume counts as a change. Volumes declared with negative identifiers, which is to say the log and the manifests themselves, are not part of it.
+_Avoid_: Checksum, volume digest
+
+**Torn generation**:
+A generation whose fingerprint manifest changed during its own scan. Its facts are usable evidence labelled internally inconsistent; it is not an invalidated snapshot, and another scan is scheduled.
+_Avoid_: Corrupt snapshot, partial read, failed scan
+
+**Superseded generation**:
+A published generation whose fingerprint manifest no longer matches the input. Its facts stay exactly as observed and stay queryable while retained. Being superseded is a statement about currency, not about correctness, and is never reported as a failure.
+_Avoid_: Stale snapshot, invalidated snapshot
+
+**Live follow**:
+The watcher behaviour that polls the input fingerprint manifest, debounces an observed change, re-reads the input, and publishes the result as the next generation. Only `serve` follows, and it watches only the data volumes.
+_Avoid_: Auto-reload, live monitoring, in-place rescan, snapshot refresh
+
+**Generation retention window**:
+The bounded count of recent generations kept addressable so that a collection load finishes on the generation it started on. A cursor naming a generation past the window is answered as stale rather than as a forgery.
+_Avoid_: History, cache, undo buffer
+
+**Observed disk state**:
+What Volmap reports: the bytes present in the data volume files at the moment they were read. This is not committed database state. A change committed to the log but not yet written to a data volume is invisible to inspection, and a page written before its transaction commits is visible to it, so the delay a reader notices is the engine flush cadence rather than anything Volmap controls. Live follow shortens the gap between a write reaching disk and the viewer showing it; it does not make the viewer a transaction-visibility tool.
+_Avoid_: Database state, committed state, current data, what the database contains
 
 **HTML inspection export**:
 A bounded, self-contained offline file that freezes one inspection revision and contains only facts already committed to that revision. It is not connected to a live inspection session and cannot request missing deep detail.

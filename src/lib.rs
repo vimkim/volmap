@@ -7,6 +7,7 @@ pub mod bytes;
 pub mod cli;
 pub mod diagnostics;
 pub mod export;
+pub mod follow;
 pub mod format;
 pub mod inspection;
 pub mod model;

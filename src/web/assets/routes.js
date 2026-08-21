@@ -15,37 +15,29 @@
       : null;
   }
 
+  // A route names an entity and nothing else. No snapshot and no revision
+  // appear in it, so a link keeps working as the viewer reads the input again;
+  // which reading answered a request is reported in the response envelope,
+  // where it cannot be mistaken for part of the address.
   function parse(pathname = location.pathname) {
     if (pathname === "/") return { kind: "root" };
 
     const parts = pathname.split("/");
-    if (
-      parts[0] !== "" ||
-      parts[1] !== "s" ||
-      !/^[0-9a-f]{32}$/.test(parts[2] || "") ||
-      parts[3] !== "r" ||
-      !/^(0|[1-9]\d*)$/.test(parts[4] || "")
-    )
-      return null;
+    if (parts[0] !== "") return null;
 
-    const kind = parts[5],
+    const kind = parts[1],
       descriptor = Object.hasOwn(ROUTE_KINDS, kind) ? ROUTE_KINDS[kind] : null,
-      vol = canonicalNumber(parts[6]);
+      vol = canonicalNumber(parts[2]);
     if (
       !descriptor ||
       vol === null ||
-      parts.length !== 7 + descriptor.fields.length
+      parts.length !== 3 + descriptor.fields.length
     )
       return null;
 
-    const route = {
-      snapshot: parts[2],
-      revision: parts[4],
-      kind,
-      vol,
-    };
+    const route = { kind, vol };
     for (const [index, field] of descriptor.fields.entries()) {
-      const value = canonicalNumber(parts[7 + index]);
+      const value = canonicalNumber(parts[3 + index]);
       if (value === null) return null;
       route[field] = value;
     }
@@ -54,9 +46,8 @@
 
   function path(route) {
     const descriptor = ROUTE_KINDS[route.kind],
-      prefix = `/s/${route.snapshot}/r/${route.revision}`,
       suffix = descriptor.fields.map((field) => route[field]).join("/");
-    return `${prefix}/${route.kind}/${route.vol}${suffix ? `/${suffix}` : ""}`;
+    return `/${route.kind}/${route.vol}${suffix ? `/${suffix}` : ""}`;
   }
 
   function parentPath(route, currentSectorId) {

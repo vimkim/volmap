@@ -10,9 +10,14 @@
     volumeView = null,
     sectorCursor = "end",
     loadedSectors = 0,
-    loadingGeneration = null,
-    loadGeneration = 0,
-    routeGeneration = 0;
+    loadingEpoch = null,
+    loadEpoch = 0,
+    routeEpoch = 0,
+    followEnabled = false,
+    followPaused = false,
+    watchedGeneration = null,
+    pendingFollowPayload = null,
+    refreshingFollow = false;
   const sectorCache = new Map();
   const $ = (id) => document.getElementById(id);
   const {
@@ -42,8 +47,6 @@
   function browserRoute(kind) {
     const route = {
       kind,
-      snapshot: session.snapshot.id,
-      revision: String(session.snapshot.revision),
       vol: currentVolume.vol_id,
     };
     if (kind === "sector") route.sector = currentSector.sector_id;
@@ -117,34 +120,180 @@
     }
     return response.json();
   }
-  function base() {
-    return `/api/v1/s/${session.snapshot.id}/r/${session.snapshot.revision}`;
-  }
+  // Entity paths, resolved by the server against whatever reading is current.
+  const API_BASE = "/api/v1";
   function updateSession(payload) {
     session.snapshot = payload.snapshot;
     session.outcome = payload.outcome;
     $("outcome").textContent = payload.outcome;
     $("crumb").textContent =
       `snapshot ${payload.snapshot.id.slice(0, 12)} · revision ${payload.snapshot.revision}`;
+    renderFollowChip();
+  }
+  function snapshotGeneration(payload = session) {
+    if (payload?.snapshot?.generation === null) return null;
+    const generation = Number(payload?.snapshot?.generation);
+    return Number.isSafeInteger(generation) ? generation : null;
+  }
+  function secondsAgo(unixSeconds) {
+    if (unixSeconds === null || unixSeconds === undefined)
+      return "read time unknown";
+    const observed = Number(unixSeconds);
+    if (!Number.isFinite(observed)) return "read time unknown";
+    return `${Math.max(0, Math.floor(Date.now() / 1000 - observed))}s ago`;
+  }
+  function diskTime(unixSeconds) {
+    if (unixSeconds === null || unixSeconds === undefined)
+      return "disk time unknown";
+    const modified = Number(unixSeconds);
+    if (!Number.isFinite(modified)) return "disk time unknown";
+    const date = new Date(modified * 1000),
+      hours = String(date.getHours()).padStart(2, "0"),
+      minutes = String(date.getMinutes()).padStart(2, "0");
+    return `disk ${hours}:${minutes}`;
+  }
+  function renderFollowChip() {
+    const root = $("followControl");
+    if (!root) return;
+    root.hidden = !followEnabled;
+    if (!followEnabled || !session?.snapshot) return;
+    const viewed = snapshotGeneration(),
+      newest = Math.max(viewed ?? 0, watchedGeneration ?? 0),
+      status = $("followStatus"),
+      toggle = $("followToggle");
+    status.textContent = followPaused
+      ? `paused at gen ${viewed} · newer: gen ${newest}`
+      : `live · gen ${viewed} · ${secondsAgo(session.snapshot.observed_at_unix_seconds)} · ${diskTime(session.snapshot.input_modified_unix_seconds)}`;
+    toggle.textContent = followPaused ? "Resume" : "Pause";
+    toggle.setAttribute("aria-pressed", String(followPaused));
+  }
+  function delay(milliseconds) {
+    return new Promise((resolve) => setTimeout(resolve, milliseconds));
+  }
+  function restoreScroll(left, top) {
+    requestAnimationFrame(() => window.scrollTo(left, top));
+  }
+  async function refreshCurrentDrillLevel() {
+    const route = parseBrowserRoute();
+    if (!route) throw new Error("invalid inspector URL");
+    const left = window.scrollX,
+      top = window.scrollY;
+    invalidateVolumeView();
+    if (route.kind === "slot" || route.kind === "oos")
+      await refreshEnrichedDrillLevel(route);
+    else await loadVolumes(route, "none");
+    restoreScroll(left, top);
+    return true;
+  }
+  async function refreshEnrichedDrillLevel(route) {
+    await loadVolumes(
+      { kind: "page", vol: route.vol, page: route.page },
+      "none",
+    );
+    const page = currentPage,
+      selector = `${route.kind}:${route.vol}:${route.page}:${route.slot}`;
+    try {
+      const refreshed = await enrichAndRefreshPage(selector, page, "none"),
+        resolved = refreshed
+          ? route.kind === "slot"
+            ? await showSlot(refreshed, route.slot, "none")
+            : await showOos(refreshed, route.slot, "none")
+          : null;
+      if (!refreshed || !resolved) throw new Error("the entity is no longer present");
+    } catch {
+      document.querySelector(".error-note")?.remove();
+      await fallBackFromEnrichedDrillLevel(route);
+    }
+  }
+  async function fallBackFromEnrichedDrillLevel(route) {
+    if (route.kind === "oos") {
+      try {
+        const page = currentPage,
+          refreshed = await enrichAndRefreshPage(
+            `slot:${route.vol}:${route.page}:${route.slot}`,
+            page,
+            "none",
+          ),
+          slot = refreshed
+            ? await showSlot(refreshed, route.slot, "replace")
+            : null;
+        if (slot) return;
+      } catch {}
+      document.querySelector(".error-note")?.remove();
+    }
+    await showPage(route.page, true, "replace");
+  }
+  async function refreshPendingFollow() {
+    if (refreshingFollow || followPaused || !pendingFollowPayload) return;
+    refreshingFollow = true;
+    try {
+      while (!followPaused && pendingFollowPayload) {
+        const payload = pendingFollowPayload,
+          target = snapshotGeneration(payload),
+          viewed = snapshotGeneration();
+        if (target === null || (viewed !== null && target <= viewed)) {
+          pendingFollowPayload = null;
+          break;
+        }
+        if (!(await refreshCurrentDrillLevel())) break;
+        if (pendingFollowPayload === payload) pendingFollowPayload = null;
+      }
+    } catch (error) {
+      renderWorkspaceError(error);
+    } finally {
+      refreshingFollow = false;
+      renderFollowChip();
+    }
+  }
+  async function followLoop() {
+    while (followEnabled) {
+      try {
+        const payload = await api(
+            `${API_BASE}/live/watch?generation=${watchedGeneration}`,
+          ),
+          generation = snapshotGeneration(payload);
+        if (generation !== null) watchedGeneration = generation;
+        if (
+          payload.data.advanced &&
+          generation !== null &&
+          generation !== snapshotGeneration()
+        )
+          pendingFollowPayload = payload;
+        renderFollowChip();
+        await refreshPendingFollow();
+      } catch {
+        await delay(1000);
+      }
+    }
+  }
+  function configureFollow() {
+    followEnabled = session.data.follow.state === "following";
+    watchedGeneration = snapshotGeneration();
+    renderFollowChip();
+    if (!followEnabled) return;
+    setInterval(renderFollowChip, 1000);
+    followLoop();
+  }
+  function toggleFollow() {
+    if (!followEnabled) return;
+    followPaused = !followPaused;
+    renderFollowChip();
+    if (!followPaused) refreshPendingFollow();
   }
   async function start() {
     try {
       const route = parseBrowserRoute();
       if (!route) throw new Error("invalid inspector URL");
       session = await api("/api/v1/session");
-      if (route.kind !== "root") {
-        if (route.snapshot !== session.snapshot.id)
-          throw new Error("this URL belongs to a different snapshot");
-        session.snapshot.revision = route.revision;
-      }
       updateSession(session);
       await loadVolumes(route);
+      configureFollow();
     } catch (error) {
       renderWorkspaceError(error);
     }
   }
-  async function loadVolumes(route = { kind: "root" }) {
-    const payload = await api(`${base()}/volumes`),
+  async function loadVolumes(route = { kind: "root" }, historyMode = "restore") {
+    const payload = await api(`${API_BASE}/volumes`),
       root = $("volumes"),
       volumes = payload.data.items;
     updateSession(payload);
@@ -166,10 +315,11 @@
     if (!volume)
       throw new Error("the URL volume does not exist in this revision");
     activateVolume(volume);
-    if (route.kind === "root") await showVolume("replace");
+    if (route.kind === "root")
+      await showVolume(historyMode === "none" ? "none" : "replace");
     else {
       await restoreBrowserRoute(route);
-      installBrowserRouteState(route);
+      if (historyMode !== "none") installBrowserRouteState(route);
     }
   }
   function invalidateVolumeView() {
@@ -178,7 +328,7 @@
     sectorCache.clear();
     sectorCursor = "end";
     loadedSectors = 0;
-    loadGeneration++;
+    loadEpoch++;
   }
   function activateVolume(volume) {
     currentVolume = volume;
@@ -260,7 +410,7 @@
   function createVolumeView() {
     sectorCursor = null;
     loadedSectors = 0;
-    const generation = ++loadGeneration,
+    const epoch = ++loadEpoch,
       root = document.createElement("section"),
       title = document.createElement("div"),
       map = document.createElement("div"),
@@ -275,7 +425,7 @@
     status.textContent = "Loading sector maps…";
     root.append(title, map, status);
     volumeView = root;
-    return generation;
+    return epoch;
   }
   async function showVolume(historyMode = "push") {
     mapObserver.disconnect();
@@ -284,31 +434,31 @@
     selectedPage = null;
     selectedSlot = null;
     renderBreadcrumb("volume");
-    let generation = loadGeneration;
-    if (!volumeView) generation = createVolumeView();
+    let epoch = loadEpoch;
+    if (!volumeView) epoch = createVolumeView();
     $("workspaceContent").replaceChildren(volumeView);
     syncBrowserRoute("volume", historyMode);
     if (sectorCursor === null && loadedSectors === 0)
-      await loadSectorBatch(generation);
+      await loadSectorBatch(epoch);
     observeMapEnd();
   }
-  async function loadSectorBatch(generation = loadGeneration) {
+  async function loadSectorBatch(epoch = loadEpoch) {
     if (
-      loadingGeneration === generation ||
+      loadingEpoch === epoch ||
       sectorCursor === "end" ||
-      generation !== loadGeneration
+      epoch !== loadEpoch
     )
       return;
-    loadingGeneration = generation;
+    loadingEpoch = epoch;
     try {
       const query =
           sectorCursor === null
             ? "?limit=24"
             : `?limit=24&cursor=${encodeURIComponent(sectorCursor)}`,
         payload = await api(
-          `${base()}/sectors/${currentVolume.vol_id}${query}`,
+          `${API_BASE}/sectors/${currentVolume.vol_id}${query}`,
         );
-      if (generation !== loadGeneration) return;
+      if (epoch !== loadEpoch) return;
       for (const sector of payload.data.items) appendSector(sector);
       loadedSectors += payload.data.items.length;
       sectorCursor =
@@ -320,12 +470,23 @@
           ? `All ${loadedSectors} sectors shown · ${loadedSectors * 64} pages`
           : `Showing ${loadedSectors} of ${currentVolume.total_sectors} sectors · scroll to continue`;
     } catch (error) {
-      if (generation === loadGeneration) {
+      if (epoch === loadEpoch && error.code === "cursor-generation-changed") {
+        if (followPaused) {
+          sectorCursor = "end";
+          $("mapStatus").textContent =
+            "This paused generation is no longer retained · Resume to refresh the mosaic";
+          return;
+        }
+        invalidateVolumeView();
+        await showVolume("none");
+        return;
+      }
+      if (epoch === loadEpoch) {
         sectorCursor = "end";
         $("mapStatus").textContent = error.message;
       }
     } finally {
-      if (loadingGeneration === generation) loadingGeneration = null;
+      if (loadingEpoch === epoch) loadingEpoch = null;
     }
   }
   function pageOccupancyLabel(page) {
@@ -517,13 +678,13 @@
   async function openOosChain(head) {
     try {
       if (currentVolume?.vol_id !== head.vol_id) {
-        const listing = await api(`${base()}/volumes`),
+        const listing = await api(`${API_BASE}/volumes`),
           volume = listing.data.items.find(
             (candidate) => candidate.vol_id === head.vol_id,
           );
         if (volume) activateVolume(volume);
       }
-      const payload = await api(`${base()}/page/${head.vol_id}/${head.page_id}`);
+      const payload = await api(`${API_BASE}/page/${head.vol_id}/${head.page_id}`);
       await enrichOos(payload.data, head.slot_id);
     } catch (error) {
       renderWorkspaceError(error);
@@ -757,7 +918,7 @@
   async function ensureSector(sectorId) {
     if (currentSector?.sector_id === sectorId) return;
     const payload = await api(
-      `${base()}/sector/${currentVolume.vol_id}/${sectorId}`,
+      `${API_BASE}/sector/${currentVolume.vol_id}/${sectorId}`,
     );
     currentSector = payload.data;
   }
@@ -768,7 +929,7 @@
   ) {
     try {
       const payload = await api(
-          `${base()}/page/${currentVolume.vol_id}/${pageId}`,
+          `${API_BASE}/page/${currentVolume.vol_id}/${pageId}`,
         ),
         page = payload.data.page,
         deep = payload.data.deep;
@@ -927,7 +1088,7 @@
     return table;
   }
   async function enrichAndRefreshPage(selector, page, historyMode) {
-    const receipt = await api(`${base()}/enrichments`, {
+    const receipt = await api(`${API_BASE}/enrichments`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ selector }),
@@ -935,7 +1096,7 @@
     updateSession(receipt);
     invalidateVolumeView();
     const sectorPayload = await api(
-      `${base()}/sector/${page.vol_id}/${page.sector_id}`,
+      `${API_BASE}/sector/${page.vol_id}/${page.sector_id}`,
     );
     currentSector = sectorPayload.data;
     return showPage(page.page_id, true, historyMode);
@@ -954,7 +1115,7 @@
   async function showSlot(page, slotId, historyMode = "push") {
     try {
       const payload = await api(
-          `${base()}/slot/${page.vol_id}/${page.page_id}/${slotId}`,
+          `${API_BASE}/slot/${page.vol_id}/${page.page_id}/${slotId}`,
         ),
         slot = payload.data.selected_slot,
         root = document.createElement("section");
@@ -1046,12 +1207,14 @@
   async function showOos(page, slotId, historyMode = "push") {
     try {
       const payload = await api(
-        `${base()}/oos/${page.vol_id}/${page.page_id}/${slotId}`,
+        `${API_BASE}/oos/${page.vol_id}/${page.page_id}/${slotId}`,
       );
       renderOosChain(page, slotId, payload.data.chain);
       syncBrowserRoute("oos", historyMode);
+      return payload.data.chain;
     } catch (error) {
       renderWorkspaceError(error);
+      return null;
     }
   }
   async function enrichOos(page, slotId) {
@@ -1073,7 +1236,7 @@
     }
     if (route.kind === "sector") {
       const payload = await api(
-        `${base()}/sector/${route.vol}/${route.sector}`,
+        `${API_BASE}/sector/${route.vol}/${route.sector}`,
       );
       showSector(payload.data, "none");
       return;
@@ -1084,22 +1247,19 @@
     if (route.kind === "oos") await showOos(page, route.slot, "none");
   }
   async function restoreBrowserLocation() {
-    const generation = ++routeGeneration;
+    const epoch = ++routeEpoch;
     try {
       const route = parseBrowserRoute();
       if (!route) throw new Error("invalid inspector URL");
+      // A restored URL names an entity, so it is read at whatever reading is
+      // current instead of being checked against the one it was copied from.
       if (route.kind === "root") {
         session = await api("/api/v1/session");
         updateSession(session);
-        if (generation === routeGeneration) await loadVolumes(route);
-        return;
       }
-      if (route.snapshot !== session.snapshot.id)
-        throw new Error("this URL belongs to a different snapshot");
-      session.snapshot.revision = route.revision;
-      if (generation === routeGeneration) await loadVolumes(route);
+      if (epoch === routeEpoch) await loadVolumes(route);
     } catch (error) {
-      if (generation === routeGeneration) renderWorkspaceError(error);
+      if (epoch === routeEpoch) renderWorkspaceError(error);
     }
   }
   function renderWorkspaceError(error) {
@@ -1129,5 +1289,6 @@
   });
   $("closeInfo").addEventListener("click", () => $("infoDialog").close());
   $("licenses").addEventListener("click", showLicenses);
+  $("followToggle").addEventListener("click", toggleFollow);
   start();
 })();

@@ -92,10 +92,31 @@ decoded attribute values only for records that were explicitly interpreted.
 ## Web access
 
 Loopback is the default, and the browser opens the inspection directly without
-a credential prompt:
+a credential prompt. `serve` follows the input by default: it watches the data
+volumes and publishes a new snapshot generation after their on-disk state
+changes.
 
 ```sh
 volmap serve --vinf /snapshot/db_vinf --listen 127.0.0.1:8080
+```
+
+The browser long-polls for generations and re-renders the current drill level
+without adding a history entry. Its header distinguishes when Volmap read the
+input from when the newest data volume changed on disk, and Pause freezes the
+display while still reporting a newer observed generation. Live URLs name an
+entity rather than a generation, so a copied volume, sector, page, slot, or OOS
+URL continues to resolve after later generations replace the one that first
+produced it. Generation, revision, validity, observation time, and input disk
+time remain explicit in every JSON envelope.
+
+To hold one immutable reading instead, use `--no-follow`. A changed input then
+invalidates the session exactly as it does for the finite commands. The watcher
+poll interval and the retained generation window can be tuned when needed:
+
+```sh
+volmap serve --vinf /snapshot/db_vinf --no-follow
+volmap serve --vinf /snapshot/db_vinf \
+  --follow-interval-ms 500 --follow-retain 4
 ```
 
 From another machine, forward the loopback listener through SSH:
@@ -130,17 +151,23 @@ exhaustive 16,344-byte content distribution: the slotted header, every allocated
 record extent, every fragmented or contiguous free interval, and the complete
 slot directory. Directory entries are colored and labeled as allocated,
 unallocated, or deleted, with record and directory offsets and sizes shown
-separately. Every volume, sector, page, slot, and OOS view has a canonical URL
-that pins both the snapshot and immutable inspection revision. Browser Back and
-Forward restore those exact views and revisions; reloading a deep URL restores
-the same view directly. Enrichment publishes a new revision URL, so the
-previous revision remains reachable in browser history. Breadcrumb and Back
-controls return to the preceding level.
+separately. Every volume, sector, page, slot, and OOS view has a canonical live
+entity URL. Browser Back and Forward restore those entities at the generation
+currently on display; reloading a deep URL restores the same drill level
+directly. Enrichment stays on that URL and is re-issued after a generation
+advance when a slot or OOS view depends on it. Use `export html` when the
+artifact must freeze one immutable revision. Breadcrumb and Back controls
+return to the preceding level.
 
 ## Safety and scope
 
-- Use a stopped database, immutable snapshot, or copy. Volmap invalidates its
-  snapshot if an input changes during inspection.
+- Finite commands and `serve --no-follow` use the immutable contract. Run them
+  against a stopped database, immutable snapshot, or copy; an input change
+  invalidates their snapshot.
+- Default `serve` is intended to follow a changing input, but it reports
+  observed disk state, not transactional committed state. A committed change
+  is invisible until the engine flushes the affected data volume, while a page
+  written before commit may already be visible.
 - The tool never repairs or writes a CUBRID volume.
 - Deep decoding is selective and resource-bounded. A stopped boundary is
   represented in coverage and diagnostics rather than silently sampled.
