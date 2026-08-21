@@ -299,8 +299,11 @@ mod tests {
         assert!(javascript.contains("interpretationNote(interpretation.diagnostic.value)"));
         assert!(javascript.contains("interpretationNote(data.interpretation_unavailable)"));
 
-        // An out-of-row value links into the existing chain view.
-        assert!(javascript.contains("enrichOos(payload.data,head.slot_id)"));
+        // An out-of-row value links into the existing chain view. The page
+        // resource nests the projection under `data.page`; handing the whole
+        // resource to enrichOos builds an `oos:undefined:...` selector that
+        // the server rejects with 400 invalid-selector.
+        assert!(javascript.contains("enrichOos(payload.data.page,head.slot_id)"));
         assert!(APP_CSS.contains(".interpretation"));
         assert!(APP_CSS.contains(".interpretation td.withheld"));
 

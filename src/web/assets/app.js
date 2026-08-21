@@ -686,7 +686,7 @@
         if (volume) activateVolume(volume);
       }
       const payload = await api(`${API_BASE}/page/${head.vol_id}/${head.page_id}`);
-      await enrichOos(payload.data, head.slot_id);
+      await enrichOos(payload.data.page, head.slot_id);
     } catch (error) {
       renderWorkspaceError(error);
     }
