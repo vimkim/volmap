@@ -69,14 +69,15 @@ verify: fmt-check test-debug lint elf-check-release frontend-check
     ! rg -n 'path\+file:|download_url=file:|/home/|/tmp/' THIRD_PARTY_NOTICES.txt SBOM.cdx.json
     git diff --check
 
-# Start the authenticated read-only HTTP viewer in debug; pass normal serve arguments.
+# Serve the committed React bundle in debug; regenerate it with `just frontend-artifacts` after web/src changes.
 serve-debug *args:
     {{cargo}} run --locked -- serve {{args}}
 
+# Serve demodb and the committed React bundle in debug at http://127.0.0.1:7777.
 serve-debug-demodb:
     {{cargo}} run --locked --target {{target}} -- serve --database demodb --listen 0.0.0.0:7777
 
-# Start the optimized static musl viewer for the local demodb database.
+# Serve demodb and the committed React bundle from the optimized static-musl build at port 7777.
 serve-release-demodb:
     {{cargo}} run --release --locked --target {{target}} -- serve --database demodb --listen 0.0.0.0:7777
 
@@ -96,7 +97,7 @@ frontend-install:
 frontend-install-browsers: frontend-install
     mise x node@24.19.0 -- corepack pnpm --dir web exec playwright install chromium firefox
 
-# Regenerate the committed frontend bundle and its supply-chain evidence.
+# Regenerate the React bundle embedded by subsequent debug and release Cargo builds.
 frontend-artifacts: frontend-install
     mise x node@24.19.0 -- release/regenerate-frontend.sh
 

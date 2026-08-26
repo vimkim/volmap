@@ -159,6 +159,45 @@ advance when a slot or OOS view depends on it. Use `export html` when the
 artifact must freeze one immutable revision. Breadcrumb and Back controls
 return to the preceding level.
 
+### Local React viewer development
+
+The live React application is compiled into the committed
+`src/web/generated/frontend.js` and `frontend.css` assets. Cargo embeds those
+files in the Volmap executable, so every `serve` invocation uses the React
+viewer without running Node or Vite at startup.
+
+Use the convenience recipes to run `demodb`:
+
+```sh
+# Debug build
+just serve-debug-demodb
+
+# Optimized static-musl release build
+just serve-release-demodb
+```
+
+Both recipes listen on port 7777; open `http://127.0.0.1:7777`. To pass custom
+serve arguments to a debug build, use for example:
+
+```sh
+just serve-debug --database demodb --listen 127.0.0.1:8080
+```
+
+Cargo does not rebuild the frontend source. After changing files under
+`web/src/`, regenerate the embedded assets before starting or rebuilding the
+server:
+
+```sh
+just frontend-artifacts
+just serve-debug-demodb
+```
+
+Run `just frontend-check` before committing frontend changes. It checks types,
+unit tests, deterministic generated assets, dependency advisories, Chromium and
+Firefox behavior against the actual Rust server, and Cargo-only embedding.
+There is currently no supported Vite hot-reload server; the integration path
+always exercises the Rust server and its embedded bundle.
+
 ## Safety and scope
 
 - Finite commands and `serve --no-follow` use the immutable contract. Run them
