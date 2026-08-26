@@ -25,6 +25,11 @@ use crate::projection::{
     OptionalTextProjection, PageProjection, page_projection,
 };
 
+// Ticket 01 builds the focused Volume path beside the legacy production TUI.
+// The staged module becomes the production entry point only at focused ticket 06.
+#[allow(dead_code)]
+pub(crate) mod focused;
+
 const GRID_TOP: u16 = 4;
 const DETAIL_TOP: u16 = GRID_TOP + 9;
 

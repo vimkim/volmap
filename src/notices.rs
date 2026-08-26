@@ -14,10 +14,14 @@ mod tests {
         assert!(THIRD_PARTY_NOTICES.contains("e1e651debf6cc100172bde96603b17424f9c135a"));
         assert!(THIRD_PARTY_NOTICES.contains("aes 0.9.2"));
         assert!(THIRD_PARTY_NOTICES.contains("aria 0.2.0"));
+        assert!(THIRD_PARTY_NOTICES.contains("unicode-segmentation 1.13.3"));
+        assert!(THIRD_PARTY_NOTICES.contains("unicode-width 0.2.2"));
         assert!(THIRD_PARTY_NOTICES.contains("react 19.2.8"));
         assert!(THIRD_PARTY_NOTICES.contains("react-dom 19.2.8"));
         assert!(RELEASE_SBOM.contains("pkg:npm/react@19.2.8"));
         assert!(RELEASE_SBOM.contains("pkg:npm/react-dom@19.2.8"));
+        assert!(RELEASE_SBOM.contains("pkg:cargo/unicode-segmentation@1.13.3"));
+        assert!(RELEASE_SBOM.contains("pkg:cargo/unicode-width@0.2.2"));
         assert!(
             THIRD_PARTY_NOTICES.contains("Recovered artifacts are neither linked nor distributed")
         );

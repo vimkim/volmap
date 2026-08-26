@@ -1,0 +1,26 @@
+surface 80x24 · profile ansi-unicode
+00│ VOLMAP  snapshot abababababab  r7  success-limited
+01│Volume 0 (1/1) · 64 sectors · focus Sector 0
+02│S/A/R/U allocation · fill 0,1-8,?,- · ! finding
+03│
+04│╔═════════════════╗ ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
+05│║S0! table:한글é�…║ │S1! unclaimed    │ │S2! unclaimed    │ │S3! unclaimed    │
+06│║A⡀A⣀A⣄A⣤A⣦A⣶A⣷A⣿ ║ │A⡀A⣀A⣄A⣤A⣦A⣶A⣷A⣿ │ │A⡀A⣀A⣄A⣤A⣦A⣶A⣷A⣿ │ │A⡀A⣀A⣄A⣤A⣦A⣶A⣷A⣿ │
+07│║A0A?S-S-S-S-S-S- ║ │A0A?S-S-S-S-S-S- │ │A0A?S-S-S-S-S-S- │ │A0A?S-S-S-S-S-S- │
+08│║S-S-S-S-S-S-S-S- ║ │S-S-S-S-S-S-S-S- │ │S-S-S-S-S-S-S-S- │ │S-S-S-S-S-S-S-S- │
+09│║S-S-R-R-R-R-R-R- ║ │S-S-R-R-R-R-R-R- │ │S-S-R-R-R-R-R-R- │ │S-S-R-R-R-R-R-R- │
+10│║R-R-R-R-R-R-R-R- ║ │R-R-R-R-R-R-R-R- │ │R-R-R-R-R-R-R-R- │ │R-R-R-R-R-R-R-R- │
+11│║R-R-R-R-U-U-U-U- ║ │R-R-R-R-U-U-U-U- │ │R-R-R-R-U-U-U-U- │ │R-R-R-R-U-U-U-U- │
+12│║U-U-U-U-U-U-U-U- ║ │U-U-U-U-U-U-U-U- │ │U-U-U-U-U-U-U-U- │ │U-U-U-U-U-U-U-U- │
+13│║U-U-U-U-U-U-U-U- ║ │U-U-U-U-U-U-U-U- │ │U-U-U-U-U-U-U-U- │ │U-U-U-U-U-U-U-U- │
+14│╚═════════════════╝ └─────────────────┘ └─────────────────┘ └─────────────────┘
+15│
+16│
+17│
+18│
+19│
+20│
+21│Sector 0 · reserved · table:한글é�[31m-table · finding
+22│S0..S3 visible · 8 complete sectors incl. overscan
+23│arrows move · [ ] sector · PgUp/PgDn volume · wheel scroll · Enter inspect · q …
+hits: S0@0,4-18,14 S1@20,4-38,14 S2@40,4-58,14 S3@60,4-78,14
