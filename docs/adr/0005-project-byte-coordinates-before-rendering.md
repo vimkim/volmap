@@ -1,0 +1,5 @@
+# Project byte coordinates before rendering
+
+Interactive cross-highlighting needs the same stored attribute to be located in record, page-content, physical-page, and volume-file coordinates. Those transformations depend on pinned format constants, relocation targets, NULL encoding, bound bits, variable-offset entries, and OOS structure. The Rust projection therefore owns typed numeric extents, coordinate origins, and metadata anchors; React only manages selection and renders the projected relationships.
+
+This replaces the tempting approach of adding slot offsets and page constants in browser code. It also requires normalizing the existing body-relative `withheld.offset` inconsistency before the new interface is consumed. Fixed NULLs keep their physical fixed extent, variable NULLs project a zero-width position with offset-table anchors, OOS selection identifies only proven inline storage and its relationship, and relocated attributes never claim an extent on the relocation source page.

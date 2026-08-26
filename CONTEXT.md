@@ -21,7 +21,7 @@ The TUI's typed Volume → Sector → Page ancestry together with the focus and 
 _Avoid_: Back history, URL history, breadcrumb cache
 
 **Terminal interaction parity**:
-The TUI preserves the web viewer's Volume → Sector → Page drill-down and semantic visual distinctions, including page occupancy and structural distribution, while expressing them through terminal-native layout, rendering, and controls. It does not require pixel matching or reproduction of browser-only mechanics.
+The TUI preserves the web viewer's persistent Volume → Sector → Page inspection semantics, including page occupancy and structural distribution, while expressing them through terminal-native layout, rendering, and controls. Optional runtime observation overlays are explicitly outside parity until a separate terminal contract adopts them; parity does not require pixel matching or reproduction of browser-only mechanics.
 _Avoid_: Cosmetic parity, pixel parity
 
 **Terminal presentation profile**:
@@ -192,6 +192,22 @@ _Avoid_: Deep scan
 Revision-scoped decoded evidence for an explicitly deep-inspected record: its attribute names, domains, and typed values resolved through a class representation. It is distinct from, and never replaces, the record's physical facts.
 _Avoid_: Row dump, record view
 
+**Stored attribute extent**:
+The exact record-relative byte interval occupied by one interpreted attribute, independent of whether its value is decoded, NULL, withheld, or out of row. A variable NULL has a proven zero-width position rather than an invented byte interval, while a fixed NULL retains its fixed-storage extent.
+_Avoid_: Value size, column width, payload range
+
+**Attribute byte selection**:
+The adapter-local choice of one interpreted attribute whose stored extent and related metadata anchors are emphasized across record and page byte maps. It is not an inspection entity, does not enter canonical navigation history, and survives a refresh only when record identity, representation, and attribute position still match.
+_Avoid_: Column entity, attribute URL, selected value
+
+**Byte-coordinate projection**:
+A typed mapping of one stored extent into explicitly named record-relative, page-content, physical-page, and volume-file coordinate spaces. Format arithmetic and coordinate origins belong to the projection, never to an inspection adapter.
+_Avoid_: Byte offset, frontend offset calculation, absolute offset
+
+**Metadata anchor**:
+A proven byte or bit location whose stored metadata determines an attribute's interpretation, such as a bound bit or variable-offset entry. It is presented separately from the attribute's primary stored extent.
+_Avoid_: Attribute extent, inferred marker
+
 **Class representation**:
 A schema evidence entity keyed by (class OID, reprid) that names one representation's attributes and their typed domains, decoded from the class object's own heap record.
 _Avoid_: Catalog representation, DISK_REPR
@@ -264,12 +280,56 @@ _Avoid_: History, cache, undo buffer
 What Volmap reports: the bytes present in the data volume files at the moment they were read. This is not committed database state. A change committed to the log but not yet written to a data volume is invisible to inspection, and a page written before its transaction commits is visible to it, so the delay a reader notices is the engine flush cadence rather than anything Volmap controls. Live follow shortens the gap between a write reaching disk and the viewer showing it; it does not make the viewer a transaction-visibility tool.
 _Avoid_: Database state, committed state, current data, what the database contains
 
+**Runtime page observation**:
+One optional, timestamped diagnostic reading about a physical page from a running system. It is independently captured per page, does not revise the inspection graph, and never implies a database-wide atomic view.
+_Avoid_: Live page state, page status, snapshot generation
+
+**Runtime observation overlay**:
+An optional presentation layer over observed disk state that displays bounded runtime page observations without changing inspection facts. Pausing the display freezes adoption of both newer disk generations and newer runtime observations while still allowing their availability to be reported.
+_Avoid_: Live follow, inspection revision, page status color
+
+**Runtime capability state**:
+The availability of one optional runtime observation source to the live viewer: `disabled`, `connecting`, `active`, `stale`, `unavailable`, `refused`, or `incompatible`. It never changes inspection validity, outcome, diagnostics, or coverage.
+_Avoid_: Inspection outcome, diagnostic severity, connection error
+
+**Observation freshness**:
+The age of a runtime page observation relative to its requested sampling cadence. It is `fresh` through two expected intervals and `stale` afterward; freshness never implies source coherence or currentness at display time.
+_Avoid_: Current state, valid observation, snapshot age
+
+**Observation batch**:
+A bounded request or response covering the selected page and pages in currently visible sectors. Its members retain their own capture times and do not form an atomic buffer-pool or operating-system snapshot.
+_Avoid_: Runtime snapshot, buffer-pool snapshot, volume observation
+
+**Observation coverage**:
+The evaluated and requested page counts for one bounded observation scope, including any resource-stopped remainder. It describes an ephemeral overlay request and never changes Inspection coverage.
+_Avoid_: Inspection coverage, silent sampling, buffer-pool coverage
+
+**Page-buffer observation**:
+A runtime page observation describing a cooperating `cub_server`'s semantic buffer-frame evidence, such as residency, fix or latch state, dirty state, and transition limitations. It is distinct from both the persistent page image and operating-system cache residency.
+_Avoid_: Memory page, cached page, disk state
+
+**Resident page inspection**:
+An explicit, selected-page diagnostic capture from a cooperating `cub_server` that may add sanitized in-memory page structure and persistence-comparison evidence. It never loads a missing page and is distinct from lightweight page-buffer observation.
+_Avoid_: Runtime page observation, memory dump, live enrichment
+
+**Page image correspondence**:
+Evidence that a resident page capture and an observed persistent page image have the same normalized content. Their structural geometry may be combined only when this correspondence is proven; otherwise each remains a separately labelled observation.
+_Avoid_: Same VPID, current page, synchronized boolean
+
+**Runtime attachment**:
+The explicitly requested association between one live inspection session and one cooperating `cub_server`, proven by database and volume identity evidence and bound to one server incarnation. A matching database name alone never establishes it.
+_Avoid_: Auto-discovery, server connection, database-name match
+
+**Kernel-cache observation**:
+A runtime page observation classifying how much of one physical CUBRID page was resident in the operating system's file page cache when queried: `fully-resident`, `partially-resident`, `not-resident`, or `unknown`. It is an ephemeral residency reading, not a durability or CUBRID buffer-pool claim.
+_Avoid_: Cached page, buffer hit, durable page
+
 **HTML inspection export**:
 A bounded, self-contained offline file that freezes one inspection revision and contains only facts already committed to that revision. It is not connected to a live inspection session and cannot request missing deep detail.
 _Avoid_: Live viewer, database dump, cached session
 
 **Standalone executable**:
-The single Linux x86-64 `volmap` binary, with no runtime dependency on glibc, CUBRID libraries, installation assets, network services, or separately installed web assets.
+The single Linux x86-64 `volmap` binary, with no required runtime dependency on glibc, CUBRID libraries, installation assets, network services, or separately installed web assets. Optional runtime observation sources may be absent, refused, or unsupported without reducing offline inspection behavior.
 _Avoid_: Portable installation
 
 ## Evidence governance

@@ -1,0 +1,5 @@
+# Separate lightweight runtime observation from resident-page inspection
+
+Volume-scale diagnostics and selected-page forensics have incompatible cost and coherence requirements, so they use separate operations. Bounded observation batches expose only semantic page-buffer state and perform no page load, copy, hashing, or disk I/O. Explicit resident-page inspection may capture sanitized slotted-page structure and consistency evidence for one selected page, but never returns raw bytes, payloads, private server structures, holder identities, or addresses.
+
+The browser reaches both operations only through Volmap's same-origin interface; Volmap owns the protected Unix-socket adapter and accepts observations only after an incarnation-bound database and volume identity handshake. A resident structure is combined with disk-derived geometry only when page image correspondence is proven. Otherwise the two observations remain separately labelled with their own capture times. This trades apparent simplicity for truthful source attribution and prevents a changing buffer image from being presented as the inspected persistent page.
