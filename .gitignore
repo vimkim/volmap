@@ -2,4 +2,7 @@ volmap-standalone*
 recovered/
 /target/
 /vendor/
+/web/node_modules/
+/web/playwright-report/
+/web/test-results/
 /prompt.md

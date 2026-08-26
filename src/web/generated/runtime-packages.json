@@ -1,0 +1,29 @@
+{
+  "schema": "volmap.frontend-runtime-packages/v1",
+  "packages": [
+    {
+      "name": "react",
+      "version": "19.2.8",
+      "license": "MIT",
+      "repository": "https://github.com/react/react",
+      "dependencies": []
+    },
+    {
+      "name": "react-dom",
+      "version": "19.2.8",
+      "license": "MIT",
+      "repository": "https://github.com/react/react",
+      "dependencies": [
+        "react",
+        "scheduler"
+      ]
+    },
+    {
+      "name": "scheduler",
+      "version": "0.27.0",
+      "license": "MIT",
+      "repository": "https://github.com/facebook/react",
+      "dependencies": []
+    }
+  ]
+}

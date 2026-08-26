@@ -1,0 +1,12 @@
+{
+  "src/foundation.tsx": {
+    "file": "frontend.js",
+    "name": "foundation",
+    "src": "src/foundation.tsx",
+    "isEntry": true
+  },
+  "style.css": {
+    "file": "frontend.css",
+    "src": "style.css"
+  }
+}

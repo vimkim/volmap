@@ -1,0 +1,16 @@
+{
+  "schema": "volmap.frontend-toolchain/v1",
+  "node": "24.19.0",
+  "pnpm": "11.24.0",
+  "playwright": "1.62.1",
+  "browsers": {
+    "chromium": {
+      "revision": "1234",
+      "version": "151.0.7922.34"
+    },
+    "firefox": {
+      "revision": "1538",
+      "version": "153.0"
+    }
+  }
+}

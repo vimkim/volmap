@@ -1,0 +1,567 @@
+{
+  "schema": "volmap.frontend-build-provenance/v1",
+  "target": "linux-x64",
+  "toolchain": {
+    "node": "24.19.0",
+    "package_manager": "pnpm@11.24.0+sha512-vSfjRel23LC+C3oSKCF7BJqBfiGx81XJDb59xGZxiVqLwebQbCRVRQXqk+oLRfSJon7Bv7yN5qlln8oPFvoAAA==",
+    "typescript": "7.0.2",
+    "vite": "8.2.2",
+    "vitest": "4.1.11",
+    "playwright": "1.62.1",
+    "browsers": {
+      "chromium": {
+        "revision": "1234",
+        "version": "151.0.7922.34"
+      },
+      "firefox": {
+        "revision": "1538",
+        "version": "153.0"
+      }
+    }
+  },
+  "install_policy": {
+    "registry": "https://registry.npmjs.org/",
+    "frozen_lockfile": true,
+    "lifecycle_scripts": "ignored",
+    "strict_peer_dependencies": true
+  },
+  "advisory_policy": {
+    "command": "pnpm audit --audit-level high",
+    "graph": "all installed runtime and build packages",
+    "source": "https://registry.npmjs.org/-/npm/v1/security/advisories/bulk",
+    "required_result": "no high or critical advisories",
+    "result_is_live_gate_not_committed_snapshot": true
+  },
+  "lockfile": {
+    "path": "web/pnpm-lock.yaml",
+    "sha256": "209a89101553fe420a367652392e4084807d3e9e73da4fcfa7dcf987b51e39b5"
+  },
+  "packages": [
+    {
+      "name": "@jridgewell/sourcemap-codec",
+      "version": "1.5.5",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "https://github.com/jridgewell/sourcemaps",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "@oxc-project/types",
+      "version": "0.146.0",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "https://github.com/oxc-project/oxc",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "@playwright/test",
+      "version": "1.62.1",
+      "role": "direct-build",
+      "license": "Apache-2.0",
+      "source": "https://github.com/microsoft/playwright",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "@rolldown/binding-linux-x64-gnu",
+      "version": "1.2.5",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "https://github.com/rolldown/rolldown",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "@rolldown/pluginutils",
+      "version": "1.0.1",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "https://github.com/rolldown/plugins",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "@standard-schema/spec",
+      "version": "1.1.0",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "https://github.com/standard-schema/standard-schema",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "@types/chai",
+      "version": "5.2.3",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "https://github.com/DefinitelyTyped/DefinitelyTyped",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "@types/deep-eql",
+      "version": "4.0.2",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "https://github.com/DefinitelyTyped/DefinitelyTyped",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "@types/estree",
+      "version": "1.0.9",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "https://github.com/DefinitelyTyped/DefinitelyTyped",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "@types/node",
+      "version": "24.13.3",
+      "role": "direct-build",
+      "license": "MIT",
+      "source": "https://github.com/DefinitelyTyped/DefinitelyTyped",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "@types/react",
+      "version": "19.2.18",
+      "role": "direct-build",
+      "license": "MIT",
+      "source": "https://github.com/DefinitelyTyped/DefinitelyTyped",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "@types/react-dom",
+      "version": "19.2.5",
+      "role": "direct-build",
+      "license": "MIT",
+      "source": "https://github.com/DefinitelyTyped/DefinitelyTyped",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "@typescript/typescript-linux-x64",
+      "version": "7.0.2",
+      "role": "transitive-build",
+      "license": "Apache-2.0",
+      "source": "https://github.com/microsoft/TypeScript",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "@vitejs/plugin-react",
+      "version": "6.1.0",
+      "role": "direct-build",
+      "license": "MIT",
+      "source": "https://github.com/vitejs/vite-plugin-react",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "@vitest/expect",
+      "version": "4.1.11",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "https://github.com/vitest-dev/vitest",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "@vitest/mocker",
+      "version": "4.1.11",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "https://github.com/vitest-dev/vitest",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "@vitest/pretty-format",
+      "version": "4.1.11",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "https://github.com/vitest-dev/vitest",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "@vitest/runner",
+      "version": "4.1.11",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "https://github.com/vitest-dev/vitest",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "@vitest/snapshot",
+      "version": "4.1.11",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "https://github.com/vitest-dev/vitest",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "@vitest/spy",
+      "version": "4.1.11",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "https://github.com/vitest-dev/vitest",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "@vitest/utils",
+      "version": "4.1.11",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "https://github.com/vitest-dev/vitest",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "assertion-error",
+      "version": "2.0.1",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "git@github.com:chaijs/assertion-error",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "chai",
+      "version": "6.2.2",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "https://github.com/chaijs/chai",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "convert-source-map",
+      "version": "2.0.0",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "git://github.com/thlorenz/convert-source-map",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "csstype",
+      "version": "3.2.3",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "https://github.com/frenic/csstype",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "detect-libc",
+      "version": "2.1.2",
+      "role": "transitive-build",
+      "license": "Apache-2.0",
+      "source": "git://github.com/lovell/detect-libc",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "es-module-lexer",
+      "version": "2.3.2",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "https://github.com/guybedford/es-module-lexer",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "estree-walker",
+      "version": "3.0.3",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "https://github.com/Rich-Harris/estree-walker",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "expect-type",
+      "version": "1.4.0",
+      "role": "transitive-build",
+      "license": "Apache-2.0",
+      "source": "https://github.com/mmkal/expect-type",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "fdir",
+      "version": "6.5.0",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "https://github.com/thecodrr/fdir",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "lightningcss",
+      "version": "1.33.0",
+      "role": "transitive-build",
+      "license": "MPL-2.0",
+      "source": "https://github.com/parcel-bundler/lightningcss",
+      "lifecycle_scripts": {
+        "prepare": "patch-package"
+      },
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "lightningcss-linux-x64-gnu",
+      "version": "1.33.0",
+      "role": "transitive-build",
+      "license": "MPL-2.0",
+      "source": "https://github.com/parcel-bundler/lightningcss",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "magic-string",
+      "version": "0.30.21",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "https://github.com/Rich-Harris/magic-string",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "nanoid",
+      "version": "3.3.18",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "ai/nanoid",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "obug",
+      "version": "2.1.4",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "https://github.com/sxzz/obug",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "pathe",
+      "version": "2.0.3",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "unjs/pathe",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "picocolors",
+      "version": "1.1.1",
+      "role": "transitive-build",
+      "license": "ISC",
+      "source": "alexeyraspopov/picocolors",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "picomatch",
+      "version": "4.0.7",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "micromatch/picomatch",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "playwright",
+      "version": "1.62.1",
+      "role": "transitive-build",
+      "license": "Apache-2.0",
+      "source": "https://github.com/microsoft/playwright",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "playwright-core",
+      "version": "1.62.1",
+      "role": "transitive-build",
+      "license": "Apache-2.0",
+      "source": "https://github.com/microsoft/playwright",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "postcss",
+      "version": "8.5.26",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "postcss/postcss",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "react",
+      "version": "19.2.8",
+      "role": "bundled-runtime",
+      "license": "MIT",
+      "source": "https://github.com/react/react",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "react-dom",
+      "version": "19.2.8",
+      "role": "bundled-runtime",
+      "license": "MIT",
+      "source": "https://github.com/react/react",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "rolldown",
+      "version": "1.2.5",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "https://github.com/rolldown/rolldown",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "scheduler",
+      "version": "0.27.0",
+      "role": "bundled-runtime",
+      "license": "MIT",
+      "source": "https://github.com/facebook/react",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "siginfo",
+      "version": "2.0.0",
+      "role": "transitive-build",
+      "license": "ISC",
+      "source": "https://github.com/emilbayes/siginfo",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "source-map-js",
+      "version": "1.2.1",
+      "role": "transitive-build",
+      "license": "BSD-3-Clause",
+      "source": "7rulnik/source-map-js",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "stackback",
+      "version": "0.0.2",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "git://github.com/shtylman/node-stackback",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "std-env",
+      "version": "4.2.0",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "unjs/std-env",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "tinybench",
+      "version": "2.9.0",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "tinylibs/tinybench",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "tinyexec",
+      "version": "1.3.0",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "https://github.com/tinylibs/tinyexec",
+      "lifecycle_scripts": {
+        "prepare": "npm run build"
+      },
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "tinyglobby",
+      "version": "0.2.17",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "https://github.com/SuperchupuDev/tinyglobby",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "tinyrainbow",
+      "version": "3.1.1",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "https://github.com/tinylibs/tinyrainbow",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "typescript",
+      "version": "7.0.2",
+      "role": "direct-build",
+      "license": "Apache-2.0",
+      "source": "https://github.com/microsoft/TypeScript",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "undici-types",
+      "version": "7.18.2",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "https://github.com/nodejs/undici",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "vite",
+      "version": "8.2.2",
+      "role": "direct-build",
+      "license": "MIT",
+      "source": "https://github.com/vitejs/vite",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "vitest",
+      "version": "4.1.11",
+      "role": "direct-build",
+      "license": "MIT",
+      "source": "https://github.com/vitest-dev/vitest",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    },
+    {
+      "name": "why-is-node-running",
+      "version": "2.3.0",
+      "role": "transitive-build",
+      "license": "MIT",
+      "source": "https://github.com/mafintosh/why-is-node-running",
+      "lifecycle_scripts": {},
+      "lifecycle_scripts_executed": false
+    }
+  ]
+}

@@ -6,6 +6,8 @@ readonly SOURCE_DATE_EPOCH=1786685990
 readonly ABOUT_VERSION='cargo-about 0.9.2'
 readonly CYCLONEDX_VERSION='cargo-cyclonedx-cyclonedx 0.5.9'
 readonly DENY_VERSION='cargo-deny 0.20.2'
+readonly NODE_VERSION='24.19.0'
+readonly PNPM_VERSION='11.24.0'
 
 repo_root=$(git rev-parse --show-toplevel)
 cd "$repo_root"
@@ -18,6 +20,10 @@ fi
 [[ $(cargo about --version) == "$ABOUT_VERSION" ]]
 [[ $(cargo cyclonedx --version) == "$CYCLONEDX_VERSION" ]]
 [[ $(cargo deny --version) == "$DENY_VERSION" ]]
+[[ $(node --version) == "v$NODE_VERSION" ]]
+[[ $(corepack pnpm --version) == "$PNPM_VERSION" ]]
+
+release/check-frontend.sh
 
 audit_root=$(mktemp -d /tmp/volmap-release-audit.XXXXXX)
 cleanup() {
@@ -26,9 +32,39 @@ cleanup() {
 }
 trap cleanup EXIT
 
-mkdir -p "$audit_root/source-a" "$audit_root/source-b" "$audit_root/cargo-home"
+mkdir -p \
+  "$audit_root/source-a" \
+  "$audit_root/source-b" \
+  "$audit_root/source-metadata" \
+  "$audit_root/cargo-home" \
+  "$audit_root/pnpm-store"
 git archive HEAD | tar -x -C "$audit_root/source-a"
 git archive HEAD | tar -x -C "$audit_root/source-b"
+git archive HEAD | tar -x -C "$audit_root/source-metadata"
+
+(
+  cd "$audit_root/source-a"
+  env VOLMAP_PNPM_STORE_DIR="$audit_root/pnpm-store" \
+    release/regenerate-frontend.sh
+)
+(
+  cd "$audit_root/source-b"
+  env \
+    VOLMAP_PNPM_OFFLINE=1 \
+    VOLMAP_PNPM_STORE_DIR="$audit_root/pnpm-store" \
+    release/regenerate-frontend.sh
+)
+for artifact in \
+  src/web/generated/frontend.js \
+  src/web/generated/frontend.css \
+  src/web/generated/manifest.json \
+  src/web/generated/runtime-packages.json \
+  release/frontend/THIRD_PARTY_NOTICES.txt \
+  release/frontend/SBOM.cdx.json \
+  release/frontend/BUILD_PROVENANCE.json; do
+  cmp "$artifact" "$audit_root/source-a/$artifact"
+  cmp "$audit_root/source-a/$artifact" "$audit_root/source-b/$artifact"
+done
 
 env \
   LC_ALL=C \
@@ -43,12 +79,18 @@ env \
     --all-features \
     --target "$TARGET" \
     --fail \
-    --output-file "$audit_root/THIRD_PARTY_NOTICES.txt" \
+    --output-file "$audit_root/CARGO_THIRD_PARTY_NOTICES.txt" \
     release/THIRD_PARTY_NOTICES.hbs
+node release/frontend/merge-notices.mjs \
+  "$audit_root/CARGO_THIRD_PARTY_NOTICES.txt" \
+  "$audit_root/source-a/release/frontend/THIRD_PARTY_NOTICES.txt" \
+  "$audit_root/THIRD_PARTY_NOTICES.txt"
 cmp THIRD_PARTY_NOTICES.txt "$audit_root/THIRD_PARTY_NOTICES.txt"
 
 (
-  cd "$audit_root/source-a"
+  # cargo-cyclonedx writes beside the manifest, so use a disposable third
+  # extraction rather than mutating either reproducibility candidate.
+  cd "$audit_root/source-metadata"
   env SOURCE_DATE_EPOCH="$SOURCE_DATE_EPOCH" cargo cyclonedx \
     --format json \
     --spec-version 1.5 \
@@ -65,7 +107,11 @@ cmp THIRD_PARTY_NOTICES.txt "$audit_root/THIRD_PARTY_NOTICES.txt"
     -e 's|"purl": "pkg:cargo/volmap@0\.0\.0\?download_url=file://\.(#src/[^"]+)?"|"purl": "pkg:cargo/volmap@0.0.0\1"|' \
     SBOM.cdx.json
 )
-cmp SBOM.cdx.json "$audit_root/source-a/SBOM.cdx.json"
+node release/frontend/merge-sbom.mjs \
+  "$audit_root/source-metadata/SBOM.cdx.json" \
+  "$audit_root/source-a/release/frontend/SBOM.cdx.json" \
+  "$audit_root/SBOM.cdx.json"
+cmp SBOM.cdx.json "$audit_root/SBOM.cdx.json"
 
 build_one() {
   local source_dir=$1
@@ -111,5 +157,6 @@ env \
     --all-features \
     --target "$TARGET"
 
-sha256sum Cargo.lock THIRD_PARTY_NOTICES.txt SBOM.cdx.json "$BIN_A"
-echo 'release audit passed: locked metadata, notices, SBOM, policy, tests, reproducibility, and static ELF'
+sha256sum Cargo.lock web/pnpm-lock.yaml THIRD_PARTY_NOTICES.txt SBOM.cdx.json \
+  release/frontend/BUILD_PROVENANCE.json "$BIN_A"
+echo 'release audit passed: locked Cargo/frontend metadata, browser gates, notices, SBOM, policy, tests, reproducibility, and static ELF'

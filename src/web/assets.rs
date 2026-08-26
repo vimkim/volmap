@@ -9,6 +9,24 @@ const ROUTES_JS: &str = include_str!("assets/routes.js");
 const DISTRIBUTION_JS: &str = include_str!("assets/distribution.js");
 const APP_JS: &str = include_str!("assets/app.js");
 
+// Ticket 02 will route these generated assets when the React compatibility
+// viewer replaces the current application. Keep them as ordinary Rust inputs
+// now so every Cargo build proves that a checkout is self-contained and does
+// not need Node to recover missing browser artifacts.
+const _: &str = include_str!("generated/frontend.js");
+const _: &str = include_str!("generated/frontend.css");
+const _: &str = include_str!("generated/manifest.json");
+const _: &str = include_str!("generated/runtime-packages.json");
+
+#[cfg(test)]
+const GENERATED_FRONTEND_JS: &str = include_str!("generated/frontend.js");
+#[cfg(test)]
+const GENERATED_FRONTEND_CSS: &str = include_str!("generated/frontend.css");
+#[cfg(test)]
+const GENERATED_FRONTEND_MANIFEST: &str = include_str!("generated/manifest.json");
+#[cfg(test)]
+const GENERATED_RUNTIME_PACKAGES: &str = include_str!("generated/runtime-packages.json");
+
 pub(super) async fn index() -> Html<&'static str> {
     Html(INDEX_HTML)
 }
@@ -109,6 +127,14 @@ mod tests {
                 assert!(String::from_utf8(bytes.to_vec()).unwrap().contains(marker));
             }
         });
+    }
+
+    #[test]
+    fn generated_frontend_assets_are_ready_for_the_react_cutover() {
+        assert!(GENERATED_FRONTEND_JS.contains("React viewer foundation ready."));
+        assert!(GENERATED_FRONTEND_CSS.contains("#volmap-react-root"));
+        assert!(GENERATED_FRONTEND_MANIFEST.contains("\"file\": \"frontend.js\""));
+        assert!(GENERATED_RUNTIME_PACKAGES.contains("\"name\": \"react-dom\""));
     }
 
     #[test]
