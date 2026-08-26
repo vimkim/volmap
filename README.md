@@ -166,21 +166,30 @@ The live React application is compiled into the committed
 files in the Volmap executable, so every `serve` invocation uses the React
 viewer without running Node or Vite at startup.
 
-Use the convenience recipes to run `demodb`:
+Use the user-level recipes to regenerate the frontend and then run `demodb`:
 
 ```sh
 # Debug build
-just serve-debug-demodb
+just user::serve-debug-demodb
 
 # Optimized static-musl release build
-just serve-release-demodb
+just user::serve-release-demodb
 ```
 
-Both recipes listen on port 7777; open `http://127.0.0.1:7777`. To pass custom
-serve arguments to a debug build, use for example:
+Both recipes listen on port 7777; open `http://127.0.0.1:7777`. They compose a
+frontend generation primitive with a Rust serve primitive:
+
+```text
+user::serve-debug-demodb
+  ├─ vite::frontend-generate-artifacts
+  └─ cargo::serve-debug-demodb
+```
+
+Maintainers can invoke those lower-level namespaces independently. To serve the
+currently generated bundle with custom debug arguments, use for example:
 
 ```sh
-just serve-debug --database demodb --listen 127.0.0.1:8080
+just cargo::serve-debug --database demodb --listen 127.0.0.1:8080
 ```
 
 Cargo does not rebuild the frontend source. After changing files under
@@ -188,15 +197,20 @@ Cargo does not rebuild the frontend source. After changing files under
 server:
 
 ```sh
-just frontend-artifacts
-just serve-debug-demodb
+just vite::frontend-generate-artifacts
+just cargo::serve-debug-demodb
 ```
 
-Run `just frontend-check` before committing frontend changes. It checks types,
+Run `just vite::frontend-check` before committing frontend changes. It checks types,
 unit tests, deterministic generated assets, dependency advisories, Chromium and
 Firefox behavior against the actual Rust server, and Cargo-only embedding.
 There is currently no supported Vite hot-reload server; the integration path
 always exercises the Rust server and its embedded bundle.
+
+The previous top-level names remain compatibility aliases: `serve-debug-demodb`
+and `serve-release-demodb` delegate to the corresponding `user::` recipes,
+while `frontend-artifacts` delegates to
+`vite::frontend-generate-artifacts`.
 
 ## Safety and scope
 
