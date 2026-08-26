@@ -1,8 +1,8 @@
-//! Staged focused-TUI session and Volume mosaic.
+//! Staged focused-TUI session with Volume and Sector modes.
 //!
-//! This module deliberately has no terminal event or I/O dependency. Ticket 01
-//! keeps it beside the legacy production path so its semantic state, bounded
-//! projection, and rendering can be proved before cutover.
+//! This module deliberately has no terminal event or I/O dependency. Tickets
+//! 01 and 02 keep it beside the legacy production path so semantic state,
+//! bounded projection, and rendering can be proved before cutover.
 
 use std::fmt::{self, Write as _};
 
@@ -12,7 +12,8 @@ use unicode_width::UnicodeWidthStr;
 use crate::inspection::{GraphView, QueryError, VolumeView};
 use crate::model::{InspectionRevision, SectorId, SnapshotId, VolId};
 use crate::projection::{
-    ClassNameProjection, OptionalTextProjection, PageOccupancyProjection, PageProjection,
+    ClassNameProjection, FileAssociationBodyProjection, FileAssociationProjection,
+    OptionalOidProjection, OptionalTextProjection, PageOccupancyProjection, PageProjection,
     SectorAttributionProjection, SectorProjection, outcome_name, sector_projection,
     snapshot_id_hex, volume_projection,
 };
@@ -25,6 +26,9 @@ const CARD_HEIGHT: u16 = 11;
 const CARD_TOP: u16 = 4;
 const RESERVED_ROWS: u16 = 7;
 const PAGE_COUNT: usize = 64;
+const SECTOR_GRID_TOP: u16 = 4;
+const SECTOR_GRID_ROWS: u16 = 8;
+const SECTOR_GRID_COLUMNS: u16 = 8;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct Surface {
@@ -74,9 +78,22 @@ pub(crate) enum FocusedError {
     EmptyInspection,
     Arithmetic,
     InvalidAllocation(&'static str),
-    InvalidSectorPageCount { sector_id: i32, actual: usize },
-    InvalidPhysicalPageOrder { expected: i32, actual: i32 },
-    SurfaceTooSmall { width: u16, height: u16 },
+    InvalidSectorPageCount {
+        sector_id: i32,
+        actual: usize,
+    },
+    InvalidPhysicalPageOrder {
+        expected: i32,
+        actual: i32,
+    },
+    WrongMode {
+        expected: FocusedMode,
+        actual: FocusedMode,
+    },
+    SurfaceTooSmall {
+        width: u16,
+        height: u16,
+    },
 }
 
 impl fmt::Display for FocusedError {
@@ -96,6 +113,12 @@ impl fmt::Display for FocusedError {
                 formatter,
                 "projected page order is invalid: expected {expected}, found {actual}"
             ),
+            Self::WrongMode { expected, actual } => {
+                write!(
+                    formatter,
+                    "focused TUI expected {expected:?} mode, found {actual:?}"
+                )
+            }
             Self::SurfaceTooSmall { width, height } => write!(
                 formatter,
                 "focused TUI requires at least 60x20, found {width}x{height}"
@@ -124,6 +147,19 @@ pub(crate) struct VolumeState {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum FocusedMode {
+    Volume,
+    Sector,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct FocusedState {
+    pub volume: VolumeState,
+    pub mode: FocusedMode,
+    pub focused_page: u8,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum VolumeAction {
     Left,
     Right,
@@ -142,6 +178,85 @@ pub(crate) struct Transition {
     pub state: VolumeState,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum FocusedAction {
+    Left,
+    Right,
+    Up,
+    Down,
+    Activate,
+    Ascend,
+    PreviousSector,
+    NextSector,
+    PreviousVolume,
+    NextVolume,
+    ScrollRows(i32),
+    FocusSector(u32),
+    FocusPage(u8),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct FocusedTransition {
+    pub changed: bool,
+    pub state: FocusedState,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum PointerInput {
+    ActivateSector(u32),
+    ActivatePage(u8),
+    WheelRows(i32),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum StructuralKey {
+    Left,
+    Right,
+    Up,
+    Down,
+    Enter,
+    Escape,
+    Backspace,
+    PreviousSector,
+    NextSector,
+    PreviousVolume,
+    NextVolume,
+}
+
+pub(crate) const fn key_action(key: StructuralKey) -> FocusedAction {
+    match key {
+        StructuralKey::Left => FocusedAction::Left,
+        StructuralKey::Right => FocusedAction::Right,
+        StructuralKey::Up => FocusedAction::Up,
+        StructuralKey::Down => FocusedAction::Down,
+        StructuralKey::Enter => FocusedAction::Activate,
+        StructuralKey::Escape | StructuralKey::Backspace => FocusedAction::Ascend,
+        StructuralKey::PreviousSector => FocusedAction::PreviousSector,
+        StructuralKey::NextSector => FocusedAction::NextSector,
+        StructuralKey::PreviousVolume => FocusedAction::PreviousVolume,
+        StructuralKey::NextVolume => FocusedAction::NextVolume,
+    }
+}
+
+pub(crate) fn pointer_actions(mode: FocusedMode, input: PointerInput) -> Vec<FocusedAction> {
+    match input {
+        PointerInput::ActivateSector(sector) => {
+            vec![FocusedAction::FocusSector(sector), FocusedAction::Activate]
+        }
+        PointerInput::ActivatePage(page) => {
+            vec![FocusedAction::FocusPage(page), FocusedAction::Activate]
+        }
+        PointerInput::WheelRows(rows) if mode == FocusedMode::Volume => {
+            vec![FocusedAction::ScrollRows(rows)]
+        }
+        PointerInput::WheelRows(rows) if rows.is_negative() => {
+            vec![FocusedAction::PreviousSector]
+        }
+        PointerInput::WheelRows(rows) if rows > 0 => vec![FocusedAction::NextSector],
+        PointerInput::WheelRows(_) => Vec::new(),
+    }
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct FocusedSession {
     view: GraphView,
@@ -149,6 +264,8 @@ pub(crate) struct FocusedSession {
     volume_index: usize,
     focused_sector: u32,
     top_sector: u32,
+    mode: FocusedMode,
+    focused_page: u8,
 }
 
 impl FocusedSession {
@@ -163,6 +280,8 @@ impl FocusedSession {
             volume_index: 0,
             focused_sector: 0,
             top_sector: 0,
+            mode: FocusedMode::Volume,
+            focused_page: 0,
         })
     }
 
@@ -179,8 +298,87 @@ impl FocusedSession {
         }
     }
 
+    pub(crate) fn focused_state(&self) -> FocusedState {
+        FocusedState {
+            volume: self.state(),
+            mode: self.mode,
+            focused_page: self.focused_page,
+        }
+    }
+
+    pub(crate) fn advance_focused(
+        &mut self,
+        action: FocusedAction,
+        surface: Surface,
+    ) -> Result<FocusedTransition, FocusedError> {
+        let before = self.focused_state();
+        let layout = VolumeLayout::for_surface(surface)?;
+        match (self.mode, action) {
+            (FocusedMode::Volume, FocusedAction::Left) => {
+                self.apply_volume_action(VolumeAction::Left, layout);
+            }
+            (FocusedMode::Volume, FocusedAction::Right) => {
+                self.apply_volume_action(VolumeAction::Right, layout);
+            }
+            (FocusedMode::Volume, FocusedAction::Up) => {
+                self.apply_volume_action(VolumeAction::Up, layout);
+            }
+            (FocusedMode::Volume, FocusedAction::Down) => {
+                self.apply_volume_action(VolumeAction::Down, layout);
+            }
+            (FocusedMode::Sector, FocusedAction::Left) => self.move_page_horizontal(false),
+            (FocusedMode::Sector, FocusedAction::Right) => self.move_page_horizontal(true),
+            (FocusedMode::Sector, FocusedAction::Up) => self.move_page_vertical(false),
+            (FocusedMode::Sector, FocusedAction::Down) => self.move_page_vertical(true),
+            (FocusedMode::Volume, FocusedAction::Activate) => {
+                self.mode = FocusedMode::Sector;
+                self.focused_page = 0;
+            }
+            (FocusedMode::Sector, FocusedAction::Ascend) => {
+                self.mode = FocusedMode::Volume;
+            }
+            (_, FocusedAction::PreviousSector) => {
+                self.apply_volume_action(VolumeAction::PreviousSector, layout);
+            }
+            (_, FocusedAction::NextSector) => {
+                self.apply_volume_action(VolumeAction::NextSector, layout);
+            }
+            (FocusedMode::Volume, FocusedAction::PreviousVolume) => {
+                self.apply_volume_action(VolumeAction::PreviousVolume, layout);
+            }
+            (FocusedMode::Volume, FocusedAction::NextVolume) => {
+                self.apply_volume_action(VolumeAction::NextVolume, layout);
+            }
+            (FocusedMode::Volume, FocusedAction::ScrollRows(rows)) => {
+                self.apply_volume_action(VolumeAction::ScrollRows(rows), layout);
+            }
+            (_, FocusedAction::FocusSector(sector)) if sector < self.total_sectors() => {
+                self.focused_sector = sector;
+                self.reveal_focus(layout);
+            }
+            (FocusedMode::Sector, FocusedAction::FocusPage(page)) if page < 64 => {
+                self.focused_page = page;
+            }
+            _ => {}
+        }
+        let state = self.focused_state();
+        Ok(FocusedTransition {
+            changed: state != before,
+            state,
+        })
+    }
+
     pub(crate) fn advance(&mut self, action: VolumeAction, layout: VolumeLayout) -> Transition {
         let before = self.state();
+        self.apply_volume_action(action, layout);
+        let state = self.state();
+        Transition {
+            changed: state != before,
+            state,
+        }
+    }
+
+    fn apply_volume_action(&mut self, action: VolumeAction, layout: VolumeLayout) {
         match action {
             VolumeAction::Left => {
                 let column =
@@ -216,11 +414,6 @@ impl FocusedSession {
             VolumeAction::NextVolume => self.move_volume(true),
             VolumeAction::ScrollRows(rows) => self.scroll_rows(rows, layout),
         }
-        let state = self.state();
-        Transition {
-            changed: state != before,
-            state,
-        }
     }
 
     pub(crate) fn scene(&self, layout: VolumeLayout) -> Result<VolumeScene, FocusedError> {
@@ -250,6 +443,54 @@ impl FocusedSession {
             layout,
             sectors,
         })
+    }
+
+    pub(crate) fn sector_scene(&self) -> Result<SectorScene, FocusedError> {
+        if self.mode != FocusedMode::Sector {
+            return Err(FocusedError::WrongMode {
+                expected: FocusedMode::Sector,
+                actual: self.mode,
+            });
+        }
+        let overview = self.view.overview();
+        let volume = self.volumes[self.volume_index];
+        let raw = i32::try_from(self.focused_sector).map_err(|_| FocusedError::Arithmetic)?;
+        let sector_id = SectorId::new(raw).map_err(|_| FocusedError::Arithmetic)?;
+        let sector = SectorCard::try_from_projection(sector_projection(
+            self.view.sector(volume.vol_id, sector_id)?,
+        ))?;
+        Ok(SectorScene {
+            snapshot_id: overview.snapshot_id,
+            revision: overview.revision,
+            outcome: outcome_name(overview.outcome),
+            volume: volume_projection(volume),
+            volume_index: self.volume_index,
+            volume_count: self.volumes.len(),
+            focused_page: self.focused_page,
+            sector,
+        })
+    }
+
+    fn move_page_horizontal(&mut self, forward: bool) {
+        let column = self.focused_page % 8;
+        if forward {
+            if column < 7 {
+                self.focused_page += 1;
+            }
+        } else if column > 0 {
+            self.focused_page -= 1;
+        }
+    }
+
+    fn move_page_vertical(&mut self, forward: bool) {
+        let row = self.focused_page / 8;
+        if forward {
+            if row < 7 {
+                self.focused_page += 8;
+            }
+        } else if row > 0 {
+            self.focused_page -= 8;
+        }
     }
 
     fn total_sectors(&self) -> u32 {
@@ -328,6 +569,18 @@ pub(crate) struct VolumeScene {
     pub sectors: Vec<SectorCard>,
 }
 
+#[derive(Clone, Debug)]
+pub(crate) struct SectorScene {
+    pub snapshot_id: SnapshotId,
+    pub revision: InspectionRevision,
+    pub outcome: &'static str,
+    pub volume: crate::projection::VolumeProjection,
+    pub volume_index: usize,
+    pub volume_count: usize,
+    pub focused_page: u8,
+    pub sector: SectorCard,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum AllocationMark {
     System,
@@ -356,6 +609,15 @@ impl AllocationMark {
         }
     }
 
+    const fn label(self) -> &'static str {
+        match self {
+            Self::System => "system-metadata",
+            Self::Allocated => "allocated",
+            Self::Reserved => "reserved-unallocated",
+            Self::Unreserved => "unreserved",
+        }
+    }
+
     const fn style(self) -> SemanticStyle {
         match self {
             Self::System => SemanticStyle::System,
@@ -376,22 +638,7 @@ pub(crate) enum OccupancyMark {
 
 impl OccupancyMark {
     fn from_projection(allocation: AllocationMark, occupancy: &PageOccupancyProjection) -> Self {
-        if allocation != AllocationMark::Allocated {
-            return Self::NotApplicable;
-        }
-        match occupancy {
-            PageOccupancyProjection::Unknown => Self::Unknown,
-            PageOccupancyProjection::Known {
-                occupied_percent: 0,
-                ..
-            } => Self::Zero,
-            PageOccupancyProjection::Known {
-                occupied_percent, ..
-            } => {
-                let level = (u16::from(*occupied_percent) * 8).div_ceil(100);
-                Self::Level(u8::try_from(level).unwrap_or(8).clamp(1, 8))
-            }
-        }
+        ExactOccupancy::from_projection(allocation, occupancy).volume_mark()
     }
 
     const fn glyph(self, glyphs: GlyphProfile) -> char {
@@ -424,22 +671,257 @@ impl OccupancyMark {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ExactOccupancy {
+    Known {
+        occupied_percent: u8,
+        free_percent: u8,
+    },
+    Unknown,
+    NotApplicable,
+}
+
+impl ExactOccupancy {
+    fn from_projection(allocation: AllocationMark, occupancy: &PageOccupancyProjection) -> Self {
+        if allocation != AllocationMark::Allocated {
+            return Self::NotApplicable;
+        }
+        match occupancy {
+            PageOccupancyProjection::Known {
+                occupied_percent,
+                free_percent,
+            } => Self::Known {
+                occupied_percent: *occupied_percent,
+                free_percent: *free_percent,
+            },
+            PageOccupancyProjection::Unknown => Self::Unknown,
+        }
+    }
+
+    fn volume_mark(self) -> OccupancyMark {
+        match self {
+            Self::Known {
+                occupied_percent: 0,
+                ..
+            } => OccupancyMark::Zero,
+            Self::Known {
+                occupied_percent, ..
+            } => {
+                let scaled = u16::from(occupied_percent) * 8;
+                let level = scaled.div_ceil(100);
+                OccupancyMark::Level(u8::try_from(level).unwrap_or(8).min(8))
+            }
+            Self::Unknown => OccupancyMark::Unknown,
+            Self::NotApplicable => OccupancyMark::NotApplicable,
+        }
+    }
+
+    fn occupied_label(self) -> String {
+        match self {
+            Self::Known {
+                occupied_percent, ..
+            } => format!("{occupied_percent}%"),
+            Self::Unknown => "?".to_owned(),
+            Self::NotApplicable => "-".to_owned(),
+        }
+    }
+
+    fn compact_value(self) -> String {
+        match self {
+            Self::Known {
+                occupied_percent, ..
+            } => occupied_percent.to_string(),
+            Self::Unknown => "?".to_owned(),
+            Self::NotApplicable => "-".to_owned(),
+        }
+    }
+
+    fn descriptor(self) -> String {
+        match self {
+            Self::Known {
+                occupied_percent,
+                free_percent,
+            } => format!("occupied {occupied_percent}% / free {free_percent}%"),
+            Self::Unknown => "occupied ? / free ?".to_owned(),
+            Self::NotApplicable => "occupied - / free -".to_owned(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum PageTypeMark {
+    Known(&'static str),
+    Unknown,
+    Unsupported,
+}
+
+impl PageTypeMark {
+    fn from_projection(value: &OptionalTextProjection) -> Self {
+        match value {
+            OptionalTextProjection::Known(value) => Self::Known(value),
+            OptionalTextProjection::Unknown => Self::Unknown,
+            OptionalTextProjection::Unsupported => Self::Unsupported,
+        }
+    }
+
+    const fn label(&self) -> &'static str {
+        match self {
+            Self::Known(value) => value,
+            Self::Unknown => "unknown",
+            Self::Unsupported => "unsupported",
+        }
+    }
+
+    fn compact(&self) -> &'static str {
+        match self {
+            Self::Known("file-table") => "FT",
+            Self::Known("heap") => "HP",
+            Self::Known("volume-header") => "VH",
+            Self::Known("volume-bitmap") => "VB",
+            Self::Known("query-result") => "QR",
+            Self::Known("extensible-hash") => "EH",
+            Self::Known("overflow") => "OV",
+            Self::Known("oos") => "OS",
+            Self::Known("area") => "AR",
+            Self::Known("catalog") => "CA",
+            Self::Known("btree") => "BT",
+            Self::Known("log") => "LG",
+            Self::Known("dropped-files") => "DF",
+            Self::Known("vacuum-data") => "VD",
+            Self::Known(_) | Self::Unknown => "??",
+            Self::Unsupported => "--",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum PageClaimKind {
+    Allocated,
+    ReservedFor,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum PageAttributionMark {
+    None,
+    MixedClaims,
+    Single {
+        kind: PageClaimKind,
+        vol_id: i16,
+        file_id: i32,
+        role: Option<&'static str>,
+        class_oid: Option<(i16, i32, i16)>,
+        class: ClassAttributionMark,
+    },
+}
+
+impl PageAttributionMark {
+    fn from_projection(value: &FileAssociationProjection) -> Self {
+        match value {
+            FileAssociationProjection::None => Self::None,
+            FileAssociationProjection::MixedClaims => Self::MixedClaims,
+            FileAssociationProjection::Allocated { file } => {
+                Self::from_body(PageClaimKind::Allocated, file)
+            }
+            FileAssociationProjection::ReservedFor { file } => {
+                Self::from_body(PageClaimKind::ReservedFor, file)
+            }
+        }
+    }
+
+    fn from_body(kind: PageClaimKind, file: &FileAssociationBodyProjection) -> Self {
+        Self::Single {
+            kind,
+            vol_id: file.vol_id,
+            file_id: file.file_id,
+            role: match file.file_type {
+                OptionalTextProjection::Known(role) => Some(role),
+                OptionalTextProjection::Unknown | OptionalTextProjection::Unsupported => None,
+            },
+            class_oid: match file.class_oid {
+                OptionalOidProjection::Absent => None,
+                OptionalOidProjection::Present { oid } => {
+                    Some((oid.vol_id, oid.page_id, oid.slot_id))
+                }
+            },
+            class: match &file.class_name {
+                ClassNameProjection::Resolved { value } => {
+                    ClassAttributionMark::Resolved(value.clone())
+                }
+                ClassNameProjection::Unresolved { reason } => {
+                    ClassAttributionMark::Unresolved(reason)
+                }
+                ClassNameProjection::NotApplicable { reason } => {
+                    ClassAttributionMark::NotApplicable(reason)
+                }
+            },
+        }
+    }
+
+    fn labels(&self) -> (String, String) {
+        match self {
+            Self::None => ("file none / class -".to_owned(), "table -".to_owned()),
+            Self::MixedClaims => ("file mixed / class ?".to_owned(), "table ?".to_owned()),
+            Self::Single {
+                kind,
+                vol_id,
+                file_id,
+                role,
+                class_oid,
+                class,
+            } => {
+                let claim = match kind {
+                    PageClaimKind::Allocated => "allocated-by",
+                    PageClaimKind::ReservedFor => "reserved-for",
+                };
+                let file = role.map_or_else(
+                    || format!("file {vol_id}:{file_id}"),
+                    |role| format!("file {vol_id}:{file_id} ({role})"),
+                );
+                let class_oid = class_oid.map_or_else(
+                    || "class -".to_owned(),
+                    |(vol_id, page_id, slot_id)| format!("class {vol_id}:{page_id}:{slot_id}"),
+                );
+                let table = match class {
+                    ClassAttributionMark::Resolved(value) => format!("table {value}"),
+                    ClassAttributionMark::Unresolved(reason) => format!("table ? ({reason})"),
+                    ClassAttributionMark::NotApplicable(reason) => format!("table - ({reason})"),
+                };
+                (format!("{claim} {file} / {class_oid}"), table)
+            }
+        }
+    }
+
+    fn label(&self) -> String {
+        let (file_class, table) = self.labels();
+        format!("{file_class} / {table}")
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct PageMark {
     pub page_id: i32,
     pub allocation: AllocationMark,
-    pub occupancy: OccupancyMark,
+    pub occupancy: ExactOccupancy,
+    pub page_type: PageTypeMark,
     pub finding: bool,
+    pub diagnostic: Option<&'static str>,
+    pub attribution: PageAttributionMark,
 }
 
 impl PageMark {
     fn try_from_projection(page: &PageProjection) -> Result<Self, FocusedError> {
         let allocation = AllocationMark::from_name(page.allocation)?;
-        let finding = matches!(page.diagnostic, OptionalTextProjection::Known(_));
+        let diagnostic = match page.diagnostic {
+            OptionalTextProjection::Known(value) => Some(value),
+            OptionalTextProjection::Unknown | OptionalTextProjection::Unsupported => None,
+        };
         Ok(Self {
             page_id: page.page_id,
             allocation,
-            occupancy: OccupancyMark::from_projection(allocation, &page.occupancy),
-            finding,
+            occupancy: ExactOccupancy::from_projection(allocation, &page.occupancy),
+            page_type: PageTypeMark::from_projection(&page.page_type),
+            finding: diagnostic.is_some(),
+            diagnostic,
+            attribution: PageAttributionMark::from_projection(&page.file_association),
         })
     }
 }
@@ -662,12 +1144,23 @@ pub(crate) struct HitRegion {
     pub bottom: u16,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct PageHitRegion {
+    pub page_index: u8,
+    pub page_id: i32,
+    pub left: u16,
+    pub top: u16,
+    pub right: u16,
+    pub bottom: u16,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct VolumeFrame {
     surface: Surface,
     profile: PresentationProfile,
     cells: Vec<Cell>,
     pub hits: Vec<HitRegion>,
+    pub page_hits: Vec<PageHitRegion>,
 }
 
 impl VolumeFrame {
@@ -677,6 +1170,7 @@ impl VolumeFrame {
             profile,
             cells: vec![Cell::default(); usize::from(surface.width) * usize::from(surface.height)],
             hits: Vec::new(),
+            page_hits: Vec::new(),
         }
     }
 
@@ -758,6 +1252,25 @@ impl VolumeFrame {
             .expect("writing a String cannot fail");
         }
         output.push('\n');
+        if !self.page_hits.is_empty() {
+            output.push_str("page-hits:\n");
+            for (index, hit) in self.page_hits.iter().enumerate() {
+                if index % usize::from(SECTOR_GRID_COLUMNS) == 0 {
+                    output.push_str("  ");
+                } else {
+                    output.push(' ');
+                }
+                write!(
+                    output,
+                    "P{}={}@{},{}-{},{}",
+                    hit.page_index, hit.page_id, hit.left, hit.top, hit.right, hit.bottom
+                )
+                .expect("writing a String cannot fail");
+                if (index + 1) % usize::from(SECTOR_GRID_COLUMNS) == 0 {
+                    output.push('\n');
+                }
+            }
+        }
         output
     }
 
@@ -977,6 +1490,204 @@ impl VolumeRenderer {
     }
 }
 
+pub(crate) struct SectorRenderer;
+
+impl SectorRenderer {
+    #[allow(clippy::too_many_lines)]
+    pub(crate) fn render(
+        scene: &SectorScene,
+        surface: Surface,
+        profile: PresentationProfile,
+    ) -> Result<VolumeFrame, FocusedError> {
+        VolumeLayout::for_surface(surface)?;
+        let cell_width = surface.width / SECTOR_GRID_COLUMNS;
+        if cell_width < 7 {
+            return Err(FocusedError::Arithmetic);
+        }
+        let mut frame = VolumeFrame::new(surface, profile);
+        let separator = match profile.glyphs {
+            GlyphProfile::Unicode => " · ",
+            GlyphProfile::Ascii => " | ",
+        };
+        let fingerprint = snapshot_id_hex(scene.snapshot_id);
+        frame.put_text(
+            0,
+            0,
+            surface.width,
+            &format!(
+                " VOLMAP  snapshot {}  r{}  {} ",
+                &fingerprint[..12],
+                scene.revision.get(),
+                scene.outcome
+            ),
+            SemanticStyle::Header,
+        );
+        frame.put_text(
+            0,
+            1,
+            surface.width,
+            &format!(
+                "Volume {} ({}/{}) > Sector {}{separator}64 physical Pages",
+                scene.volume.vol_id,
+                scene.volume_index + 1,
+                scene.volume_count,
+                scene.sector.sector_id
+            ),
+            SemanticStyle::Plain,
+        );
+        frame.put_text(
+            0,
+            2,
+            surface.width,
+            if surface.width >= 80 {
+                "cell: within-Sector Page · exact occupied % · physical type"
+            } else {
+                "cell: within-Sector Page + exact occupied %; focus details below"
+            },
+            SemanticStyle::Muted,
+        );
+
+        for row in 0..SECTOR_GRID_ROWS {
+            for column in 0..SECTOR_GRID_COLUMNS {
+                let page_index = u8::try_from(row * SECTOR_GRID_COLUMNS + column)
+                    .map_err(|_| FocusedError::Arithmetic)?;
+                let page = &scene.sector.pages[usize::from(page_index)];
+                let left = column * surface.width / SECTOR_GRID_COLUMNS;
+                let right = (column + 1) * surface.width / SECTOR_GRID_COLUMNS - 1;
+                let occupied = page.occupancy.occupied_label();
+                let label = if surface.width >= 80 {
+                    format!("{page_index:02} {occupied:>4}{}", page.page_type.compact())
+                } else {
+                    format!("{page_index:02} {:>3}", page.occupancy.compact_value())
+                };
+                let style = if page_index == scene.focused_page {
+                    SemanticStyle::Focus
+                } else {
+                    match page.occupancy {
+                        ExactOccupancy::Unknown => SemanticStyle::Unknown,
+                        ExactOccupancy::NotApplicable => SemanticStyle::Muted,
+                        ExactOccupancy::Known { .. } => page.allocation.style(),
+                    }
+                };
+                frame.put_text(left, SECTOR_GRID_TOP + row, right - left + 1, &label, style);
+                frame.page_hits.push(PageHitRegion {
+                    page_index,
+                    page_id: page.page_id,
+                    left,
+                    top: SECTOR_GRID_TOP + row,
+                    right,
+                    bottom: SECTOR_GRID_TOP + row,
+                });
+            }
+        }
+
+        let focused = &scene.sector.pages[usize::from(scene.focused_page)];
+        let detail_top = SECTOR_GRID_TOP + SECTOR_GRID_ROWS + 1;
+        frame.put_text(
+            0,
+            detail_top,
+            surface.width,
+            &format!(
+                "Page {} (cell {:02}){separator}type {}{separator}allocation {}",
+                focused.page_id,
+                scene.focused_page,
+                focused.page_type.label(),
+                focused.allocation.label()
+            ),
+            SemanticStyle::Focus,
+        );
+        frame.put_text(
+            0,
+            detail_top + 1,
+            surface.width,
+            &format!(
+                "{}{separator}finding {}",
+                focused.occupancy.descriptor(),
+                focused.diagnostic.unwrap_or("none")
+            ),
+            if focused.finding {
+                SemanticStyle::Finding
+            } else {
+                SemanticStyle::Plain
+            },
+        );
+        let (attribution, context) = if surface.width < 80 {
+            focused.attribution.labels()
+        } else {
+            (
+                focused.attribution.label(),
+                format!(
+                    "Sector {}{separator}{}{separator}{}",
+                    scene.sector.sector_id,
+                    if scene.sector.reserved {
+                        "reserved"
+                    } else {
+                        "unreserved"
+                    },
+                    scene.sector.attribution.label()
+                ),
+            )
+        };
+        frame.put_text(
+            0,
+            detail_top + 2,
+            surface.width,
+            &attribution,
+            SemanticStyle::Plain,
+        );
+        frame.put_text(
+            0,
+            detail_top + 3,
+            surface.width,
+            &context,
+            SemanticStyle::Muted,
+        );
+        let (status, help) = if surface.width < 80 {
+            (
+                format!(
+                    "focus Page {}/64 | all 64 shown once | revision r{}",
+                    u16::from(scene.focused_page) + 1,
+                    scene.revision.get()
+                ),
+                "arrows move | [ ]/wheel Sector | Enter inspect Page".to_owned(),
+            )
+        } else {
+            (
+                format!(
+                    "focus Page {} of 64{separator}all Pages shown once{separator}exact revision r{}",
+                    u16::from(scene.focused_page) + 1,
+                    scene.revision.get()
+                ),
+                format!(
+                    "arrows move{separator}[ ] sibling Sector{separator}wheel sibling{separator}Enter inspect Page"
+                ),
+            )
+        };
+        frame.put_text(
+            0,
+            surface.height - 3,
+            surface.width,
+            &status,
+            SemanticStyle::Muted,
+        );
+        frame.put_text(
+            0,
+            surface.height - 2,
+            surface.width,
+            &help,
+            SemanticStyle::Plain,
+        );
+        frame.put_text(
+            0,
+            surface.height - 1,
+            surface.width,
+            &format!("Esc/Backspace Volume{separator}? help{separator}q quit"),
+            SemanticStyle::Plain,
+        );
+        Ok(frame)
+    }
+}
+
 fn draw_card(
     frame: &mut VolumeFrame,
     left: u16,
@@ -1027,7 +1738,7 @@ fn draw_card(
         frame.put(left + CARD_WIDTH - 1, screen_row, border.3, border_style);
         for column in 0_u16..8 {
             let index = usize::from(row * 8 + column);
-            let page = sector.pages[index];
+            let page = &sector.pages[index];
             let screen_column = left + 1 + column * 2;
             frame.put(
                 screen_column,
@@ -1035,7 +1746,8 @@ fn draw_card(
                 page.allocation.glyph(),
                 page.allocation.style(),
             );
-            let occupancy_style = match page.occupancy {
+            let occupancy = page.occupancy.volume_mark();
+            let occupancy_style = match occupancy {
                 OccupancyMark::Unknown => SemanticStyle::Unknown,
                 OccupancyMark::NotApplicable => SemanticStyle::Muted,
                 OccupancyMark::Zero | OccupancyMark::Level(_) => SemanticStyle::Occupancy,
@@ -1043,7 +1755,7 @@ fn draw_card(
             frame.put(
                 screen_column + 1,
                 screen_row,
-                page.occupancy.glyph(profile.glyphs),
+                occupancy.glyph(profile.glyphs),
                 occupancy_style,
             );
         }
@@ -1234,7 +1946,27 @@ mod tests {
                     26..=43 => ("reserved-unallocated", PageOccupancyProjection::Unknown),
                     _ => ("unreserved", PageOccupancyProjection::Unknown),
                 };
-                page(page_id, allocation, occupancy, within == 17)
+                let mut page = page(page_id, allocation, occupancy, within == 7 || within == 17);
+                if within == 7 {
+                    page.file_association = FileAssociationProjection::Allocated {
+                        file: crate::projection::FileAssociationBodyProjection {
+                            vol_id: 0,
+                            file_id: 91,
+                            file_type: OptionalTextProjection::Known("heap"),
+                            class_oid: crate::projection::OptionalOidProjection::Present {
+                                oid: crate::projection::OidProjection {
+                                    vol_id: 0,
+                                    page_id: 777,
+                                    slot_id: 3,
+                                },
+                            },
+                            class_name: ClassNameProjection::Resolved {
+                                value: "orders\u{1b}[31m".to_owned(),
+                            },
+                        },
+                    };
+                }
+                page
             })
             .collect::<Vec<_>>();
         SectorCard::try_from_projection(SectorProjection {
@@ -1288,6 +2020,37 @@ mod tests {
             sectors: (0..count)
                 .map(|sector| synthetic_card(i32::try_from(sector).unwrap()))
                 .collect(),
+        }
+    }
+
+    fn synthetic_sector_scene(focused_page: u8) -> SectorScene {
+        SectorScene {
+            snapshot_id: SnapshotId::from_bytes([0xAB; 16]),
+            revision: InspectionRevision::new(7),
+            outcome: "success-limited",
+            volume: VolumeProjection {
+                vol_id: 0,
+                purpose: "permanent-data",
+                volume_type: "permanent",
+                total_sectors: 64,
+                maximum_sectors: 64,
+                system_last_page: 1,
+                reserved_sectors: 32,
+            },
+            volume_index: 0,
+            volume_count: 1,
+            focused_page,
+            sector: synthetic_card(3),
+        }
+    }
+
+    fn apply_actions(
+        session: &mut FocusedSession,
+        surface: Surface,
+        actions: impl IntoIterator<Item = FocusedAction>,
+    ) {
+        for action in actions {
+            session.advance_focused(action, surface).unwrap();
         }
     }
 
@@ -1443,14 +2206,31 @@ mod tests {
         assert_eq!(card.pages[0].page_id, 192);
         assert_eq!(card.pages[63].page_id, 255);
         assert_eq!(card.pages[0].allocation, AllocationMark::Allocated);
-        assert_eq!(card.pages[0].occupancy, OccupancyMark::Level(1));
-        assert_eq!(card.pages[8].occupancy, OccupancyMark::Zero);
-        assert_eq!(card.pages[9].occupancy, OccupancyMark::Unknown);
+        assert_eq!(
+            card.pages[0].occupancy.volume_mark(),
+            OccupancyMark::Level(1)
+        );
+        assert_eq!(card.pages[8].occupancy.volume_mark(), OccupancyMark::Zero);
+        assert_eq!(
+            card.pages[9].occupancy.volume_mark(),
+            OccupancyMark::Unknown
+        );
         assert_eq!(card.pages[10].allocation, AllocationMark::System);
-        assert_eq!(card.pages[10].occupancy, OccupancyMark::NotApplicable);
+        assert_eq!(
+            card.pages[10].occupancy.volume_mark(),
+            OccupancyMark::NotApplicable
+        );
         assert_eq!(card.pages[26].allocation, AllocationMark::Reserved);
         assert_eq!(card.pages[44].allocation, AllocationMark::Unreserved);
         assert!(card.pages[17].finding);
+        assert!(matches!(
+            card.pages[7].attribution,
+            PageAttributionMark::Single {
+                kind: PageClaimKind::Allocated,
+                file_id: 91,
+                ..
+            }
+        ));
         assert!(card.finding);
         assert_eq!(card.attribution, SectorAttributionMark::Unclaimed);
 
@@ -1467,6 +2247,247 @@ mod tests {
                 reserved_unallocated_pages: 0,
             }
         ));
+    }
+
+    #[test]
+    fn sector_descent_rover_resize_siblings_and_ascent_preserve_structural_state() {
+        let (_directory, view) = fixture_view();
+        let compact = Surface::new(60, 20);
+        let mut session = FocusedSession::new(view).unwrap();
+        session
+            .advance_focused(FocusedAction::FocusSector(11), compact)
+            .unwrap();
+        let volume_anchor = session.state();
+        assert_eq!(volume_anchor.focused_sector, 11);
+        assert_eq!(volume_anchor.top_sector, 9);
+
+        session
+            .advance_focused(key_action(StructuralKey::Enter), compact)
+            .unwrap();
+        assert_eq!(session.focused_state().mode, FocusedMode::Sector);
+        assert_eq!(session.sector_scene().unwrap().sector.sector_id, 11);
+        assert!(
+            session
+                .scene(VolumeLayout::for_surface(compact).unwrap())
+                .is_ok()
+        );
+
+        assert!(
+            !session
+                .advance_focused(FocusedAction::Left, compact)
+                .unwrap()
+                .changed
+        );
+        apply_actions(&mut session, compact, [FocusedAction::Right; 7]);
+        assert_eq!(session.focused_state().focused_page, 7);
+        assert!(
+            !session
+                .advance_focused(FocusedAction::Right, compact)
+                .unwrap()
+                .changed
+        );
+        apply_actions(&mut session, compact, [FocusedAction::Down; 7]);
+        assert_eq!(session.focused_state().focused_page, 63);
+        assert!(
+            !session
+                .advance_focused(FocusedAction::Down, compact)
+                .unwrap()
+                .changed
+        );
+        session
+            .advance_focused(FocusedAction::Left, compact)
+            .unwrap();
+        assert_eq!(session.focused_state().focused_page, 62);
+        session.advance_focused(FocusedAction::Up, compact).unwrap();
+        assert_eq!(session.focused_state().focused_page, 54);
+
+        let before_resize = session.focused_state();
+        for (surface, profile) in [
+            (Surface::new(120, 36), PresentationProfile::ANSI_UNICODE),
+            (Surface::new(80, 24), PresentationProfile::ANSI_UNICODE),
+            (Surface::new(60, 20), PresentationProfile::MONO_ASCII),
+        ] {
+            SectorRenderer::render(&session.sector_scene().unwrap(), surface, profile).unwrap();
+            assert_eq!(session.focused_state(), before_resize);
+        }
+
+        session
+            .advance_focused(key_action(StructuralKey::Backspace), compact)
+            .unwrap();
+        assert_eq!(session.focused_state().mode, FocusedMode::Volume);
+        assert_eq!(session.state(), volume_anchor);
+        assert_eq!(
+            key_action(StructuralKey::Escape),
+            key_action(StructuralKey::Backspace)
+        );
+
+        session
+            .advance_focused(FocusedAction::Activate, compact)
+            .unwrap();
+        session
+            .advance_focused(FocusedAction::FocusPage(17), compact)
+            .unwrap();
+        session
+            .advance_focused(FocusedAction::NextSector, compact)
+            .unwrap();
+        assert_eq!(session.focused_state().volume.focused_sector, 12);
+        assert_eq!(session.focused_state().focused_page, 17);
+        session
+            .advance_focused(FocusedAction::PreviousSector, compact)
+            .unwrap();
+        assert_eq!(session.focused_state().volume.focused_sector, 11);
+    }
+
+    #[test]
+    fn mouse_and_wheel_translate_to_the_same_semantic_actions_as_keyboard() {
+        let (_directory, view) = fixture_view();
+        let surface = Surface::new(60, 20);
+        let mut keyboard = FocusedSession::new(view.clone()).unwrap();
+        apply_actions(
+            &mut keyboard,
+            surface,
+            std::iter::repeat_n(key_action(StructuralKey::NextSector), 11)
+                .chain([key_action(StructuralKey::Enter)]),
+        );
+
+        let mut pointer = FocusedSession::new(view).unwrap();
+        apply_actions(
+            &mut pointer,
+            surface,
+            pointer_actions(FocusedMode::Volume, PointerInput::ActivateSector(11)),
+        );
+        assert_eq!(pointer.focused_state(), keyboard.focused_state());
+
+        apply_actions(
+            &mut keyboard,
+            surface,
+            [
+                key_action(StructuralKey::Right),
+                key_action(StructuralKey::Down),
+                key_action(StructuralKey::Down),
+                key_action(StructuralKey::Enter),
+            ],
+        );
+        apply_actions(
+            &mut pointer,
+            surface,
+            pointer_actions(FocusedMode::Sector, PointerInput::ActivatePage(17)),
+        );
+        assert_eq!(pointer.focused_state(), keyboard.focused_state());
+
+        let mut wheel = pointer.clone();
+        apply_actions(
+            &mut wheel,
+            surface,
+            pointer_actions(FocusedMode::Sector, PointerInput::WheelRows(1)),
+        );
+        pointer
+            .advance_focused(key_action(StructuralKey::NextSector), surface)
+            .unwrap();
+        assert_eq!(wheel.focused_state(), pointer.focused_state());
+        assert_eq!(
+            pointer_actions(FocusedMode::Sector, PointerInput::WheelRows(-1)),
+            vec![key_action(StructuralKey::PreviousSector)]
+        );
+    }
+
+    #[test]
+    fn sector_renderer_keeps_all_pages_exact_and_exposes_compact_context() {
+        let scene = synthetic_sector_scene(7);
+        for (surface, profile) in [
+            (Surface::new(120, 36), PresentationProfile::ANSI_UNICODE),
+            (Surface::new(80, 24), PresentationProfile::ANSI_UNICODE),
+            (Surface::new(60, 20), PresentationProfile::MONO_ASCII),
+        ] {
+            let frame = SectorRenderer::render(&scene, surface, profile).unwrap();
+            assert_eq!(frame.page_hits.len(), 64);
+            assert_eq!(
+                frame
+                    .page_hits
+                    .iter()
+                    .map(|hit| hit.page_id)
+                    .collect::<BTreeSet<_>>(),
+                (192_i32..256).collect()
+            );
+            for (index, left) in frame.page_hits.iter().enumerate() {
+                assert!(left.right < surface.width);
+                assert!(left.bottom < surface.height);
+                assert!(frame.page_hits[index + 1..].iter().all(|right| {
+                    left.right < right.left
+                        || right.right < left.left
+                        || left.bottom < right.top
+                        || right.bottom < left.top
+                }));
+            }
+            let grid = (SECTOR_GRID_TOP..SECTOR_GRID_TOP + SECTOR_GRID_ROWS)
+                .map(|row| frame.line(row))
+                .collect::<Vec<_>>()
+                .join("\n");
+            if surface.width >= 80 {
+                assert!(grid.contains("00   1%HP"));
+                assert!(grid.contains("07 100%HP"));
+                assert!(grid.contains("08   0%HP"));
+                assert!(grid.contains("09    ?HP"));
+                assert!(grid.contains("10    -HP"));
+                assert_eq!(grid.matches("HP").count(), 64);
+            } else {
+                assert!(grid.contains("00   1"));
+                assert!(grid.contains("07 100"));
+                assert!(grid.contains("08   0"));
+                assert!(grid.contains("09   ?"));
+                assert!(grid.contains("10   -"));
+                assert!(!grid.contains("HP"));
+            }
+            let detail = (13..=16)
+                .map(|row| frame.line(row))
+                .collect::<Vec<_>>()
+                .join(" ");
+            assert!(detail.contains("Page 199 (cell 07)"));
+            assert!(detail.contains("type heap"));
+            assert!(detail.contains("allocation allocated"));
+            assert!(detail.contains("occupied 100%"));
+            assert!(detail.contains("free 0%"));
+            assert!(detail.contains("finding page.test"));
+            assert!(detail.contains("file 0:91 (heap)"));
+            assert!(detail.contains("class 0:777:3"));
+            assert!(detail.contains("table orders"));
+            assert!(!frame.semantic_snapshot().contains('\u{1b}'));
+            if profile.glyphs == GlyphProfile::Ascii {
+                assert!((0..surface.height).all(|row| frame.line(row).is_ascii()));
+            }
+        }
+    }
+
+    #[test]
+    fn volume_buckets_and_sector_percentages_share_one_exact_occupancy_fact() {
+        let card = synthetic_card(3);
+        let expected = [
+            (0, "1%", OccupancyMark::Level(1)),
+            (1, "13%", OccupancyMark::Level(2)),
+            (2, "26%", OccupancyMark::Level(3)),
+            (3, "38%", OccupancyMark::Level(4)),
+            (4, "51%", OccupancyMark::Level(5)),
+            (5, "63%", OccupancyMark::Level(6)),
+            (6, "76%", OccupancyMark::Level(7)),
+            (7, "100%", OccupancyMark::Level(8)),
+            (8, "0%", OccupancyMark::Zero),
+            (9, "?", OccupancyMark::Unknown),
+            (10, "-", OccupancyMark::NotApplicable),
+        ];
+        for (page, label, mark) in expected {
+            assert_eq!(card.pages[page].occupancy.occupied_label(), label);
+            assert_eq!(card.pages[page].occupancy.volume_mark(), mark);
+        }
+        let seven = ExactOccupancy::from_projection(
+            AllocationMark::Allocated,
+            &PageOccupancyProjection::Known {
+                occupied_percent: 7,
+                free_percent: 93,
+            },
+        );
+        assert_eq!(seven.occupied_label(), "7%");
+        assert_eq!(seven.descriptor(), "occupied 7% / free 93%");
+        assert_eq!(seven.volume_mark(), OccupancyMark::Level(1));
     }
 
     #[test]
@@ -1538,6 +2559,31 @@ mod tests {
         ] {
             let scene = synthetic_scene(surface);
             let frame = VolumeRenderer::render(&scene, surface, profile).unwrap();
+            assert_eq!(frame.semantic_snapshot(), expected);
+        }
+    }
+
+    #[test]
+    fn sector_goldens_are_stable_at_all_required_sizes_and_profiles() {
+        for (surface, profile, expected) in [
+            (
+                Surface::new(120, 36),
+                PresentationProfile::ANSI_UNICODE,
+                include_str!("../../tests/goldens/tui-sector-120x36-ansi-unicode.txt"),
+            ),
+            (
+                Surface::new(80, 24),
+                PresentationProfile::ANSI_UNICODE,
+                include_str!("../../tests/goldens/tui-sector-80x24-ansi-unicode.txt"),
+            ),
+            (
+                Surface::new(60, 20),
+                PresentationProfile::MONO_ASCII,
+                include_str!("../../tests/goldens/tui-sector-60x20-mono-ascii.txt"),
+            ),
+        ] {
+            let scene = synthetic_sector_scene(7);
+            let frame = SectorRenderer::render(&scene, surface, profile).unwrap();
             assert_eq!(frame.semantic_snapshot(), expected);
         }
     }
