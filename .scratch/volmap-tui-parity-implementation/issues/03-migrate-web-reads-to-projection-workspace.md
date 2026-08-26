@@ -4,7 +4,9 @@
 
 **Blocked by:** 02: Expand the exact-revision Projection workspace.
 
-**Status:** ready-for-agent
+**Status:** superseded
+
+**Superseded by:** [Volmap focused TUI implementation specification](../../volmap-tui-focused-inspector/implementation-spec.md).
 
 - [ ] Handler tests prove the exact existing Volume, Sector, and Page JSON shapes before and after enrichment, including top-level Slots/distribution, attribution, record interpretation, diagnostics, coverage, and path-free disclosure.
 - [ ] Exact revision envelopes, bounded pagination and revision-bound cursors, retained old-revision reads, and terminal invalidation overlays remain unchanged.

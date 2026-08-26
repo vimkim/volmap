@@ -4,7 +4,9 @@
 
 **Blocked by:** 06: Drill into a complete Sector and restore focus.
 
-**Status:** ready-for-agent
+**Status:** superseded
+
+**Superseded by:** [Volmap focused TUI implementation specification](../../volmap-tui-focused-inspector/implementation-spec.md).
 
 - [ ] `Enter` and mouse activation open the focused Page through the typed Atlas trail; ascent restores the exact Sector Page focus.
 - [ ] Wide layout presents independent Facts and Distribution panes with Slots continuing below, stacked layout preserves the same regions in one workspace, and compact layout exposes explicit Facts, Distribution, and Slots regions.

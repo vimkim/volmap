@@ -4,7 +4,9 @@
 
 **Blocked by:** 04: Present the first Atlas Volume screen.
 
-**Status:** ready-for-agent
+**Status:** superseded
+
+**Superseded by:** [Volmap focused TUI implementation specification](../../volmap-tui-focused-inspector/implementation-spec.md).
 
 - [ ] `Enter` and mouse activation commit the focused Sector into the typed Atlas trail; `Esc`, non-editing `Backspace`, and the breadcrumb return to Volume with the exact Sector focus and semantic anchor restored.
 - [ ] Sector renders all 64 Pages once in ascending physical order and preserves allocation, exhaustive physical-type code, known/unknown/not-applicable occupancy, findings, focus, selection, and attribution independently.

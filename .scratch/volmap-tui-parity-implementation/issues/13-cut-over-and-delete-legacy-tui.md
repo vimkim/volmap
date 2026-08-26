@@ -4,7 +4,9 @@
 
 **Blocked by:** 12: Complete blocking parity and resource evidence.
 
-**Status:** ready-for-agent
+**Status:** superseded
+
+**Superseded by:** [Volmap focused TUI implementation specification](../../volmap-tui-focused-inspector/implementation-spec.md).
 
 - [ ] Production `tui::run` routes exclusively through the accepted Projection workspace, AtlasMachine, AtlasRenderer, and Crossterm terminal host.
 - [ ] No production legacy-to-Atlas translation, second renderer, alternate state machine, web-derived semantic calculation, or generic widget/job framework remains.

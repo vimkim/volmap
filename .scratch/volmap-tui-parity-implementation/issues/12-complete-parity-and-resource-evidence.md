@@ -4,7 +4,9 @@
 
 **Blocked by:** 03: Migrate web reads to the Projection workspace; 11: Run Atlas through the production Crossterm host.
 
-**Status:** ready-for-agent
+**Status:** superseded
+
+**Superseded by:** [Volmap focused TUI implementation specification](../../volmap-tui-focused-inspector/implementation-spec.md).
 
 - [ ] The parity matrix has passing evidence for `PAR-PROJECTION`, `PAR-STATE`, `PAR-RENDER`, `PAR-HOST`, `PAR-WEB`, `PAR-DISCLOSURE`, `PAR-RESOURCE`, and all pre-cutover `PAR-RELEASE` requirements.
 - [ ] All 36 core CellGrid/LayoutCommit artifacts and focused overlay/progress/finding/invalidation/too-small goldens pass alongside exhaustive structural/profile/property assertions.

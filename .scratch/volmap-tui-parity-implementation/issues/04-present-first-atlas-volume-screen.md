@@ -4,7 +4,9 @@
 
 **Blocked by:** 02: Expand the exact-revision Projection workspace.
 
-**Status:** ready-for-agent
+**Status:** superseded
+
+**Superseded by:** [Volmap focused TUI implementation specification](../../volmap-tui-focused-inspector/implementation-spec.md).
 
 - [ ] `AtlasMachine::start`/`advance` produce deterministic Volume state, one immutable scene, and ordered effects without terminal, HTTP, or worker types in the interface.
 - [ ] `AtlasRenderer::compose` and opaque presentation produce one bounded normalized cell frame and release a generation-stamped `LayoutCommit` only after a successful complete flush.

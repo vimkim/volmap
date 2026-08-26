@@ -4,7 +4,9 @@
 
 **Blocked by:** 07: Open the exhaustive Page workspace.
 
-**Status:** ready-for-agent
+**Status:** superseded
+
+**Superseded by:** [Volmap focused TUI implementation specification](../../volmap-tui-focused-inspector/implementation-spec.md).
 
 - [ ] `/` and `g` edit the canonical typed Entity selector; valid Volume/Sector/Page targets transactionally construct their canonical trail and invalid input preserves prior navigation state.
 - [ ] Normalized filters dim nonmatches without deleting, reordering, disabling, or moving physical topology or focus; direct selection of a nonmatch remains usable and announced.

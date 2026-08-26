@@ -4,7 +4,9 @@
 
 **Blocked by:** 04: Present the first Atlas Volume screen.
 
-**Status:** ready-for-agent
+**Status:** superseded
+
+**Superseded by:** [Volmap focused TUI implementation specification](../../volmap-tui-focused-inspector/implementation-spec.md).
 
 - [ ] Atlas retains one contiguous exact-revision reservoir of at most 64 complete Sectors and requests only bounded, gap-free windows from the Projection workspace.
 - [ ] The fixed complete Sector-card geometry, packing stride, capped logical canvas, complete visible rows, and one-row overscan match the accepted viewport contract at every supported tier.

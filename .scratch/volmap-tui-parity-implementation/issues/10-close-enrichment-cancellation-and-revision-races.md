@@ -4,7 +4,9 @@
 
 **Blocked by:** 09: Automatically enrich Pages and adopt exact revisions.
 
-**Status:** ready-for-agent
+**Status:** superseded
+
+**Superseded by:** [Volmap focused TUI implementation specification](../../volmap-tui-focused-inspector/implementation-spec.md).
 
 - [ ] Ready terminal input is reduced before a simultaneous worker signal; cancellation sets the token and revokes adoption authority before any trail transition.
 - [ ] Atlas drains one cancelled worker, retains only the current replaceable next intent, admits no overlapping Page work, and never accumulates a FIFO queue.

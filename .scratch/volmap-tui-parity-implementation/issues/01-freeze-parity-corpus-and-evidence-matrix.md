@@ -4,7 +4,9 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** superseded
+
+**Superseded by:** [Volmap focused TUI implementation specification](../../volmap-tui-focused-inspector/implementation-spec.md).
 
 - [ ] A checked-in parity matrix maps every accepted requirement from the first seven Wayfinder decisions to a stable `PAR-*` gate, canonical fixture, production interface, expected invariant, and blocking job.
 - [ ] One deterministic exact-revision corpus covers every required allocation, physical type, occupancy, finding, attribution, Page geometry, Slot state, diagnostic, coverage, outcome, lifecycle, invalidation, and disclosure case named by the verification contract.

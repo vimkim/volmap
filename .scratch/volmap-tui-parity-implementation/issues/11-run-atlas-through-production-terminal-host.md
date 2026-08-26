@@ -4,7 +4,9 @@
 
 **Blocked by:** 05: Navigate complete Volumes within bounded resources; 08: Restore selectors, filters, findings, and utility regions; 10: Close enrichment cancellation and revision races.
 
-**Status:** ready-for-agent
+**Status:** superseded
+
+**Superseded by:** [Volmap focused TUI implementation specification](../../volmap-tui-focused-inspector/implementation-spec.md).
 
 - [ ] The host owns TTY validation, profile selection, raw mode, alternate screen, cursor, mouse capture, normalized key/mouse/resize delivery, frame presentation, and complete teardown.
 - [ ] Partial entry and every normal or typed-error exit restore exactly the terminal capabilities that were acquired; a scoped best-effort panic hook covers the release build's abort behavior.

@@ -12,33 +12,13 @@ _Avoid_: Presentation tree, adapter model
 A CLI-human, JSON/JSONL, TUI, HTML, or web projection of the shared inspection module's normalized query results. An adapter never reads or parses volume bytes and never invents adapter-specific storage facts.
 _Avoid_: Parser frontend, independent inspector
 
-**Projection workspace**:
-The process-local owner of immutable inspection revisions and presentation-neutral projection and enrichment semantics shared by interactive inspection adapters. It excludes adapter navigation, transport, scheduling, and rendering state.
-_Avoid_: Live inspection session, web state, TUI state
-
-**Atlas trail**:
-The TUI's typed Volume → Sector → Page ancestry together with the focus and content anchors restored at each ancestor. It is structural navigation state, not chronological or browser history.
-_Avoid_: Back history, URL history, breadcrumb cache
-
-**Terminal interaction parity**:
-The TUI preserves the web viewer's persistent Volume → Sector → Page inspection semantics, including page occupancy and structural distribution, while expressing them through terminal-native layout, rendering, and controls. Optional runtime observation overlays are explicitly outside parity until a separate terminal contract adopts them; parity does not require pixel matching or reproduction of browser-only mechanics.
-_Avoid_: Cosmetic parity, pixel parity
-
-**Terminal presentation profile**:
-The resolved pairing of ANSI or monochrome color capability with Unicode or ASCII glyph capability used to present one Atlas semantic scene. A profile may change glyphs and styling but never facts, actions, focus topology, hit regions, or scroll regions.
-_Avoid_: Theme, terminal mode, semantic mode
-
-**Terminal rendering budget**:
-The adapter-local ceiling on active terminal cells, exact-revision projection windows retained by Atlas, prepared detail rows, presentation caches, redraw cadence, and frame latency. It bounds presentation work without changing Inspection coverage, outcome, diagnostics, or operational budgets.
-_Avoid_: ResourcePolicy, inspection budget, sampling limit
+**Terminal inspection flow**:
+The TUI's focused Volume → Sector → Page path, with record interpretation shown as Page-local detail. It summarizes occupancy at higher levels and performs bounded deep inspection only for the active Page or selected record.
+_Avoid_: Terminal interaction parity, Atlas trail, web mirror
 
 **Inspection revision**:
 A monotonically advancing version of one inspection graph as explicit deep-inspection targets add evidence and details. Revisions preserve the snapshot and entity identities; an export freezes one revision.
 _Avoid_: Database version, schema version
-
-**Revision offer**:
-An exact immutable inspection revision which exists in the Projection workspace but no longer has automatic-adoption authority. An inspection adapter may present it for explicit transactional adoption, but it never means the latest revision and never silently changes the displayed context.
-_Avoid_: Latest revision, pending job, background update
 
 **Database snapshot**:
 The read-only set of CUBRID volumes inspected together as one stable input; it scopes every other inspection-graph identity.

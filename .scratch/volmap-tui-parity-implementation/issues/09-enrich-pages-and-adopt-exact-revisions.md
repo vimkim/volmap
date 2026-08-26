@@ -4,7 +4,9 @@
 
 **Blocked by:** 07: Open the exhaustive Page workspace.
 
-**Status:** ready-for-agent
+**Status:** superseded
+
+**Superseded by:** [Volmap focused TUI implementation specification](../../volmap-tui-focused-inspector/implementation-spec.md).
 
 - [ ] Page projection supplies the exhaustive shared eligibility disposition; Atlas starts work only for eligible targets and never reconstructs eligibility from allocation, messages, or browser predicates.
 - [ ] Entering Page creates a visit identity and emits at most one automatic attempt per visit, exact base, and target; redraw, commit, resize, filter, scroll, region, overlay, and progress do not retrigger it.

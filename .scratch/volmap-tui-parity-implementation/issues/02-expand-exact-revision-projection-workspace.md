@@ -4,7 +4,9 @@
 
 **Blocked by:** 01: Freeze the parity corpus and evidence matrix.
 
-**Status:** ready-for-agent
+**Status:** superseded
+
+**Superseded by:** [Volmap focused TUI implementation specification](../../volmap-tui-focused-inspector/implementation-spec.md).
 
 - [ ] The workspace exposes exact immutable checkout and closed typed projection operations; no operation silently substitutes a latest revision.
 - [ ] Every projection frame carries one snapshot/revision plus validity, outcome, coverage, typed diagnostics with affected Entity references, and its typed result.

@@ -1,6 +1,8 @@
 # Volmap TUI terminal-parity implementation specification
 
-Status: implementation-ready
+Status: superseded
+
+Superseded by: [Volmap focused TUI implementation specification](../volmap-tui-focused-inspector/implementation-spec.md). The completed Wayfinder map and its resolved decision tickets remain historical design evidence.
 
 Minimum semantic baseline: `cba72cd` (`feat: attribute pages and sectors to their table in web, TUI, and JSON`)
 
