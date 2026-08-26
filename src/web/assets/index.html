@@ -9,7 +9,8 @@
     <link rel="stylesheet" href="/distribution.css" />
   </head>
   <body>
-    <header>
+    <div id="volmap-react-root">
+      <header>
       <strong>VOLMAP</strong><span id="crumb">loading session</span
       ><span class="spacer"></span
       ><span id="followControl" class="follow-control" hidden
@@ -31,7 +32,8 @@
     <dialog id="infoDialog">
       <button id="closeInfo">Close</button>
       <pre id="infoContent" class="withheld"></pre>
-    </dialog>
+      </dialog>
+    </div>
     <script src="/routes.js"></script>
     <script src="/distribution.js"></script>
     <script src="/app.js"></script>
