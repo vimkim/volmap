@@ -1,0 +1,41 @@
+surface 120x36 · profile ansi-unicode
+00│ VOLMAP  snapshot abababababab  r7  success-limited
+01│Volume 0 > Sector 0 > Page 2 · volume 1/2
+02│type heap · allocation allocated · occupied 63% / free 37% · table orders · allocated-by file 0:91 (heap) / class 0:777…
+03│16,344 B · 2 records / 40 B · 3 free regions / 16,256 B · 4 slots
+04│H header  R live record  f fragmented free  . contiguous free  D slot directory
+05│R......................................................................................................................D
+06│  region / exact byte range / length
+07│> header [0,32) 32 B
+08│  record slot 0 home [32,56) 24 B
+09│  fragmented-free [56,80) 24 B
+10│  record slot 3 new-home [80,96) 16 B
+11│  fragmented-free [96,128) 32 B
+12│  contiguous-free [128,16328) 16200 B
+13│  slot directory [16328,16344) 16 B
+14│  slot 0 allocated home [16340,16344) 4 B
+15│  slot 1 unallocated reserved [16336,16340) 4 B
+16│  slot 2 deleted marked-deleted [16332,16336) 4 B
+17│  slot 3 allocated new-home [16328,16332) 4 B
+18│
+19│
+20│
+21│
+22│
+23│
+24│
+25│
+26│
+27│
+28│
+29│
+30│
+31│
+32│
+33│header [0,32) 32 B · structural row; interpretation unavailable
+34│rows 1..11 of 11 · structure ready
+35│Up/Down select · wheel scroll · [ ] sibling Sector · Esc/Backspace Sector · q quit
+hits:
+distribution-hits:
+  Header@0,7-119,7 Record(0)@0,8-119,8 FragmentedFree { offset: 56, length: 24 }@0,9-119,9 Record(3)@0,10-119,10 FragmentedFree { offset: 96, length: 32 }@0,11-119,11 ContiguousFree { offset: 128, length: 16200 }@0,12-119,12 SlotDirectory@0,13-119,13 SlotEntry(0)@0,14-119,14 SlotEntry(1)@0,15-119,15 SlotEntry(2)@0,16-119,16 SlotEntry(3)@0,17-119,17
+formatted-distribution-rows:11

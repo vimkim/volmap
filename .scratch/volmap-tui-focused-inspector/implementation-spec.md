@@ -1,6 +1,8 @@
 # Volmap focused TUI implementation specification
 
-Status: implementation-ready
+Status: implemented
+
+Delivery: [Cut over and remove the legacy TUI](issues/06-cut-over-and-remove-legacy-tui.md)
 
 Source baseline: `6e2c8ae` (`build: add reproducible frontend foundation`)
 

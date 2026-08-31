@@ -3,14 +3,19 @@
 use serde::Serialize;
 
 use crate::diagnostics::InspectionOutcome;
-use crate::format::{PageType, VolumePurpose, VolumeType};
+use crate::format::{
+    DB_PAGE_SIZE, PageType, RecordType, SLOTTED_HEADER_SIZE, SLOTTED_SLOT_SIZE, SlottedPage,
+    VolumePurpose, VolumeType,
+};
 use crate::inspection::{
     ClassAssociation, ClassNameResolution, CoverageRecord, DeepPageView, DiagnosticRecord,
-    FileAssociation, OosChainView, OverflowChainView, OverviewView, PageFileAssociation, PageView,
-    RawPageView, RelocationEdgeView, SectorAttribution, SectorClaimKind, SectorView, VolumeView,
+    FileAssociation, GraphView, OosChainView, OverflowChainView, OverviewView, PageFileAssociation,
+    PageView, RawPageView, RelocationEdgeView, SectorAttribution, SectorClaimKind, SectorView,
+    VolumeView,
 };
 use crate::model::{
-    Availability, Coverage, PageAllocationClass, SnapshotId, SnapshotValidity, TdeInspectionState,
+    Availability, Coverage, Oid, PageAllocationClass, SnapshotId, SnapshotValidity,
+    TdeInspectionState, Vpid,
 };
 
 pub const SCHEMA_NAME: &str = "volmap.inspection";
@@ -211,6 +216,280 @@ pub struct PageProjection {
     pub diagnostic: OptionalTextProjection,
     pub bytes: BytesWithheldProjection,
     pub file_association: FileAssociationProjection,
+}
+
+/// Exhaustive byte geometry for a validated slotted Page.
+///
+/// This projection is presentation-neutral: adapters decide how to paint or
+/// serialize the facts, but they do not derive byte ranges independently.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(tag = "state", rename_all = "kebab-case")]
+pub enum PageDistributionProjection {
+    NotAvailable,
+    Available {
+        content_size: u32,
+        header: ByteRegionProjection,
+        record_extents: Vec<RecordExtentProjection>,
+        free_regions: Vec<FreeRegionProjection>,
+        slot_directory: ByteRegionProjection,
+        slot_entries: Vec<SlotEntryProjection>,
+        allocated_record_bytes: u32,
+        unoccupied_bytes: u32,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+pub struct ByteRegionProjection {
+    pub offset: u32,
+    pub length: u32,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct RecordExtentProjection {
+    pub slot_id: u16,
+    pub offset: u32,
+    pub length: u32,
+    pub record_type: RecordTypeProjection,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+pub enum RecordTypeProjection {
+    #[serde(rename = "unknown")]
+    Unknown,
+    #[serde(rename = "assign-address")]
+    AssignAddress,
+    #[serde(rename = "home")]
+    Home,
+    #[serde(rename = "new-home")]
+    NewHome,
+    #[serde(rename = "relocation")]
+    Relocation,
+    #[serde(rename = "bigone")]
+    BigOne,
+    #[serde(rename = "marked-deleted")]
+    MarkDeleted,
+    #[serde(rename = "deleted-will-reuse")]
+    DeletedWillReuse,
+    #[serde(rename = "reserved")]
+    Reserved,
+}
+
+impl RecordTypeProjection {
+    #[must_use]
+    pub const fn from_record_type(record_type: RecordType) -> Self {
+        match record_type {
+            RecordType::Unknown => Self::Unknown,
+            RecordType::AssignAddress => Self::AssignAddress,
+            RecordType::Home => Self::Home,
+            RecordType::NewHome => Self::NewHome,
+            RecordType::Relocation => Self::Relocation,
+            RecordType::BigOne => Self::BigOne,
+            RecordType::MarkDeleted => Self::MarkDeleted,
+            RecordType::DeletedWillReuse => Self::DeletedWillReuse,
+            RecordType::Reserved(_) => Self::Reserved,
+        }
+    }
+
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Unknown => "unknown",
+            Self::AssignAddress => "assign-address",
+            Self::Home => "home",
+            Self::NewHome => "new-home",
+            Self::Relocation => "relocation",
+            Self::BigOne => "bigone",
+            Self::MarkDeleted => "marked-deleted",
+            Self::DeletedWillReuse => "deleted-will-reuse",
+            Self::Reserved => "reserved",
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct FreeRegionProjection {
+    pub offset: u32,
+    pub length: u32,
+    pub kind: FreeRegionKindProjection,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum FreeRegionKindProjection {
+    FragmentedFree,
+    ContiguousFree,
+}
+
+impl FreeRegionKindProjection {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::FragmentedFree => "fragmented-free",
+            Self::ContiguousFree => "contiguous-free",
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct SlotEntryProjection {
+    pub slot_id: u16,
+    pub offset: u32,
+    pub length: u32,
+    pub state: SlotEntryStateProjection,
+    pub record_type: &'static str,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum SlotEntryStateProjection {
+    Allocated,
+    Unallocated,
+    Deleted,
+}
+
+impl SlotEntryStateProjection {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Allocated => "allocated",
+            Self::Unallocated => "unallocated",
+            Self::Deleted => "deleted",
+        }
+    }
+}
+
+/// Project all authoritative geometry from an already validated slotted Page.
+///
+/// # Panics
+///
+/// Panics only if the compile-time slotted header, Slot, or Page sizes cannot
+/// be represented by `u32`, or if a validated Slot count exceeds Page bounds.
+/// The pinned on-disk format makes those states unreachable.
+#[must_use]
+pub fn page_distribution_projection(slotted: &SlottedPage) -> PageDistributionProjection {
+    let header_size = u32::try_from(SLOTTED_HEADER_SIZE).expect("slotted header size fits u32");
+    let slot_entry_size =
+        u32::try_from(SLOTTED_SLOT_SIZE).expect("slotted slot-entry size fits u32");
+    let content_size = u32::try_from(DB_PAGE_SIZE).expect("DB page size fits u32");
+    let slot_directory_length = u32::try_from(slotted.slots().len())
+        .expect("validated slot count fits u32")
+        * slot_entry_size;
+    let slot_directory_offset = content_size - slot_directory_length;
+    let mut records: Vec<_> = slotted
+        .slots()
+        .iter()
+        .copied()
+        .filter(|slot| {
+            !slot.is_empty()
+                && !matches!(
+                    slot.record_type(),
+                    RecordType::MarkDeleted | RecordType::DeletedWillReuse
+                )
+        })
+        .map(|slot| RecordExtentProjection {
+            slot_id: slot.slot_id(),
+            offset: u32::from(slot.offset()),
+            length: u32::from(slot.length()),
+            record_type: RecordTypeProjection::from_record_type(slot.record_type()),
+        })
+        .collect();
+    records.sort_unstable_by_key(|record| (record.offset, record.slot_id));
+
+    let mut free_regions = Vec::new();
+    let mut cursor = header_size;
+    for record in &records {
+        if cursor < record.offset {
+            push_free_region(
+                &mut free_regions,
+                cursor,
+                record.offset,
+                slot_directory_offset,
+                slotted.free_area_offset(),
+            );
+        }
+        cursor = cursor.max(record.offset + record.length);
+    }
+    if cursor < slot_directory_offset {
+        push_free_region(
+            &mut free_regions,
+            cursor,
+            slot_directory_offset,
+            slot_directory_offset,
+            slotted.free_area_offset(),
+        );
+    }
+
+    let allocated_record_bytes = records.iter().map(|record| record.length).sum();
+    let unoccupied_bytes = free_regions.iter().map(|region| region.length).sum();
+    let slot_entries = slotted
+        .slots()
+        .iter()
+        .copied()
+        .map(|slot| SlotEntryProjection {
+            slot_id: slot.slot_id(),
+            offset: content_size - (u32::from(slot.slot_id()) + 1) * slot_entry_size,
+            length: slot_entry_size,
+            state: if matches!(
+                slot.record_type(),
+                RecordType::MarkDeleted | RecordType::DeletedWillReuse
+            ) {
+                SlotEntryStateProjection::Deleted
+            } else if !slot.is_empty() {
+                SlotEntryStateProjection::Allocated
+            } else {
+                SlotEntryStateProjection::Unallocated
+            },
+            record_type: slot.record_type().as_str(),
+        })
+        .collect();
+
+    PageDistributionProjection::Available {
+        content_size,
+        header: ByteRegionProjection {
+            offset: 0,
+            length: header_size,
+        },
+        record_extents: records,
+        free_regions,
+        slot_directory: ByteRegionProjection {
+            offset: slot_directory_offset,
+            length: slot_directory_length,
+        },
+        slot_entries,
+        allocated_record_bytes,
+        unoccupied_bytes,
+    }
+}
+
+fn push_free_region(
+    regions: &mut Vec<FreeRegionProjection>,
+    start: u32,
+    end: u32,
+    slot_directory_offset: u32,
+    free_area_offset: u32,
+) {
+    if end == slot_directory_offset && start < free_area_offset && free_area_offset < end {
+        regions.push(FreeRegionProjection {
+            offset: start,
+            length: free_area_offset - start,
+            kind: FreeRegionKindProjection::FragmentedFree,
+        });
+        regions.push(FreeRegionProjection {
+            offset: free_area_offset,
+            length: end - free_area_offset,
+            kind: FreeRegionKindProjection::ContiguousFree,
+        });
+    } else {
+        regions.push(FreeRegionProjection {
+            offset: start,
+            length: end - start,
+            kind: if end == slot_directory_offset && start == free_area_offset {
+                FreeRegionKindProjection::ContiguousFree
+            } else {
+                FreeRegionKindProjection::FragmentedFree
+            },
+        });
+    }
 }
 
 /// Additive since schema version 1: how a page relates to the validated file
@@ -618,6 +897,16 @@ pub struct RecordInterpretationProjection {
     pub diagnostic: OptionalTextProjection,
     pub attributes: Vec<InterpretedAttributeProjection>,
     pub bytes: BytesWithheldProjection,
+}
+
+/// The complete semantic bundle reached from one selected record Slot.
+#[derive(Clone, Debug, Serialize)]
+pub struct RecordSelectionProjection {
+    pub selected_slot: SlotProjection,
+    pub relocation_edge: Option<RelocationEdgeProjection>,
+    pub interpretation: Option<RecordInterpretationProjection>,
+    pub class_representation: Option<ClassRepresentationProjection>,
+    pub interpretation_unavailable: Option<&'static str>,
 }
 
 /// One class representation, renderable on its own as schema evidence.
@@ -1273,6 +1562,73 @@ pub fn record_interpretation_projection(
     }
 }
 
+/// Project one selected Slot and every interpretation fact it resolves to.
+#[must_use]
+pub fn record_selection_projection(
+    view: &GraphView,
+    selected: Oid,
+) -> Option<RecordSelectionProjection> {
+    let vpid = Vpid::new(selected.vol_id, selected.page_id);
+    let selected_slot = view.deep_page(vpid).and_then(|deep| {
+        deep.slotted.and_then(|slotted| {
+            usize::try_from(selected.slot_id.get())
+                .ok()
+                .and_then(|index| slotted.slots().get(index).copied())
+        })
+    })?;
+    let relocation_edge = view.relocation_edge(selected);
+    let interpreted = view.slot_interpretation(selected);
+    let interpretation_page = relocation_edge
+        .filter(|edge| edge.valid)
+        .and_then(|edge| edge.target)
+        .map_or(vpid, |target| Vpid::new(target.vol_id, target.page_id));
+    let class_representation = interpreted
+        .as_ref()
+        .and_then(|interpretation| {
+            view.class_representation(interpretation.class_oid, interpretation.representation_id)
+        })
+        .map(class_representation_projection);
+    let invalid_edge_reason = relocation_edge
+        .filter(|edge| !edge.valid)
+        .and_then(|edge| edge.diagnostic_rule);
+    let interpretation_unavailable = select_record_interpretation_failure(
+        interpreted.is_some(),
+        vpid,
+        interpretation_page,
+        invalid_edge_reason,
+        view.record_page_interpretation_failure(vpid),
+        view.record_page_interpretation_failure(interpretation_page),
+    );
+    Some(RecordSelectionProjection {
+        selected_slot: slot_projection(selected_slot),
+        relocation_edge: relocation_edge.map(relocation_edge_projection),
+        interpretation: interpreted.map(record_interpretation_projection),
+        class_representation,
+        interpretation_unavailable,
+    })
+}
+
+fn select_record_interpretation_failure(
+    has_interpretation: bool,
+    source_page: Vpid,
+    interpretation_page: Vpid,
+    invalid_edge_reason: Option<&'static str>,
+    source_page_failure: Option<&'static str>,
+    interpretation_page_failure: Option<&'static str>,
+) -> Option<&'static str> {
+    if invalid_edge_reason.is_some() {
+        return invalid_edge_reason;
+    }
+    if has_interpretation {
+        return None;
+    }
+    if interpretation_page == source_page {
+        source_page_failure
+    } else {
+        interpretation_page_failure
+    }
+}
+
 /// The regions of one record, in the order the engine writes them.
 fn record_layout_projection(layout: crate::format::RecordLayoutFact) -> RecordLayoutProjection {
     let mut regions = Vec::with_capacity(5);
@@ -1574,3 +1930,44 @@ const fn tde_state_name(state: TdeInspectionState) -> &'static str {
 
 #[allow(dead_code)]
 const fn _page_type_is_stable(_page_type: PageType) {}
+
+#[cfg(test)]
+mod tests {
+    use super::select_record_interpretation_failure;
+    use crate::model::{PageId, VolId, Vpid};
+
+    fn page(page_id: i32) -> Vpid {
+        Vpid::new(VolId::new(0).unwrap(), PageId::new(page_id).unwrap())
+    }
+
+    #[test]
+    fn valid_cross_page_relocation_uses_only_the_target_outcome() {
+        let source = page(6);
+        let target = page(11);
+
+        assert_eq!(
+            select_record_interpretation_failure(
+                true,
+                source,
+                target,
+                None,
+                Some("source Page class metadata is malformed"),
+                None,
+            ),
+            None,
+            "a successful target interpretation must not inherit the source Page failure"
+        );
+        assert_eq!(
+            select_record_interpretation_failure(
+                false,
+                source,
+                target,
+                None,
+                Some("source Page class metadata is malformed"),
+                Some("target Page could not be interpreted"),
+            ),
+            Some("target Page could not be interpreted"),
+            "a relocated selection reports only its semantic target Page failure"
+        );
+    }
+}

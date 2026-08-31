@@ -232,10 +232,21 @@ pub struct PageView {
     pub availability: Availability,
     pub tde_state: TdeInspectionState,
     pub detail_support: Option<PageDetailSupport>,
+    /// Whether the normalized Page role admits a validated slotted layout.
+    ///
+    /// Extensible-hash Pages become eligible only when tracker evidence proves
+    /// bucket-file ownership; adapters must not reproduce that inference.
+    pub supports_slotted_distribution: bool,
     pub slotted_occupied_percent: Option<u8>,
     pub lsa_word: Option<u64>,
     pub diagnostic_code: Option<&'static str>,
     pub file_association: PageFileAssociation,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RecordSelectionSupport {
+    Enrichable,
+    Unsupported(&'static str),
 }
 
 /// The stored class/table name a class OID resolved to, or the typed reason
@@ -3645,8 +3656,12 @@ impl GraphView {
                 }
                 RecordType::Relocation => {
                     // Both facts matter: the forward reference is the record's
-                    // own content, and the target carries the values.
-                    if let Ok(target) = decode_relocation_target(&envelope, &slotted, slot_id)
+                    // own content, and only a validated edge may identify the
+                    // target that carries the values.
+                    if let Some(target) = self
+                        .relocation_edge(record_oid)
+                        .filter(|edge| edge.valid)
+                        .and_then(|edge| edge.target)
                         && let Some(evidence) = self.interpret_relocated_record(
                             target,
                             record_oid,
@@ -3684,6 +3699,45 @@ impl GraphView {
             Some((vpid, class_oid)),
             None,
         )
+    }
+
+    /// Establish the structural and interpreted facts reached by selecting one
+    /// record Slot.
+    ///
+    /// This graph-owned recipe keeps adapters from independently sequencing
+    /// Page decoding, relocation evidence, Page-granular interpretation, and a
+    /// relocation target's interpretation.
+    pub fn enrich_record_selection(
+        &self,
+        record: Oid,
+        policy: ResourcePolicy,
+        cancel: &CancelToken,
+    ) -> Result<Self, OperationError> {
+        let vpid = Vpid::new(record.vol_id, record.page_id);
+        let mut view = self.enrich_page(vpid, policy, cancel)?;
+        let is_relocation = view
+            .deep_page(vpid)
+            .and_then(|deep| deep.slotted)
+            .and_then(|slotted| {
+                usize::try_from(record.slot_id.get())
+                    .ok()
+                    .and_then(|index| slotted.slots().get(index).copied())
+            })
+            .is_some_and(|slot| slot.record_type() == RecordType::Relocation);
+        if is_relocation {
+            view = view.enrich_relocation(record, policy, cancel)?;
+        }
+        view = view.enrich_record_page(vpid, policy, cancel)?;
+        match view
+            .relocation_edge(record)
+            .filter(|edge| edge.valid)
+            .and_then(|edge| edge.target)
+        {
+            Some(target) => {
+                view.enrich_record_page(Vpid::new(target.vol_id, target.page_id), policy, cancel)
+            }
+            None => Ok(view),
+        }
     }
 
     /// Interprets one home record, resolving whichever representation its own
@@ -3839,9 +3893,66 @@ impl GraphView {
     pub fn slot_interpretation(&self, slot: Oid) -> Option<RecordInterpretationView> {
         let target = self
             .relocation_edge(slot)
+            .filter(|edge| edge.valid)
             .and_then(|edge| edge.target)
             .unwrap_or(slot);
         self.record_interpretation(target)
+    }
+
+    /// Whether selecting one structural Slot may request record interpretation.
+    ///
+    /// Slot roles and Page-type constraints are inspection facts; adapters use
+    /// this answer instead of inferring eligibility from labels or geometry.
+    pub fn record_selection_support(
+        &self,
+        record: Oid,
+    ) -> Result<RecordSelectionSupport, QueryError> {
+        let vpid = Vpid::new(record.vol_id, record.page_id);
+        let page = self.page(vpid)?;
+        let slot = self
+            .deep_page(vpid)
+            .and_then(|deep| deep.slotted)
+            .and_then(|slotted| {
+                usize::try_from(record.slot_id.get())
+                    .ok()
+                    .and_then(|index| slotted.slots().get(index).copied())
+            })
+            .ok_or(QueryError::EntityNotFound)?;
+        if slot.is_empty()
+            || matches!(
+                slot.record_type(),
+                RecordType::MarkDeleted | RecordType::DeletedWillReuse
+            )
+        {
+            return Ok(RecordSelectionSupport::Unsupported(
+                "empty and deleted Slots have no record interpretation",
+            ));
+        }
+        if page.page_type != Some(PageType::Heap) {
+            return Ok(RecordSelectionSupport::Unsupported(
+                "only heap Pages hold interpretable class instances",
+            ));
+        }
+        if record.slot_id.get() == 0 {
+            return Ok(RecordSelectionSupport::Unsupported(
+                "slot 0 holds heap Page metadata, not a class instance",
+            ));
+        }
+        Ok(match slot.record_type() {
+            RecordType::Home | RecordType::NewHome | RecordType::Relocation => {
+                RecordSelectionSupport::Enrichable
+            }
+            RecordType::BigOne => RecordSelectionSupport::Unsupported(
+                "REC_BIGONE carries an overflow reference, not an inline class instance",
+            ),
+            RecordType::Unknown
+            | RecordType::AssignAddress
+            | RecordType::MarkDeleted
+            | RecordType::DeletedWillReuse
+            | RecordType::Reserved(_) => RecordSelectionSupport::Unsupported(
+                "this record type has no supported interpretation",
+            ),
+        })
     }
 
     /// Why the records of `vpid` were not interpreted, when a requested
@@ -5015,6 +5126,13 @@ impl GraphView {
                 .page_fact(page_id)
                 .map_err(|_| QueryError::FactStore)?
         };
+        let file_association = self.page_file_association(vpid, sector_id);
+        let owner_file_type = self
+            .data
+            .file_allocations
+            .get(&vpid)
+            .and_then(|owner| self.data.tracked_files.get(owner))
+            .map(|header| header.file_type());
         Ok(PageView {
             vpid,
             sector_id,
@@ -5023,12 +5141,15 @@ impl GraphView {
             availability: fact.map_or(Availability::Unsupported, |value| value.availability),
             tde_state: fact.map_or(TdeInspectionState::NotEncrypted, |value| value.tde_state),
             detail_support: fact.and_then(|value| value.page_type.map(page_detail_support)),
+            supports_slotted_distribution: fact
+                .and_then(|value| value.page_type)
+                .is_some_and(|page_type| page_uses_slotted_layout(page_type, owner_file_type)),
             slotted_occupied_percent: fact
                 .and_then(|value| value.slotted_occupancy_units)
                 .map(slotted_occupied_percent),
             lsa_word: fact.and_then(|value| value.lsa_word),
             diagnostic_code: fact.and_then(|value| value.diagnostic_code),
-            file_association: self.page_file_association(vpid, sector_id),
+            file_association,
         })
     }
 }

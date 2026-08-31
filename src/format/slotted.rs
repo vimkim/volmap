@@ -5,7 +5,8 @@ use super::{DB_PAGE_SIZE, DecodeError, DecodeErrorKind, DecodedPageEnvelope, Pag
 
 pub const SLOTTED_HEADER_SIZE: usize = 32;
 const HEADER_SIZE: usize = SLOTTED_HEADER_SIZE;
-const SLOT_SIZE: usize = 4;
+pub const SLOTTED_SLOT_SIZE: usize = 4;
+const SLOT_SIZE: usize = SLOTTED_SLOT_SIZE;
 
 /// Decode the free-space summary available in a plaintext slotted-page header.
 ///

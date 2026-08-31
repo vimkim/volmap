@@ -346,10 +346,11 @@ fn run(cli: Cli) -> Result<i32, CliError> {
         Command::Inspect(command) => run_inspect(command),
         Command::Licenses(command) => run_licenses(command),
         Command::Tui(command) => {
-            let (view, overview) =
-                open_view(&command.input, &command.resources, OutputFormat::Human)?;
-            crate::tui::run(&view).map_err(|error| CliError::OpenAdapter(error.to_string()))?;
-            Ok(outcome_exit(overview.outcome))
+            let policy = command.resources.policy()?;
+            let (view, _) = open_view(&command.input, &command.resources, OutputFormat::Human)?;
+            let exit = crate::tui::run(view, policy)
+                .map_err(|error| CliError::OpenAdapter(error.to_string()))?;
+            Ok(outcome_exit(exit.into_view().overview().outcome))
         }
         Command::Export(command) => match command.command {
             ExportSubcommand::Html(command) => {

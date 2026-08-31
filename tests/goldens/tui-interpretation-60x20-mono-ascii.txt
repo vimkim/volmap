@@ -1,0 +1,22 @@
+surface 60x20 · profile mono-ascii
+00│ VOLMAP  snapshot abababababab  r7  success-limited
+01│Volume 1 > Sector 10 > Page 641 | volume 2/2
+02│heap | reserved-unallocated | occupied - / free - | table -.
+03│Record 1|641|1 | type home | interpretation ready
+04│class/table dba.interp_scalars | representation 1 | record .
+05│layout 156 B | object-header @0+8 | offset-table @8+12 | fi.
+06│layout continued | bound-bits @80+4 | variable-region @84+72
+07│  # attribute / domain / storage / exact extent / typed sta.
+08│000 c_timestamp TIMESTAMP(19,0) fixed @20+4 decoded epoch 1.
+09│001 c_time TIME(8,0) fixed @24+4 decoded 13:45:59
+10│002 c_date DATE(10,0) fixed @28+4 decoded 2026-08-21
+11│003 c_float FLOAT(7,0) fixed @32+4 decoded 1.25
+12│004 id INTEGER(10,0) fixed @36+4 decoded 1
+13│005 c_datetime DATETIME(23,3) fixed @40+8 decoded 2026-08-2.
+14│006 c_double DOUBLE(15,0) fixed @48+8 decoded -2.5
+15│007 c_bigint BIGINT(19,0) fixed @56+8 decoded -922337203685.
+16│008 c_monetary MONETARY(15,0) fixed @64+12 decoded 1234.56 .
+17│interpretation ready | decoded values shown only for this e.
+18│attributes 1..9 of 15 | undecodable bytes withheld
+19│Esc/Backspace close interpretation | Up/Down or wheel scrol.
+hits:

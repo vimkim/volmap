@@ -1,21 +1,32 @@
-//! Staged focused-TUI session with Volume and Sector modes.
-//!
-//! This module deliberately has no terminal event or I/O dependency. Tickets
-//! 01 and 02 keep it beside the legacy production path so semantic state,
-//! bounded projection, and rendering can be proved before cutover.
+//! Focused-TUI session, renderer, and terminal host for Volume, Sector, and
+//! Page inspection.
 
-use std::fmt::{self, Write as _};
+mod terminal;
+
+pub(crate) use terminal::{FocusedExit, FocusedTerminalError, run};
+
+use std::fmt;
+
+#[cfg(test)]
+use std::fmt::Write as _;
 
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
-use crate::inspection::{GraphView, QueryError, VolumeView};
-use crate::model::{InspectionRevision, SectorId, SnapshotId, VolId};
+use crate::inspection::{
+    CancelToken, GraphView, OperationError, QueryError, RecordSelectionSupport, ResourcePolicy,
+    VolumeView,
+};
+use crate::model::{InspectionRevision, Oid, SectorId, SlotId, SnapshotId, VolId, Vpid};
 use crate::projection::{
-    ClassNameProjection, FileAssociationBodyProjection, FileAssociationProjection,
-    OptionalOidProjection, OptionalTextProjection, PageOccupancyProjection, PageProjection,
-    SectorAttributionProjection, SectorProjection, outcome_name, sector_projection,
-    snapshot_id_hex, volume_projection,
+    AttributeNameProjection, AttributeValueProjection, ByteRegionProjection, ClassNameProjection,
+    FileAssociationBodyProjection, FileAssociationProjection, FreeRegionKindProjection,
+    FreeRegionProjection, OidProjection, OptionalOidProjection, OptionalTextProjection,
+    PageDistributionProjection, PageOccupancyProjection, PageProjection, RecordExtentProjection,
+    RecordSelectionProjection, RecordTypeProjection, SectorAttributionProjection, SectorProjection,
+    SlotEntryProjection, SlotEntryStateProjection, outcome_name, page_distribution_projection,
+    page_projection, record_selection_projection, sector_projection, snapshot_id_hex,
+    volume_projection,
 };
 
 const MIN_WIDTH: u16 = 60;
@@ -29,6 +40,23 @@ const PAGE_COUNT: usize = 64;
 const SECTOR_GRID_TOP: u16 = 4;
 const SECTOR_GRID_ROWS: u16 = 8;
 const SECTOR_GRID_COLUMNS: u16 = 8;
+const PAGE_ROWS_TOP: u16 = 7;
+const PAGE_RESERVED_BOTTOM_ROWS: u16 = 3;
+const INTERPRETATION_ROWS_TOP: u16 = 8;
+
+fn page_visible_rows(surface: Surface) -> u16 {
+    surface
+        .height
+        .saturating_sub(PAGE_ROWS_TOP + PAGE_RESERVED_BOTTOM_ROWS)
+        .max(1)
+}
+
+fn interpretation_visible_rows(surface: Surface) -> u16 {
+    surface
+        .height
+        .saturating_sub(INTERPRETATION_ROWS_TOP + PAGE_RESERVED_BOTTOM_ROWS)
+        .max(1)
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct Surface {
@@ -86,6 +114,12 @@ pub(crate) enum FocusedError {
         expected: i32,
         actual: i32,
     },
+    InvalidEnrichmentSnapshot,
+    InvalidEnrichmentRevision {
+        expected: u64,
+        actual: u64,
+    },
+    InvalidEnrichmentPage,
     WrongMode {
         expected: FocusedMode,
         actual: FocusedMode,
@@ -113,6 +147,16 @@ impl fmt::Display for FocusedError {
                 formatter,
                 "projected page order is invalid: expected {expected}, found {actual}"
             ),
+            Self::InvalidEnrichmentSnapshot => {
+                formatter.write_str("Page enrichment returned a different snapshot")
+            }
+            Self::InvalidEnrichmentRevision { expected, actual } => write!(
+                formatter,
+                "Page enrichment returned revision {actual}, expected {expected}"
+            ),
+            Self::InvalidEnrichmentPage => {
+                formatter.write_str("Page enrichment could not re-resolve the focused path")
+            }
             Self::WrongMode { expected, actual } => {
                 write!(
                     formatter,
@@ -150,6 +194,112 @@ pub(crate) struct VolumeState {
 pub(crate) enum FocusedMode {
     Volume,
     Sector,
+    Page,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum PageLoadState {
+    Idle,
+    Loading,
+    Ready,
+    Unavailable(&'static str),
+    Failed(PageEnrichmentFailure),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum InterpretationLoadState {
+    Loading,
+    Ready,
+    Unavailable(&'static str),
+    Failed(PageEnrichmentFailure),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum PageInterpretationState {
+    Closed,
+    Record {
+        record: Oid,
+        load: InterpretationLoadState,
+        top_attribute: u32,
+    },
+}
+
+impl PageLoadState {
+    const fn label(self) -> &'static str {
+        match self {
+            Self::Idle => "idle",
+            Self::Loading => "loading structure",
+            Self::Ready => "structure ready",
+            Self::Unavailable(reason) => reason,
+            Self::Failed(failure) => failure.label(),
+        }
+    }
+}
+
+impl InterpretationLoadState {
+    const fn label(self) -> &'static str {
+        match self {
+            Self::Loading => "loading interpretation",
+            Self::Ready => "interpretation ready",
+            Self::Unavailable(reason) => reason,
+            Self::Failed(failure) => failure.label(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum PageEnrichmentFailure {
+    RevisionNotFound,
+    Source,
+    Query,
+    Interrupted,
+    Unsupported,
+    Structural,
+    ResourceLimit,
+    FactStore,
+    Arithmetic,
+}
+
+impl PageEnrichmentFailure {
+    const fn label(self) -> &'static str {
+        match self {
+            Self::RevisionNotFound => "base revision is unavailable",
+            Self::Source => "source read failed",
+            Self::Query => "Page is no longer addressable",
+            Self::Interrupted => "Page enrichment cancelled",
+            Self::Unsupported => "Page distribution is unsupported",
+            Self::Structural => "Page structure is invalid",
+            Self::ResourceLimit => "Page enrichment reached its resource limit",
+            Self::FactStore => "Page facts are unavailable",
+            Self::Arithmetic => "Page enrichment overflowed",
+        }
+    }
+}
+
+impl From<&OperationError> for PageEnrichmentFailure {
+    fn from(value: &OperationError) -> Self {
+        match value {
+            OperationError::RevisionNotFound => Self::RevisionNotFound,
+            OperationError::Source(_) => Self::Source,
+            OperationError::Query(_) => Self::Query,
+            OperationError::Interrupted => Self::Interrupted,
+            OperationError::Unsupported => Self::Unsupported,
+            OperationError::Structural(_) => Self::Structural,
+            OperationError::ResourceLimit => Self::ResourceLimit,
+            OperationError::FactStore => Self::FactStore,
+            OperationError::Arithmetic => Self::Arithmetic,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub(crate) enum PageDistributionItemId {
+    Header,
+    Record(u16),
+    FragmentedFree { offset: u32, length: u32 },
+    ContiguousFree { offset: u32, length: u32 },
+    SlotDirectory,
+    SlotEntry(u16),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -157,6 +307,12 @@ pub(crate) struct FocusedState {
     pub volume: VolumeState,
     pub mode: FocusedMode,
     pub focused_page: u8,
+    pub page_load: PageLoadState,
+    pub selected_distribution_item: Option<PageDistributionItemId>,
+    pub top_distribution_item: Option<PageDistributionItemId>,
+    pub interpretation: PageInterpretationState,
+    pub help_visible: bool,
+    pub quit_requested: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -173,6 +329,7 @@ pub(crate) enum VolumeAction {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg(test)]
 pub(crate) struct Transition {
     pub changed: bool,
     pub state: VolumeState,
@@ -193,6 +350,9 @@ pub(crate) enum FocusedAction {
     ScrollRows(i32),
     FocusSector(u32),
     FocusPage(u8),
+    FocusDistributionItem(PageDistributionItemId),
+    ToggleHelp,
+    Quit,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -205,6 +365,7 @@ pub(crate) struct FocusedTransition {
 pub(crate) enum PointerInput {
     ActivateSector(u32),
     ActivatePage(u8),
+    FocusDistributionItem(PageDistributionItemId),
     WheelRows(i32),
 }
 
@@ -221,6 +382,8 @@ pub(crate) enum StructuralKey {
     NextSector,
     PreviousVolume,
     NextVolume,
+    Help,
+    Quit,
 }
 
 pub(crate) const fn key_action(key: StructuralKey) -> FocusedAction {
@@ -235,6 +398,8 @@ pub(crate) const fn key_action(key: StructuralKey) -> FocusedAction {
         StructuralKey::NextSector => FocusedAction::NextSector,
         StructuralKey::PreviousVolume => FocusedAction::PreviousVolume,
         StructuralKey::NextVolume => FocusedAction::NextVolume,
+        StructuralKey::Help => FocusedAction::ToggleHelp,
+        StructuralKey::Quit => FocusedAction::Quit,
     }
 }
 
@@ -246,7 +411,13 @@ pub(crate) fn pointer_actions(mode: FocusedMode, input: PointerInput) -> Vec<Foc
         PointerInput::ActivatePage(page) => {
             vec![FocusedAction::FocusPage(page), FocusedAction::Activate]
         }
+        PointerInput::FocusDistributionItem(item) => {
+            vec![FocusedAction::FocusDistributionItem(item)]
+        }
         PointerInput::WheelRows(rows) if mode == FocusedMode::Volume => {
+            vec![FocusedAction::ScrollRows(rows)]
+        }
+        PointerInput::WheelRows(rows) if mode == FocusedMode::Page => {
             vec![FocusedAction::ScrollRows(rows)]
         }
         PointerInput::WheelRows(rows) if rows.is_negative() => {
@@ -257,19 +428,113 @@ pub(crate) fn pointer_actions(mode: FocusedMode, input: PointerInput) -> Vec<Foc
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum EnrichmentRequestTarget {
+    Page(Vpid),
+    Record(Oid),
+}
+
+impl EnrichmentRequestTarget {
+    const fn page(self) -> Vpid {
+        match self {
+            Self::Page(page) => page,
+            Self::Record(record) => Vpid::new(record.vol_id, record.page_id),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct EnrichmentRequestKey {
+    request_id: u64,
+    snapshot_id: SnapshotId,
+    base_revision: InspectionRevision,
+    target: EnrichmentRequestTarget,
+}
+
 #[derive(Clone, Debug)]
+struct ActiveEnrichmentRequest {
+    key: EnrichmentRequestKey,
+    cancel: CancelToken,
+}
+
+/// One bounded focused-TUI enrichment job for the eventual terminal host.
+/// The semantic session retains only its identity and cancellation handle.
+#[derive(Debug)]
+pub(crate) struct FocusedEnrichmentRequest {
+    key: EnrichmentRequestKey,
+    base: GraphView,
+    policy: ResourcePolicy,
+    cancel: CancelToken,
+}
+
+impl FocusedEnrichmentRequest {
+    #[cfg(test)]
+    pub(crate) const fn snapshot_id(&self) -> SnapshotId {
+        self.key.snapshot_id
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn base_revision(&self) -> InspectionRevision {
+        self.key.base_revision
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn target(&self) -> EnrichmentRequestTarget {
+        self.key.target
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn page(&self) -> Vpid {
+        self.key.target.page()
+    }
+
+    pub(crate) fn execute(self) -> FocusedEnrichmentCompletion {
+        let result = match self.key.target {
+            EnrichmentRequestTarget::Page(page) => {
+                self.base.enrich_page(page, self.policy, &self.cancel)
+            }
+            EnrichmentRequestTarget::Record(record) => {
+                self.base
+                    .enrich_record_selection(record, self.policy, &self.cancel)
+            }
+        };
+        FocusedEnrichmentCompletion {
+            key: self.key,
+            result,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct FocusedEnrichmentCompletion {
+    key: EnrichmentRequestKey,
+    result: Result<GraphView, OperationError>,
+}
+
+#[derive(Debug)]
 pub(crate) struct FocusedSession {
     view: GraphView,
     volumes: Vec<VolumeView>,
+    policy: ResourcePolicy,
     volume_index: usize,
     focused_sector: u32,
     top_sector: u32,
     mode: FocusedMode,
     focused_page: u8,
+    page_load: PageLoadState,
+    page_distribution: PageDistributionProjection,
+    selected_distribution_item: Option<PageDistributionItemId>,
+    top_distribution_item: Option<PageDistributionItemId>,
+    interpretation: PageInterpretationState,
+    help_visible: bool,
+    next_enrichment_request_id: u64,
+    active_enrichment_request: Option<ActiveEnrichmentRequest>,
+    pending_enrichment_request: Option<FocusedEnrichmentRequest>,
+    quit_requested: bool,
 }
 
 impl FocusedSession {
-    pub(crate) fn new(view: GraphView) -> Result<Self, FocusedError> {
+    pub(crate) fn new(view: GraphView, policy: ResourcePolicy) -> Result<Self, FocusedError> {
         let volumes = view.volumes();
         if volumes.is_empty() {
             return Err(FocusedError::EmptyInspection);
@@ -277,11 +542,22 @@ impl FocusedSession {
         Ok(Self {
             view,
             volumes,
+            policy,
             volume_index: 0,
             focused_sector: 0,
             top_sector: 0,
             mode: FocusedMode::Volume,
             focused_page: 0,
+            page_load: PageLoadState::Idle,
+            page_distribution: PageDistributionProjection::NotAvailable,
+            selected_distribution_item: None,
+            top_distribution_item: None,
+            interpretation: PageInterpretationState::Closed,
+            help_visible: false,
+            next_enrichment_request_id: 0,
+            active_enrichment_request: None,
+            pending_enrichment_request: None,
+            quit_requested: false,
         })
     }
 
@@ -303,7 +579,17 @@ impl FocusedSession {
             volume: self.state(),
             mode: self.mode,
             focused_page: self.focused_page,
+            page_load: self.page_load,
+            selected_distribution_item: self.selected_distribution_item,
+            top_distribution_item: self.top_distribution_item,
+            interpretation: self.interpretation,
+            help_visible: self.help_visible,
+            quit_requested: self.quit_requested,
         }
+    }
+
+    pub(crate) fn current_view(&self) -> GraphView {
+        self.view.clone()
     }
 
     pub(crate) fn advance_focused(
@@ -313,54 +599,7 @@ impl FocusedSession {
     ) -> Result<FocusedTransition, FocusedError> {
         let before = self.focused_state();
         let layout = VolumeLayout::for_surface(surface)?;
-        match (self.mode, action) {
-            (FocusedMode::Volume, FocusedAction::Left) => {
-                self.apply_volume_action(VolumeAction::Left, layout);
-            }
-            (FocusedMode::Volume, FocusedAction::Right) => {
-                self.apply_volume_action(VolumeAction::Right, layout);
-            }
-            (FocusedMode::Volume, FocusedAction::Up) => {
-                self.apply_volume_action(VolumeAction::Up, layout);
-            }
-            (FocusedMode::Volume, FocusedAction::Down) => {
-                self.apply_volume_action(VolumeAction::Down, layout);
-            }
-            (FocusedMode::Sector, FocusedAction::Left) => self.move_page_horizontal(false),
-            (FocusedMode::Sector, FocusedAction::Right) => self.move_page_horizontal(true),
-            (FocusedMode::Sector, FocusedAction::Up) => self.move_page_vertical(false),
-            (FocusedMode::Sector, FocusedAction::Down) => self.move_page_vertical(true),
-            (FocusedMode::Volume, FocusedAction::Activate) => {
-                self.mode = FocusedMode::Sector;
-                self.focused_page = 0;
-            }
-            (FocusedMode::Sector, FocusedAction::Ascend) => {
-                self.mode = FocusedMode::Volume;
-            }
-            (_, FocusedAction::PreviousSector) => {
-                self.apply_volume_action(VolumeAction::PreviousSector, layout);
-            }
-            (_, FocusedAction::NextSector) => {
-                self.apply_volume_action(VolumeAction::NextSector, layout);
-            }
-            (FocusedMode::Volume, FocusedAction::PreviousVolume) => {
-                self.apply_volume_action(VolumeAction::PreviousVolume, layout);
-            }
-            (FocusedMode::Volume, FocusedAction::NextVolume) => {
-                self.apply_volume_action(VolumeAction::NextVolume, layout);
-            }
-            (FocusedMode::Volume, FocusedAction::ScrollRows(rows)) => {
-                self.apply_volume_action(VolumeAction::ScrollRows(rows), layout);
-            }
-            (_, FocusedAction::FocusSector(sector)) if sector < self.total_sectors() => {
-                self.focused_sector = sector;
-                self.reveal_focus(layout);
-            }
-            (FocusedMode::Sector, FocusedAction::FocusPage(page)) if page < 64 => {
-                self.focused_page = page;
-            }
-            _ => {}
-        }
+        self.apply_focused_action(action, surface, layout)?;
         let state = self.focused_state();
         Ok(FocusedTransition {
             changed: state != before,
@@ -368,6 +607,150 @@ impl FocusedSession {
         })
     }
 
+    fn apply_focused_action(
+        &mut self,
+        action: FocusedAction,
+        surface: Surface,
+        layout: VolumeLayout,
+    ) -> Result<(), FocusedError> {
+        if self.help_visible {
+            match action {
+                FocusedAction::ToggleHelp | FocusedAction::Ascend => self.help_visible = false,
+                FocusedAction::Quit => self.quit(),
+                _ => {}
+            }
+            return Ok(());
+        }
+        if action == FocusedAction::ToggleHelp {
+            self.help_visible = true;
+            return Ok(());
+        }
+        match self.mode {
+            FocusedMode::Volume => self.apply_volume_mode_action(action, layout),
+            FocusedMode::Sector => self.apply_sector_mode_action(action, layout)?,
+            FocusedMode::Page => self.apply_page_mode_action(action, surface, layout)?,
+        }
+        Ok(())
+    }
+
+    fn apply_volume_mode_action(&mut self, action: FocusedAction, layout: VolumeLayout) {
+        let volume_action = match action {
+            FocusedAction::Left => Some(VolumeAction::Left),
+            FocusedAction::Right => Some(VolumeAction::Right),
+            FocusedAction::Up => Some(VolumeAction::Up),
+            FocusedAction::Down => Some(VolumeAction::Down),
+            FocusedAction::PreviousSector => Some(VolumeAction::PreviousSector),
+            FocusedAction::NextSector => Some(VolumeAction::NextSector),
+            FocusedAction::PreviousVolume => Some(VolumeAction::PreviousVolume),
+            FocusedAction::NextVolume => Some(VolumeAction::NextVolume),
+            FocusedAction::ScrollRows(rows) => Some(VolumeAction::ScrollRows(rows)),
+            _ => None,
+        };
+        if let Some(action) = volume_action {
+            self.apply_volume_action(action, layout);
+            return;
+        }
+        match action {
+            FocusedAction::Activate => {
+                self.mode = FocusedMode::Sector;
+                self.focused_page = 0;
+            }
+            FocusedAction::FocusSector(sector) if sector < self.total_sectors() => {
+                self.focused_sector = sector;
+                self.reveal_focus(layout);
+            }
+            FocusedAction::Quit => self.quit(),
+            _ => {}
+        }
+    }
+
+    fn apply_sector_mode_action(
+        &mut self,
+        action: FocusedAction,
+        layout: VolumeLayout,
+    ) -> Result<(), FocusedError> {
+        match action {
+            FocusedAction::Left => self.move_page_horizontal(false),
+            FocusedAction::Right => self.move_page_horizontal(true),
+            FocusedAction::Up => self.move_page_vertical(false),
+            FocusedAction::Down => self.move_page_vertical(true),
+            FocusedAction::Activate => {
+                self.mode = FocusedMode::Page;
+                self.prepare_focused_page()?;
+            }
+            FocusedAction::Ascend => self.mode = FocusedMode::Volume,
+            FocusedAction::PreviousSector => {
+                self.apply_volume_action(VolumeAction::PreviousSector, layout);
+            }
+            FocusedAction::NextSector => {
+                self.apply_volume_action(VolumeAction::NextSector, layout);
+            }
+            FocusedAction::FocusSector(sector) if sector < self.total_sectors() => {
+                self.focused_sector = sector;
+                self.reveal_focus(layout);
+            }
+            FocusedAction::FocusPage(page) if page < 64 => self.focused_page = page,
+            FocusedAction::Quit => self.quit(),
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn apply_page_mode_action(
+        &mut self,
+        action: FocusedAction,
+        surface: Surface,
+        layout: VolumeLayout,
+    ) -> Result<(), FocusedError> {
+        match action {
+            FocusedAction::Up if self.interpretation == PageInterpretationState::Closed => {
+                self.move_distribution_focus(false, surface)?;
+            }
+            FocusedAction::Down if self.interpretation == PageInterpretationState::Closed => {
+                self.move_distribution_focus(true, surface)?;
+            }
+            FocusedAction::Up => self.scroll_interpretation(-1, surface),
+            FocusedAction::Down => self.scroll_interpretation(1, surface),
+            FocusedAction::Activate => self.activate_page_selection()?,
+            FocusedAction::Ascend => {
+                if self.interpretation == PageInterpretationState::Closed {
+                    self.leave_page();
+                    self.mode = FocusedMode::Sector;
+                } else {
+                    self.close_interpretation();
+                }
+            }
+            FocusedAction::PreviousSector => self.move_page_to_sibling_sector(false, layout)?,
+            FocusedAction::NextSector => self.move_page_to_sibling_sector(true, layout)?,
+            FocusedAction::PreviousVolume => self.move_page_to_sibling_volume(false)?,
+            FocusedAction::NextVolume => self.move_page_to_sibling_volume(true)?,
+            FocusedAction::ScrollRows(rows)
+                if self.interpretation == PageInterpretationState::Closed =>
+            {
+                self.scroll_distribution(rows, surface)?;
+            }
+            FocusedAction::ScrollRows(rows) => self.scroll_interpretation(rows, surface),
+            FocusedAction::FocusDistributionItem(item)
+                if self.interpretation == PageInterpretationState::Closed =>
+            {
+                self.focus_distribution_item(item, surface)?;
+            }
+            FocusedAction::FocusSector(sector)
+                if sector < self.total_sectors() && sector != self.focused_sector =>
+            {
+                self.leave_page();
+                self.focused_sector = sector;
+                self.reveal_focus(layout);
+                self.mode = FocusedMode::Page;
+                self.prepare_focused_page()?;
+            }
+            FocusedAction::Quit => self.quit(),
+            _ => {}
+        }
+        Ok(())
+    }
+
+    #[cfg(test)]
     pub(crate) fn advance(&mut self, action: VolumeAction, layout: VolumeLayout) -> Transition {
         let before = self.state();
         self.apply_volume_action(action, layout);
@@ -471,6 +854,588 @@ impl FocusedSession {
         })
     }
 
+    pub(crate) fn page_scene(&self) -> Result<PageScene, FocusedError> {
+        if self.mode != FocusedMode::Page {
+            return Err(FocusedError::WrongMode {
+                expected: FocusedMode::Page,
+                actual: self.mode,
+            });
+        }
+        let overview = self.view.overview();
+        let volume = self.volumes[self.volume_index];
+        let vpid = self.focused_vpid()?;
+        let page = PageMark::try_from_projection(&page_projection(self.view.page(vpid)?))?;
+        let items = PageDistributionItem::from_projection(vpid, &self.page_distribution)?;
+        let record_selection = match self.interpretation {
+            PageInterpretationState::Record {
+                record,
+                load:
+                    InterpretationLoadState::Ready
+                    | InterpretationLoadState::Unavailable(_)
+                    | InterpretationLoadState::Failed(_),
+                ..
+            } => record_selection_projection(&self.view, record),
+            PageInterpretationState::Closed
+            | PageInterpretationState::Record {
+                load: InterpretationLoadState::Loading,
+                ..
+            } => None,
+        };
+        Ok(PageScene {
+            snapshot_id: overview.snapshot_id,
+            revision: overview.revision,
+            outcome: outcome_name(overview.outcome),
+            volume: volume_projection(volume),
+            volume_index: self.volume_index,
+            volume_count: self.volumes.len(),
+            sector_id: i32::try_from(self.focused_sector).map_err(|_| FocusedError::Arithmetic)?,
+            page,
+            load: self.page_load,
+            distribution: self.page_distribution.clone(),
+            items,
+            selected_item: self.selected_distribution_item,
+            top_item: self.top_distribution_item,
+            interpretation_state: self.interpretation,
+            record_selection,
+        })
+    }
+
+    pub(crate) fn take_enrichment_request(&mut self) -> Option<FocusedEnrichmentRequest> {
+        self.pending_enrichment_request.take()
+    }
+
+    pub(crate) fn complete_enrichment(
+        &mut self,
+        completion: FocusedEnrichmentCompletion,
+    ) -> Result<FocusedTransition, FocusedError> {
+        let before = self.focused_state();
+        let Some(active) = self.active_enrichment_request.as_ref() else {
+            return Ok(FocusedTransition {
+                changed: false,
+                state: before,
+            });
+        };
+        let target_page = completion.key.target.page();
+        let target_still_active = match completion.key.target {
+            EnrichmentRequestTarget::Page(_) => {
+                self.interpretation == PageInterpretationState::Closed
+            }
+            EnrichmentRequestTarget::Record(record) => {
+                matches!(
+                    self.interpretation,
+                    PageInterpretationState::Record {
+                        record: active_record,
+                        ..
+                    } if active_record == record
+                ) && self
+                    .selected_record()?
+                    .is_some_and(|(selected, _)| selected == record)
+            }
+        };
+        if completion.key != active.key
+            || active.cancel.is_cancelled()
+            || self.mode != FocusedMode::Page
+            || self.focused_vpid()? != target_page
+            || self.view.overview().snapshot_id != completion.key.snapshot_id
+            || self.view.overview().revision != completion.key.base_revision
+            || !target_still_active
+        {
+            return Ok(FocusedTransition {
+                changed: false,
+                state: before,
+            });
+        }
+
+        self.active_enrichment_request = None;
+        self.pending_enrichment_request = None;
+        match completion.result {
+            Ok(candidate) => match completion.key.target {
+                EnrichmentRequestTarget::Page(page) => {
+                    self.adopt_page_enrichment(candidate, completion.key, page)?;
+                }
+                EnrichmentRequestTarget::Record(record) => {
+                    self.adopt_record_enrichment(candidate, completion.key, record)?;
+                }
+            },
+            Err(error) => match completion.key.target {
+                EnrichmentRequestTarget::Page(_) => {
+                    self.page_load = PageLoadState::Failed(PageEnrichmentFailure::from(&error));
+                }
+                EnrichmentRequestTarget::Record(record) => {
+                    self.interpretation = PageInterpretationState::Record {
+                        record,
+                        load: InterpretationLoadState::Failed(PageEnrichmentFailure::from(&error)),
+                        top_attribute: 0,
+                    };
+                }
+            },
+        }
+        let state = self.focused_state();
+        Ok(FocusedTransition {
+            changed: state != before,
+            state,
+        })
+    }
+
+    fn prepare_focused_page(&mut self) -> Result<(), FocusedError> {
+        self.page_distribution = PageDistributionProjection::NotAvailable;
+        self.selected_distribution_item = None;
+        self.top_distribution_item = None;
+        let vpid = self.focused_vpid()?;
+        if let Some(deep) = self.view.deep_page(vpid) {
+            if let Some(slotted) = deep.slotted.as_ref() {
+                self.install_distribution(page_distribution_projection(slotted), vpid)?;
+            } else {
+                self.page_load = PageLoadState::Unavailable(
+                    deep.diagnostic_rule
+                        .unwrap_or("Page has no validated slotted distribution"),
+                );
+            }
+            return Ok(());
+        }
+
+        let page = self.view.page(vpid)?;
+        if !page.supports_slotted_distribution {
+            self.page_load =
+                PageLoadState::Unavailable("Page type has no slotted record distribution");
+            return Ok(());
+        }
+        if self.active_enrichment_request.is_some() {
+            return Ok(());
+        }
+        self.start_enrichment(EnrichmentRequestTarget::Page(vpid))?;
+        self.page_load = PageLoadState::Loading;
+        Ok(())
+    }
+
+    fn adopt_page_enrichment(
+        &mut self,
+        candidate: GraphView,
+        key: EnrichmentRequestKey,
+        page_key: Vpid,
+    ) -> Result<(), FocusedError> {
+        let overview = candidate.overview();
+        if overview.snapshot_id != key.snapshot_id {
+            return Err(FocusedError::InvalidEnrichmentSnapshot);
+        }
+        let expected = key
+            .base_revision
+            .next()
+            .map_err(|_| FocusedError::Arithmetic)?;
+        if overview.revision != expected {
+            return Err(FocusedError::InvalidEnrichmentRevision {
+                expected: expected.get(),
+                actual: overview.revision.get(),
+            });
+        }
+        let volumes = candidate.volumes();
+        let Some(volume_index) = volumes
+            .iter()
+            .position(|volume| volume.vol_id == page_key.vol_id)
+        else {
+            return Err(FocusedError::InvalidEnrichmentPage);
+        };
+        let page = candidate
+            .page(page_key)
+            .map_err(|_| FocusedError::InvalidEnrichmentPage)?;
+        if u32::try_from(page.sector_id.get()).ok() != Some(self.focused_sector) {
+            return Err(FocusedError::InvalidEnrichmentPage);
+        }
+        let deep = candidate
+            .deep_page(page_key)
+            .ok_or(FocusedError::InvalidEnrichmentPage)?;
+        let (distribution, load) = deep.slotted.as_ref().map_or_else(
+            || {
+                (
+                    PageDistributionProjection::NotAvailable,
+                    PageLoadState::Unavailable(
+                        deep.diagnostic_rule
+                            .unwrap_or("Page has no validated slotted distribution"),
+                    ),
+                )
+            },
+            |slotted| (page_distribution_projection(slotted), PageLoadState::Ready),
+        );
+
+        self.view = candidate;
+        self.volumes = volumes;
+        self.volume_index = volume_index;
+        self.page_load = load;
+        self.install_distribution(distribution, page_key)
+    }
+
+    fn adopt_record_enrichment(
+        &mut self,
+        candidate: GraphView,
+        key: EnrichmentRequestKey,
+        record: Oid,
+    ) -> Result<(), FocusedError> {
+        let overview = candidate.overview();
+        if overview.snapshot_id != key.snapshot_id {
+            return Err(FocusedError::InvalidEnrichmentSnapshot);
+        }
+        if overview.revision <= key.base_revision {
+            let expected = key
+                .base_revision
+                .next()
+                .map_err(|_| FocusedError::Arithmetic)?;
+            return Err(FocusedError::InvalidEnrichmentRevision {
+                expected: expected.get(),
+                actual: overview.revision.get(),
+            });
+        }
+        let page_key = Vpid::new(record.vol_id, record.page_id);
+        let volumes = candidate.volumes();
+        let Some(volume_index) = volumes
+            .iter()
+            .position(|volume| volume.vol_id == page_key.vol_id)
+        else {
+            return Err(FocusedError::InvalidEnrichmentPage);
+        };
+        let page = candidate
+            .page(page_key)
+            .map_err(|_| FocusedError::InvalidEnrichmentPage)?;
+        if u32::try_from(page.sector_id.get()).ok() != Some(self.focused_sector) {
+            return Err(FocusedError::InvalidEnrichmentPage);
+        }
+        let deep = candidate
+            .deep_page(page_key)
+            .ok_or(FocusedError::InvalidEnrichmentPage)?;
+        let slotted = deep
+            .slotted
+            .as_ref()
+            .ok_or(FocusedError::InvalidEnrichmentPage)?;
+        let distribution = page_distribution_projection(slotted);
+        let items = PageDistributionItem::from_projection(page_key, &distribution)?;
+        if !items.iter().any(|item| item.record_oid() == Some(record)) {
+            return Err(FocusedError::InvalidEnrichmentPage);
+        }
+        let selection = record_selection_projection(&candidate, record)
+            .ok_or(FocusedError::InvalidEnrichmentPage)?;
+        let load = if let Some(reason) = record_selection_limitation(&selection) {
+            InterpretationLoadState::Unavailable(reason)
+        } else if selection.interpretation.is_some() {
+            InterpretationLoadState::Ready
+        } else {
+            return Err(FocusedError::InvalidEnrichmentPage);
+        };
+
+        self.view = candidate;
+        self.volumes = volumes;
+        self.volume_index = volume_index;
+        self.page_load = PageLoadState::Ready;
+        self.page_distribution = distribution;
+        self.interpretation = PageInterpretationState::Record {
+            record,
+            load,
+            top_attribute: 0,
+        };
+        Ok(())
+    }
+
+    fn install_distribution(
+        &mut self,
+        distribution: PageDistributionProjection,
+        page: Vpid,
+    ) -> Result<(), FocusedError> {
+        let items = PageDistributionItem::from_projection(page, &distribution)?;
+        self.selected_distribution_item = items.first().map(PageDistributionItem::id);
+        self.top_distribution_item = self.selected_distribution_item;
+        self.page_distribution = distribution;
+        if !items.is_empty() {
+            self.page_load = PageLoadState::Ready;
+        }
+        Ok(())
+    }
+
+    fn activate_page_selection(&mut self) -> Result<(), FocusedError> {
+        if self.interpretation != PageInterpretationState::Closed
+            || self.active_enrichment_request.is_some()
+        {
+            return Ok(());
+        }
+        let Some((record, _record_type)) = self.selected_record()? else {
+            return Ok(());
+        };
+        if let RecordSelectionSupport::Unsupported(reason) =
+            self.view.record_selection_support(record)?
+        {
+            self.interpretation = PageInterpretationState::Record {
+                record,
+                load: InterpretationLoadState::Unavailable(reason),
+                top_attribute: 0,
+            };
+            return Ok(());
+        }
+        let page = Vpid::new(record.vol_id, record.page_id);
+        if let Some(reason) = self.view.record_page_interpretation_failure(page) {
+            self.interpretation = PageInterpretationState::Record {
+                record,
+                load: InterpretationLoadState::Unavailable(reason),
+                top_attribute: 0,
+            };
+            return Ok(());
+        }
+        if let Some(selection) = record_selection_projection(&self.view, record) {
+            if let Some(reason) = record_selection_limitation(&selection) {
+                self.interpretation = PageInterpretationState::Record {
+                    record,
+                    load: InterpretationLoadState::Unavailable(reason),
+                    top_attribute: 0,
+                };
+                return Ok(());
+            }
+            if selection.interpretation.is_some() {
+                self.interpretation = PageInterpretationState::Record {
+                    record,
+                    load: InterpretationLoadState::Ready,
+                    top_attribute: 0,
+                };
+                return Ok(());
+            }
+        }
+        self.start_enrichment(EnrichmentRequestTarget::Record(record))?;
+        self.interpretation = PageInterpretationState::Record {
+            record,
+            load: InterpretationLoadState::Loading,
+            top_attribute: 0,
+        };
+        Ok(())
+    }
+
+    fn selected_record(&self) -> Result<Option<(Oid, RecordTypeProjection)>, FocusedError> {
+        let Some(selected) = self.selected_distribution_item else {
+            return Ok(None);
+        };
+        Ok(
+            PageDistributionItem::from_projection(self.focused_vpid()?, &self.page_distribution)?
+                .into_iter()
+                .find(|item| item.id() == selected)
+                .and_then(|item| item.record_identity()),
+        )
+    }
+
+    fn start_enrichment(&mut self, target: EnrichmentRequestTarget) -> Result<(), FocusedError> {
+        if self.active_enrichment_request.is_some() {
+            return Ok(());
+        }
+        let overview = self.view.overview();
+        let key = EnrichmentRequestKey {
+            request_id: self.next_enrichment_request_id,
+            snapshot_id: overview.snapshot_id,
+            base_revision: overview.revision,
+            target,
+        };
+        self.next_enrichment_request_id = self
+            .next_enrichment_request_id
+            .checked_add(1)
+            .ok_or(FocusedError::Arithmetic)?;
+        let cancel = CancelToken::new();
+        self.active_enrichment_request = Some(ActiveEnrichmentRequest {
+            key,
+            cancel: cancel.clone(),
+        });
+        self.pending_enrichment_request = Some(FocusedEnrichmentRequest {
+            key,
+            base: self.view.clone(),
+            policy: self.policy,
+            cancel,
+        });
+        Ok(())
+    }
+
+    fn cancel_enrichment(&mut self) {
+        if let Some(active) = self.active_enrichment_request.take() {
+            active.cancel.cancel();
+        }
+        self.pending_enrichment_request = None;
+    }
+
+    fn close_interpretation(&mut self) {
+        self.cancel_enrichment();
+        self.interpretation = PageInterpretationState::Closed;
+    }
+
+    fn leave_page(&mut self) {
+        self.cancel_enrichment();
+        self.page_load = PageLoadState::Idle;
+        self.page_distribution = PageDistributionProjection::NotAvailable;
+        self.selected_distribution_item = None;
+        self.top_distribution_item = None;
+        self.interpretation = PageInterpretationState::Closed;
+    }
+
+    fn quit(&mut self) {
+        if self.mode == FocusedMode::Page {
+            self.leave_page();
+        }
+        self.quit_requested = true;
+    }
+
+    fn focused_vpid(&self) -> Result<Vpid, FocusedError> {
+        let raw_sector =
+            i32::try_from(self.focused_sector).map_err(|_| FocusedError::Arithmetic)?;
+        let sector_id = SectorId::new(raw_sector).map_err(|_| FocusedError::Arithmetic)?;
+        let sector = self
+            .view
+            .sector(self.volumes[self.volume_index].vol_id, sector_id)?;
+        sector
+            .pages
+            .get(usize::from(self.focused_page))
+            .map(|page| page.vpid)
+            .ok_or(FocusedError::InvalidSectorPageCount {
+                sector_id: raw_sector,
+                actual: sector.pages.len(),
+            })
+    }
+
+    fn move_page_to_sibling_sector(
+        &mut self,
+        forward: bool,
+        layout: VolumeLayout,
+    ) -> Result<(), FocusedError> {
+        let target = if forward {
+            self.focused_sector
+                .checked_add(1)
+                .filter(|candidate| *candidate < self.total_sectors())
+        } else {
+            self.focused_sector.checked_sub(1)
+        };
+        let Some(target) = target else {
+            return Ok(());
+        };
+        self.leave_page();
+        self.focused_sector = target;
+        self.reveal_focus(layout);
+        self.mode = FocusedMode::Page;
+        self.prepare_focused_page()?;
+        Ok(())
+    }
+
+    fn move_page_to_sibling_volume(&mut self, forward: bool) -> Result<(), FocusedError> {
+        let target = if forward {
+            self.volume_index
+                .checked_add(1)
+                .filter(|candidate| *candidate < self.volumes.len())
+        } else {
+            self.volume_index.checked_sub(1)
+        };
+        let Some(target) = target else {
+            return Ok(());
+        };
+        self.leave_page();
+        self.volume_index = target;
+        self.focused_sector = 0;
+        self.top_sector = 0;
+        self.mode = FocusedMode::Page;
+        self.prepare_focused_page()
+    }
+
+    fn move_distribution_focus(
+        &mut self,
+        forward: bool,
+        surface: Surface,
+    ) -> Result<(), FocusedError> {
+        let items =
+            PageDistributionItem::from_projection(self.focused_vpid()?, &self.page_distribution)?;
+        if items.is_empty() {
+            return Ok(());
+        }
+        let current = self
+            .selected_distribution_item
+            .and_then(|selected| items.iter().position(|item| item.id() == selected))
+            .unwrap_or(0);
+        let next = if forward {
+            (current + 1).min(items.len() - 1)
+        } else {
+            current.saturating_sub(1)
+        };
+        self.selected_distribution_item = Some(items[next].id());
+        self.reveal_distribution_focus(&items, surface);
+        Ok(())
+    }
+
+    fn focus_distribution_item(
+        &mut self,
+        item: PageDistributionItemId,
+        surface: Surface,
+    ) -> Result<(), FocusedError> {
+        let items =
+            PageDistributionItem::from_projection(self.focused_vpid()?, &self.page_distribution)?;
+        if items.iter().any(|candidate| candidate.id() == item) {
+            self.selected_distribution_item = Some(item);
+            self.reveal_distribution_focus(&items, surface);
+        }
+        Ok(())
+    }
+
+    fn reveal_distribution_focus(&mut self, items: &[PageDistributionItem], surface: Surface) {
+        let visible = usize::from(page_visible_rows(surface));
+        let selected = self
+            .selected_distribution_item
+            .and_then(|selected| items.iter().position(|item| item.id() == selected))
+            .unwrap_or(0);
+        let mut top = self
+            .top_distribution_item
+            .and_then(|top| items.iter().position(|item| item.id() == top))
+            .unwrap_or(0);
+        if selected < top {
+            top = selected;
+        } else if selected >= top.saturating_add(visible) {
+            top = selected + 1 - visible;
+        }
+        self.top_distribution_item = items.get(top).map(PageDistributionItem::id);
+    }
+
+    fn scroll_distribution(&mut self, rows: i32, surface: Surface) -> Result<(), FocusedError> {
+        let items =
+            PageDistributionItem::from_projection(self.focused_vpid()?, &self.page_distribution)?;
+        if items.is_empty() {
+            return Ok(());
+        }
+        let visible = usize::from(page_visible_rows(surface));
+        let current = self
+            .top_distribution_item
+            .and_then(|top| items.iter().position(|item| item.id() == top))
+            .unwrap_or(0);
+        let magnitude = usize::try_from(rows.unsigned_abs()).unwrap_or(usize::MAX);
+        let maximum = items.len().saturating_sub(visible);
+        let top = if rows.is_negative() {
+            current.saturating_sub(magnitude)
+        } else {
+            current.saturating_add(magnitude).min(maximum)
+        };
+        self.top_distribution_item = items.get(top).map(PageDistributionItem::id);
+        Ok(())
+    }
+
+    fn scroll_interpretation(&mut self, rows: i32, surface: Surface) {
+        let PageInterpretationState::Record {
+            record,
+            top_attribute,
+            ..
+        } = self.interpretation
+        else {
+            return;
+        };
+        let count = record_selection_projection(&self.view, record)
+            .and_then(|selection| selection.interpretation)
+            .map_or(0, |interpretation| interpretation.attributes.len());
+        let maximum = count.saturating_sub(usize::from(interpretation_visible_rows(surface)));
+        let current = usize::try_from(top_attribute)
+            .unwrap_or(usize::MAX)
+            .min(maximum);
+        let magnitude = usize::try_from(rows.unsigned_abs()).unwrap_or(usize::MAX);
+        let next = if rows.is_negative() {
+            current.saturating_sub(magnitude)
+        } else {
+            current.saturating_add(magnitude).min(maximum)
+        };
+        if let PageInterpretationState::Record { top_attribute, .. } = &mut self.interpretation {
+            *top_attribute = u32::try_from(next).unwrap_or(u32::MAX);
+        }
+    }
+
     fn move_page_horizontal(&mut self, forward: bool) {
         let column = self.focused_page % 8;
         if forward {
@@ -555,6 +1520,12 @@ impl FocusedSession {
     }
 }
 
+impl Drop for FocusedSession {
+    fn drop(&mut self) {
+        self.cancel_enrichment();
+    }
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct VolumeScene {
     pub snapshot_id: SnapshotId,
@@ -579,6 +1550,196 @@ pub(crate) struct SectorScene {
     pub volume_count: usize,
     pub focused_page: u8,
     pub sector: SectorCard,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct PageScene {
+    pub snapshot_id: SnapshotId,
+    pub revision: InspectionRevision,
+    pub outcome: &'static str,
+    pub volume: crate::projection::VolumeProjection,
+    pub volume_index: usize,
+    pub volume_count: usize,
+    pub sector_id: i32,
+    pub page: PageMark,
+    pub load: PageLoadState,
+    pub distribution: PageDistributionProjection,
+    pub items: Vec<PageDistributionItem>,
+    pub selected_item: Option<PageDistributionItemId>,
+    pub top_item: Option<PageDistributionItemId>,
+    pub interpretation_state: PageInterpretationState,
+    pub record_selection: Option<RecordSelectionProjection>,
+}
+
+impl PageScene {
+    #[cfg(test)]
+    pub(crate) fn selected_record(&self) -> Option<Oid> {
+        let selected = self.selected_item?;
+        self.items
+            .iter()
+            .find(|item| item.id() == selected)
+            .and_then(PageDistributionItem::record_oid)
+    }
+}
+
+fn record_selection_limitation(selection: &RecordSelectionProjection) -> Option<&'static str> {
+    selection.interpretation_unavailable.or_else(|| {
+        selection
+            .interpretation
+            .as_ref()
+            .and_then(|interpretation| match interpretation.diagnostic {
+                OptionalTextProjection::Known(reason) => Some(reason),
+                OptionalTextProjection::Unknown | OptionalTextProjection::Unsupported => None,
+            })
+    })
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum PageDistributionItem {
+    Header {
+        region: ByteRegionProjection,
+    },
+    Record {
+        oid: Oid,
+        slot_id: u16,
+        region: ByteRegionProjection,
+        record_type: RecordTypeProjection,
+    },
+    Free {
+        region: ByteRegionProjection,
+        kind: FreeRegionKindProjection,
+    },
+    SlotDirectory {
+        region: ByteRegionProjection,
+    },
+    SlotEntry {
+        slot_id: u16,
+        region: ByteRegionProjection,
+        state: SlotEntryStateProjection,
+        record_type: &'static str,
+    },
+}
+
+impl PageDistributionItem {
+    fn from_projection(
+        page: Vpid,
+        distribution: &PageDistributionProjection,
+    ) -> Result<Vec<Self>, FocusedError> {
+        let PageDistributionProjection::Available {
+            header,
+            record_extents,
+            free_regions,
+            slot_directory,
+            slot_entries,
+            ..
+        } = distribution
+        else {
+            return Ok(Vec::new());
+        };
+
+        let mut items = vec![Self::Header { region: *header }];
+        let mut content = record_extents
+            .iter()
+            .map(|record| Self::record(page, record))
+            .collect::<Result<Vec<_>, _>>()?;
+        content.extend(free_regions.iter().map(Self::free));
+        content.sort_unstable_by_key(|item| (item.offset(), item.id()));
+        items.extend(content);
+        items.push(Self::SlotDirectory {
+            region: *slot_directory,
+        });
+        items.extend(slot_entries.iter().map(Self::slot_entry));
+        Ok(items)
+    }
+
+    fn record(page: Vpid, record: &RecordExtentProjection) -> Result<Self, FocusedError> {
+        let raw_slot = i16::try_from(record.slot_id).map_err(|_| FocusedError::Arithmetic)?;
+        Ok(Self::Record {
+            oid: Oid::new(
+                page.vol_id,
+                page.page_id,
+                SlotId::new(raw_slot).map_err(|_| FocusedError::Arithmetic)?,
+            ),
+            slot_id: record.slot_id,
+            region: ByteRegionProjection {
+                offset: record.offset,
+                length: record.length,
+            },
+            record_type: record.record_type,
+        })
+    }
+
+    fn free(region: &FreeRegionProjection) -> Self {
+        Self::Free {
+            region: ByteRegionProjection {
+                offset: region.offset,
+                length: region.length,
+            },
+            kind: region.kind,
+        }
+    }
+
+    fn slot_entry(entry: &SlotEntryProjection) -> Self {
+        Self::SlotEntry {
+            slot_id: entry.slot_id,
+            region: ByteRegionProjection {
+                offset: entry.offset,
+                length: entry.length,
+            },
+            state: entry.state,
+            record_type: entry.record_type,
+        }
+    }
+
+    pub(crate) fn id(&self) -> PageDistributionItemId {
+        match self {
+            Self::Header { .. } => PageDistributionItemId::Header,
+            Self::Record { slot_id, .. } => PageDistributionItemId::Record(*slot_id),
+            Self::Free {
+                region,
+                kind: FreeRegionKindProjection::ContiguousFree,
+            } => PageDistributionItemId::ContiguousFree {
+                offset: region.offset,
+                length: region.length,
+            },
+            Self::Free { region, .. } => PageDistributionItemId::FragmentedFree {
+                offset: region.offset,
+                length: region.length,
+            },
+            Self::SlotDirectory { .. } => PageDistributionItemId::SlotDirectory,
+            Self::SlotEntry { slot_id, .. } => PageDistributionItemId::SlotEntry(*slot_id),
+        }
+    }
+
+    pub(crate) const fn record_oid(&self) -> Option<Oid> {
+        match self {
+            Self::Record { oid, .. } => Some(*oid),
+            _ => None,
+        }
+    }
+
+    const fn record_identity(&self) -> Option<(Oid, RecordTypeProjection)> {
+        match self {
+            Self::Record {
+                oid, record_type, ..
+            } => Some((*oid, *record_type)),
+            _ => None,
+        }
+    }
+
+    const fn region(&self) -> ByteRegionProjection {
+        match self {
+            Self::Header { region }
+            | Self::Record { region, .. }
+            | Self::Free { region, .. }
+            | Self::SlotDirectory { region }
+            | Self::SlotEntry { region, .. } => *region,
+        }
+    }
+
+    const fn offset(&self) -> u32 {
+        self.region().offset
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -637,6 +1798,7 @@ pub(crate) enum OccupancyMark {
 }
 
 impl OccupancyMark {
+    #[cfg(test)]
     fn from_projection(allocation: AllocationMark, occupancy: &PageOccupancyProjection) -> Self {
         ExactOccupancy::from_projection(allocation, occupancy).volume_mark()
     }
@@ -1093,6 +2255,7 @@ impl PresentationProfile {
         colors: ColorProfile::Monochrome,
     };
 
+    #[cfg(test)]
     const fn name(self) -> &'static str {
         match (self.colors, self.glyphs) {
             (ColorProfile::Ansi, GlyphProfile::Unicode) => "ansi-unicode",
@@ -1154,6 +2317,15 @@ pub(crate) struct PageHitRegion {
     pub bottom: u16,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct DistributionHitRegion {
+    pub item: PageDistributionItemId,
+    pub left: u16,
+    pub top: u16,
+    pub right: u16,
+    pub bottom: u16,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct VolumeFrame {
     surface: Surface,
@@ -1161,6 +2333,8 @@ pub(crate) struct VolumeFrame {
     cells: Vec<Cell>,
     pub hits: Vec<HitRegion>,
     pub page_hits: Vec<PageHitRegion>,
+    pub distribution_hits: Vec<DistributionHitRegion>,
+    pub formatted_distribution_rows: usize,
 }
 
 impl VolumeFrame {
@@ -1171,6 +2345,8 @@ impl VolumeFrame {
             cells: vec![Cell::default(); usize::from(surface.width) * usize::from(surface.height)],
             hits: Vec::new(),
             page_hits: Vec::new(),
+            distribution_hits: Vec::new(),
+            formatted_distribution_rows: 0,
         }
     }
 
@@ -1217,6 +2393,7 @@ impl VolumeFrame {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn line(&self, row: u16) -> String {
         if row >= self.surface.height {
             return String::new();
@@ -1232,6 +2409,7 @@ impl VolumeFrame {
             .to_owned()
     }
 
+    #[cfg(test)]
     pub(crate) fn semantic_snapshot(&self) -> String {
         let mut output = format!(
             "surface {}x{} · profile {}\n",
@@ -1270,6 +2448,26 @@ impl VolumeFrame {
                     output.push('\n');
                 }
             }
+        }
+        if !self.distribution_hits.is_empty() {
+            output.push_str("distribution-hits:\n  ");
+            for (index, hit) in self.distribution_hits.iter().enumerate() {
+                if index != 0 {
+                    output.push(' ');
+                }
+                write!(
+                    output,
+                    "{:?}@{},{}-{},{}",
+                    hit.item, hit.left, hit.top, hit.right, hit.bottom
+                )
+                .expect("writing a String cannot fail");
+            }
+            writeln!(
+                output,
+                "\nformatted-distribution-rows:{}",
+                self.formatted_distribution_rows
+            )
+            .expect("writing a String cannot fail");
         }
         output
     }
@@ -1688,6 +2886,765 @@ impl SectorRenderer {
     }
 }
 
+pub(crate) struct PageRenderer;
+
+impl PageRenderer {
+    #[allow(clippy::too_many_lines)]
+    pub(crate) fn render(
+        scene: &PageScene,
+        surface: Surface,
+        profile: PresentationProfile,
+    ) -> Result<VolumeFrame, FocusedError> {
+        VolumeLayout::for_surface(surface)?;
+        let mut frame = VolumeFrame::new(surface, profile);
+        let separator = match profile.glyphs {
+            GlyphProfile::Unicode => " · ",
+            GlyphProfile::Ascii => " | ",
+        };
+        let fingerprint = snapshot_id_hex(scene.snapshot_id);
+        frame.put_text(
+            0,
+            0,
+            surface.width,
+            &format!(
+                " VOLMAP  snapshot {}  r{}  {} ",
+                &fingerprint[..12],
+                scene.revision.get(),
+                scene.outcome
+            ),
+            SemanticStyle::Header,
+        );
+        frame.put_text(
+            0,
+            1,
+            surface.width,
+            &format!(
+                "Volume {} > Sector {} > Page {}{separator}volume {}/{}",
+                scene.volume.vol_id,
+                scene.sector_id,
+                scene.page.page_id,
+                scene.volume_index + 1,
+                scene.volume_count,
+            ),
+            SemanticStyle::Plain,
+        );
+        let (file_class, table) = scene.page.attribution.labels();
+        let page_facts = if surface.width < 80 {
+            format!(
+                "{}{separator}{}{separator}{}{separator}{table}{separator}{file_class}",
+                scene.page.page_type.label(),
+                scene.page.allocation.label(),
+                scene.page.occupancy.descriptor(),
+            )
+        } else {
+            format!(
+                "type {}{separator}allocation {}{separator}{}{separator}{table}{separator}{file_class}",
+                scene.page.page_type.label(),
+                scene.page.allocation.label(),
+                scene.page.occupancy.descriptor(),
+            )
+        };
+        frame.put_text(0, 2, surface.width, &page_facts, SemanticStyle::Focus);
+
+        if scene.interpretation_state != PageInterpretationState::Closed {
+            draw_record_interpretation(&mut frame, scene, surface, separator);
+            return Ok(frame);
+        }
+
+        match &scene.distribution {
+            PageDistributionProjection::NotAvailable => {
+                frame.put_text(
+                    0,
+                    3,
+                    surface.width,
+                    &format!("distribution: {}", scene.load.label()),
+                    match scene.load {
+                        PageLoadState::Failed(_) => SemanticStyle::Finding,
+                        PageLoadState::Loading => SemanticStyle::Unknown,
+                        _ => SemanticStyle::Muted,
+                    },
+                );
+                frame.put_text(
+                    0,
+                    PAGE_ROWS_TOP,
+                    surface.width,
+                    scene.load.label(),
+                    SemanticStyle::Muted,
+                );
+            }
+            PageDistributionProjection::Available {
+                content_size,
+                record_extents,
+                free_regions,
+                slot_entries,
+                allocated_record_bytes,
+                unoccupied_bytes,
+                ..
+            } => {
+                frame.put_text(
+                    0,
+                    3,
+                    surface.width,
+                    &format!(
+                        "{} B{separator}{} records / {} B{separator}{} free regions / {} B{separator}{} slots",
+                        grouped_number(*content_size),
+                        record_extents.len(),
+                        grouped_number(*allocated_record_bytes),
+                        free_regions.len(),
+                        grouped_number(*unoccupied_bytes),
+                        slot_entries.len(),
+                    ),
+                    SemanticStyle::Plain,
+                );
+                frame.put_text(
+                    0,
+                    4,
+                    surface.width,
+                    "H header  R live record  f fragmented free  . contiguous free  D slot directory",
+                    SemanticStyle::Muted,
+                );
+                draw_page_byte_map(&mut frame, scene, 5)?;
+                frame.put_text(
+                    0,
+                    6,
+                    surface.width,
+                    "  region / exact byte range / length",
+                    SemanticStyle::Header,
+                );
+                draw_distribution_rows(&mut frame, scene, surface)?;
+            }
+        }
+
+        let selected = scene
+            .selected_item
+            .and_then(|selected| scene.items.iter().find(|item| item.id() == selected));
+        let selected_label = selected.map_or_else(
+            || format!("distribution status: {}", scene.load.label()),
+            |item| {
+                let action = if item.record_oid().is_some() {
+                    "Enter can interpret this live record"
+                } else {
+                    "structural row; interpretation unavailable"
+                };
+                format!("{}{separator}{action}", format_distribution_item(item))
+            },
+        );
+        frame.put_text(
+            0,
+            surface.height - 3,
+            surface.width,
+            &selected_label,
+            SemanticStyle::Focus,
+        );
+        let top = scene
+            .top_item
+            .and_then(|top| scene.items.iter().position(|item| item.id() == top))
+            .unwrap_or(0);
+        frame.put_text(
+            0,
+            surface.height - 2,
+            surface.width,
+            &format!(
+                "rows {}..{} of {}{separator}{}",
+                if scene.items.is_empty() { 0 } else { top + 1 },
+                (top + usize::from(page_visible_rows(surface))).min(scene.items.len()),
+                scene.items.len(),
+                scene.load.label(),
+            ),
+            SemanticStyle::Muted,
+        );
+        frame.put_text(
+            0,
+            surface.height - 1,
+            surface.width,
+            &format!(
+                "Up/Down select{separator}wheel scroll{separator}[ ] sibling Sector{separator}Esc/Backspace Sector{separator}q quit"
+            ),
+            SemanticStyle::Plain,
+        );
+        Ok(frame)
+    }
+}
+
+fn draw_record_interpretation(
+    frame: &mut VolumeFrame,
+    scene: &PageScene,
+    surface: Surface,
+    separator: &str,
+) {
+    let PageInterpretationState::Record {
+        record,
+        load,
+        top_attribute,
+    } = scene.interpretation_state
+    else {
+        return;
+    };
+    draw_interpretation_identity(frame, scene, surface, record, load, separator);
+
+    let Some(selection) = scene.record_selection.as_ref() else {
+        frame.put_text(
+            0,
+            5,
+            surface.width,
+            load.label(),
+            match load {
+                InterpretationLoadState::Failed(_) => SemanticStyle::Finding,
+                _ => SemanticStyle::Muted,
+            },
+        );
+        draw_interpretation_footer(frame, surface, 0, 0, load.label(), separator);
+        return;
+    };
+    if let Some(reason) = record_selection_limitation(selection) {
+        draw_unavailable_interpretation(frame, surface, reason, separator);
+        return;
+    }
+    let Some(interpretation) = selection.interpretation.as_ref() else {
+        draw_unavailable_interpretation(frame, surface, load.label(), separator);
+        return;
+    };
+
+    draw_ready_interpretation(
+        frame,
+        selection,
+        interpretation,
+        top_attribute,
+        load,
+        surface,
+        separator,
+    );
+}
+
+fn draw_interpretation_identity(
+    frame: &mut VolumeFrame,
+    scene: &PageScene,
+    surface: Surface,
+    record: Oid,
+    load: InterpretationLoadState,
+    separator: &str,
+) {
+    let selected_type = scene.record_selection.as_ref().map_or_else(
+        || {
+            scene
+                .items
+                .iter()
+                .find_map(|item| match item {
+                    PageDistributionItem::Record {
+                        oid, record_type, ..
+                    } if *oid == record => Some(record_type.as_str()),
+                    _ => None,
+                })
+                .unwrap_or("unknown")
+        },
+        |selection| selection.selected_slot.record_type,
+    );
+    let style = match load {
+        InterpretationLoadState::Failed(_) => SemanticStyle::Finding,
+        InterpretationLoadState::Loading => SemanticStyle::Unknown,
+        InterpretationLoadState::Ready => SemanticStyle::Focus,
+        InterpretationLoadState::Unavailable(_) => SemanticStyle::Muted,
+    };
+    frame.put_text(
+        0,
+        3,
+        surface.width,
+        &format!(
+            "Record {}|{}|{}{separator}type {selected_type}{separator}{}",
+            record.vol_id.get(),
+            record.page_id.get(),
+            record.slot_id.get(),
+            load.label(),
+        ),
+        style,
+    );
+}
+
+fn draw_unavailable_interpretation(
+    frame: &mut VolumeFrame,
+    surface: Surface,
+    reason: &str,
+    separator: &str,
+) {
+    frame.put_text(
+        0,
+        4,
+        surface.width,
+        &format!("record interpretation unavailable{separator}{reason}"),
+        SemanticStyle::Finding,
+    );
+    frame.put_text(
+        0,
+        5,
+        surface.width,
+        "raw and undecodable record bytes remain withheld",
+        SemanticStyle::Muted,
+    );
+    draw_interpretation_footer(frame, surface, 0, 0, reason, separator);
+}
+
+fn draw_ready_interpretation(
+    frame: &mut VolumeFrame,
+    selection: &RecordSelectionProjection,
+    interpretation: &crate::projection::RecordInterpretationProjection,
+    top_attribute: u32,
+    load: InterpretationLoadState,
+    surface: Surface,
+    separator: &str,
+) {
+    let class = selection
+        .class_representation
+        .as_ref()
+        .map_or("unresolved class", |representation| {
+            class_name_label(&representation.class_name)
+        });
+    let relocation = optional_oid_label(&interpretation.relocated_from)
+        .map_or_else(String::new, |origin| {
+            format!("{separator}relocated from {origin}")
+        });
+    frame.put_text(
+        0,
+        4,
+        surface.width,
+        &format!(
+            "class/table {class}{separator}representation {}{separator}record {}{relocation}",
+            interpretation.representation_id,
+            oid_label(interpretation.record),
+        ),
+        SemanticStyle::Plain,
+    );
+    draw_interpretation_layout(frame, interpretation, surface, separator);
+    draw_interpretation_attributes(frame, interpretation, top_attribute, surface);
+    let top = usize::try_from(top_attribute)
+        .unwrap_or(usize::MAX)
+        .min(interpretation.attributes.len());
+    draw_interpretation_footer(
+        frame,
+        surface,
+        top,
+        interpretation.attributes.len(),
+        load.label(),
+        separator,
+    );
+}
+
+fn draw_interpretation_layout(
+    frame: &mut VolumeFrame,
+    interpretation: &crate::projection::RecordInterpretationProjection,
+    surface: Surface,
+    separator: &str,
+) {
+    if let Some(layout) = interpretation.layout.as_ref() {
+        let regions = layout
+            .regions
+            .iter()
+            .map(|region| format!("{} @{}+{}", region.region, region.offset, region.length))
+            .collect::<Vec<_>>();
+        frame.put_text(
+            0,
+            5,
+            surface.width,
+            &format!(
+                "layout {} B{separator}{}",
+                layout.record_length,
+                regions
+                    .iter()
+                    .take(3)
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join(separator)
+            ),
+            SemanticStyle::Plain,
+        );
+        frame.put_text(
+            0,
+            6,
+            surface.width,
+            &format!(
+                "layout continued{separator}{}",
+                regions
+                    .iter()
+                    .skip(3)
+                    .cloned()
+                    .collect::<Vec<_>>()
+                    .join(separator)
+            ),
+            SemanticStyle::Muted,
+        );
+    } else {
+        frame.put_text(
+            0,
+            5,
+            surface.width,
+            "record layout unavailable; record bytes remain withheld",
+            SemanticStyle::Finding,
+        );
+    }
+}
+
+fn draw_interpretation_attributes(
+    frame: &mut VolumeFrame,
+    interpretation: &crate::projection::RecordInterpretationProjection,
+    top_attribute: u32,
+    surface: Surface,
+) {
+    frame.put_text(
+        0,
+        7,
+        surface.width,
+        "  # attribute / domain / storage / exact extent / typed state and value",
+        SemanticStyle::Header,
+    );
+
+    let top = usize::try_from(top_attribute)
+        .unwrap_or(usize::MAX)
+        .min(interpretation.attributes.len());
+    let visible = usize::from(interpretation_visible_rows(surface));
+    for (visible_index, attribute) in interpretation
+        .attributes
+        .iter()
+        .skip(top)
+        .take(visible)
+        .enumerate()
+    {
+        let row = INTERPRETATION_ROWS_TOP
+            .saturating_add(u16::try_from(visible_index).unwrap_or(u16::MAX));
+        frame.put_text(
+            0,
+            row,
+            surface.width,
+            &format_interpreted_attribute(attribute),
+            if visible_index == 0 {
+                SemanticStyle::Focus
+            } else {
+                SemanticStyle::Plain
+            },
+        );
+    }
+}
+
+fn draw_interpretation_footer(
+    frame: &mut VolumeFrame,
+    surface: Surface,
+    top: usize,
+    total: usize,
+    status: &str,
+    separator: &str,
+) {
+    let visible = usize::from(interpretation_visible_rows(surface));
+    frame.put_text(
+        0,
+        surface.height - 3,
+        surface.width,
+        &format!("{status}{separator}decoded values shown only for this explicit record action"),
+        SemanticStyle::Focus,
+    );
+    frame.put_text(
+        0,
+        surface.height - 2,
+        surface.width,
+        &format!(
+            "attributes {}..{} of {total}{separator}undecodable bytes withheld",
+            if total == 0 { 0 } else { top + 1 },
+            (top + visible).min(total),
+        ),
+        SemanticStyle::Muted,
+    );
+    frame.put_text(
+        0,
+        surface.height - 1,
+        surface.width,
+        &format!(
+            "Esc/Backspace close interpretation{separator}Up/Down or wheel scroll{separator}q quit"
+        ),
+        SemanticStyle::Plain,
+    );
+}
+
+fn oid_label(oid: OidProjection) -> String {
+    format!("{}|{}|{}", oid.vol_id, oid.page_id, oid.slot_id)
+}
+
+fn optional_oid_label(oid: &OptionalOidProjection) -> Option<String> {
+    match oid {
+        OptionalOidProjection::Absent => None,
+        OptionalOidProjection::Present { oid } => Some(oid_label(*oid)),
+    }
+}
+
+fn class_name_label(class_name: &ClassNameProjection) -> &str {
+    match class_name {
+        ClassNameProjection::Resolved { value } => value,
+        ClassNameProjection::Unresolved { reason }
+        | ClassNameProjection::NotApplicable { reason } => reason,
+    }
+}
+
+fn attribute_name_label(name: &AttributeNameProjection) -> &str {
+    match name {
+        AttributeNameProjection::Resolved { value } => value,
+        AttributeNameProjection::Unresolved { reason } => reason,
+    }
+}
+
+fn format_interpreted_attribute(
+    attribute: &crate::projection::InterpretedAttributeProjection,
+) -> String {
+    let value = match &attribute.value {
+        AttributeValueProjection::Decoded { value } => format!("decoded {value}"),
+        AttributeValueProjection::Null => "null".to_owned(),
+        AttributeValueProjection::OutOfRow { head, total_length } => {
+            format!("out-of-row {} ({total_length} B)", oid_label(*head))
+        }
+        AttributeValueProjection::Withheld {
+            reason,
+            offset,
+            length,
+        } => format!("withheld {reason} @{offset}+{length}"),
+    };
+    format!(
+        "{:03} {} {}({},{}) {} @{}+{} {value}",
+        attribute.position,
+        attribute_name_label(&attribute.name),
+        attribute.type_name,
+        attribute.precision,
+        attribute.scale,
+        attribute.storage,
+        attribute.offset,
+        attribute.length,
+    )
+}
+
+fn grouped_number(value: u32) -> String {
+    if value < 1_000 {
+        value.to_string()
+    } else {
+        let high = value / 1_000;
+        let low = value % 1_000;
+        format!("{high},{low:03}")
+    }
+}
+
+fn draw_page_byte_map(
+    frame: &mut VolumeFrame,
+    scene: &PageScene,
+    row: u16,
+) -> Result<(), FocusedError> {
+    let PageDistributionProjection::Available {
+        content_size,
+        header,
+        record_extents,
+        free_regions,
+        slot_directory,
+        ..
+    } = &scene.distribution
+    else {
+        return Ok(());
+    };
+    if *content_size == 0 {
+        return Err(FocusedError::Arithmetic);
+    }
+    for free in free_regions {
+        let glyph = match free.kind {
+            FreeRegionKindProjection::ContiguousFree => '.',
+            FreeRegionKindProjection::FragmentedFree => 'f',
+        };
+        paint_byte_region(
+            frame,
+            row,
+            *content_size,
+            free.offset,
+            free.length,
+            glyph,
+            SemanticStyle::Muted,
+        )?;
+    }
+    paint_byte_region(
+        frame,
+        row,
+        *content_size,
+        header.offset,
+        header.length,
+        'H',
+        SemanticStyle::Header,
+    )?;
+    for record in record_extents {
+        paint_byte_region(
+            frame,
+            row,
+            *content_size,
+            record.offset,
+            record.length,
+            'R',
+            SemanticStyle::Allocated,
+        )?;
+    }
+    paint_byte_region(
+        frame,
+        row,
+        *content_size,
+        slot_directory.offset,
+        slot_directory.length,
+        'D',
+        SemanticStyle::Reserved,
+    )?;
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn paint_byte_region(
+    frame: &mut VolumeFrame,
+    row: u16,
+    content_size: u32,
+    offset: u32,
+    length: u32,
+    glyph: char,
+    style: SemanticStyle,
+) -> Result<(), FocusedError> {
+    if length == 0 {
+        return Ok(());
+    }
+    let width = u64::from(frame.surface.width);
+    let content = u64::from(content_size);
+    let start = u64::from(offset)
+        .checked_mul(width)
+        .ok_or(FocusedError::Arithmetic)?
+        / content;
+    let end_bytes = u64::from(offset)
+        .checked_add(u64::from(length))
+        .ok_or(FocusedError::Arithmetic)?;
+    let end = end_bytes
+        .checked_mul(width)
+        .and_then(|scaled| scaled.checked_add(content - 1))
+        .ok_or(FocusedError::Arithmetic)?
+        / content;
+    let start =
+        u16::try_from(start.min(width.saturating_sub(1))).map_err(|_| FocusedError::Arithmetic)?;
+    let end = u16::try_from(end.max(u64::from(start) + 1).min(width))
+        .map_err(|_| FocusedError::Arithmetic)?;
+    for column in start..end {
+        frame.put(column, row, glyph, style);
+    }
+    Ok(())
+}
+
+fn draw_distribution_rows(
+    frame: &mut VolumeFrame,
+    scene: &PageScene,
+    surface: Surface,
+) -> Result<(), FocusedError> {
+    let visible = usize::from(page_visible_rows(surface));
+    let top = scene
+        .top_item
+        .and_then(|top| scene.items.iter().position(|item| item.id() == top))
+        .unwrap_or(0)
+        .min(scene.items.len());
+    let formatted_start = top.saturating_sub(visible);
+    let formatted_end = top
+        .saturating_add(visible.saturating_mul(2))
+        .min(scene.items.len());
+    let formatted = scene.items[formatted_start..formatted_end]
+        .iter()
+        .enumerate()
+        .map(|(relative, item)| {
+            (
+                formatted_start + relative,
+                format_distribution_item(item),
+                distribution_item_style(item),
+            )
+        })
+        .collect::<Vec<_>>();
+    frame.formatted_distribution_rows = formatted.len();
+
+    for (screen_index, item_index) in (top..scene.items.len()).take(visible).enumerate() {
+        let item = &scene.items[item_index];
+        let (_, text, style) = formatted
+            .iter()
+            .find(|(index, _, _)| *index == item_index)
+            .ok_or(FocusedError::Arithmetic)?;
+        let row = PAGE_ROWS_TOP
+            .checked_add(u16::try_from(screen_index).map_err(|_| FocusedError::Arithmetic)?)
+            .ok_or(FocusedError::Arithmetic)?;
+        let selected = scene.selected_item == Some(item.id());
+        frame.put_text(
+            0,
+            row,
+            surface.width,
+            &format!("{} {text}", if selected { '>' } else { ' ' }),
+            if selected {
+                SemanticStyle::Focus
+            } else {
+                *style
+            },
+        );
+        frame.distribution_hits.push(DistributionHitRegion {
+            item: item.id(),
+            left: 0,
+            top: row,
+            right: surface.width - 1,
+            bottom: row,
+        });
+    }
+    Ok(())
+}
+
+fn format_distribution_item(item: &PageDistributionItem) -> String {
+    let region = item.region();
+    let end = region.offset.saturating_add(region.length);
+    match item {
+        PageDistributionItem::Header { .. } => {
+            format!("header [{},{end}) {} B", region.offset, region.length)
+        }
+        PageDistributionItem::Record {
+            slot_id,
+            record_type,
+            ..
+        } => format!(
+            "record slot {slot_id} {} [{},{end}) {} B",
+            record_type.as_str(),
+            region.offset,
+            region.length
+        ),
+        PageDistributionItem::Free { kind, .. } => {
+            format!(
+                "{} [{},{end}) {} B",
+                kind.as_str(),
+                region.offset,
+                region.length
+            )
+        }
+        PageDistributionItem::SlotDirectory { .. } => format!(
+            "slot directory [{},{end}) {} B",
+            region.offset, region.length
+        ),
+        PageDistributionItem::SlotEntry {
+            slot_id,
+            state,
+            record_type,
+            ..
+        } => format!(
+            "slot {slot_id} {} {record_type} [{},{end}) {} B",
+            state.as_str(),
+            region.offset,
+            region.length
+        ),
+    }
+}
+
+fn distribution_item_style(item: &PageDistributionItem) -> SemanticStyle {
+    match item {
+        PageDistributionItem::Header { .. } => SemanticStyle::Header,
+        PageDistributionItem::Record { .. } => SemanticStyle::Allocated,
+        PageDistributionItem::Free { .. } => SemanticStyle::Muted,
+        PageDistributionItem::SlotDirectory { .. } => SemanticStyle::Reserved,
+        PageDistributionItem::SlotEntry { state, .. } => match state {
+            SlotEntryStateProjection::Allocated => SemanticStyle::Allocated,
+            SlotEntryStateProjection::Deleted => SemanticStyle::Finding,
+            SlotEntryStateProjection::Unallocated => SemanticStyle::Muted,
+        },
+    }
+}
+
 fn draw_card(
     frame: &mut VolumeFrame,
     left: u16,
@@ -1782,6 +3739,7 @@ mod tests {
     use crate::inspection::{
         CancelToken, Inspection, OpenRequest, ResourcePolicy, RevisionSelector,
     };
+    use crate::model::PageId;
     use crate::projection::{
         BytesWithheldProjection, FileAssociationProjection, OptionalCountProjection,
         VolumeProjection,
@@ -1852,6 +3810,46 @@ mod tests {
         page
     }
 
+    fn slotted_heap_page(vol_id: i16, page_id: i32) -> [u8; IO_PAGE_SIZE] {
+        slotted_heap_page_with_selected_type(vol_id, page_id, 3)
+    }
+
+    fn slotted_heap_page_with_selected_type(
+        vol_id: i16,
+        page_id: i32,
+        selected_type: u8,
+    ) -> [u8; IO_PAGE_SIZE] {
+        let mut page = envelope_page(vol_id, page_id, PageType::Heap);
+        let user = &mut page[32..IO_PAGE_SIZE - 8];
+        user[0..2].copy_from_slice(&4_i16.to_le_bytes());
+        user[2..4].copy_from_slice(&3_i16.to_le_bytes());
+        user[4..6].copy_from_slice(&1_i16.to_le_bytes());
+        user[6..8].copy_from_slice(&8_u16.to_le_bytes());
+        user[8..12].copy_from_slice(&16_256_i32.to_le_bytes());
+        user[12..16].copy_from_slice(&16_200_i32.to_le_bytes());
+        user[16..20].copy_from_slice(&128_i32.to_le_bytes());
+        for (slot, offset, length, kind) in [
+            (0_usize, 32_u16, 24_u16, 2_u8),
+            (1, 0, 0, 9),
+            // Retained tombstone geometry is validated but is not a live record.
+            (2, 104, 16, 6),
+            (3, 80, 16, selected_type),
+        ] {
+            let word = u32::from(offset) | (u32::from(length) << 14) | (u32::from(kind) << 28);
+            let start = crate::format::DB_PAGE_SIZE - 4 * (slot + 1);
+            user[start..start + 4].copy_from_slice(&word.to_le_bytes());
+        }
+        page
+    }
+
+    fn fixture_policy() -> ResourcePolicy {
+        ResourcePolicy::new(4 * 1024 * 1024, 1024 * 1024, 1, 32, 1024 * 1024).unwrap()
+    }
+
+    fn interpretation_fixture_policy() -> ResourcePolicy {
+        ResourcePolicy::new(8 * 1024 * 1024, 1024 * 1024, 1, 64, 8 * 1024 * 1024).unwrap()
+    }
+
     fn fixture_view() -> (TestDirectory, GraphView) {
         let directory = TestDirectory::new();
         let vinf = directory.path().join("fixture_vinf");
@@ -1867,9 +3865,28 @@ mod tests {
                 .unwrap();
             file.write_all_at(&volume_header_page(vol_id), 0).unwrap();
             let mut bitmap = envelope_page(vol_id, 1, PageType::VolumeBitmap);
-            bitmap[32..40].copy_from_slice(&1_u64.to_le_bytes());
+            bitmap[32..40].copy_from_slice(&3_u64.to_le_bytes());
             file.write_all_at(&bitmap, u64::try_from(IO_PAGE_SIZE).unwrap())
                 .unwrap();
+            file.write_all_at(
+                &slotted_heap_page(vol_id, 2),
+                2 * u64::try_from(IO_PAGE_SIZE).unwrap(),
+            )
+            .unwrap();
+            let mut invalid = slotted_heap_page(vol_id, 3);
+            invalid[36..38].copy_from_slice(&0_i16.to_le_bytes());
+            file.write_all_at(&invalid, 3 * u64::try_from(IO_PAGE_SIZE).unwrap())
+                .unwrap();
+            file.write_all_at(
+                &slotted_heap_page(vol_id, 66),
+                66 * u64::try_from(IO_PAGE_SIZE).unwrap(),
+            )
+            .unwrap();
+            file.write_all_at(
+                &slotted_heap_page_with_selected_type(vol_id, 67, 5),
+                67 * u64::try_from(IO_PAGE_SIZE).unwrap(),
+            )
+            .unwrap();
             drop(file);
             writeln!(manifest, "{vol_id} {}", volume.display()).unwrap();
         }
@@ -1883,12 +3900,96 @@ mod tests {
                 tde_keys_file: None,
                 spill_directory: None,
             },
-            ResourcePolicy::new(4 * 1024 * 1024, 1024 * 1024, 1, 32, 1024 * 1024).unwrap(),
+            fixture_policy(),
             &CancelToken::new(),
             None,
         )
         .unwrap();
         let view = inspection.view(RevisionSelector::Latest).unwrap();
+        (directory, view)
+    }
+
+    fn corpus_page(name: &str) -> Vec<u8> {
+        std::fs::read(
+            Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("fixtures/e1e651de-records/pages")
+                .join(name),
+        )
+        .unwrap()
+    }
+
+    fn write_interpretation_volume(path: &Path, vol_id: i16, pages: &[(i32, Vec<u8>)]) {
+        let file = OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .open(path)
+            .unwrap();
+        file.set_len(64 * 64 * u64::try_from(IO_PAGE_SIZE).unwrap())
+            .unwrap();
+        file.write_all_at(&volume_header_page(vol_id), 0).unwrap();
+
+        let mut reserved = 1_u64;
+        for (page_id, _) in pages {
+            reserved |= 1_u64 << (u32::try_from(*page_id).unwrap() / 64);
+        }
+        let mut bitmap = envelope_page(vol_id, 1, PageType::VolumeBitmap);
+        bitmap[32..40].copy_from_slice(&reserved.to_le_bytes());
+        file.write_all_at(&bitmap, u64::try_from(IO_PAGE_SIZE).unwrap())
+            .unwrap();
+
+        for sector in 0_u32..64 {
+            if reserved & (1_u64 << sector) == 0 {
+                continue;
+            }
+            for page_id in sector * 64..(sector + 1) * 64 {
+                if page_id < 2 {
+                    continue;
+                }
+                let page_id = i32::try_from(page_id).unwrap();
+                let bytes = pages
+                    .iter()
+                    .find(|(candidate, _)| *candidate == page_id)
+                    .map_or_else(
+                        || envelope_page(vol_id, page_id, PageType::Unknown).to_vec(),
+                        |(_, bytes)| bytes.clone(),
+                    );
+                file.write_all_at(
+                    &bytes,
+                    u64::try_from(page_id).unwrap() * u64::try_from(IO_PAGE_SIZE).unwrap(),
+                )
+                .unwrap();
+            }
+        }
+    }
+
+    fn interpretation_fixture_view() -> (TestDirectory, GraphView) {
+        let directory = TestDirectory::new();
+        let volume0 = directory.path().join("interpretation");
+        let volume1 = directory.path().join("interpretation_x001");
+        let vinf = directory.path().join("interpretation_vinf");
+        write_interpretation_volume(&volume0, 0, &[(195, corpus_page("vol0-page195.bin"))]);
+        write_interpretation_volume(&volume1, 1, &[(641, corpus_page("vol1-page641.bin"))]);
+        let mut manifest = File::create(&vinf).unwrap();
+        writeln!(manifest, "0 {}", volume0.display()).unwrap();
+        writeln!(manifest, "1 {}", volume1.display()).unwrap();
+        drop(manifest);
+        let policy = interpretation_fixture_policy();
+        let view = Inspection::open(
+            &OpenRequest {
+                input: InputSpec::Vinf {
+                    path: vinf,
+                    volume_root: None,
+                },
+                tde_keys_file: None,
+                spill_directory: None,
+            },
+            policy,
+            &CancelToken::new(),
+            None,
+        )
+        .unwrap()
+        .view(RevisionSelector::Latest)
+        .unwrap();
         (directory, view)
     }
 
@@ -2044,6 +4145,75 @@ mod tests {
         }
     }
 
+    fn ready_page_scene() -> PageScene {
+        let (_directory, view) = fixture_view();
+        let surface = Surface::new(80, 24);
+        let mut session = FocusedSession::new(view, fixture_policy()).unwrap();
+        apply_actions(
+            &mut session,
+            surface,
+            [
+                FocusedAction::Activate,
+                FocusedAction::FocusPage(2),
+                FocusedAction::Activate,
+            ],
+        );
+        let completion = session.take_enrichment_request().unwrap().execute();
+        session.complete_enrichment(completion).unwrap();
+        let mut scene = session.page_scene().unwrap();
+        scene.snapshot_id = SnapshotId::from_bytes([0xAB; 16]);
+        scene.revision = InspectionRevision::new(7);
+        scene.outcome = "success-limited";
+        scene.page.allocation = AllocationMark::Allocated;
+        scene.page.occupancy = ExactOccupancy::Known {
+            occupied_percent: 63,
+            free_percent: 37,
+        };
+        scene.page.attribution = PageAttributionMark::Single {
+            kind: PageClaimKind::Allocated,
+            vol_id: 0,
+            file_id: 91,
+            role: Some("heap"),
+            class_oid: Some((0, 777, 3)),
+            class: ClassAttributionMark::Resolved("orders".to_owned()),
+        };
+        scene
+    }
+
+    fn ready_interpretation_scene() -> PageScene {
+        let (_directory, view) = interpretation_fixture_view();
+        let surface = Surface::new(80, 24);
+        let mut session = FocusedSession::new(view, interpretation_fixture_policy()).unwrap();
+        apply_actions(
+            &mut session,
+            surface,
+            [
+                FocusedAction::NextVolume,
+                FocusedAction::FocusSector(10),
+                FocusedAction::Activate,
+                FocusedAction::FocusPage(1),
+                FocusedAction::Activate,
+            ],
+        );
+        let page = session.take_enrichment_request().unwrap().execute();
+        session.complete_enrichment(page).unwrap();
+        apply_actions(
+            &mut session,
+            surface,
+            [
+                FocusedAction::FocusDistributionItem(PageDistributionItemId::Record(1)),
+                FocusedAction::Activate,
+            ],
+        );
+        let record = session.take_enrichment_request().unwrap().execute();
+        session.complete_enrichment(record).unwrap();
+        let mut scene = session.page_scene().unwrap();
+        scene.snapshot_id = SnapshotId::from_bytes([0xAB; 16]);
+        scene.revision = InspectionRevision::new(7);
+        scene.outcome = "success-limited";
+        scene
+    }
+
     fn apply_actions(
         session: &mut FocusedSession,
         surface: Surface,
@@ -2052,6 +4222,35 @@ mod tests {
         for action in actions {
             session.advance_focused(action, surface).unwrap();
         }
+    }
+
+    fn pending_synthetic_record_request(
+        view: GraphView,
+        surface: Surface,
+    ) -> (FocusedSession, FocusedEnrichmentRequest, InspectionRevision) {
+        let mut session = FocusedSession::new(view, fixture_policy()).unwrap();
+        apply_actions(
+            &mut session,
+            surface,
+            [
+                FocusedAction::Activate,
+                FocusedAction::FocusPage(2),
+                FocusedAction::Activate,
+            ],
+        );
+        let page = session.take_enrichment_request().unwrap().execute();
+        session.complete_enrichment(page).unwrap();
+        let revision = session.focused_state().volume.revision;
+        apply_actions(
+            &mut session,
+            surface,
+            [
+                FocusedAction::FocusDistributionItem(PageDistributionItemId::Record(3)),
+                FocusedAction::Activate,
+            ],
+        );
+        let request = session.take_enrichment_request().unwrap();
+        (session, request, revision)
     }
 
     #[test]
@@ -2127,7 +4326,7 @@ mod tests {
     #[test]
     fn session_navigation_is_grid_clamped_and_projection_is_viewport_bounded() {
         let (_directory, view) = fixture_view();
-        let mut traversal = FocusedSession::new(view.clone()).unwrap();
+        let mut traversal = FocusedSession::new(view.clone(), fixture_policy()).unwrap();
         let layout = VolumeLayout::for_surface(Surface::new(60, 20)).unwrap();
         assert_eq!(
             layout,
@@ -2155,7 +4354,7 @@ mod tests {
         }
         assert_eq!(seen, (0_i32..64).collect());
 
-        let mut session = FocusedSession::new(view).unwrap();
+        let mut session = FocusedSession::new(view, fixture_policy()).unwrap();
         assert!(!session.advance(VolumeAction::Left, layout).changed);
         assert!(session.advance(VolumeAction::Right, layout).changed);
         assert!(session.advance(VolumeAction::Right, layout).changed);
@@ -2253,7 +4452,7 @@ mod tests {
     fn sector_descent_rover_resize_siblings_and_ascent_preserve_structural_state() {
         let (_directory, view) = fixture_view();
         let compact = Surface::new(60, 20);
-        let mut session = FocusedSession::new(view).unwrap();
+        let mut session = FocusedSession::new(view, fixture_policy()).unwrap();
         session
             .advance_focused(FocusedAction::FocusSector(11), compact)
             .unwrap();
@@ -2339,10 +4538,1269 @@ mod tests {
     }
 
     #[test]
+    fn page_descent_requests_one_bounded_revision_and_adopts_its_distribution() {
+        let (_directory, view) = fixture_view();
+        let surface = Surface::new(80, 24);
+        let base = view.overview();
+        let mut session = FocusedSession::new(view, fixture_policy()).unwrap();
+
+        session
+            .advance_focused(FocusedAction::Activate, surface)
+            .unwrap();
+        session
+            .advance_focused(FocusedAction::FocusPage(2), surface)
+            .unwrap();
+        session
+            .advance_focused(FocusedAction::Activate, surface)
+            .unwrap();
+
+        assert_eq!(session.focused_state().mode, FocusedMode::Page);
+        assert_eq!(session.focused_state().page_load, PageLoadState::Loading);
+        let loading = session.page_scene().unwrap();
+        assert_eq!(loading.revision, base.revision);
+        assert_eq!(
+            loading.distribution,
+            PageDistributionProjection::NotAvailable
+        );
+
+        let request = session.take_enrichment_request().unwrap();
+        assert_eq!(request.snapshot_id(), base.snapshot_id);
+        assert_eq!(request.base_revision(), base.revision);
+        assert_eq!(request.page().vol_id.get(), 0);
+        assert_eq!(request.page().page_id.get(), 2);
+        assert_eq!(request.policy, fixture_policy());
+        assert!(session.take_enrichment_request().is_none());
+        assert!(
+            !session
+                .advance_focused(FocusedAction::Activate, surface)
+                .unwrap()
+                .changed
+        );
+
+        let completion = request.execute();
+        let adopted = session.complete_enrichment(completion).unwrap();
+        assert!(adopted.changed);
+        assert_eq!(adopted.state.mode, FocusedMode::Page);
+        assert_eq!(adopted.state.page_load, PageLoadState::Ready);
+        assert_eq!(adopted.state.volume.revision.get(), base.revision.get() + 1);
+
+        let page = session.page_scene().unwrap();
+        assert_eq!(page.revision, adopted.state.volume.revision);
+        assert_eq!(page.selected_item, Some(PageDistributionItemId::Header));
+        assert_eq!(page.items.len(), 11);
+        assert_eq!(
+            page.items
+                .iter()
+                .filter_map(PageDistributionItem::record_oid)
+                .collect::<Vec<_>>(),
+            vec![
+                Oid::new(
+                    VolId::new(0).unwrap(),
+                    PageId::new(2).unwrap(),
+                    SlotId::new(0).unwrap(),
+                ),
+                Oid::new(
+                    VolId::new(0).unwrap(),
+                    PageId::new(2).unwrap(),
+                    SlotId::new(3).unwrap(),
+                ),
+            ]
+        );
+
+        session
+            .advance_focused(FocusedAction::Ascend, surface)
+            .unwrap();
+        assert_eq!(session.focused_state().mode, FocusedMode::Sector);
+        assert_eq!(session.focused_state().focused_page, 2);
+    }
+
+    #[test]
+    fn page_enrichment_cancellation_and_late_completion_never_adopt() {
+        let (_directory, view) = fixture_view();
+        let surface = Surface::new(80, 24);
+        let base_revision = view.overview().revision;
+
+        let mut cancelled = FocusedSession::new(view.clone(), fixture_policy()).unwrap();
+        apply_actions(
+            &mut cancelled,
+            surface,
+            [
+                FocusedAction::Activate,
+                FocusedAction::FocusPage(2),
+                FocusedAction::Activate,
+            ],
+        );
+        let request = cancelled.take_enrichment_request().unwrap();
+        cancelled
+            .advance_focused(FocusedAction::Ascend, surface)
+            .unwrap();
+        let completion = request.execute();
+        assert!(matches!(
+            completion.result,
+            Err(OperationError::Interrupted)
+        ));
+        assert!(!cancelled.complete_enrichment(completion).unwrap().changed);
+        assert_eq!(cancelled.focused_state().mode, FocusedMode::Sector);
+        assert_eq!(cancelled.focused_state().volume.revision, base_revision);
+
+        let mut late = FocusedSession::new(view.clone(), fixture_policy()).unwrap();
+        apply_actions(
+            &mut late,
+            surface,
+            [
+                FocusedAction::Activate,
+                FocusedAction::FocusPage(2),
+                FocusedAction::Activate,
+            ],
+        );
+        let completion = late.take_enrichment_request().unwrap().execute();
+        late.advance_focused(FocusedAction::Ascend, surface)
+            .unwrap();
+        assert!(!late.complete_enrichment(completion).unwrap().changed);
+        assert_eq!(late.focused_state().volume.revision, base_revision);
+
+        let mut switched = FocusedSession::new(view.clone(), fixture_policy()).unwrap();
+        apply_actions(
+            &mut switched,
+            surface,
+            [
+                FocusedAction::Activate,
+                FocusedAction::FocusPage(2),
+                FocusedAction::Activate,
+            ],
+        );
+        let old_volume = switched.take_enrichment_request().unwrap();
+        switched
+            .advance_focused(FocusedAction::NextVolume, surface)
+            .unwrap();
+        assert_eq!(switched.focused_state().mode, FocusedMode::Page);
+        assert_eq!(switched.focused_state().volume.volume_id.get(), 1);
+        assert!(matches!(
+            old_volume.execute().result,
+            Err(OperationError::Interrupted)
+        ));
+        assert!(switched.take_enrichment_request().is_some());
+
+        let mut quit = FocusedSession::new(view, fixture_policy()).unwrap();
+        apply_actions(
+            &mut quit,
+            surface,
+            [
+                FocusedAction::Activate,
+                FocusedAction::FocusPage(2),
+                FocusedAction::Activate,
+            ],
+        );
+        let cancelled_by_quit = quit.take_enrichment_request().unwrap();
+        quit.advance_focused(FocusedAction::Quit, surface).unwrap();
+        assert!(quit.focused_state().quit_requested);
+        assert!(matches!(
+            cancelled_by_quit.execute().result,
+            Err(OperationError::Interrupted)
+        ));
+    }
+
+    #[test]
+    fn a_sibling_page_replaces_the_request_and_rejects_the_old_result() {
+        let (_directory, view) = fixture_view();
+        let surface = Surface::new(80, 24);
+        let mut session = FocusedSession::new(view, fixture_policy()).unwrap();
+        apply_actions(
+            &mut session,
+            surface,
+            [
+                FocusedAction::Activate,
+                FocusedAction::FocusPage(2),
+                FocusedAction::Activate,
+            ],
+        );
+        let old = session.take_enrichment_request().unwrap();
+        let old_key = old.key;
+        let old_completion = old.execute();
+
+        session
+            .advance_focused(FocusedAction::NextSector, surface)
+            .unwrap();
+        let current = session.take_enrichment_request().unwrap();
+        assert_ne!(current.key.request_id, old_key.request_id);
+        assert_eq!(current.page().page_id.get(), 66);
+        assert!(!session.complete_enrichment(old_completion).unwrap().changed);
+        assert_eq!(session.focused_state().page_load, PageLoadState::Loading);
+
+        assert!(
+            session
+                .complete_enrichment(current.execute())
+                .unwrap()
+                .changed
+        );
+        assert_eq!(session.focused_state().page_load, PageLoadState::Ready);
+        assert_eq!(session.page_scene().unwrap().page.page_id, 66);
+    }
+
+    #[test]
+    fn page_resource_failure_keeps_the_old_revision_and_invalid_decode_adopts_a_diagnostic() {
+        let (_directory, view) = fixture_view();
+        let surface = Surface::new(80, 24);
+        let base_revision = view.overview().revision;
+        let tiny = ResourcePolicy::new(1, 1, 1, 1, 1).unwrap();
+        let mut limited = FocusedSession::new(view.clone(), tiny).unwrap();
+        apply_actions(
+            &mut limited,
+            surface,
+            [
+                FocusedAction::Activate,
+                FocusedAction::FocusPage(2),
+                FocusedAction::Activate,
+            ],
+        );
+        let completion = limited.take_enrichment_request().unwrap().execute();
+        limited.complete_enrichment(completion).unwrap();
+        assert_eq!(limited.focused_state().volume.revision, base_revision);
+        assert_eq!(
+            limited.focused_state().page_load,
+            PageLoadState::Failed(PageEnrichmentFailure::ResourceLimit)
+        );
+
+        let mut invalid = FocusedSession::new(view, fixture_policy()).unwrap();
+        apply_actions(
+            &mut invalid,
+            surface,
+            [
+                FocusedAction::Activate,
+                FocusedAction::FocusPage(3),
+                FocusedAction::Activate,
+            ],
+        );
+        let completion = invalid.take_enrichment_request().unwrap().execute();
+        invalid.complete_enrichment(completion).unwrap();
+        assert_eq!(
+            invalid.focused_state().volume.revision.get(),
+            base_revision.get() + 1
+        );
+        assert_eq!(
+            invalid.focused_state().page_load,
+            PageLoadState::Unavailable("slotted.header.anchor")
+        );
+        assert_eq!(
+            invalid.page_scene().unwrap().distribution,
+            PageDistributionProjection::NotAvailable
+        );
+    }
+
+    #[test]
+    fn every_distribution_row_is_reachable_and_only_live_records_are_interpretation_eligible() {
+        let (_directory, view) = fixture_view();
+        let surface = Surface::new(60, 20);
+        let mut session = FocusedSession::new(view, fixture_policy()).unwrap();
+        apply_actions(
+            &mut session,
+            surface,
+            [
+                FocusedAction::Activate,
+                FocusedAction::FocusPage(2),
+                FocusedAction::Activate,
+            ],
+        );
+        let completion = session.take_enrichment_request().unwrap().execute();
+        session.complete_enrichment(completion).unwrap();
+
+        let expected = session
+            .page_scene()
+            .unwrap()
+            .items
+            .iter()
+            .map(PageDistributionItem::id)
+            .collect::<BTreeSet<_>>();
+        let mut reached = BTreeSet::new();
+        loop {
+            let scene = session.page_scene().unwrap();
+            reached.insert(scene.selected_item.unwrap());
+            if !session
+                .advance_focused(FocusedAction::Down, surface)
+                .unwrap()
+                .changed
+            {
+                break;
+            }
+        }
+        assert_eq!(reached, expected);
+        assert_eq!(
+            session.focused_state().selected_distribution_item,
+            Some(PageDistributionItemId::SlotEntry(3))
+        );
+        assert_ne!(
+            session.focused_state().top_distribution_item,
+            Some(PageDistributionItemId::Header)
+        );
+
+        session
+            .advance_focused(
+                FocusedAction::FocusDistributionItem(PageDistributionItemId::Record(0)),
+                surface,
+            )
+            .unwrap();
+        assert_eq!(
+            session
+                .page_scene()
+                .unwrap()
+                .selected_record()
+                .unwrap()
+                .slot_id
+                .get(),
+            0
+        );
+        session
+            .advance_focused(
+                FocusedAction::FocusDistributionItem(PageDistributionItemId::SlotEntry(2)),
+                surface,
+            )
+            .unwrap();
+        assert!(session.page_scene().unwrap().selected_record().is_none());
+
+        let slots = session
+            .page_scene()
+            .unwrap()
+            .items
+            .into_iter()
+            .filter_map(|item| match item {
+                PageDistributionItem::SlotEntry {
+                    slot_id,
+                    region,
+                    state,
+                    record_type,
+                } => Some((
+                    slot_id,
+                    region.offset,
+                    region.length,
+                    state.as_str(),
+                    record_type,
+                )),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            slots,
+            vec![
+                (0, 16_340, 4, "allocated", "home"),
+                (1, 16_336, 4, "unallocated", "reserved"),
+                (2, 16_332, 4, "deleted", "marked-deleted"),
+                (3, 16_328, 4, "allocated", "new-home"),
+            ]
+        );
+    }
+
+    #[test]
+    fn enter_on_a_live_record_loads_page_local_interpretation_and_escape_closes_it() {
+        let (_directory, view) = fixture_view();
+        let surface = Surface::new(80, 24);
+        let mut session = FocusedSession::new(view, fixture_policy()).unwrap();
+        apply_actions(
+            &mut session,
+            surface,
+            [
+                FocusedAction::Activate,
+                FocusedAction::FocusPage(2),
+                FocusedAction::Activate,
+            ],
+        );
+        let page = session.take_enrichment_request().unwrap().execute();
+        session.complete_enrichment(page).unwrap();
+        let structural_revision = session.focused_state().volume.revision;
+        session
+            .advance_focused(
+                FocusedAction::FocusDistributionItem(PageDistributionItemId::Record(3)),
+                surface,
+            )
+            .unwrap();
+
+        session
+            .advance_focused(FocusedAction::Activate, surface)
+            .unwrap();
+        let selected = Oid::new(
+            VolId::new(0).unwrap(),
+            PageId::new(2).unwrap(),
+            SlotId::new(3).unwrap(),
+        );
+        assert_eq!(
+            session.focused_state().interpretation,
+            PageInterpretationState::Record {
+                record: selected,
+                load: InterpretationLoadState::Loading,
+                top_attribute: 0,
+            }
+        );
+        assert_eq!(session.page_scene().unwrap().revision, structural_revision);
+        let request = session.take_enrichment_request().unwrap();
+        assert_eq!(request.target(), EnrichmentRequestTarget::Record(selected));
+        assert!(session.take_enrichment_request().is_none());
+
+        let completion = request.execute();
+        session.complete_enrichment(completion).unwrap();
+        assert_eq!(
+            session.focused_state().interpretation,
+            PageInterpretationState::Record {
+                record: selected,
+                load: InterpretationLoadState::Unavailable(
+                    "heap page slot 0 is not a recognized heap record"
+                ),
+                top_attribute: 0,
+            }
+        );
+        assert_eq!(
+            session.focused_state().volume.revision.get(),
+            structural_revision.get() + 1
+        );
+
+        let selected_item = session.focused_state().selected_distribution_item;
+        let top_item = session.focused_state().top_distribution_item;
+        session
+            .advance_focused(FocusedAction::Ascend, surface)
+            .unwrap();
+        assert_eq!(
+            session.focused_state().interpretation,
+            PageInterpretationState::Closed
+        );
+        assert_eq!(
+            session.focused_state().selected_distribution_item,
+            selected_item
+        );
+        assert_eq!(session.focused_state().top_distribution_item, top_item);
+        assert_eq!(session.focused_state().mode, FocusedMode::Page);
+
+        let durable_revision = session.focused_state().volume.revision;
+        session
+            .advance_focused(FocusedAction::Activate, surface)
+            .unwrap();
+        assert!(matches!(
+            session.focused_state().interpretation,
+            PageInterpretationState::Record {
+                load: InterpretationLoadState::Unavailable(
+                    "heap page slot 0 is not a recognized heap record"
+                ),
+                ..
+            }
+        ));
+        assert!(session.take_enrichment_request().is_none());
+        assert_eq!(session.focused_state().volume.revision, durable_revision);
+    }
+
+    fn assert_ready_scalar_interpretation(scene: &PageScene) {
+        assert!(matches!(
+            scene.interpretation_state,
+            PageInterpretationState::Record {
+                load: InterpretationLoadState::Ready,
+                ..
+            }
+        ));
+        let selection = scene.record_selection.as_ref().unwrap();
+        assert_eq!(selection.selected_slot.record_type, "home");
+        let interpretation = selection.interpretation.as_ref().unwrap();
+        assert_eq!(
+            (
+                interpretation.record.vol_id,
+                interpretation.record.page_id,
+                interpretation.record.slot_id,
+                interpretation.representation_id,
+            ),
+            (1, 641, 1, 1)
+        );
+        assert!(interpretation.layout.is_some());
+        assert!(
+            interpretation
+                .attributes
+                .windows(2)
+                .all(|attributes| attributes[0].position < attributes[1].position)
+        );
+        let id = interpretation
+            .attributes
+            .iter()
+            .find(|attribute| {
+                matches!(
+                    &attribute.name,
+                    AttributeNameProjection::Resolved { value } if value == "id"
+                )
+            })
+            .unwrap();
+        assert!(matches!(
+            &id.value,
+            AttributeValueProjection::Decoded { value } if value == "1"
+        ));
+        assert!(matches!(
+            selection.class_representation.as_ref().unwrap().class_name,
+            ClassNameProjection::Resolved { ref value } if value == "dba.interp_scalars"
+        ));
+        let projected = serde_json::to_string(selection).unwrap();
+        for forbidden in ["\"hex\"", "\"raw\"", "\"bytes\":[", "0x"] {
+            assert!(
+                !projected.contains(forbidden),
+                "selection leaked {forbidden}"
+            );
+        }
+    }
+
+    #[test]
+    fn explicit_record_action_projects_typed_values_and_schema_into_the_page_scene() {
+        let (_directory, view) = interpretation_fixture_view();
+        let surface = Surface::new(80, 24);
+        let mut session = FocusedSession::new(view, interpretation_fixture_policy()).unwrap();
+        apply_actions(
+            &mut session,
+            surface,
+            [
+                FocusedAction::NextVolume,
+                FocusedAction::FocusSector(10),
+                FocusedAction::Activate,
+                FocusedAction::FocusPage(1),
+                FocusedAction::Activate,
+            ],
+        );
+        let page = session.take_enrichment_request().unwrap().execute();
+        session.complete_enrichment(page).unwrap();
+        session
+            .advance_focused(
+                FocusedAction::FocusDistributionItem(PageDistributionItemId::Record(1)),
+                surface,
+            )
+            .unwrap();
+
+        assert!(session.page_scene().unwrap().record_selection.is_none());
+        session
+            .advance_focused(FocusedAction::Activate, surface)
+            .unwrap();
+        assert!(session.page_scene().unwrap().record_selection.is_none());
+        let request = session.take_enrichment_request().unwrap();
+        assert!(
+            matches!(request.target(), EnrichmentRequestTarget::Record(record)
+            if record.vol_id.get() == 1 && record.page_id.get() == 641 && record.slot_id.get() == 1)
+        );
+        session.complete_enrichment(request.execute()).unwrap();
+
+        assert_ready_scalar_interpretation(&session.page_scene().unwrap());
+
+        session
+            .advance_focused(FocusedAction::Ascend, surface)
+            .unwrap();
+        session
+            .advance_focused(
+                FocusedAction::FocusDistributionItem(PageDistributionItemId::Record(2)),
+                surface,
+            )
+            .unwrap();
+        assert!(session.page_scene().unwrap().record_selection.is_none());
+        session
+            .advance_focused(FocusedAction::Activate, surface)
+            .unwrap();
+        assert!(session.take_enrichment_request().is_none());
+        let unset = session.page_scene().unwrap();
+        let unset = unset.record_selection.as_ref().unwrap();
+        assert!(
+            unset
+                .interpretation
+                .as_ref()
+                .unwrap()
+                .attributes
+                .iter()
+                .any(|attribute| matches!(
+                    attribute.value,
+                    crate::projection::AttributeValueProjection::Null
+                ))
+        );
+    }
+
+    #[test]
+    fn interpretation_navigation_scrolls_attributes_without_losing_the_record_anchor() {
+        let (_directory, view) = interpretation_fixture_view();
+        let surface = Surface::new(60, 20);
+        let mut session = FocusedSession::new(view, interpretation_fixture_policy()).unwrap();
+        apply_actions(
+            &mut session,
+            surface,
+            [
+                FocusedAction::NextVolume,
+                FocusedAction::FocusSector(10),
+                FocusedAction::Activate,
+                FocusedAction::FocusPage(1),
+                FocusedAction::Activate,
+            ],
+        );
+        let page = session.take_enrichment_request().unwrap().execute();
+        session.complete_enrichment(page).unwrap();
+        apply_actions(
+            &mut session,
+            surface,
+            [
+                FocusedAction::FocusDistributionItem(PageDistributionItemId::Record(1)),
+                FocusedAction::Activate,
+            ],
+        );
+        let record = session.take_enrichment_request().unwrap().execute();
+        session.complete_enrichment(record).unwrap();
+        let selected = session.focused_state().selected_distribution_item;
+        let top = session.focused_state().top_distribution_item;
+
+        session
+            .advance_focused(FocusedAction::Down, surface)
+            .unwrap();
+        assert!(matches!(
+            session.focused_state().interpretation,
+            PageInterpretationState::Record {
+                top_attribute: 1,
+                ..
+            }
+        ));
+        session
+            .advance_focused(FocusedAction::ScrollRows(10_000), surface)
+            .unwrap();
+        let PageInterpretationState::Record { top_attribute, .. } =
+            session.focused_state().interpretation
+        else {
+            panic!("interpretation unexpectedly closed");
+        };
+        assert!(top_attribute > 1);
+        session.advance_focused(FocusedAction::Up, surface).unwrap();
+        assert!(matches!(
+            session.focused_state().interpretation,
+            PageInterpretationState::Record {
+                top_attribute: current,
+                ..
+            } if current + 1 == top_attribute
+        ));
+        assert_eq!(session.focused_state().selected_distribution_item, selected);
+        assert_eq!(session.focused_state().top_distribution_item, top);
+    }
+
+    #[test]
+    fn interpretation_renderer_shows_typed_facts_layout_and_bounded_attributes() {
+        let scene = ready_interpretation_scene();
+        for (surface, profile) in [
+            (Surface::new(120, 36), PresentationProfile::ANSI_UNICODE),
+            (Surface::new(80, 24), PresentationProfile::ANSI_UNICODE),
+            (Surface::new(60, 20), PresentationProfile::MONO_ASCII),
+        ] {
+            let frame = PageRenderer::render(&scene, surface, profile).unwrap();
+            let snapshot = frame.semantic_snapshot();
+            let screen = (0..surface.height)
+                .map(|row| frame.line(row))
+                .collect::<Vec<_>>()
+                .join("\n");
+            assert!(snapshot.contains("Record 1|641|1"));
+            assert!(snapshot.contains("type home"));
+            assert!(snapshot.contains("class/table dba.interp_scalars"));
+            assert!(snapshot.contains("representation 1"));
+            assert!(snapshot.contains("object-header"));
+            assert!(snapshot.contains("id"));
+            assert!(snapshot.contains("decoded 1"));
+            assert!(snapshot.contains("Esc/Backspace close interpretation"));
+            for forbidden in ["raw bytes", "hex", "0x"] {
+                assert!(
+                    !screen.contains(forbidden),
+                    "interpretation frame leaked {forbidden}:\n{screen}"
+                );
+            }
+            if profile.glyphs == GlyphProfile::Ascii {
+                assert!((0..surface.height).all(|row| frame.line(row).is_ascii()));
+            }
+        }
+    }
+
+    #[test]
+    fn interpretation_renderer_names_one_hop_relocation_origin_and_target() {
+        let mut scene = ready_interpretation_scene();
+        let source = scene.selected_record().unwrap();
+        scene.interpretation_state = PageInterpretationState::Record {
+            record: source,
+            load: InterpretationLoadState::Ready,
+            top_attribute: 0,
+        };
+        let selection = scene.record_selection.as_mut().unwrap();
+        selection.selected_slot.record_type = "relocation";
+        let interpretation = selection.interpretation.as_mut().unwrap();
+        interpretation.record = OidProjection {
+            vol_id: 1,
+            page_id: 642,
+            slot_id: 3,
+        };
+        interpretation.relocated_from = OptionalOidProjection::Present {
+            oid: OidProjection {
+                vol_id: source.vol_id.get(),
+                page_id: source.page_id.get(),
+                slot_id: source.slot_id.get(),
+            },
+        };
+        let frame = PageRenderer::render(
+            &scene,
+            Surface::new(120, 36),
+            PresentationProfile::ANSI_UNICODE,
+        )
+        .unwrap();
+        assert!(frame.line(3).contains("type relocation"));
+        assert!(frame.line(4).contains("record 1|642|3"));
+        assert!(frame.line(4).contains("relocated from 1|641|1"));
+    }
+
+    #[test]
+    fn interpretation_renderer_preserves_typed_edge_record_and_attribute_limitations() {
+        let surface = Surface::new(120, 36);
+        let mut malformed = ready_interpretation_scene();
+        let selected = malformed.selected_record().unwrap();
+        malformed.interpretation_state = PageInterpretationState::Record {
+            record: selected,
+            load: InterpretationLoadState::Unavailable("heap.relocation.target_slot_role"),
+            top_attribute: 0,
+        };
+        let selection = malformed.record_selection.as_mut().unwrap();
+        selection.selected_slot.record_type = "relocation";
+        selection.interpretation = None;
+        selection.interpretation_unavailable = Some("heap.relocation.target_slot_role");
+        let frame =
+            PageRenderer::render(&malformed, surface, PresentationProfile::ANSI_UNICODE).unwrap();
+        assert!(frame.line(4).contains("heap.relocation.target_slot_role"));
+        assert!(!frame.semantic_snapshot().contains("decoded 1"));
+
+        let mut diagnostic = ready_interpretation_scene();
+        let selected = diagnostic.selected_record().unwrap();
+        diagnostic.interpretation_state = PageInterpretationState::Record {
+            record: selected,
+            load: InterpretationLoadState::Unavailable("record.layout.invalid"),
+            top_attribute: 0,
+        };
+        diagnostic
+            .record_selection
+            .as_mut()
+            .unwrap()
+            .interpretation
+            .as_mut()
+            .unwrap()
+            .diagnostic = OptionalTextProjection::Known("record.layout.invalid");
+        let frame =
+            PageRenderer::render(&diagnostic, surface, PresentationProfile::ANSI_UNICODE).unwrap();
+        assert!(frame.line(4).contains("record.layout.invalid"));
+        assert!(!frame.semantic_snapshot().contains("decoded 1"));
+
+        let mut partial = ready_interpretation_scene();
+        partial
+            .record_selection
+            .as_mut()
+            .unwrap()
+            .interpretation
+            .as_mut()
+            .unwrap()
+            .attributes[0]
+            .value = AttributeValueProjection::Withheld {
+            reason: "attribute.decode.unsupported",
+            offset: 20,
+            length: 4,
+        };
+        let frame =
+            PageRenderer::render(&partial, surface, PresentationProfile::ANSI_UNICODE).unwrap();
+        assert!(
+            frame
+                .line(8)
+                .contains("withheld attribute.decode.unsupported @20+4")
+        );
+    }
+
+    #[test]
+    fn unsupported_and_non_record_rows_open_no_enrichment_work() {
+        let (_directory, view) = fixture_view();
+        let surface = Surface::new(80, 24);
+        let mut session = FocusedSession::new(view, fixture_policy()).unwrap();
+        apply_actions(
+            &mut session,
+            surface,
+            [
+                FocusedAction::Activate,
+                FocusedAction::FocusPage(2),
+                FocusedAction::Activate,
+            ],
+        );
+        let page = session.take_enrichment_request().unwrap().execute();
+        session.complete_enrichment(page).unwrap();
+        let structural_revision = session.focused_state().volume.revision;
+
+        session
+            .advance_focused(
+                FocusedAction::FocusDistributionItem(PageDistributionItemId::Header),
+                surface,
+            )
+            .unwrap();
+        assert!(
+            !session
+                .advance_focused(FocusedAction::Activate, surface)
+                .unwrap()
+                .changed
+        );
+        assert!(session.take_enrichment_request().is_none());
+
+        session
+            .advance_focused(
+                FocusedAction::FocusDistributionItem(PageDistributionItemId::Record(0)),
+                surface,
+            )
+            .unwrap();
+        session
+            .advance_focused(FocusedAction::Activate, surface)
+            .unwrap();
+        assert!(matches!(
+            session.focused_state().interpretation,
+            PageInterpretationState::Record {
+                load: InterpretationLoadState::Unavailable(
+                    "slot 0 holds heap Page metadata, not a class instance"
+                ),
+                ..
+            }
+        ));
+        assert!(session.take_enrichment_request().is_none());
+        assert_eq!(session.focused_state().volume.revision, structural_revision);
+    }
+
+    #[test]
+    fn bigone_record_opens_a_typed_limitation_without_worker_or_revision() {
+        let (_directory, view) = fixture_view();
+        let surface = Surface::new(80, 24);
+        let mut session = FocusedSession::new(view, fixture_policy()).unwrap();
+        apply_actions(
+            &mut session,
+            surface,
+            [
+                FocusedAction::FocusSector(1),
+                FocusedAction::Activate,
+                FocusedAction::FocusPage(3),
+                FocusedAction::Activate,
+            ],
+        );
+        let page = session.take_enrichment_request().unwrap().execute();
+        session.complete_enrichment(page).unwrap();
+        let structural_revision = session.focused_state().volume.revision;
+        apply_actions(
+            &mut session,
+            surface,
+            [
+                FocusedAction::FocusDistributionItem(PageDistributionItemId::Record(3)),
+                FocusedAction::Activate,
+            ],
+        );
+
+        assert!(matches!(
+            session.focused_state().interpretation,
+            PageInterpretationState::Record {
+                load: InterpretationLoadState::Unavailable(
+                    "REC_BIGONE carries an overflow reference, not an inline class instance"
+                ),
+                ..
+            }
+        ));
+        assert!(session.take_enrichment_request().is_none());
+        assert_eq!(session.focused_state().volume.revision, structural_revision);
+        let frame = PageRenderer::render(
+            &session.page_scene().unwrap(),
+            surface,
+            PresentationProfile::ANSI_UNICODE,
+        )
+        .unwrap();
+        assert!(frame.semantic_snapshot().contains("REC_BIGONE"));
+    }
+
+    #[test]
+    fn record_interpretation_cancel_and_stale_completion_never_adopt() {
+        let (_directory, view) = fixture_view();
+        let surface = Surface::new(80, 24);
+        let mut session = FocusedSession::new(view.clone(), fixture_policy()).unwrap();
+        apply_actions(
+            &mut session,
+            surface,
+            [
+                FocusedAction::Activate,
+                FocusedAction::FocusPage(2),
+                FocusedAction::Activate,
+            ],
+        );
+        let page = session.take_enrichment_request().unwrap().execute();
+        session.complete_enrichment(page).unwrap();
+        let structural_revision = session.focused_state().volume.revision;
+        apply_actions(
+            &mut session,
+            surface,
+            [
+                FocusedAction::FocusDistributionItem(PageDistributionItemId::Record(3)),
+                FocusedAction::Activate,
+            ],
+        );
+        let cancelled = session.take_enrichment_request().unwrap();
+        session
+            .advance_focused(FocusedAction::Ascend, surface)
+            .unwrap();
+        assert_eq!(session.focused_state().mode, FocusedMode::Page);
+        assert_eq!(
+            session.focused_state().interpretation,
+            PageInterpretationState::Closed
+        );
+        let completion = cancelled.execute();
+        assert!(matches!(
+            completion.result,
+            Err(OperationError::Interrupted)
+        ));
+        assert!(!session.complete_enrichment(completion).unwrap().changed);
+        assert_eq!(session.focused_state().volume.revision, structural_revision);
+
+        let mut late = FocusedSession::new(view.clone(), fixture_policy()).unwrap();
+        apply_actions(
+            &mut late,
+            surface,
+            [
+                FocusedAction::Activate,
+                FocusedAction::FocusPage(2),
+                FocusedAction::Activate,
+            ],
+        );
+        let page = late.take_enrichment_request().unwrap().execute();
+        late.complete_enrichment(page).unwrap();
+        apply_actions(
+            &mut late,
+            surface,
+            [
+                FocusedAction::FocusDistributionItem(PageDistributionItemId::Record(3)),
+                FocusedAction::Activate,
+            ],
+        );
+        let completion = late.take_enrichment_request().unwrap().execute();
+        late.advance_focused(FocusedAction::Ascend, surface)
+            .unwrap();
+        assert!(!late.complete_enrichment(completion).unwrap().changed);
+        assert_eq!(late.focused_state().volume.revision, structural_revision);
+
+        let mut sibling = FocusedSession::new(view, fixture_policy()).unwrap();
+        apply_actions(
+            &mut sibling,
+            surface,
+            [
+                FocusedAction::Activate,
+                FocusedAction::FocusPage(2),
+                FocusedAction::Activate,
+            ],
+        );
+        let page = sibling.take_enrichment_request().unwrap().execute();
+        sibling.complete_enrichment(page).unwrap();
+        apply_actions(
+            &mut sibling,
+            surface,
+            [
+                FocusedAction::FocusDistributionItem(PageDistributionItemId::Record(3)),
+                FocusedAction::Activate,
+            ],
+        );
+        let cancelled = sibling.take_enrichment_request().unwrap();
+        sibling
+            .advance_focused(FocusedAction::NextSector, surface)
+            .unwrap();
+        assert!(matches!(
+            cancelled.execute().result,
+            Err(OperationError::Interrupted)
+        ));
+        assert_eq!(
+            sibling.focused_state().interpretation,
+            PageInterpretationState::Closed
+        );
+    }
+
+    #[test]
+    fn quit_cancels_active_record_interpretation_before_exiting() {
+        let (_directory, view) = fixture_view();
+        let surface = Surface::new(80, 24);
+        let (mut session, request, revision) = pending_synthetic_record_request(view, surface);
+
+        session
+            .advance_focused(FocusedAction::Quit, surface)
+            .unwrap();
+
+        assert!(session.focused_state().quit_requested);
+        assert_eq!(
+            session.focused_state().interpretation,
+            PageInterpretationState::Closed
+        );
+        assert_eq!(session.focused_state().volume.revision, revision);
+        assert!(matches!(
+            request.execute().result,
+            Err(OperationError::Interrupted)
+        ));
+    }
+
+    #[test]
+    fn page_renderer_draws_proportional_geometry_and_formats_only_a_bounded_row_window() {
+        let scene = ready_page_scene();
+
+        for (surface, profile) in [
+            (Surface::new(120, 36), PresentationProfile::ANSI_UNICODE),
+            (Surface::new(80, 24), PresentationProfile::ANSI_UNICODE),
+            (Surface::new(60, 20), PresentationProfile::MONO_ASCII),
+        ] {
+            let frame = PageRenderer::render(&scene, surface, profile).unwrap();
+            let visible = usize::from(page_visible_rows(surface));
+            assert_eq!(
+                frame.distribution_hits.len(),
+                scene.items.len().min(visible)
+            );
+            assert!(frame.formatted_distribution_rows <= scene.items.len().min(visible * 3));
+            assert!(frame.line(1).contains("Volume 0 > Sector 0 > Page 2"));
+            assert!(frame.line(3).contains("16,344 B"));
+            let byte_map = frame.line(5);
+            assert!(byte_map.starts_with('R'));
+            assert_eq!(byte_map.chars().nth(1), Some('.'));
+            assert!(byte_map.ends_with('D'));
+            let rows = (PAGE_ROWS_TOP..surface.height - PAGE_RESERVED_BOTTOM_ROWS)
+                .map(|row| frame.line(row))
+                .collect::<Vec<_>>()
+                .join("\n");
+            assert!(rows.contains("header [0,32) 32 B"));
+            assert!(rows.contains("record slot 0 home [32,56) 24 B"));
+            assert!(!frame.semantic_snapshot().contains('\u{1b}'));
+            if profile.glyphs == GlyphProfile::Ascii {
+                assert!((0..surface.height).all(|row| frame.line(row).is_ascii()));
+            }
+        }
+    }
+
+    #[test]
+    fn page_renderer_keeps_the_old_revision_visible_for_loading_failure_and_unsupported_pages() {
+        let (_directory, view) = fixture_view();
+        let surface = Surface::new(80, 24);
+        let base_revision = view.overview().revision;
+        let mut session =
+            FocusedSession::new(view.clone(), ResourcePolicy::new(1, 1, 1, 1, 1).unwrap()).unwrap();
+        apply_actions(
+            &mut session,
+            surface,
+            [
+                FocusedAction::Activate,
+                FocusedAction::FocusPage(2),
+                FocusedAction::Activate,
+            ],
+        );
+        let loading = PageRenderer::render(
+            &session.page_scene().unwrap(),
+            surface,
+            PresentationProfile::ANSI_UNICODE,
+        )
+        .unwrap();
+        assert!(
+            loading
+                .line(0)
+                .contains(&format!("r{}", base_revision.get()))
+        );
+        assert!(loading.line(3).contains("loading structure"));
+        let completion = session.take_enrichment_request().unwrap().execute();
+        session.complete_enrichment(completion).unwrap();
+        let failed = PageRenderer::render(
+            &session.page_scene().unwrap(),
+            surface,
+            PresentationProfile::ANSI_UNICODE,
+        )
+        .unwrap();
+        assert!(
+            failed
+                .line(0)
+                .contains(&format!("r{}", base_revision.get()))
+        );
+        assert!(failed.line(3).contains("resource limit"));
+
+        let mut unsupported = FocusedSession::new(view, fixture_policy()).unwrap();
+        apply_actions(
+            &mut unsupported,
+            surface,
+            [
+                FocusedAction::Activate,
+                FocusedAction::FocusPage(4),
+                FocusedAction::Activate,
+            ],
+        );
+        assert!(unsupported.take_enrichment_request().is_none());
+        assert_eq!(
+            unsupported.focused_state().page_load,
+            PageLoadState::Unavailable("Page type has no slotted record distribution")
+        );
+        let frame = PageRenderer::render(
+            &unsupported.page_scene().unwrap(),
+            surface,
+            PresentationProfile::ANSI_UNICODE,
+        )
+        .unwrap();
+        assert!(frame.line(3).contains("no slotted record distribution"));
+    }
+
+    #[test]
+    fn page_pointer_selection_and_scroll_use_the_same_semantic_actions_as_keys() {
+        let (_directory, view) = fixture_view();
+        let surface = Surface::new(60, 20);
+        let mut keyboard = FocusedSession::new(view.clone(), fixture_policy()).unwrap();
+        let mut pointer = FocusedSession::new(view, fixture_policy()).unwrap();
+        for session in [&mut keyboard, &mut pointer] {
+            apply_actions(
+                session,
+                surface,
+                [
+                    FocusedAction::Activate,
+                    FocusedAction::FocusPage(2),
+                    FocusedAction::Activate,
+                ],
+            );
+            let completion = session.take_enrichment_request().unwrap().execute();
+            session.complete_enrichment(completion).unwrap();
+        }
+
+        keyboard
+            .advance_focused(key_action(StructuralKey::Down), surface)
+            .unwrap();
+        apply_actions(
+            &mut pointer,
+            surface,
+            pointer_actions(
+                FocusedMode::Page,
+                PointerInput::FocusDistributionItem(PageDistributionItemId::Record(0)),
+            ),
+        );
+        assert_eq!(pointer.focused_state(), keyboard.focused_state());
+
+        keyboard
+            .advance_focused(FocusedAction::ScrollRows(1), surface)
+            .unwrap();
+        apply_actions(
+            &mut pointer,
+            surface,
+            pointer_actions(FocusedMode::Page, PointerInput::WheelRows(1)),
+        );
+        assert_eq!(pointer.focused_state(), keyboard.focused_state());
+    }
+
+    #[test]
+    fn maximum_slot_directory_retains_every_row_but_formats_only_the_compact_window() {
+        let slot_count = (crate::format::DB_PAGE_SIZE - crate::format::SLOTTED_HEADER_SIZE)
+            / crate::format::SLOTTED_SLOT_SIZE;
+        assert_eq!(slot_count, 4_078);
+        let slot_directory_length =
+            u32::try_from(slot_count * crate::format::SLOTTED_SLOT_SIZE).unwrap();
+        let slot_directory_offset =
+            u32::try_from(crate::format::DB_PAGE_SIZE).unwrap() - slot_directory_length;
+        let distribution = PageDistributionProjection::Available {
+            content_size: u32::try_from(crate::format::DB_PAGE_SIZE).unwrap(),
+            header: ByteRegionProjection {
+                offset: 0,
+                length: u32::try_from(crate::format::SLOTTED_HEADER_SIZE).unwrap(),
+            },
+            record_extents: Vec::new(),
+            free_regions: Vec::new(),
+            slot_directory: ByteRegionProjection {
+                offset: slot_directory_offset,
+                length: slot_directory_length,
+            },
+            slot_entries: (0..slot_count)
+                .map(|slot| {
+                    let slot_id = u16::try_from(slot).unwrap();
+                    SlotEntryProjection {
+                        slot_id,
+                        offset: u32::try_from(crate::format::DB_PAGE_SIZE).unwrap()
+                            - (u32::from(slot_id) + 1)
+                                * u32::try_from(crate::format::SLOTTED_SLOT_SIZE).unwrap(),
+                        length: u32::try_from(crate::format::SLOTTED_SLOT_SIZE).unwrap(),
+                        state: SlotEntryStateProjection::Unallocated,
+                        record_type: "reserved",
+                    }
+                })
+                .collect(),
+            allocated_record_bytes: 0,
+            unoccupied_bytes: 0,
+        };
+        let vpid = Vpid::new(VolId::new(0).unwrap(), PageId::new(2).unwrap());
+        let items = PageDistributionItem::from_projection(vpid, &distribution).unwrap();
+        assert_eq!(items.len(), slot_count + 2);
+        assert_eq!(
+            items
+                .iter()
+                .map(PageDistributionItem::id)
+                .collect::<BTreeSet<_>>()
+                .len(),
+            items.len()
+        );
+        assert_eq!(
+            items.last().map(PageDistributionItem::id),
+            Some(PageDistributionItemId::SlotEntry(4_077))
+        );
+
+        let surface = Surface::new(60, 20);
+        let visible = usize::from(page_visible_rows(surface));
+        let top = items[items.len() - visible].id();
+        let scene = PageScene {
+            snapshot_id: SnapshotId::from_bytes([0xAB; 16]),
+            revision: InspectionRevision::new(7),
+            outcome: "success-limited",
+            volume: synthetic_sector_scene(0).volume,
+            volume_index: 0,
+            volume_count: 1,
+            sector_id: 0,
+            page: PageMark::try_from_projection(&page(
+                2,
+                "allocated",
+                PageOccupancyProjection::Unknown,
+                false,
+            ))
+            .unwrap(),
+            load: PageLoadState::Ready,
+            distribution,
+            selected_item: Some(PageDistributionItemId::SlotEntry(4_077)),
+            top_item: Some(top),
+            items,
+            interpretation_state: PageInterpretationState::Closed,
+            record_selection: None,
+        };
+        let frame = PageRenderer::render(&scene, surface, PresentationProfile::MONO_ASCII).unwrap();
+        assert_eq!(frame.distribution_hits.len(), visible);
+        assert_eq!(
+            frame.distribution_hits.last().map(|hit| hit.item),
+            Some(PageDistributionItemId::SlotEntry(4_077))
+        );
+        assert!(frame.formatted_distribution_rows <= visible * 3);
+    }
+
+    #[test]
+    #[ignore = "manual Page-renderer preview"]
+    fn print_page_mode_preview() {
+        let scene = ready_page_scene();
+        for (surface, profile) in [
+            (Surface::new(120, 36), PresentationProfile::ANSI_UNICODE),
+            (Surface::new(80, 24), PresentationProfile::ANSI_UNICODE),
+            (Surface::new(60, 20), PresentationProfile::MONO_ASCII),
+        ] {
+            println!(
+                "\n{}",
+                PageRenderer::render(&scene, surface, profile)
+                    .unwrap()
+                    .semantic_snapshot()
+            );
+        }
+    }
+
+    #[test]
+    #[ignore = "manual interpretation-renderer preview"]
+    fn print_interpretation_mode_preview() {
+        let scene = ready_interpretation_scene();
+        for (surface, profile) in [
+            (Surface::new(120, 36), PresentationProfile::ANSI_UNICODE),
+            (Surface::new(80, 24), PresentationProfile::ANSI_UNICODE),
+            (Surface::new(60, 20), PresentationProfile::MONO_ASCII),
+        ] {
+            println!(
+                "\n{}",
+                PageRenderer::render(&scene, surface, profile)
+                    .unwrap()
+                    .semantic_snapshot()
+            );
+        }
+    }
+
+    #[test]
     fn mouse_and_wheel_translate_to_the_same_semantic_actions_as_keyboard() {
         let (_directory, view) = fixture_view();
         let surface = Surface::new(60, 20);
-        let mut keyboard = FocusedSession::new(view.clone()).unwrap();
+        let mut keyboard = FocusedSession::new(view.clone(), fixture_policy()).unwrap();
         apply_actions(
             &mut keyboard,
             surface,
@@ -2350,7 +5808,7 @@ mod tests {
                 .chain([key_action(StructuralKey::Enter)]),
         );
 
-        let mut pointer = FocusedSession::new(view).unwrap();
+        let mut pointer = FocusedSession::new(view, fixture_policy()).unwrap();
         apply_actions(
             &mut pointer,
             surface,
@@ -2375,16 +5833,15 @@ mod tests {
         );
         assert_eq!(pointer.focused_state(), keyboard.focused_state());
 
-        let mut wheel = pointer.clone();
         apply_actions(
-            &mut wheel,
+            &mut pointer,
             surface,
             pointer_actions(FocusedMode::Sector, PointerInput::WheelRows(1)),
         );
-        pointer
+        keyboard
             .advance_focused(key_action(StructuralKey::NextSector), surface)
             .unwrap();
-        assert_eq!(wheel.focused_state(), pointer.focused_state());
+        assert_eq!(pointer.focused_state(), keyboard.focused_state());
         assert_eq!(
             pointer_actions(FocusedMode::Sector, PointerInput::WheelRows(-1)),
             vec![key_action(StructuralKey::PreviousSector)]
@@ -2586,5 +6043,488 @@ mod tests {
             let frame = SectorRenderer::render(&scene, surface, profile).unwrap();
             assert_eq!(frame.semantic_snapshot(), expected);
         }
+    }
+
+    #[test]
+    fn page_goldens_are_stable_at_all_required_sizes_and_profiles() {
+        let scene = ready_page_scene();
+        for (surface, profile, expected) in [
+            (
+                Surface::new(120, 36),
+                PresentationProfile::ANSI_UNICODE,
+                include_str!("../../tests/goldens/tui-page-120x36-ansi-unicode.txt"),
+            ),
+            (
+                Surface::new(80, 24),
+                PresentationProfile::ANSI_UNICODE,
+                include_str!("../../tests/goldens/tui-page-80x24-ansi-unicode.txt"),
+            ),
+            (
+                Surface::new(60, 20),
+                PresentationProfile::MONO_ASCII,
+                include_str!("../../tests/goldens/tui-page-60x20-mono-ascii.txt"),
+            ),
+        ] {
+            let frame = PageRenderer::render(&scene, surface, profile).unwrap();
+            assert_eq!(frame.semantic_snapshot(), expected);
+        }
+    }
+
+    #[test]
+    fn interpretation_goldens_are_stable_at_all_required_sizes_and_profiles() {
+        let scene = ready_interpretation_scene();
+        for (surface, profile, expected) in [
+            (
+                Surface::new(120, 36),
+                PresentationProfile::ANSI_UNICODE,
+                include_str!("../../tests/goldens/tui-interpretation-120x36-ansi-unicode.txt"),
+            ),
+            (
+                Surface::new(80, 24),
+                PresentationProfile::ANSI_UNICODE,
+                include_str!("../../tests/goldens/tui-interpretation-80x24-ansi-unicode.txt"),
+            ),
+            (
+                Surface::new(60, 20),
+                PresentationProfile::MONO_ASCII,
+                include_str!("../../tests/goldens/tui-interpretation-60x20-mono-ascii.txt"),
+            ),
+        ] {
+            assert_eq!(
+                PageRenderer::render(&scene, surface, profile)
+                    .unwrap()
+                    .semantic_snapshot(),
+                expected
+            );
+        }
+    }
+
+    fn primary_capabilities() -> terminal::TerminalCapabilities {
+        terminal::TerminalCapabilities {
+            ansi_color: true,
+            unicode: true,
+            mouse: true,
+        }
+    }
+
+    #[test]
+    fn scripted_host_enters_once_draws_only_on_change_and_cleans_up_in_reverse() {
+        use terminal::{HostEvent, HostOperation, ScriptHost, ScriptPoll};
+
+        let (_directory, view) = fixture_view();
+        let (host, observer) = ScriptHost::new(
+            (80, 24),
+            primary_capabilities(),
+            [
+                ScriptPoll::Idle,
+                ScriptPoll::Event(HostEvent::Key(StructuralKey::Quit)),
+            ],
+        );
+        let exit = terminal::run_scripted(view, fixture_policy(), host).unwrap();
+
+        assert!(exit.state().quit_requested);
+        assert_eq!(
+            observer.presentations().len(),
+            1,
+            "idle and quit do not redraw"
+        );
+        assert_eq!(
+            observer.operations(),
+            [
+                HostOperation::EnableRaw,
+                HostOperation::EnterAlternate,
+                HostOperation::EnableMouse,
+                HostOperation::HideCursor,
+                HostOperation::Present,
+                HostOperation::ShowCursor,
+                HostOperation::DisableMouse,
+                HostOperation::LeaveAlternate,
+                HostOperation::DisableRaw,
+            ]
+        );
+    }
+
+    #[test]
+    fn scripted_host_refuses_non_ttys_and_unwinds_every_partial_entry() {
+        use terminal::{HostEvent, HostOperation, ScriptHost, ScriptPoll};
+
+        let (_directory, view) = fixture_view();
+        let script = [ScriptPoll::Event(HostEvent::Key(StructuralKey::Quit))];
+        let (host, observer) = ScriptHost::new((80, 24), primary_capabilities(), script);
+        let result = terminal::run_scripted(view.clone(), fixture_policy(), host.not_terminal());
+        assert!(matches!(result, Err(FocusedTerminalError::NotTerminal)));
+        assert!(observer.operations().is_empty());
+
+        for (failure, expected) in [
+            (HostOperation::EnableRaw, vec![HostOperation::EnableRaw]),
+            (
+                HostOperation::EnterAlternate,
+                vec![
+                    HostOperation::EnableRaw,
+                    HostOperation::EnterAlternate,
+                    HostOperation::DisableRaw,
+                ],
+            ),
+            (
+                HostOperation::EnableMouse,
+                vec![
+                    HostOperation::EnableRaw,
+                    HostOperation::EnterAlternate,
+                    HostOperation::EnableMouse,
+                    HostOperation::LeaveAlternate,
+                    HostOperation::DisableRaw,
+                ],
+            ),
+            (
+                HostOperation::HideCursor,
+                vec![
+                    HostOperation::EnableRaw,
+                    HostOperation::EnterAlternate,
+                    HostOperation::EnableMouse,
+                    HostOperation::HideCursor,
+                    HostOperation::DisableMouse,
+                    HostOperation::LeaveAlternate,
+                    HostOperation::DisableRaw,
+                ],
+            ),
+        ] {
+            let (host, observer) = ScriptHost::new((80, 24), primary_capabilities(), script);
+            let result =
+                terminal::run_scripted(view.clone(), fixture_policy(), host.fail_on(failure));
+            assert!(matches!(result, Err(FocusedTerminalError::Io(_))));
+            assert_eq!(observer.operations(), expected, "failure at {failure:?}");
+        }
+    }
+
+    #[test]
+    fn presentation_and_cleanup_failures_still_attempt_the_complete_unwind() {
+        use terminal::{HostEvent, HostOperation, ScriptHost, ScriptPoll};
+
+        let (_directory, view) = fixture_view();
+        let script = [ScriptPoll::Event(HostEvent::Key(StructuralKey::Quit))];
+        for failure in [
+            HostOperation::Present,
+            HostOperation::ShowCursor,
+            HostOperation::DisableMouse,
+            HostOperation::LeaveAlternate,
+            HostOperation::DisableRaw,
+        ] {
+            let (host, observer) = ScriptHost::new((80, 24), primary_capabilities(), script);
+            let result =
+                terminal::run_scripted(view.clone(), fixture_policy(), host.fail_on(failure));
+            assert!(matches!(result, Err(FocusedTerminalError::Io(_))));
+            let operations = observer.operations();
+            assert!(operations.contains(&HostOperation::DisableMouse));
+            assert!(operations.contains(&HostOperation::LeaveAlternate));
+            assert_eq!(operations.last(), Some(&HostOperation::DisableRaw));
+        }
+    }
+
+    #[test]
+    fn fallback_profile_and_maximum_logical_surface_are_bounded_and_semantic() {
+        use terminal::{HostEvent, HostOperation, ScriptHost, ScriptPoll};
+
+        assert_eq!(
+            terminal::effective_surface(u16::MAX, u16::MAX),
+            Surface::new(240, 80)
+        );
+        let (_directory, view) = fixture_view();
+        let (host, observer) = ScriptHost::new(
+            (u16::MAX, u16::MAX),
+            terminal::TerminalCapabilities {
+                ansi_color: false,
+                unicode: false,
+                mouse: false,
+            },
+            [ScriptPoll::Event(HostEvent::Key(StructuralKey::Quit))],
+        );
+        terminal::run_scripted(view, fixture_policy(), host).unwrap();
+        let frames = observer.presentations();
+        assert_eq!(frames.len(), 1);
+        assert!(frames[0].starts_with("surface 240x80 · profile mono-ascii"));
+        assert!(frames[0].lines().skip(1).take(80).all(|line| {
+            line.split_once('│')
+                .is_some_and(|(_, cells)| cells.is_ascii())
+        }));
+        assert!(!observer.operations().contains(&HostOperation::EnableMouse));
+        assert!(!observer.operations().contains(&HostOperation::DisableMouse));
+    }
+
+    #[test]
+    fn runtime_retains_one_capped_frame_independent_of_navigation_count() {
+        use terminal::{HostEvent, ScriptHost};
+
+        let (_directory, view) = fixture_view();
+        let session = FocusedSession::new(view, fixture_policy()).unwrap();
+        let (mut host, _observer) =
+            ScriptHost::new((u16::MAX, u16::MAX), primary_capabilities(), []);
+        let mut runtime = terminal::FocusedRuntime::new(
+            session,
+            u16::MAX,
+            u16::MAX,
+            PresentationProfile::ANSI_UNICODE,
+        );
+        runtime.render(&mut host, true).unwrap();
+        for _ in 0..3 {
+            assert!(
+                runtime
+                    .handle_event(HostEvent::Key(StructuralKey::NextSector))
+                    .unwrap()
+            );
+            runtime.render(&mut host, false).unwrap();
+        }
+        assert_eq!(runtime.retained_frame_count(), 1);
+        assert_eq!(runtime.retained_frame_cells(), 240 * 80);
+    }
+
+    #[test]
+    fn generation_stamped_pointer_rejects_a_stale_layout() {
+        use terminal::{HostEvent, PointerKind, ScriptHost, ScriptPoll};
+
+        let (_directory, view) = fixture_view();
+        let (host, observer) = ScriptHost::new(
+            (60, 20),
+            primary_capabilities(),
+            [
+                ScriptPoll::Event(HostEvent::Pointer {
+                    generation: Some(0),
+                    column: 1,
+                    row: CARD_TOP,
+                    kind: PointerKind::Activate,
+                }),
+                ScriptPoll::Event(HostEvent::Pointer {
+                    generation: Some(0),
+                    column: 0,
+                    row: SECTOR_GRID_TOP,
+                    kind: PointerKind::Activate,
+                }),
+                ScriptPoll::Event(HostEvent::Key(StructuralKey::Quit)),
+            ],
+        );
+        let exit = terminal::run_scripted(view, fixture_policy(), host).unwrap();
+        assert_eq!(exit.state().mode, FocusedMode::Sector);
+        assert_eq!(exit.state().focused_page, 0);
+        assert_eq!(observer.presentations().len(), 2);
+    }
+
+    #[test]
+    fn contextual_help_has_escape_precedence_and_disables_background_hits() {
+        use terminal::{HostEvent, PointerKind, ScriptHost, ScriptPoll};
+
+        let (_directory, view) = fixture_view();
+        let (host, observer) = ScriptHost::new(
+            (60, 20),
+            primary_capabilities(),
+            [
+                ScriptPoll::Event(HostEvent::Key(StructuralKey::Help)),
+                ScriptPoll::Event(HostEvent::Pointer {
+                    generation: Some(1),
+                    column: 1,
+                    row: CARD_TOP,
+                    kind: PointerKind::Activate,
+                }),
+                ScriptPoll::Event(HostEvent::Key(StructuralKey::Escape)),
+                ScriptPoll::Event(HostEvent::Key(StructuralKey::Quit)),
+            ],
+        );
+        let exit = terminal::run_scripted(view, fixture_policy(), host).unwrap();
+        assert_eq!(exit.state().mode, FocusedMode::Volume);
+        assert!(!exit.state().help_visible);
+        let frames = observer.presentations();
+        assert_eq!(frames.len(), 3);
+        assert!(frames[1].contains("Focused Volume keys"));
+        assert!(!frames[2].contains("Focused Volume keys"));
+    }
+
+    #[test]
+    fn resize_bursts_coalesce_without_dropping_interleaved_keyboard_input() {
+        use terminal::{HostEvent, ScriptHost, ScriptPoll};
+
+        let (_directory, view) = fixture_view();
+        let (host, observer) = ScriptHost::new(
+            (60, 20),
+            primary_capabilities(),
+            [
+                ScriptPoll::Event(HostEvent::Resize {
+                    width: 80,
+                    height: 24,
+                }),
+                ScriptPoll::Event(HostEvent::Resize {
+                    width: 120,
+                    height: 36,
+                }),
+                ScriptPoll::Event(HostEvent::Key(StructuralKey::Enter)),
+                ScriptPoll::Idle,
+                ScriptPoll::Event(HostEvent::Key(StructuralKey::Quit)),
+            ],
+        );
+        let exit = terminal::run_scripted(view, fixture_policy(), host).unwrap();
+        assert_eq!(exit.state().mode, FocusedMode::Sector);
+        let frames = observer.presentations();
+        assert_eq!(frames.len(), 3, "two Resize events produce one new frame");
+        assert!(frames[1].starts_with("surface 120x36"));
+        assert!(frames[2].contains("64 physical Pages"));
+    }
+
+    #[test]
+    fn input_precedes_a_ready_completion_and_the_cancelled_result_never_adopts() {
+        use terminal::{HostEvent, PointerKind, ScriptHost, ScriptPoll};
+
+        let (_directory, view) = fixture_view();
+        let original_revision = view.overview().revision;
+        let (host, observer) = ScriptHost::new(
+            (80, 24),
+            primary_capabilities(),
+            [
+                ScriptPoll::Event(HostEvent::Key(StructuralKey::Enter)),
+                ScriptPoll::Event(HostEvent::Pointer {
+                    generation: Some(1),
+                    column: 20,
+                    row: SECTOR_GRID_TOP,
+                    kind: PointerKind::Activate,
+                }),
+                ScriptPoll::Event(HostEvent::Key(StructuralKey::Escape)),
+                ScriptPoll::Idle,
+                ScriptPoll::Event(HostEvent::Key(StructuralKey::Quit)),
+            ],
+        );
+        let exit = terminal::run_scripted(view, fixture_policy(), host).unwrap();
+        assert_eq!(exit.state().mode, FocusedMode::Sector);
+        assert_eq!(exit.state().focused_page, 2);
+        assert_eq!(exit.state().volume.revision, original_revision);
+        assert_eq!(observer.presentations().len(), 4);
+    }
+
+    #[test]
+    fn too_small_resize_round_trip_restores_selected_record_and_interpretation() {
+        use terminal::{HostEvent, ScriptHost, ScriptPoll};
+
+        let (_directory, view) = interpretation_fixture_view();
+        let initial_revision = view.overview().revision;
+        let mut polls = vec![ScriptPoll::Event(HostEvent::Key(StructuralKey::NextVolume))];
+        polls.extend((0..10).map(|_| ScriptPoll::Event(HostEvent::Key(StructuralKey::NextSector))));
+        polls.extend([
+            ScriptPoll::Event(HostEvent::Key(StructuralKey::Enter)),
+            ScriptPoll::Event(HostEvent::Key(StructuralKey::Right)),
+            ScriptPoll::Event(HostEvent::Key(StructuralKey::Enter)),
+            ScriptPoll::Idle,
+            ScriptPoll::Event(HostEvent::Key(StructuralKey::Down)),
+            ScriptPoll::Event(HostEvent::Key(StructuralKey::Down)),
+            ScriptPoll::Event(HostEvent::Key(StructuralKey::Enter)),
+            ScriptPoll::Idle,
+            ScriptPoll::Event(HostEvent::Resize {
+                width: 60,
+                height: 20,
+            }),
+            ScriptPoll::Idle,
+            ScriptPoll::Event(HostEvent::Resize {
+                width: 59,
+                height: 19,
+            }),
+            ScriptPoll::Idle,
+            ScriptPoll::Event(HostEvent::Resize {
+                width: 60,
+                height: 20,
+            }),
+            ScriptPoll::Idle,
+            ScriptPoll::Event(HostEvent::Key(StructuralKey::Quit)),
+        ]);
+        let (host, observer) = ScriptHost::new((80, 24), primary_capabilities(), polls);
+        let exit = terminal::run_scripted(view, interpretation_fixture_policy(), host).unwrap();
+
+        assert_eq!(exit.state().mode, FocusedMode::Page);
+        let final_revision = exit.state().volume.revision;
+        assert!(final_revision > initial_revision);
+        let frames = observer.presentations();
+        let suspended = frames
+            .iter()
+            .position(|frame| frame.contains("focused inspector paused"))
+            .unwrap();
+        assert_eq!(
+            frames[suspended - 1],
+            frames[suspended + 1],
+            "60x20 recovery must restore the exact selected-record scene"
+        );
+        assert!(
+            frames
+                .last()
+                .is_some_and(|frame| frame.contains("Record 1|641|1")),
+            "{}",
+            frames.last().unwrap()
+        );
+        assert_eq!(exit.into_view().overview().revision, final_revision);
+    }
+
+    #[test]
+    fn failed_present_does_not_commit_the_prepared_generation() {
+        use terminal::{HostEvent, HostOperation, ScriptHost};
+
+        let (_directory, view) = fixture_view();
+        let session = FocusedSession::new(view, fixture_policy()).unwrap();
+        let (host, observer) = ScriptHost::new((80, 24), primary_capabilities(), []);
+        let mut host = host.fail_on_occurrence(HostOperation::Present, 2);
+        let mut runtime =
+            terminal::FocusedRuntime::new(session, 80, 24, PresentationProfile::ANSI_UNICODE);
+        runtime.render(&mut host, true).unwrap();
+        assert_eq!(runtime.generation(), Some(0));
+        assert!(
+            runtime
+                .handle_event(HostEvent::Key(StructuralKey::Enter))
+                .unwrap()
+        );
+        assert!(matches!(
+            runtime.render(&mut host, false),
+            Err(FocusedTerminalError::Io(_))
+        ));
+        assert_eq!(runtime.generation(), Some(0));
+        assert_eq!(observer.presentations().len(), 1);
+    }
+
+    #[test]
+    fn focused_terminal_real_pty_restores_raw_mode() {
+        const HELPER: &str = "VOLMAP_FOCUSED_PTY_HELPER";
+        if std::env::var_os(HELPER).is_some() {
+            let (directory, _view) = fixture_view();
+            let vinf = directory.path().join("fixture_vinf");
+            assert!(!crossterm::terminal::is_raw_mode_enabled().unwrap());
+            let exit = crate::cli::run_from([
+                "volmap",
+                "tui",
+                "--vinf",
+                vinf.to_str().unwrap(),
+                "--progress",
+                "never",
+            ]);
+            assert_eq!(exit, 1);
+            assert!(!crossterm::terminal::is_raw_mode_enabled().unwrap());
+            println!("VOLMAP_FOCUSED_PTY_CLEAN");
+            return;
+        }
+
+        let executable = std::env::current_exe().unwrap();
+        let test_name = "tui::focused::tests::focused_terminal_real_pty_restores_raw_mode";
+        let command = format!(
+            "{} --exact {test_name} --nocapture --test-threads=1",
+            executable.display()
+        );
+        let mut child = std::process::Command::new("script")
+            .args(["-q", "-e", "-c", &command, "/dev/null"])
+            .env(HELPER, "1")
+            .env("TERM", "xterm-256color")
+            .env("LANG", "C.UTF-8")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .unwrap();
+        child.stdin.take().unwrap().write_all(b"q").unwrap();
+        let output = child.wait_with_output().unwrap();
+        assert!(
+            output.status.success(),
+            "PTY child failed\nstdout: {}\nstderr: {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr),
+        );
+        assert!(String::from_utf8_lossy(&output.stdout).contains("VOLMAP_FOCUSED_PTY_CLEAN"));
     }
 }

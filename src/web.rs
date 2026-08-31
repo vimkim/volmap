@@ -26,18 +26,17 @@ use tokio::net::TcpListener;
 use tokio::sync::{Mutex, Semaphore};
 
 use crate::follow::{FollowConfig, LiveSource, Reading, WATCH_TIMEOUT};
-use crate::format::{DB_PAGE_SIZE, SlottedPage};
 use crate::inspection::{
     CancelToken, DiagnosticRecord, GraphView, OpenRequest, QueryError, ResourcePolicy,
 };
 use crate::model::{FileId, Oid, PageId, SectorId, SlotId, Vfid, VolId, Vpid};
 use crate::projection::{
     CoverageProjection, DeepPageProjection, DiagnosticProjection, OosChainProjection,
-    PageProjection, SCHEMA_NAME, SCHEMA_VERSION, SlotProjection, SnapshotProjection,
-    class_representation_projection, coverage_projection, deep_page_projection,
+    PageDistributionProjection, PageProjection, RecordSelectionProjection, SCHEMA_NAME,
+    SCHEMA_VERSION, SlotProjection, SnapshotProjection, coverage_projection, deep_page_projection,
     diagnostic_projection, file_header_projection, oos_chain_projection, outcome_name,
-    page_projection, record_interpretation_projection, relocation_edge_projection,
-    sector_projection, slot_projection, snapshot_id_hex, summary_projection, volume_projection,
+    page_distribution_projection, page_projection, record_selection_projection, sector_projection,
+    slot_projection, snapshot_id_hex, summary_projection, volume_projection,
 };
 
 const MAX_URI_BYTES: usize = 8192;
@@ -1093,173 +1092,6 @@ struct PageResourceProjection {
     distribution: PageDistributionProjection,
 }
 
-#[derive(Serialize)]
-#[serde(tag = "state", rename_all = "kebab-case")]
-enum PageDistributionProjection {
-    NotAvailable,
-    Available {
-        content_size: u32,
-        header: ByteRegionProjection,
-        record_extents: Vec<RecordExtentProjection>,
-        free_regions: Vec<FreeRegionProjection>,
-        slot_directory: ByteRegionProjection,
-        slot_entries: Vec<SlotEntryProjection>,
-        allocated_record_bytes: u32,
-        unoccupied_bytes: u32,
-    },
-}
-
-#[derive(Clone, Copy, Serialize)]
-struct ByteRegionProjection {
-    offset: u32,
-    length: u32,
-}
-
-#[derive(Serialize)]
-struct RecordExtentProjection {
-    slot_id: u16,
-    offset: u32,
-    length: u32,
-    record_type: &'static str,
-}
-
-#[derive(Serialize)]
-struct FreeRegionProjection {
-    offset: u32,
-    length: u32,
-    kind: &'static str,
-}
-
-#[derive(Serialize)]
-struct SlotEntryProjection {
-    slot_id: u16,
-    offset: u32,
-    length: u32,
-    state: &'static str,
-    record_type: &'static str,
-}
-
-fn page_distribution_projection(slotted: &SlottedPage) -> PageDistributionProjection {
-    const HEADER_SIZE: u32 = 32;
-    const SLOT_ENTRY_SIZE: u32 = 4;
-
-    let content_size = u32::try_from(DB_PAGE_SIZE).expect("DB page size fits u32");
-    let slot_directory_length = u32::try_from(slotted.slots().len())
-        .expect("validated slot count fits u32")
-        * SLOT_ENTRY_SIZE;
-    let slot_directory_offset = content_size - slot_directory_length;
-    let mut records: Vec<_> = slotted
-        .slots()
-        .iter()
-        .copied()
-        .filter(|slot| !slot.is_empty())
-        .map(|slot| RecordExtentProjection {
-            slot_id: slot.slot_id(),
-            offset: u32::from(slot.offset()),
-            length: u32::from(slot.length()),
-            record_type: slot.record_type().as_str(),
-        })
-        .collect();
-    records.sort_unstable_by_key(|record| (record.offset, record.slot_id));
-
-    let mut free_regions = Vec::new();
-    let mut cursor = HEADER_SIZE;
-    for record in &records {
-        if cursor < record.offset {
-            push_free_region(
-                &mut free_regions,
-                cursor,
-                record.offset,
-                slot_directory_offset,
-                slotted.free_area_offset(),
-            );
-        }
-        cursor = cursor.max(record.offset + record.length);
-    }
-    if cursor < slot_directory_offset {
-        push_free_region(
-            &mut free_regions,
-            cursor,
-            slot_directory_offset,
-            slot_directory_offset,
-            slotted.free_area_offset(),
-        );
-    }
-
-    let allocated_record_bytes = records.iter().map(|record| record.length).sum();
-    let unoccupied_bytes = free_regions.iter().map(|region| region.length).sum();
-    let slot_entries = slotted
-        .slots()
-        .iter()
-        .copied()
-        .map(|slot| SlotEntryProjection {
-            slot_id: slot.slot_id(),
-            offset: content_size - (u32::from(slot.slot_id()) + 1) * SLOT_ENTRY_SIZE,
-            length: SLOT_ENTRY_SIZE,
-            state: if !slot.is_empty() {
-                "allocated"
-            } else if matches!(
-                slot.record_type(),
-                crate::format::RecordType::MarkDeleted
-                    | crate::format::RecordType::DeletedWillReuse
-            ) {
-                "deleted"
-            } else {
-                "unallocated"
-            },
-            record_type: slot.record_type().as_str(),
-        })
-        .collect();
-
-    PageDistributionProjection::Available {
-        content_size,
-        header: ByteRegionProjection {
-            offset: 0,
-            length: HEADER_SIZE,
-        },
-        record_extents: records,
-        free_regions,
-        slot_directory: ByteRegionProjection {
-            offset: slot_directory_offset,
-            length: slot_directory_length,
-        },
-        slot_entries,
-        allocated_record_bytes,
-        unoccupied_bytes,
-    }
-}
-
-fn push_free_region(
-    regions: &mut Vec<FreeRegionProjection>,
-    start: u32,
-    end: u32,
-    slot_directory_offset: u32,
-    free_area_offset: u32,
-) {
-    if end == slot_directory_offset && start < free_area_offset && free_area_offset < end {
-        regions.push(FreeRegionProjection {
-            offset: start,
-            length: free_area_offset - start,
-            kind: "fragmented-free",
-        });
-        regions.push(FreeRegionProjection {
-            offset: free_area_offset,
-            length: end - free_area_offset,
-            kind: "contiguous-free",
-        });
-    } else {
-        regions.push(FreeRegionProjection {
-            offset: start,
-            length: end - start,
-            kind: if end == slot_directory_offset && start == free_area_offset {
-                "contiguous-free"
-            } else {
-                "fragmented-free"
-            },
-        });
-    }
-}
-
 async fn slot(
     State(state): State<WebState>,
     Path((vol, page, slot)): Path<(i16, i32, i16)>,
@@ -1273,36 +1105,16 @@ async fn slot(
         return error_response(StatusCode::NOT_FOUND, "entity-not-found");
     };
     let vpid = Vpid::new(oid.vol_id, oid.page_id);
-    let selected = view.deep_page(vpid).and_then(|deep| {
-        deep.slotted.and_then(|slotted| {
-            usize::try_from(oid.slot_id.get())
-                .ok()
-                .and_then(|index| slotted.slots().get(index).copied())
-        })
-    });
-    let (Ok(page), Some(selected)) = (view.page(vpid), selected) else {
+    let (Ok(page), Some(selection)) = (view.page(vpid), record_selection_projection(view, oid))
+    else {
         return error_response(StatusCode::NOT_FOUND, "entity-not-found");
     };
-    // A relocation's values live in its target, so report the target's
-    // interpretation alongside the forward reference rather than nothing.
-    let relocation_edge = view.relocation_edge(oid);
-    let interpreted = view.slot_interpretation(oid);
-    let class_representation = interpreted
-        .as_ref()
-        .and_then(|interpretation| {
-            view.class_representation(interpretation.class_oid, interpretation.representation_id)
-        })
-        .map(class_representation_projection);
     Json(api_envelope(
         &answer,
         SlotResourceProjection {
             page: page_projection(page),
             deep: deep_page_projection(view.deep_page(vpid)),
-            selected_slot: slot_projection(selected),
-            relocation_edge: relocation_edge.map(relocation_edge_projection),
-            interpretation: interpreted.map(record_interpretation_projection),
-            class_representation,
-            interpretation_unavailable: view.record_page_interpretation_failure(vpid),
+            selection,
         },
     ))
     .into_response()
@@ -1312,17 +1124,8 @@ async fn slot(
 struct SlotResourceProjection {
     page: PageProjection,
     deep: DeepPageProjection,
-    selected_slot: SlotProjection,
-    /// Absent until the slot's page has been enriched; the panel then offers
-    /// the enrichment rather than showing an empty interpretation.
-    relocation_edge: Option<crate::projection::RelocationEdgeProjection>,
-    interpretation: Option<crate::projection::RecordInterpretationProjection>,
-    class_representation: Option<crate::projection::ClassRepresentationProjection>,
-    /// Set when interpretation was requested for this page and degraded as a
-    /// whole — a root or system heap, an unreadable class record, an encrypted
-    /// page. The panel states the reason instead of silently offering the
-    /// enrichment again.
-    interpretation_unavailable: Option<&'static str>,
+    #[serde(flatten)]
+    selection: RecordSelectionProjection,
 }
 
 async fn oos(
@@ -1555,7 +1358,7 @@ fn run_enrichment(
         // edge it carries — the same facts `volmap inspect slot:` establishes.
         EnrichmentTarget::Slot(oid) => enrich_slot_selection(base, oid, policy, cancel),
         EnrichmentTarget::Oos(oid) => base.enrich_oos(oid, policy, cancel),
-        EnrichmentTarget::Record(oid) => enrich_record_selection(base, oid, policy, cancel),
+        EnrichmentTarget::Record(oid) => base.enrich_record_selection(oid, policy, cancel),
     }
 }
 
@@ -1583,26 +1386,6 @@ fn slot_is_relocation(view: &crate::inspection::GraphView, oid: Oid) -> bool {
                 .and_then(|index| slotted.slots().get(index).copied())
         })
         .is_some_and(|slot| slot.record_type() == crate::format::RecordType::Relocation)
-}
-
-/// Interprets the page holding `oid`, first making the slot's own structure and
-/// any relocation edge available so a relocated record's values are reachable.
-fn enrich_record_selection(
-    base: &crate::inspection::GraphView,
-    oid: Oid,
-    policy: crate::inspection::ResourcePolicy,
-    cancel: &CancelToken,
-) -> Result<crate::inspection::GraphView, crate::inspection::OperationError> {
-    let vpid = Vpid::new(oid.vol_id, oid.page_id);
-    let view = enrich_slot_selection(base, oid, policy, cancel)?;
-    let view = view.enrich_record_page(vpid, policy, cancel)?;
-    // Follow the edge so the target page's records are interpreted too.
-    match view.relocation_edge(oid).and_then(|edge| edge.target) {
-        Some(target) => {
-            view.enrich_record_page(Vpid::new(target.vol_id, target.page_id), policy, cancel)
-        }
-        None => Ok(view),
-    }
 }
 
 fn api_envelope<T: Serialize>(answer: &Answer, data: T) -> ApiEnvelope<T> {
@@ -2428,9 +2211,8 @@ mod tests {
         });
     }
 
-    #[test]
-    fn slotted_page_distribution_covers_records_free_space_and_directory_entries() {
-        use crate::format::{IO_PAGE_SIZE, PageType, decode_page_envelope, decode_slotted_page};
+    fn representative_slotted_page() -> [u8; crate::format::IO_PAGE_SIZE] {
+        use crate::format::{DB_PAGE_SIZE, IO_PAGE_SIZE, PageType};
 
         let mut bytes = [0_u8; IO_PAGE_SIZE];
         bytes[8..12].copy_from_slice(&7_i32.to_le_bytes());
@@ -2438,7 +2220,7 @@ mod tests {
         bytes[14] = PageType::Heap.ordinal();
         let user = &mut bytes[32..IO_PAGE_SIZE - 8];
         user[0..2].copy_from_slice(&4_i16.to_le_bytes());
-        user[2..4].copy_from_slice(&2_i16.to_le_bytes());
+        user[2..4].copy_from_slice(&3_i16.to_le_bytes());
         user[4..6].copy_from_slice(&1_i16.to_le_bytes());
         user[6..8].copy_from_slice(&8_u16.to_le_bytes());
         user[8..12].copy_from_slice(&16_256_i32.to_le_bytes());
@@ -2447,13 +2229,22 @@ mod tests {
         for (slot, offset, length, kind) in [
             (0_usize, 32_u16, 24_u16, 2_u8),
             (1, 0, 0, 9),
-            (2, 0, 48, 6),
+            // Retained tombstone geometry is validated but is not a live record.
+            (2, 104, 16, 6),
             (3, 80, 16, 3),
         ] {
             let word = u32::from(offset) | (u32::from(length) << 14) | (u32::from(kind) << 28);
             let start = DB_PAGE_SIZE - 4 * (slot + 1);
             user[start..start + 4].copy_from_slice(&word.to_le_bytes());
         }
+        bytes
+    }
+
+    #[test]
+    fn slotted_page_distribution_covers_records_free_space_and_directory_entries() {
+        use crate::format::{decode_page_envelope, decode_slotted_page};
+
+        let bytes = representative_slotted_page();
         let envelope = decode_page_envelope(
             &bytes,
             Vpid::new(VolId::new(1).unwrap(), PageId::new(7).unwrap()),
@@ -2487,7 +2278,7 @@ mod tests {
         assert_eq!(
             free_regions
                 .iter()
-                .map(|region| (region.offset, region.length, region.kind))
+                .map(|region| (region.offset, region.length, region.kind.as_str()))
                 .collect::<Vec<_>>(),
             vec![
                 (56, 24, "fragmented-free"),
@@ -2499,7 +2290,7 @@ mod tests {
         assert_eq!(
             slot_entries
                 .iter()
-                .map(|entry| (entry.slot_id, entry.offset, entry.state))
+                .map(|entry| (entry.slot_id, entry.offset, entry.state.as_str()))
                 .collect::<Vec<_>>(),
             vec![
                 (0, 16_340, "allocated"),
@@ -2511,6 +2302,103 @@ mod tests {
         assert_eq!(allocated_record_bytes, 40);
         assert_eq!(unoccupied_bytes, 16_256);
         assert_eq!(32 + 40 + 16_256 + 16, content_size);
+
+        assert_eq!(
+            serde_json::to_value(page_distribution_projection(&slotted)).unwrap(),
+            serde_json::json!({
+                "state": "available",
+                "content_size": 16_344,
+                "header": { "offset": 0, "length": 32 },
+                "record_extents": [
+                    { "slot_id": 0, "offset": 32, "length": 24, "record_type": "home" },
+                    { "slot_id": 3, "offset": 80, "length": 16, "record_type": "new-home" }
+                ],
+                "free_regions": [
+                    { "offset": 56, "length": 24, "kind": "fragmented-free" },
+                    { "offset": 96, "length": 32, "kind": "fragmented-free" },
+                    { "offset": 128, "length": 16_200, "kind": "contiguous-free" }
+                ],
+                "slot_directory": { "offset": 16_328, "length": 16 },
+                "slot_entries": [
+                    { "slot_id": 0, "offset": 16_340, "length": 4, "state": "allocated", "record_type": "home" },
+                    { "slot_id": 1, "offset": 16_336, "length": 4, "state": "unallocated", "record_type": "reserved" },
+                    { "slot_id": 2, "offset": 16_332, "length": 4, "state": "deleted", "record_type": "marked-deleted" },
+                    { "slot_id": 3, "offset": 16_328, "length": 4, "state": "allocated", "record_type": "new-home" }
+                ],
+                "allocated_record_bytes": 40,
+                "unoccupied_bytes": 16_256
+            })
+        );
+    }
+
+    #[test]
+    fn page_handler_preserves_top_level_slots_and_shared_distribution_shape() {
+        let (_directory, state, _view) = interpretation_session();
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        runtime.block_on(async {
+            let before = response_document(page(State(state.clone()), Path((1, 641))).await).await;
+            let before_data = before["data"].as_object().unwrap();
+            assert_eq!(
+                before_data
+                    .keys()
+                    .map(String::as_str)
+                    .collect::<BTreeSet<_>>(),
+                BTreeSet::from(["deep", "distribution", "page", "slots"])
+            );
+            assert_eq!(before_data["slots"], serde_json::json!([]));
+            assert_eq!(
+                before_data["distribution"],
+                serde_json::json!({ "state": "not-available" })
+            );
+
+            response_document(
+                enrich(
+                    State(state.clone()),
+                    Ok(Json(EnrichmentRequest {
+                        selector: "page:1:641".to_owned(),
+                    })),
+                )
+                .await,
+            )
+            .await;
+            let after = response_document(page(State(state.clone()), Path((1, 641))).await).await;
+            let after_data = after["data"].as_object().unwrap();
+            assert_eq!(
+                after_data
+                    .keys()
+                    .map(String::as_str)
+                    .collect::<BTreeSet<_>>(),
+                BTreeSet::from(["deep", "distribution", "page", "slots"])
+            );
+
+            let latest = state.source.current().unwrap().view;
+            let vpid = Vpid::new(VolId::new(1).unwrap(), PageId::new(641).unwrap());
+            let slotted = latest.deep_page(vpid).unwrap().slotted.unwrap();
+            let expected_slots = slotted
+                .slots()
+                .iter()
+                .copied()
+                .map(slot_projection)
+                .collect::<Vec<_>>();
+            assert_eq!(
+                after_data["slots"],
+                serde_json::to_value(expected_slots).unwrap()
+            );
+            assert_eq!(
+                after_data["distribution"],
+                serde_json::to_value(page_distribution_projection(&slotted)).unwrap()
+            );
+            assert_eq!(
+                after_data["distribution"]["slot_entries"]
+                    .as_array()
+                    .unwrap()
+                    .len(),
+                after_data["slots"].as_array().unwrap().len()
+            );
+        });
     }
 
     #[test]

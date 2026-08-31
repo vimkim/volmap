@@ -1,0 +1,25 @@
+surface 60x20 · profile mono-ascii
+00│ VOLMAP  snapshot abababababab  r7  success-limited
+01│Volume 0 > Sector 0 > Page 2 | volume 1/2
+02│heap | allocated | occupied 63% / free 37% | table orders |.
+03│16,344 B | 2 records / 40 B | 3 free regions / 16,256 B | 4.
+04│H header  R live record  f fragmented free  . contiguous fr.
+05│R..........................................................D
+06│  region / exact byte range / length
+07│> header [0,32) 32 B
+08│  record slot 0 home [32,56) 24 B
+09│  fragmented-free [56,80) 24 B
+10│  record slot 3 new-home [80,96) 16 B
+11│  fragmented-free [96,128) 32 B
+12│  contiguous-free [128,16328) 16200 B
+13│  slot directory [16328,16344) 16 B
+14│  slot 0 allocated home [16340,16344) 4 B
+15│  slot 1 unallocated reserved [16336,16340) 4 B
+16│  slot 2 deleted marked-deleted [16332,16336) 4 B
+17│header [0,32) 32 B | structural row; interpretation unavail.
+18│rows 1..10 of 11 | structure ready
+19│Up/Down select | wheel scroll | [ ] sibling Sector | Esc/Ba.
+hits:
+distribution-hits:
+  Header@0,7-59,7 Record(0)@0,8-59,8 FragmentedFree { offset: 56, length: 24 }@0,9-59,9 Record(3)@0,10-59,10 FragmentedFree { offset: 96, length: 32 }@0,11-59,11 ContiguousFree { offset: 128, length: 16200 }@0,12-59,12 SlotDirectory@0,13-59,13 SlotEntry(0)@0,14-59,14 SlotEntry(1)@0,15-59,15 SlotEntry(2)@0,16-59,16
+formatted-distribution-rows:11

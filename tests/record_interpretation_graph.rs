@@ -298,6 +298,35 @@ fn a_page_enrichment_interprets_every_home_record_in_one_revision() {
 }
 
 #[test]
+fn selected_record_enrichment_establishes_structure_and_interpretation() {
+    let (_directory, vinf) = fixture();
+    let original = open(vinf);
+    let selected = record_oid(1, SCALARS_ROWS_PAGE, 1);
+
+    let enriched = original
+        .enrich_record_selection(selected, policy(), &CancelToken::new())
+        .unwrap();
+
+    assert_eq!(original.overview().revision.get(), 0);
+    assert_eq!(enriched.overview().revision.get(), 2);
+    assert!(
+        enriched
+            .deep_page(vpid(1, SCALARS_ROWS_PAGE))
+            .and_then(|page| page.slotted)
+            .is_some()
+    );
+    let interpretation = enriched.slot_interpretation(selected).unwrap();
+    assert_eq!(interpretation.record, selected);
+    assert_eq!(interpretation.record_type.as_str(), "home");
+    assert!(
+        enriched
+            .class_representation(interpretation.class_oid, interpretation.representation_id)
+            .and_then(|view| view.representation)
+            .is_some()
+    );
+}
+
+#[test]
 fn a_second_page_of_the_same_sector_reuses_the_cached_class() {
     let (_directory, vinf) = fixture();
     let first = open(vinf)
@@ -459,6 +488,52 @@ fn projections_carry_tagged_states_and_never_carry_bytes() {
             .iter()
             .any(|attribute| attribute.storage == "variable")
     );
+}
+
+#[test]
+fn selected_record_projection_bundles_slot_schema_and_interpretation() {
+    use volmap::projection::{
+        AttributeNameProjection, AttributeValueProjection, record_selection_projection,
+    };
+
+    let (_directory, vinf) = fixture();
+    let selected = record_oid(1, SCALARS_ROWS_PAGE, 1);
+    let enriched = open(vinf)
+        .enrich_record_selection(selected, policy(), &CancelToken::new())
+        .unwrap();
+
+    let projection = record_selection_projection(&enriched, selected).unwrap();
+    assert_eq!(projection.selected_slot.slot_id, 1);
+    assert_eq!(projection.selected_slot.record_type, "home");
+    assert!(projection.relocation_edge.is_none());
+    assert!(projection.interpretation_unavailable.is_none());
+    assert_eq!(
+        projection
+            .class_representation
+            .as_ref()
+            .unwrap()
+            .representation_id,
+        1
+    );
+    let interpretation = projection.interpretation.unwrap();
+    let id = interpretation
+        .attributes
+        .iter()
+        .find(|attribute| {
+            matches!(
+                &attribute.name,
+                AttributeNameProjection::Resolved { value } if value == "id"
+            )
+        })
+        .unwrap();
+    assert!(matches!(
+        id.value,
+        AttributeValueProjection::Decoded { ref value } if value == "1"
+    ));
+    let json = serde_json::to_string(&interpretation).unwrap();
+    for forbidden in ["\"hex\"", "\"raw\"", "\"bytes\":[", "0x"] {
+        assert!(!json.contains(forbidden), "projection leaked {forbidden}");
+    }
 }
 
 #[test]

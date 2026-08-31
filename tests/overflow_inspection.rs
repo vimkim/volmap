@@ -6,8 +6,10 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use volmap::diagnostics::InspectionOutcome;
 use volmap::format::{DB_PAGE_SIZE, IO_PAGE_SIZE, PageType};
-use volmap::inspection::{CancelToken, Inspection, OpenRequest, ResourcePolicy, RevisionSelector};
-use volmap::model::{Oid, PageId, SlotId, VolId};
+use volmap::inspection::{
+    CancelToken, Inspection, OpenRequest, RecordSelectionSupport, ResourcePolicy, RevisionSelector,
+};
+use volmap::model::{Oid, PageId, SlotId, VolId, Vpid};
 use volmap::source::InputSpec;
 
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
@@ -365,16 +367,64 @@ fn relocation_enrichment_publishes_only_a_validated_same_heap_edge() {
 }
 
 #[test]
+fn selected_relocation_recipe_keeps_one_hop_evidence_and_bigone_is_typed_unsupported() {
+    let (_directory, view) = open(false);
+    let selected = relocation_source();
+    let enriched = view
+        .enrich_record_selection(selected, policy(32), &CancelToken::new())
+        .unwrap();
+    let edge = enriched.relocation_edge(selected).unwrap();
+    assert!(edge.valid);
+    assert_eq!(edge.target.unwrap().slot_id.get(), 3);
+    assert_eq!(
+        enriched.record_selection_support(selected).unwrap(),
+        RecordSelectionSupport::Enrichable
+    );
+    let target = edge.target.unwrap();
+    assert_eq!(
+        enriched.record_selection_support(target).unwrap(),
+        RecordSelectionSupport::Enrichable,
+        "a validated relocation target remains an explicitly selectable NewHome record"
+    );
+    let selection = volmap::projection::record_selection_projection(&enriched, selected).unwrap();
+    assert!(selection.relocation_edge.as_ref().unwrap().valid);
+    assert!(
+        selection.interpretation.is_some() || selection.interpretation_unavailable.is_some(),
+        "a requested valid relocation must carry values or a durable reason"
+    );
+
+    let bigone_page = Vpid::new(VolId::new(0).unwrap(), PageId::new(6).unwrap());
+    let structured = view
+        .enrich_page(bigone_page, policy(32), &CancelToken::new())
+        .unwrap();
+    let revision = structured.overview().revision;
+    assert_eq!(
+        structured.record_selection_support(source()).unwrap(),
+        RecordSelectionSupport::Unsupported(
+            "REC_BIGONE carries an overflow reference, not an inline class instance"
+        )
+    );
+    assert_eq!(structured.overview().revision, revision);
+}
+
+#[test]
 fn relocation_enrichment_rejects_a_target_that_is_not_newhome() {
     let (_directory, view) = open_with_relocation(false, 2);
     let enriched = view
-        .enrich_relocation(relocation_source(), policy(32), &CancelToken::new())
+        .enrich_record_selection(relocation_source(), policy(32), &CancelToken::new())
         .unwrap();
     let edge = enriched.relocation_edge(relocation_source()).unwrap();
     assert!(!edge.valid);
     assert_eq!(edge.target.unwrap().slot_id.get(), 3);
     assert_eq!(
         edge.diagnostic_rule,
+        Some("heap.relocation.target_slot_role")
+    );
+    let selection =
+        volmap::projection::record_selection_projection(&enriched, relocation_source()).unwrap();
+    assert!(selection.interpretation.is_none());
+    assert_eq!(
+        selection.interpretation_unavailable,
         Some("heap.relocation.target_slot_role")
     );
     assert_eq!(enriched.overview().outcome, InspectionOutcome::Findings);
