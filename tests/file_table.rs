@@ -1,8 +1,9 @@
 use volmap::format::{
-    IO_PAGE_SIZE, PageType, decode_extdata_header, decode_file_header, decode_full_sectors,
+    FILE_DESCRIPTOR_SIZE, FileClassAssociation, FileDescriptor, FileType, IO_PAGE_SIZE, PageType,
+    decode_extdata_header, decode_file_descriptor, decode_file_header, decode_full_sectors,
     decode_page_envelope, decode_partial_sectors, decode_tracker_items, decode_user_pages,
 };
-use volmap::model::{PageId, VolId, Vpid};
+use volmap::model::{FileId, PageId, Vfid, VolId, Vpid};
 
 fn file_page() -> [u8; IO_PAGE_SIZE] {
     let mut page = [0_u8; IO_PAGE_SIZE];
@@ -40,6 +41,228 @@ fn envelope(bytes: &[u8]) -> volmap::format::DecodedPageEnvelope<'_> {
         Vpid::new(VolId::new(1).unwrap(), PageId::new(5).unwrap()),
     )
     .unwrap()
+}
+
+fn file_vfid() -> Vfid {
+    Vfid::new(VolId::new(1).unwrap(), FileId::new(5).unwrap())
+}
+
+fn write_oid(descriptor: &mut [u8; FILE_DESCRIPTOR_SIZE], offset: usize, values: (i32, i16, i16)) {
+    descriptor[offset..offset + 4].copy_from_slice(&values.0.to_le_bytes());
+    descriptor[offset + 4..offset + 6].copy_from_slice(&values.1.to_le_bytes());
+    descriptor[offset + 6..offset + 8].copy_from_slice(&values.2.to_le_bytes());
+}
+
+fn write_file_identity(
+    descriptor: &mut [u8; FILE_DESCRIPTOR_SIZE],
+    offset: usize,
+    values: (i32, i16, i32),
+) {
+    descriptor[offset..offset + 4].copy_from_slice(&values.0.to_le_bytes());
+    descriptor[offset + 4..offset + 6].copy_from_slice(&values.1.to_le_bytes());
+    descriptor[offset + 8..offset + 12].copy_from_slice(&values.2.to_le_bytes());
+}
+
+fn source_derived_descriptor(file_type: FileType) -> [u8; FILE_DESCRIPTOR_SIZE] {
+    let mut descriptor = [0_u8; FILE_DESCRIPTOR_SIZE];
+    match file_type {
+        FileType::Heap | FileType::HeapReuseSlots => {
+            write_oid(&mut descriptor, 0, (77, 3, 1));
+            write_file_identity(&mut descriptor, 8, (5, 1, 129));
+        }
+        FileType::MultipageObjectHeap => {
+            write_file_identity(&mut descriptor, 0, (128, 0, 129));
+            write_oid(&mut descriptor, 12, (77, 3, 1));
+        }
+        FileType::Btree | FileType::ExtensibleHash | FileType::HashDirectory => {
+            write_oid(&mut descriptor, 0, (77, 3, 1));
+            descriptor[8..12].copy_from_slice(&42_i32.to_le_bytes());
+        }
+        FileType::BtreeOverflowKey => {
+            write_file_identity(&mut descriptor, 0, (256, 1, 257));
+            write_oid(&mut descriptor, 12, (77, 3, 1));
+        }
+        _ => panic!("not a class-associated source fixture"),
+    }
+    descriptor
+}
+
+const SCOPED_CLASS_FILES: [FileType; 7] = [
+    FileType::Heap,
+    FileType::HeapReuseSlots,
+    FileType::MultipageObjectHeap,
+    FileType::Btree,
+    FileType::BtreeOverflowKey,
+    FileType::ExtensibleHash,
+    FileType::HashDirectory,
+];
+
+const fn class_oid_offset(file_type: FileType) -> usize {
+    match file_type {
+        FileType::MultipageObjectHeap | FileType::BtreeOverflowKey => 12,
+        FileType::Heap
+        | FileType::HeapReuseSlots
+        | FileType::Btree
+        | FileType::ExtensibleHash
+        | FileType::HashDirectory => 0,
+        _ => panic!("not a class-associated file type"),
+    }
+}
+
+#[test]
+fn scoped_descriptors_decode_source_traced_class_offsets_and_related_facts() {
+    for file_type in SCOPED_CLASS_FILES {
+        let descriptor = source_derived_descriptor(file_type);
+        let decoded = decode_file_descriptor(&descriptor, file_type, file_vfid()).unwrap();
+        let mut page = file_page();
+        let user = &mut page[32..IO_PAGE_SIZE - 8];
+        user[40..40 + FILE_DESCRIPTOR_SIZE].copy_from_slice(&descriptor);
+        user[140..144].copy_from_slice(&file_type.ordinal().to_le_bytes());
+        let header = decode_file_header(&envelope(&page)).unwrap();
+        assert_eq!(header.vfid(), file_vfid(), "{file_type:?}");
+        assert_eq!(header.file_type(), file_type, "{file_type:?}");
+        assert_eq!(header.descriptor(), decoded, "{file_type:?}");
+        assert_eq!(
+            header.class_association(),
+            decoded.class_association(),
+            "{file_type:?}"
+        );
+        let FileClassAssociation::Associated(class_oid) = decoded.class_association() else {
+            panic!("{file_type:?} did not retain its class association");
+        };
+        assert_eq!(class_oid.page_id.get(), 77, "{file_type:?}");
+        assert_eq!(class_oid.slot_id.get(), 3, "{file_type:?}");
+        assert_eq!(class_oid.vol_id.get(), 1, "{file_type:?}");
+
+        match (file_type, decoded) {
+            (FileType::Heap | FileType::HeapReuseSlots, FileDescriptor::Heap { hfid, .. }) => {
+                assert_eq!(hfid.vfid, file_vfid());
+                assert_eq!(hfid.header_page_id.get(), 129);
+            }
+            (FileType::MultipageObjectHeap, FileDescriptor::MultipageObjectHeap { hfid, .. }) => {
+                assert_eq!(hfid.vfid.file_id.get(), 128);
+                assert_eq!(hfid.vfid.vol_id.get(), 0);
+                assert_eq!(hfid.header_page_id.get(), 129);
+            }
+            (
+                FileType::Btree,
+                FileDescriptor::Btree {
+                    attribute_id: 42, ..
+                },
+            )
+            | (
+                FileType::ExtensibleHash,
+                FileDescriptor::ExtensibleHash {
+                    attribute_id: 42, ..
+                },
+            )
+            | (
+                FileType::HashDirectory,
+                FileDescriptor::HashDirectory {
+                    attribute_id: 42, ..
+                },
+            ) => {}
+            (FileType::BtreeOverflowKey, FileDescriptor::BtreeOverflowKey { btid, .. }) => {
+                assert_eq!(btid.vfid.file_id.get(), 256);
+                assert_eq!(btid.vfid.vol_id.get(), 1);
+                assert_eq!(btid.root_page_id.get(), 257);
+            }
+            _ => panic!("{file_type:?} decoded to the wrong descriptor variant"),
+        }
+    }
+}
+
+#[test]
+fn scoped_descriptors_distinguish_null_and_system_class_oids() {
+    for file_type in SCOPED_CLASS_FILES {
+        let mut null = source_derived_descriptor(file_type);
+        write_oid(&mut null, class_oid_offset(file_type), (-1, -1, -1));
+        let decoded = decode_file_descriptor(&null, file_type, file_vfid()).unwrap();
+        assert_eq!(
+            decoded.class_association(),
+            FileClassAssociation::Null,
+            "{file_type:?}"
+        );
+
+        let mut system = source_derived_descriptor(file_type);
+        write_oid(&mut system, class_oid_offset(file_type), (0, 0, 0));
+        let decoded = decode_file_descriptor(&system, file_type, file_vfid()).unwrap();
+        let FileClassAssociation::Associated(class_oid) = decoded.class_association() else {
+            panic!("{file_type:?} rejected a source-valid system OID");
+        };
+        assert_eq!(class_oid.page_id.get(), 0, "{file_type:?}");
+        assert_eq!(class_oid.slot_id.get(), 0, "{file_type:?}");
+        assert_eq!(class_oid.vol_id.get(), 0, "{file_type:?}");
+    }
+}
+
+#[test]
+fn every_scoped_descriptor_rejects_short_and_malformed_input() {
+    for file_type in SCOPED_CLASS_FILES {
+        let descriptor = source_derived_descriptor(file_type);
+        assert_eq!(
+            decode_file_descriptor(
+                &descriptor[..FILE_DESCRIPTOR_SIZE - 1],
+                file_type,
+                file_vfid()
+            )
+            .unwrap_err()
+            .rule(),
+            "file.descriptor.length",
+            "{file_type:?}"
+        );
+
+        let mut malformed = descriptor;
+        write_oid(&mut malformed, class_oid_offset(file_type), (-1, -1, 0));
+        assert_eq!(
+            decode_file_descriptor(&malformed, file_type, file_vfid())
+                .unwrap_err()
+                .kind(),
+            volmap::format::DecodeErrorKind::InvalidGeometry,
+            "{file_type:?}"
+        );
+    }
+}
+
+#[test]
+fn descriptors_type_non_class_and_deferred_oos_associations() {
+    let descriptor = [0_u8; FILE_DESCRIPTOR_SIZE];
+    for file_type in [
+        FileType::Tracker,
+        FileType::Catalog,
+        FileType::DroppedFiles,
+        FileType::VacuumData,
+    ] {
+        assert_eq!(
+            decode_file_descriptor(&descriptor, file_type, file_vfid())
+                .unwrap()
+                .class_association(),
+            FileClassAssociation::Internal,
+            "{file_type:?}"
+        );
+    }
+    for file_type in [FileType::QueryArea, FileType::Temporary, FileType::Unknown] {
+        assert_eq!(
+            decode_file_descriptor(&descriptor, file_type, file_vfid())
+                .unwrap()
+                .class_association(),
+            FileClassAssociation::NoSingleClass,
+            "{file_type:?}"
+        );
+    }
+
+    let mut oos = descriptor;
+    write_file_identity(&mut oos, 0, (128, 0, 129));
+    let decoded = decode_file_descriptor(&oos, FileType::Oos, file_vfid()).unwrap();
+    assert_eq!(
+        decoded.class_association(),
+        FileClassAssociation::DeferredOos
+    );
+    let FileDescriptor::Oos { related_heap } = decoded else {
+        panic!("OOS descriptor did not retain its related heap");
+    };
+    assert_eq!(related_heap.vfid.file_id.get(), 128);
+    assert_eq!(related_heap.header_page_id.get(), 129);
 }
 
 #[test]
@@ -185,6 +408,16 @@ fn heap_file_descriptor_pins_the_header_page_role() {
     assert_eq!(header.class_oid().unwrap().slot_id.get(), 3);
     assert_eq!(header.heap_header_page().unwrap().page_id.get(), 129);
 
+    let mut wrong_hfid = bytes;
+    let user = &mut wrong_hfid[32..IO_PAGE_SIZE - 8];
+    user[48..52].copy_from_slice(&6_i32.to_le_bytes());
+    assert_eq!(
+        decode_file_header(&envelope(&wrong_hfid))
+            .unwrap_err()
+            .rule(),
+        "file.header.heap_hfid"
+    );
+
     let mut partial_null = bytes;
     let user = &mut partial_null[32..IO_PAGE_SIZE - 8];
     user[40..44].copy_from_slice(&(-1_i32).to_le_bytes());
@@ -209,76 +442,4 @@ fn overflow_file_descriptor_pins_its_related_heap() {
     let (heap, heap_header) = header.related_heap().unwrap();
     assert_eq!(heap.file_id.get(), 128);
     assert_eq!(heap_header.page_id.get(), 129);
-}
-
-fn write_descriptor_oid(user: &mut [u8], offset: usize, page: i32, slot: i16, volume: i16) {
-    user[offset..offset + 4].copy_from_slice(&page.to_le_bytes());
-    user[offset + 4..offset + 6].copy_from_slice(&slot.to_le_bytes());
-    user[offset + 6..offset + 8].copy_from_slice(&volume.to_le_bytes());
-}
-
-#[test]
-fn btree_and_hash_descriptors_pin_the_associated_class_at_offset_forty() {
-    for file_type in [4_i32, 6, 7] {
-        let mut bytes = file_page();
-        let user = &mut bytes[32..IO_PAGE_SIZE - 8];
-        user[140..144].copy_from_slice(&file_type.to_le_bytes());
-        write_descriptor_oid(user, 40, 195, 2, 0);
-        let header = decode_file_header(&envelope(&bytes)).unwrap();
-        let class_oid = header.class_oid().unwrap();
-        assert_eq!(class_oid.page_id.get(), 195);
-        assert_eq!(class_oid.slot_id.get(), 2);
-        assert_eq!(class_oid.vol_id.get(), 0);
-    }
-}
-
-#[test]
-fn overflow_descriptors_pin_the_class_after_their_parent_reference() {
-    // FILE_OVF_HEAP_DES { hfid, class_oid } and FILE_OVF_BTREE_DES
-    // { btid, class_oid } both place the class OID at descriptor offset 12.
-    for file_type in [3_i32, 5] {
-        let mut bytes = file_page();
-        let user = &mut bytes[32..IO_PAGE_SIZE - 8];
-        user[140..144].copy_from_slice(&file_type.to_le_bytes());
-        if file_type == 3 {
-            user[40..44].copy_from_slice(&128_i32.to_le_bytes());
-            user[44..46].copy_from_slice(&0_i16.to_le_bytes());
-            user[48..52].copy_from_slice(&129_i32.to_le_bytes());
-        }
-        write_descriptor_oid(user, 52, 77, 3, 1);
-        let header = decode_file_header(&envelope(&bytes)).unwrap();
-        let class_oid = header.class_oid().unwrap();
-        assert_eq!(class_oid.page_id.get(), 77);
-        assert_eq!(class_oid.slot_id.get(), 3);
-        assert_eq!(class_oid.vol_id.get(), 1);
-    }
-}
-
-#[test]
-fn null_and_partial_descriptor_classes_stay_fail_closed() {
-    // An entirely null class OID is a legal descriptor state for a hash.
-    let mut null_bytes = file_page();
-    let user = &mut null_bytes[32..IO_PAGE_SIZE - 8];
-    user[140..144].copy_from_slice(&6_i32.to_le_bytes());
-    write_descriptor_oid(user, 40, -1, -1, -1);
-    let header = decode_file_header(&envelope(&null_bytes)).unwrap();
-    assert!(header.class_oid().is_none());
-
-    // A partially null class OID is corruption, not a null association.
-    let mut partial_bytes = file_page();
-    let user = &mut partial_bytes[32..IO_PAGE_SIZE - 8];
-    user[140..144].copy_from_slice(&4_i32.to_le_bytes());
-    write_descriptor_oid(user, 40, 195, -1, 0);
-    assert_eq!(
-        decode_file_header(&envelope(&partial_bytes))
-            .unwrap_err()
-            .rule(),
-        "file.header.descriptor_class"
-    );
-
-    // The OOS descriptor never yields a class association in version one.
-    let oos_bytes = file_page();
-    let header = decode_file_header(&envelope(&oos_bytes)).unwrap();
-    assert_eq!(header.file_type().as_str(), "oos");
-    assert!(header.class_oid().is_none());
 }

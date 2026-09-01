@@ -9,7 +9,9 @@ use cipher::{KeyIvInit, StreamCipher};
 use ctr::Ctr128BE;
 use sha2::{Digest, Sha256};
 use volmap::format::{DB_PAGE_SIZE, IO_PAGE_SIZE, PageType};
-use volmap::inspection::{CancelToken, Inspection, OpenRequest, ResourcePolicy, RevisionSelector};
+use volmap::inspection::{
+    CancelToken, Inspection, OpenRequest, OperationError, ResourcePolicy, RevisionSelector,
+};
 use volmap::model::{Availability, PageId, TdeInspectionState, VolId, Vpid};
 use volmap::source::InputSpec;
 
@@ -158,6 +160,15 @@ fn encrypted_heap_page(page_id: i32, valid: bool) -> [u8; IO_PAGE_SIZE] {
     page
 }
 
+fn plaintext_heap_page(page_id: i32, valid: bool) -> [u8; IO_PAGE_SIZE] {
+    let mut page = encrypted_heap_page(page_id, valid);
+    let mut nonce = [0_u8; 16];
+    nonce[..8].copy_from_slice(&page[24..32]);
+    apply_aes_ctr(&PERMANENT_KEY, &nonce, &mut page[32..32 + DB_PAGE_SIZE]);
+    page[15] = 0;
+    page
+}
+
 fn fixture(valid_encrypted_page: bool) -> (TestDirectory, PathBuf, PathBuf) {
     let directory = TestDirectory::new();
     let volume = directory.path().join("fixture");
@@ -256,6 +267,41 @@ fn invalid_decrypted_structure_is_not_retried_as_ciphertext() {
     assert!(failed.overview().diagnostics.iter().any(|diagnostic| {
         diagnostic.code == "tde.decrypted_invalid" && diagnostic.rule == "slotted.header.anchor"
     }));
+}
+
+#[test]
+fn live_tde_state_change_is_admitted_from_current_bytes_before_decryption() {
+    let (directory, vinf, key_file) = fixture(true);
+    let volume = directory.path().join("fixture");
+    let file = OpenOptions::new().write(true).open(&volume).unwrap();
+    file.write_all_at(&plaintext_heap_page(10, true), 10 * IO_PAGE_SIZE as u64)
+        .unwrap();
+    let request = OpenRequest {
+        input: InputSpec::Vinf {
+            path: vinf,
+            volume_root: None,
+        },
+        tde_keys_file: Some(key_file),
+        spill_directory: None,
+    };
+    let view = Inspection::open_live(&request, policy(), &CancelToken::new(), None)
+        .unwrap()
+        .view(RevisionSelector::Latest)
+        .unwrap();
+    let changed = Vpid::new(VolId::new(0).unwrap(), PageId::new(10).unwrap());
+    assert_eq!(
+        view.page(changed).unwrap().tde_state,
+        TdeInspectionState::NotEncrypted
+    );
+
+    file.write_all_at(&encrypted_heap_page(10, true), 10 * IO_PAGE_SIZE as u64)
+        .unwrap();
+    let constrained =
+        ResourcePolicy::new(IO_PAGE_SIZE as u64, 1024 * 1024, 1, 32, 1024 * 1024).unwrap();
+    let error = view
+        .enrich_page(changed, constrained, &CancelToken::new())
+        .unwrap_err();
+    assert!(matches!(error, OperationError::ResourceLimit));
 }
 
 #[test]

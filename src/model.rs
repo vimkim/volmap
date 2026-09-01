@@ -94,6 +94,20 @@ impl Hfid {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+/// Physical identity of a B-tree file and its root page.
+pub struct Btid {
+    pub vfid: Vfid,
+    pub root_page_id: PageId,
+}
+
+impl Btid {
+    #[must_use]
+    pub const fn new(vfid: Vfid, root_page_id: PageId) -> Self {
+        Self { vfid, root_page_id }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct Oid {
     pub vol_id: VolId,
     pub page_id: PageId,

@@ -88,6 +88,35 @@ volmap export html --vinf /snapshot/db_vinf --output report.html \
 Machine output includes snapshot identity, revision, validity, coverage,
 outcome, and diagnostics. It omits input paths and source bytes. It carries
 decoded attribute values only for records that were explicitly interpreted.
+Schema-version-1 Page projections also carry the additive, tagged
+`file_association` described by the
+[Page file/class association contract](docs/page-association-contract.md),
+including File identity and role, retained class OID, and resolved or typed
+unresolved class-name evidence.
+
+### Page file and class facts
+
+JSON and JSONL Page projections carry the validated association. The TUI, live
+web, and frozen HTML Page views present it as four facts: `File`, `File role`,
+`Class OID`, and `Class/table`. The finite `human` renderer does not currently
+print these rows; use JSON, JSONL, or an interactive Page view when they are
+needed. An allocated Page names the File that allocates it; a
+reserved-but-unallocated Page may instead be `reserved-for` a File. A known
+class OID remains visible when its stored name cannot be resolved.
+
+Class names are decoded from the descriptor's exact OID, not guessed from Page
+contents. ASCII, ISO-8859-1, EUC-KR, and UTF-8 database codesets are supported.
+Missing, conflicting, encrypted, malformed, or unsupported evidence produces a
+typed `unresolved` or `not-applicable` result with a stable machine
+`reason_code`; internal and unowned Pages are never assigned a manufactured
+table name.
+
+Use a stopped database or a stable offline copy containing the complete volume
+inventory. Resolution never connects to a running CUBRID server or depends on
+a CUBRID source checkout. The association contract is per Page. Sector
+attribution, where displayed, is a separate claim summary rather than proof
+that a whole sector belongs to one table. OOS class attribution is explicitly
+deferred and remains `not-applicable`.
 
 ## Web access
 

@@ -8,6 +8,7 @@
 mod boot;
 mod btree;
 mod catalog;
+mod class_name;
 mod classrep;
 mod file_table;
 mod heap;
@@ -114,19 +115,21 @@ pub use catalog::{
     CatalogRepresentationItemFact, decode_catalog_class_info, decode_catalog_directory,
     decode_catalog_page, decode_catalog_representation_header,
 };
+pub use class_name::decode_class_record_name;
 pub use classrep::{
     AttributeDomainFact, ClassAttributeFact, ClassRepresentationFact, DbType, RepresentationTarget,
     decode_class_representation,
 };
 pub use file_table::{
-    ExtDataHeader, FileHeader, FileType, PartialSectorFact, TrackerItemFact, UserPageFact,
-    decode_extdata_header, decode_file_header, decode_full_sectors, decode_partial_sectors,
+    ExtDataHeader, FILE_DESCRIPTOR_SIZE, FileClassAssociation, FileDescriptor, FileHeader,
+    FileType, PartialSectorFact, TrackerItemFact, UserPageFact, decode_extdata_header,
+    decode_file_descriptor, decode_file_header, decode_full_sectors, decode_partial_sectors,
     decode_tracker_items, decode_user_pages,
 };
 pub use heap::{
-    HeapChainFact, HeapHeaderFact, HeapPageFact, HeapRecordEnvelopeFact, decode_bigone_target,
-    decode_heap_page, decode_heap_record_body, decode_heap_record_envelope,
-    decode_relocation_target,
+    HeapChainFact, HeapHeaderFact, HeapObjectHeaderFact, HeapPageFact, HeapRecordEnvelopeFact,
+    decode_bigone_target, decode_heap_object_body, decode_heap_page, decode_heap_record_body,
+    decode_heap_record_envelope, decode_relocation_target,
 };
 pub use overflow::{OverflowPageFact, decode_overflow_continuation, decode_overflow_head};
 pub use record_interpretation::{

@@ -105,7 +105,13 @@ function className(value: unknown, context: string): ClassName {
   const state = stringData(item.state, `${context}.state`);
   if (state === "resolved") return { state, value: stringData(item.value, `${context}.value`) };
   if (state === "unresolved" || state === "not-applicable") {
-    return { state, reason: stringData(item.reason, `${context}.reason`) };
+    return {
+      state,
+      ...(item.reason_code === undefined
+        ? {}
+        : { reason_code: stringData(item.reason_code, `${context}.reason_code`) }),
+      reason: stringData(item.reason, `${context}.reason`),
+    };
   }
   throw new Error(`${context}.state is invalid`);
 }

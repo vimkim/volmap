@@ -59,6 +59,24 @@ pub struct HeapRecordEnvelopeFact {
     pub body_length: u16,
 }
 
+/// The object-representation header shared by inline and multipage heap
+/// records. Page/slot identity is deliberately excluded.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct HeapObjectHeaderFact {
+    pub is_mvcc: bool,
+    pub representation_id: u32,
+    pub chn: i32,
+    pub record_flags: u8,
+    pub mvcc_flags: u8,
+    pub has_bound_bits: bool,
+    pub has_oos: bool,
+    pub variable_offset_width: u8,
+    pub header_length: u16,
+    pub insert_mvccid: Option<u64>,
+    pub delete_mvccid: Option<u64>,
+    pub previous_version_lsa_word: Option<u64>,
+}
+
 #[derive(Clone, Copy)]
 struct MvccFields {
     insert_mvccid: Option<u64>,
@@ -106,7 +124,44 @@ pub fn decode_heap_record_envelope(
 
     let view = envelope.plaintext("heap.record.encrypted")?;
     let base = usize::from(slot.offset());
-    let first_word = read_u32_be(&view, base, "heap.record.representation")?;
+    let object = decode_object_header(&view, base, usize::from(slot.length()), is_mvcc)?;
+    let body_offset = slot
+        .offset()
+        .checked_add(object.header_length)
+        .ok_or_else(|| {
+            error(
+                DecodeErrorKind::ArithmeticOverflow,
+                "heap.record.body_offset",
+            )
+        })?;
+
+    Ok(HeapRecordEnvelopeFact {
+        slot_id,
+        record_type: slot.record_type(),
+        is_mvcc: object.is_mvcc,
+        representation_id: object.representation_id,
+        chn: object.chn,
+        record_flags: object.record_flags,
+        mvcc_flags: object.mvcc_flags,
+        has_bound_bits: object.has_bound_bits,
+        has_oos: object.has_oos,
+        variable_offset_width: object.variable_offset_width,
+        header_length: object.header_length,
+        insert_mvccid: object.insert_mvccid,
+        delete_mvccid: object.delete_mvccid,
+        previous_version_lsa_word: object.previous_version_lsa_word,
+        body_offset,
+        body_length: slot.length() - object.header_length,
+    })
+}
+
+fn decode_object_header(
+    view: &ByteView<'_>,
+    base: usize,
+    record_length: usize,
+    is_mvcc: bool,
+) -> Result<HeapObjectHeaderFact, DecodeError> {
+    let first_word = read_u32_be(view, base, "heap.record.representation")?;
     let record_flags = u8::try_from((first_word >> 24) & 0x1f)
         .map_err(|_| error(DecodeErrorKind::ArithmeticOverflow, "heap.record.flags"))?;
     if record_flags & !OBJECT_ALLOWED_FLAGS != 0
@@ -126,27 +181,18 @@ pub fn decode_heap_record_envelope(
     } else {
         OBJECT_MIN_HEADER_SIZE
     };
-    if header_length > slot.length() {
+    if usize::from(header_length) > record_length {
         return Err(error(
             DecodeErrorKind::InvalidLength,
             "heap.record.header_length",
         ));
     }
 
-    let mvcc = decode_mvcc_fields(&view, base, mvcc_flags)?;
-    let body_offset = slot.offset().checked_add(header_length).ok_or_else(|| {
-        error(
-            DecodeErrorKind::ArithmeticOverflow,
-            "heap.record.body_offset",
-        )
-    })?;
-
-    Ok(HeapRecordEnvelopeFact {
-        slot_id,
-        record_type: slot.record_type(),
+    let mvcc = decode_mvcc_fields(view, base, mvcc_flags)?;
+    Ok(HeapObjectHeaderFact {
         is_mvcc,
         representation_id: first_word & 0x00ff_ffff,
-        chn: read_i32_be(&view, base + 4, "heap.record.chn")?,
+        chn: read_i32_be(view, base + 4, "heap.record.chn")?,
         record_flags,
         mvcc_flags,
         has_bound_bits: first_word & 0x8000_0000 != 0,
@@ -160,9 +206,21 @@ pub fn decode_heap_record_envelope(
         insert_mvccid: mvcc.insert_mvccid,
         delete_mvccid: mvcc.delete_mvccid,
         previous_version_lsa_word: mvcc.previous_version_lsa_word,
-        body_offset,
-        body_length: slot.length() - header_length,
     })
+}
+
+/// Validates an object header stored as a complete multipage heap payload and
+/// returns its value-bearing body.
+pub fn decode_heap_object_body(
+    record: &[u8],
+    is_mvcc: bool,
+) -> Result<(HeapObjectHeaderFact, &[u8]), DecodeError> {
+    let view = ByteView::new(record, 0);
+    let fact = decode_object_header(&view, 0, record.len(), is_mvcc)?;
+    let body = record
+        .get(usize::from(fact.header_length)..)
+        .ok_or_else(|| error(DecodeErrorKind::ByteAccess, "heap.record.body"))?;
+    Ok((fact, body))
 }
 
 /// Decodes a heap record's envelope and returns its value-bearing body.

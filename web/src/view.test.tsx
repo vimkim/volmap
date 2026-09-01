@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, test } from "vitest";
 
+import type { FileAssociation, Page } from "./domain";
 import { initialState, reduce } from "./model";
 import { Viewer } from "./view";
 
@@ -30,6 +31,56 @@ const pages = Array.from({ length: 64 }, (_, pageId) => ({
   diagnostic: { state: "unknown" as const },
   file_association: { state: "none" as const },
 }));
+
+function renderPageWithAssociation(fileAssociation: FileAssociation): string {
+  const route = { kind: "page", vol: 0, page: 10 } as const;
+  const selectedPage: Page = {
+    ...pages[10]!,
+    allocation: fileAssociation.state === "reserved-for" ? "reserved-unallocated" : "allocated",
+    file_association: fileAssociation,
+  };
+  const sectorPages = pages.map((page) =>
+    page.page_id === selectedPage.page_id ? selectedPage : page,
+  );
+  let state = initialState(route);
+  state = reduce(state, { kind: "effects-started", ids: [1] });
+  state = reduce(state, {
+    kind: "route-loaded",
+    scope: state.scope,
+    result: {
+      route,
+      snapshot,
+      outcome: "success-limited",
+      follow: { state: "disabled" },
+      volumes: [{ vol_id: 0, total_sectors: 64 }],
+      view: {
+        kind: "page",
+        volume: { vol_id: 0, total_sectors: 64 },
+        sector: {
+          vol_id: 0,
+          sector_id: 0,
+          reserved: true,
+          attribution: { state: "unclaimed" },
+          pages: sectorPages,
+        },
+        page: {
+          page: selectedPage,
+          deep: { state: "not-enriched" },
+          slots: [],
+          distribution: { state: "not-available" },
+        },
+        enriching: false,
+      },
+    },
+  });
+  return renderToStaticMarkup(
+    <Viewer state={state} dispatch={() => undefined} nowUnixSeconds={106} />,
+  );
+}
+
+function expectFact(html: string, label: string, value: string): void {
+  expect(html).toContain(`<dt>${label}</dt><dd>${value}</dd>`);
+}
 
 test("the React compatibility view renders the existing semantic hierarchy and full sector map", () => {
   const route = { kind: "volume", vol: 0 } as const;
@@ -140,6 +191,137 @@ test("the React page workspace preserves exhaustive structural distribution and 
   expect(html).toContain("Slot 0 · home: offset 32, size 128 bytes, end 160");
   expect(html).toContain("evidence page:0:10 · structural ranges only · bytes withheld");
   expect(html).not.toContain("0x");
+});
+
+test("the Page facts render a resolved association and safely wrap hostile Unicode names", () => {
+  const storedName = `dba.고객_&<script>\"${"길".repeat(64)}`;
+  const html = renderPageWithAssociation({
+    state: "allocated",
+    file: {
+      vol_id: 1,
+      file_id: 640,
+      file_type: { state: "known", value: "heap-reuse-slots" },
+      class_oid: {
+        state: "present",
+        oid: { vol_id: 0, page_id: 209, slot_id: 2 },
+      },
+      class_name: { state: "resolved", value: storedName },
+    },
+  });
+
+  expectFact(html, "Identity", "page:0:10");
+  expectFact(html, "Physical type", "heap");
+  expectFact(html, "Allocation", "allocated");
+  expectFact(html, "File", "file:1:640");
+  expectFact(html, "File role", "heap-reuse-slots");
+  expectFact(html, "Class OID", "oid:0:209:2");
+  expect(html).toContain("<dt>Class/table</dt><dd>dba.고객_&amp;&lt;script&gt;&quot;");
+  expect(html).toContain("길".repeat(64));
+  expect(html).not.toContain("<script>");
+  expectFact(html, "Availability", "available");
+  expectFact(html, "Deep state", "not-enriched");
+});
+
+test("the Page facts keep all four association rows for every fail-closed state", () => {
+  const knownFile = {
+    vol_id: 0,
+    file_id: 18,
+    file_type: { state: "known", value: "catalog" },
+    class_oid: { state: "absent" },
+  } as const;
+  const cases: readonly Readonly<{
+    association: FileAssociation;
+    file: string;
+    role: string;
+    oid: string;
+    table: string;
+  }>[] = [
+    { association: { state: "none" }, file: "none", role: "none", oid: "none", table: "none" },
+    {
+      association: { state: "mixed-claims" },
+      file: "mixed claims",
+      role: "mixed claims",
+      oid: "mixed claims",
+      table: "mixed claims",
+    },
+    {
+      association: {
+        state: "allocated",
+        file: {
+          ...knownFile,
+          class_name: {
+            state: "unresolved",
+            reason_code: "class-association.inventory-incomplete",
+            reason: "complete file inventory is required for class attribution",
+          },
+        },
+      },
+      file: "file:0:18",
+      role: "catalog",
+      oid: "none",
+      table: "unresolved (complete file inventory is required for class attribution)",
+    },
+    {
+      association: {
+        state: "allocated",
+        file: {
+          ...knownFile,
+          class_oid: { state: "present", oid: { vol_id: 0, page_id: 6, slot_id: 1 } },
+          class_name: {
+            state: "unresolved",
+            reason_code: "class-name.page-unavailable",
+            reason: "class record page could not be read",
+          },
+        },
+      },
+      file: "file:0:18",
+      role: "catalog",
+      oid: "oid:0:6:1",
+      table: "unresolved (class record page could not be read)",
+    },
+    ...([
+      ["class-association.null-oid", "file descriptor has a null class OID"],
+      ["class-association.no-single-class", "file type has no single class association"],
+      ["class-association.internal-file", "internal file is not associated with one user class"],
+      ["class-association.oos-deferred", "OOS class attribution is intentionally deferred"],
+    ] as const).map(([reason_code, reason]) => ({
+      association: {
+        state: "allocated" as const,
+        file: {
+          ...knownFile,
+          class_name: { state: "not-applicable" as const, reason_code, reason },
+        },
+      },
+      file: "file:0:18",
+      role: "catalog",
+      oid: "none",
+      table: `not applicable (${reason})`,
+    })),
+    {
+      association: {
+        state: "reserved-for",
+        file: {
+          vol_id: 0,
+          file_id: 64,
+          file_type: { state: "known", value: "heap" },
+          class_oid: { state: "present", oid: { vol_id: 0, page_id: 6, slot_id: 1 } },
+          class_name: { state: "resolved", value: "dba.reserved" },
+        },
+      },
+      file: "file:0:64 (reserved, not allocated)",
+      role: "heap",
+      oid: "oid:0:6:1",
+      table: "dba.reserved",
+    },
+  ];
+
+  for (const item of cases) {
+    const html = renderPageWithAssociation(item.association);
+    expectFact(html, "File", item.file);
+    expectFact(html, "File role", item.role);
+    expectFact(html, "Class OID", item.oid);
+    expectFact(html, "Class/table", item.table);
+  }
 });
 
 test("the React sector workspace exposes all 64 pages as keyboard grid cells", () => {

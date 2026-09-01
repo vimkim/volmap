@@ -9,7 +9,11 @@ export type OptionalCount =
   | Readonly<{ state: "unknown" }>;
 export type ClassName =
   | Readonly<{ state: "resolved"; value: string }>
-  | Readonly<{ state: "unresolved" | "not-applicable"; reason: string }>;
+  | Readonly<{
+      state: "unresolved" | "not-applicable";
+      reason_code?: string;
+      reason: string;
+    }>;
 export type OptionalOid =
   | Readonly<{ state: "present"; oid: Oid }>
   | Readonly<{ state: "absent" }>;

@@ -515,9 +515,17 @@ pub struct FileAssociationBodyProjection {
 #[derive(Clone, Debug, Serialize)]
 #[serde(tag = "state", rename_all = "kebab-case")]
 pub enum ClassNameProjection {
-    NotApplicable { reason: &'static str },
-    Resolved { value: String },
-    Unresolved { reason: &'static str },
+    NotApplicable {
+        reason_code: &'static str,
+        reason: &'static str,
+    },
+    Resolved {
+        value: String,
+    },
+    Unresolved {
+        reason_code: &'static str,
+        reason: &'static str,
+    },
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -1106,9 +1114,19 @@ pub fn file_association_projection(association: PageFileAssociation) -> FileAsso
 
 fn file_association_body(association: FileAssociation) -> FileAssociationBodyProjection {
     let (class_oid, class_name) = match association.class {
-        ClassAssociation::None(reason) => (
+        ClassAssociation::Unresolved(reason) => (
             OptionalOidProjection::Absent,
-            ClassNameProjection::NotApplicable { reason },
+            ClassNameProjection::Unresolved {
+                reason_code: reason.code(),
+                reason: reason.message(),
+            },
+        ),
+        ClassAssociation::NotApplicable(reason) => (
+            OptionalOidProjection::Absent,
+            ClassNameProjection::NotApplicable {
+                reason_code: reason.code(),
+                reason: reason.message(),
+            },
         ),
         ClassAssociation::Class { oid, name } => (
             optional_oid_projection(Some(oid)),
@@ -1116,9 +1134,10 @@ fn file_association_body(association: FileAssociation) -> FileAssociationBodyPro
                 ClassNameResolution::Resolved(value) => ClassNameProjection::Resolved {
                     value: value.as_ref().to_owned(),
                 },
-                ClassNameResolution::Unresolved(reason) => {
-                    ClassNameProjection::Unresolved { reason }
-                }
+                ClassNameResolution::Unresolved(reason) => ClassNameProjection::Unresolved {
+                    reason_code: reason.code(),
+                    reason: reason.message(),
+                },
             },
         ),
     };
@@ -1766,6 +1785,9 @@ pub fn class_representation_projection(
             class_oid: oid_projection(view.class_oid),
             representation_id: view.representation_id,
             class_name: ClassNameProjection::Unresolved {
+                reason_code: view
+                    .diagnostic_rule
+                    .unwrap_or("class-representation.unavailable"),
                 reason: view
                     .diagnostic_rule
                     .unwrap_or("the class representation could not be read"),

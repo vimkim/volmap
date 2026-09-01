@@ -1,9 +1,11 @@
 use crate::bytes::ByteView;
-use crate::model::{FileId, Oid, PageId, SectorId, SlotId, Vfid, VolId, Vpid};
+use crate::model::{Btid, FileId, Hfid, Oid, PageId, SectorId, SlotId, Vfid, VolId, Vpid};
 
 use super::{DB_PAGE_SIZE, DecodeError, DecodeErrorKind, DecodedPageEnvelope, PageType};
 
 const FILE_HEADER_SIZE: usize = 216;
+const FILE_DESCRIPTOR_OFFSET: usize = 40;
+pub const FILE_DESCRIPTOR_SIZE: usize = 64;
 const EXTDATA_HEADER_SIZE: usize = 16;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -27,6 +29,27 @@ pub enum FileType {
 
 impl FileType {
     #[must_use]
+    pub const fn ordinal(self) -> i32 {
+        match self {
+            Self::Tracker => 0,
+            Self::Heap => 1,
+            Self::HeapReuseSlots => 2,
+            Self::MultipageObjectHeap => 3,
+            Self::Btree => 4,
+            Self::BtreeOverflowKey => 5,
+            Self::ExtensibleHash => 6,
+            Self::HashDirectory => 7,
+            Self::Catalog => 8,
+            Self::DroppedFiles => 9,
+            Self::VacuumData => 10,
+            Self::QueryArea => 11,
+            Self::Temporary => 12,
+            Self::Oos => 13,
+            Self::Unknown => 14,
+        }
+    }
+
+    #[must_use]
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Tracker => "tracker",
@@ -49,6 +72,75 @@ impl FileType {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+/// Class evidence exposed by a decoded file descriptor.
+pub enum FileClassAssociation {
+    /// The descriptor stores one validated class OID.
+    Associated(Oid),
+    /// A class-associated descriptor stores CUBRID's exact null OID.
+    Null,
+    /// The file family has no single class relationship.
+    NoSingleClass,
+    /// The file is intrinsically internal rather than user-class-owned.
+    Internal,
+    /// OOS file attribution is outside the pinned production profile.
+    DeferredOos,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+/// Source-pinned facts from the fixed 64-byte `FILE_DESCRIPTORS` payload.
+pub enum FileDescriptor {
+    Heap {
+        class_oid: Option<Oid>,
+        hfid: Hfid,
+    },
+    MultipageObjectHeap {
+        hfid: Hfid,
+        class_oid: Option<Oid>,
+    },
+    Btree {
+        class_oid: Option<Oid>,
+        attribute_id: i32,
+    },
+    BtreeOverflowKey {
+        btid: Btid,
+        class_oid: Option<Oid>,
+    },
+    ExtensibleHash {
+        class_oid: Option<Oid>,
+        attribute_id: i32,
+    },
+    HashDirectory {
+        class_oid: Option<Oid>,
+        attribute_id: i32,
+    },
+    Oos {
+        related_heap: Hfid,
+    },
+    Internal,
+    NoSingleClass,
+}
+
+impl FileDescriptor {
+    #[must_use]
+    pub const fn class_association(self) -> FileClassAssociation {
+        match self {
+            Self::Heap { class_oid, .. }
+            | Self::MultipageObjectHeap { class_oid, .. }
+            | Self::Btree { class_oid, .. }
+            | Self::BtreeOverflowKey { class_oid, .. }
+            | Self::ExtensibleHash { class_oid, .. }
+            | Self::HashDirectory { class_oid, .. } => match class_oid {
+                Some(oid) => FileClassAssociation::Associated(oid),
+                None => FileClassAssociation::Null,
+            },
+            Self::Oos { .. } => FileClassAssociation::DeferredOos,
+            Self::Internal => FileClassAssociation::Internal,
+            Self::NoSingleClass => FileClassAssociation::NoSingleClass,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct FileHeader {
     vfid: Vfid,
     file_type: FileType,
@@ -66,9 +158,7 @@ pub struct FileHeader {
     full_table_offset: Option<u16>,
     user_table_offset: Option<u16>,
     sticky_first: Option<Vpid>,
-    class_oid: Option<Oid>,
-    heap_header_page: Option<Vpid>,
-    related_heap: Option<(Vfid, Vpid)>,
+    descriptor: FileDescriptor,
 }
 
 impl FileHeader {
@@ -154,17 +244,56 @@ impl FileHeader {
 
     #[must_use]
     pub const fn class_oid(self) -> Option<Oid> {
-        self.class_oid
+        match self.descriptor.class_association() {
+            FileClassAssociation::Associated(oid) => Some(oid),
+            FileClassAssociation::Null
+            | FileClassAssociation::NoSingleClass
+            | FileClassAssociation::Internal
+            | FileClassAssociation::DeferredOos => None,
+        }
+    }
+
+    #[must_use]
+    pub const fn descriptor(self) -> FileDescriptor {
+        self.descriptor
+    }
+
+    #[must_use]
+    pub const fn class_association(self) -> FileClassAssociation {
+        self.descriptor.class_association()
     }
 
     #[must_use]
     pub const fn heap_header_page(self) -> Option<Vpid> {
-        self.heap_header_page
+        match self.descriptor {
+            FileDescriptor::Heap { hfid, .. } => {
+                Some(Vpid::new(hfid.vfid.vol_id, hfid.header_page_id))
+            }
+            FileDescriptor::MultipageObjectHeap { .. }
+            | FileDescriptor::Btree { .. }
+            | FileDescriptor::BtreeOverflowKey { .. }
+            | FileDescriptor::ExtensibleHash { .. }
+            | FileDescriptor::HashDirectory { .. }
+            | FileDescriptor::Oos { .. }
+            | FileDescriptor::Internal
+            | FileDescriptor::NoSingleClass => None,
+        }
     }
 
     #[must_use]
     pub const fn related_heap(self) -> Option<(Vfid, Vpid)> {
-        self.related_heap
+        let hfid = match self.descriptor {
+            FileDescriptor::MultipageObjectHeap { hfid, .. } => hfid,
+            FileDescriptor::Oos { related_heap } => related_heap,
+            FileDescriptor::Heap { .. }
+            | FileDescriptor::Btree { .. }
+            | FileDescriptor::BtreeOverflowKey { .. }
+            | FileDescriptor::ExtensibleHash { .. }
+            | FileDescriptor::HashDirectory { .. }
+            | FileDescriptor::Internal
+            | FileDescriptor::NoSingleClass => return None,
+        };
+        Some((hfid.vfid, Vpid::new(hfid.vfid.vol_id, hfid.header_page_id)))
     }
 }
 
@@ -224,57 +353,14 @@ pub fn decode_file_header(envelope: &DecodedPageEnvelope<'_>) -> Result<FileHead
     if flags & !0x0f != 0 || flags & 0x0c == 0x0c {
         return Err(error(DecodeErrorKind::InvalidFlags, "file.header.flags"));
     }
-    let class_oid = match file_type {
-        FileType::Heap | FileType::HeapReuseSlots => {
-            optional_oid(&view, 40, "file.header.heap_class")?
-        }
-        FileType::Btree | FileType::ExtensibleHash | FileType::HashDirectory => {
-            optional_oid(&view, 40, "file.header.descriptor_class")?
-        }
-        FileType::MultipageObjectHeap | FileType::BtreeOverflowKey => {
-            optional_oid(&view, 52, "file.header.descriptor_class")?
-        }
-        _ => None,
-    };
-    let heap_header_page = if matches!(file_type, FileType::Heap | FileType::HeapReuseSlots) {
-        let descriptor_file = read_i32(&view, 48, "file.header.heap_hfid")?;
-        let descriptor_volume = read_i16(&view, 52, "file.header.heap_hfid")?;
-        if descriptor_file != file_id || descriptor_volume != vol_id {
-            return Err(error(
-                DecodeErrorKind::IdentityMismatch,
-                "file.header.heap_hfid",
-            ));
-        }
-        let page_id = read_i32(&view, 56, "file.header.heap_header_page")?;
-        Some(Vpid::new(
-            vfid.vol_id,
-            PageId::new(page_id)
-                .map_err(|_| error(DecodeErrorKind::OutOfRange, "file.header.heap_header_page"))?,
-        ))
-    } else {
-        None
-    };
-    let related_heap = if matches!(file_type, FileType::MultipageObjectHeap | FileType::Oos) {
-        let related_file = read_i32(&view, 40, "file.header.related_heap")?;
-        let related_volume = read_i16(&view, 44, "file.header.related_heap")?;
-        let related_page = read_i32(&view, 48, "file.header.related_heap")?;
-        let related_volume = VolId::new(related_volume)
-            .map_err(|_| error(DecodeErrorKind::OutOfRange, "file.header.related_heap"))?;
-        Some((
-            Vfid::new(
-                related_volume,
-                FileId::new(related_file)
-                    .map_err(|_| error(DecodeErrorKind::OutOfRange, "file.header.related_heap"))?,
-            ),
-            Vpid::new(
-                related_volume,
-                PageId::new(related_page)
-                    .map_err(|_| error(DecodeErrorKind::OutOfRange, "file.header.related_heap"))?,
-            ),
-        ))
-    } else {
-        None
-    };
+    let descriptor_bytes = view
+        .range(
+            FILE_DESCRIPTOR_OFFSET,
+            FILE_DESCRIPTOR_SIZE,
+            "file.header.descriptor",
+        )
+        .map_err(|_| error(DecodeErrorKind::ByteAccess, "file.header.descriptor"))?;
+    let descriptor = decode_file_descriptor(descriptor_bytes, file_type, vfid)?;
     Ok(FileHeader {
         vfid,
         file_type,
@@ -292,10 +378,69 @@ pub fn decode_file_header(envelope: &DecodedPageEnvelope<'_>) -> Result<FileHead
         full_table_offset: table_offset(&view, 152, "file.header.full_table")?,
         user_table_offset: table_offset(&view, 154, "file.header.user_table")?,
         sticky_first: optional_vpid(&view, 156, "file.header.sticky_first")?,
-        class_oid,
-        heap_header_page,
-        related_heap,
+        descriptor,
     })
+}
+
+/// Decode the fixed, source-pinned `FILE_DESCRIPTORS` payload for one file.
+///
+/// The caller supplies the already validated file type and file identity from
+/// the surrounding file header. The complete 64-byte descriptor is required,
+/// even for variants whose source layout uses only a prefix.
+pub fn decode_file_descriptor(
+    descriptor: &[u8],
+    file_type: FileType,
+    file_vfid: Vfid,
+) -> Result<FileDescriptor, DecodeError> {
+    if descriptor.len() != FILE_DESCRIPTOR_SIZE {
+        return Err(error(
+            DecodeErrorKind::InvalidLength,
+            "file.descriptor.length",
+        ));
+    }
+    let view = ByteView::new(descriptor, 0);
+    match file_type {
+        FileType::Heap | FileType::HeapReuseSlots => {
+            let class_oid = optional_oid(&view, 0, "file.header.heap_class")?;
+            let hfid = decode_hfid(&view, 8, "file.header.heap_hfid")?;
+            if hfid.vfid != file_vfid {
+                return Err(error(
+                    DecodeErrorKind::IdentityMismatch,
+                    "file.header.heap_hfid",
+                ));
+            }
+            Ok(FileDescriptor::Heap { class_oid, hfid })
+        }
+        FileType::MultipageObjectHeap => Ok(FileDescriptor::MultipageObjectHeap {
+            hfid: decode_hfid(&view, 0, "file.descriptor.overflow_heap.hfid")?,
+            class_oid: optional_oid(&view, 12, "file.descriptor.overflow_heap.class_oid")?,
+        }),
+        FileType::Btree => Ok(FileDescriptor::Btree {
+            class_oid: optional_oid(&view, 0, "file.descriptor.btree.class_oid")?,
+            attribute_id: read_i32(&view, 8, "file.descriptor.btree.attribute_id")?,
+        }),
+        FileType::BtreeOverflowKey => Ok(FileDescriptor::BtreeOverflowKey {
+            btid: decode_btid(&view, 0, "file.descriptor.btree_overflow.btid")?,
+            class_oid: optional_oid(&view, 12, "file.descriptor.btree_overflow.class_oid")?,
+        }),
+        FileType::ExtensibleHash => Ok(FileDescriptor::ExtensibleHash {
+            class_oid: optional_oid(&view, 0, "file.descriptor.ehash.class_oid")?,
+            attribute_id: read_i32(&view, 8, "file.descriptor.ehash.attribute_id")?,
+        }),
+        FileType::HashDirectory => Ok(FileDescriptor::HashDirectory {
+            class_oid: optional_oid(&view, 0, "file.descriptor.hash_directory.class_oid")?,
+            attribute_id: read_i32(&view, 8, "file.descriptor.hash_directory.attribute_id")?,
+        }),
+        FileType::Oos => Ok(FileDescriptor::Oos {
+            related_heap: decode_hfid(&view, 0, "file.descriptor.oos.related_heap")?,
+        }),
+        FileType::Tracker | FileType::Catalog | FileType::DroppedFiles | FileType::VacuumData => {
+            Ok(FileDescriptor::Internal)
+        }
+        FileType::QueryArea | FileType::Temporary | FileType::Unknown => {
+            Ok(FileDescriptor::NoSingleClass)
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -587,6 +732,41 @@ fn optional_vpid(
         VolId::new(volume).map_err(|_| error(DecodeErrorKind::OutOfRange, rule))?,
         PageId::new(page).map_err(|_| error(DecodeErrorKind::OutOfRange, rule))?,
     )))
+}
+
+fn decode_hfid(
+    view: &ByteView<'_>,
+    offset: usize,
+    rule: &'static str,
+) -> Result<Hfid, DecodeError> {
+    let (vfid, header_page_id) = decode_file_page_identity(view, offset, rule)?;
+    Ok(Hfid::new(vfid, header_page_id))
+}
+
+fn decode_btid(
+    view: &ByteView<'_>,
+    offset: usize,
+    rule: &'static str,
+) -> Result<Btid, DecodeError> {
+    let (vfid, root_page_id) = decode_file_page_identity(view, offset, rule)?;
+    Ok(Btid::new(vfid, root_page_id))
+}
+
+fn decode_file_page_identity(
+    view: &ByteView<'_>,
+    offset: usize,
+    rule: &'static str,
+) -> Result<(Vfid, PageId), DecodeError> {
+    let file_id = read_i32(view, offset, rule)?;
+    let vol_id = read_i16(view, offset + 4, rule)?;
+    let page_id = read_i32(view, offset + 8, rule)?;
+    Ok((
+        Vfid::new(
+            VolId::new(vol_id).map_err(|_| error(DecodeErrorKind::OutOfRange, rule))?,
+            FileId::new(file_id).map_err(|_| error(DecodeErrorKind::OutOfRange, rule))?,
+        ),
+        PageId::new(page_id).map_err(|_| error(DecodeErrorKind::OutOfRange, rule))?,
+    ))
 }
 
 fn optional_oid(

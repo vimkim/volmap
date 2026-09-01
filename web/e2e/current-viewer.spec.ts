@@ -18,7 +18,14 @@ test("the embedded live viewer boots from the real server and supports a direct 
   await expect(page.getByRole("heading", { name: "Snapshot hierarchy" })).toBeVisible();
   await expect(page.locator("#outcome")).not.toHaveText("loading");
   await expect(page.locator("#drillBreadcrumb")).toContainText("Page 10");
-  await expect(page.getByRole("heading", { name: "Page facts" })).toBeVisible();
+  const pageFacts = page.getByRole("heading", { name: "Page facts" }).locator("..");
+  await expect(pageFacts).toBeVisible();
+  for (const label of ["File", "File role", "Class OID", "Class/table"]) {
+    const value = pageFacts
+      .locator("dt", { hasText: new RegExp(`^${label.replace("/", "\\/")}$`) })
+      .locator("xpath=following-sibling::dd");
+    await expect(value).toHaveText("none");
+  }
   expect(browserErrors).toEqual([]);
 });
 

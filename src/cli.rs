@@ -1654,8 +1654,8 @@ fn write_class_representation(output: &mut String, representation: &ClassReprese
 
     let name = match &representation.class_name {
         crate::projection::ClassNameProjection::Resolved { value } => value.clone(),
-        crate::projection::ClassNameProjection::Unresolved { reason }
-        | crate::projection::ClassNameProjection::NotApplicable { reason } => {
+        crate::projection::ClassNameProjection::Unresolved { reason, .. }
+        | crate::projection::ClassNameProjection::NotApplicable { reason, .. } => {
             format!("unresolved ({reason})")
         }
     };

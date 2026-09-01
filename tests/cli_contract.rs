@@ -161,6 +161,53 @@ fn json_document_is_revision_pinned_and_path_free() {
 }
 
 #[test]
+fn schema_one_page_json_adds_the_tagged_association_without_changing_prior_fields() {
+    let (_directory, vinf) = fixture();
+    let arguments = [
+        "inspect",
+        "--vinf",
+        vinf.to_str().unwrap(),
+        "page:0:2",
+        "--format",
+        "json",
+        "--progress",
+        "never",
+    ];
+    let first = volmap(&arguments);
+    let second = volmap(&arguments);
+
+    assert_eq!(first.status.code(), Some(0));
+    assert!(first.stderr.is_empty());
+    assert_eq!(first.stdout, second.stdout);
+    let document: Value = serde_json::from_slice(&first.stdout).unwrap();
+    assert_eq!(document["schema_version"], 1);
+    assert_eq!(document["data"]["kind"], "inspect-page");
+    let page = document["data"]["page"].as_object().unwrap();
+    assert_eq!(
+        page["file_association"],
+        serde_json::json!({ "state": "none" })
+    );
+    assert_eq!(
+        page.keys().map(String::as_str).collect::<Vec<_>>(),
+        [
+            "allocation",
+            "availability",
+            "bytes",
+            "detail_support",
+            "diagnostic",
+            "file_association",
+            "lsa_word",
+            "occupancy",
+            "page_id",
+            "page_type",
+            "sector_id",
+            "tde_state",
+            "vol_id",
+        ]
+    );
+}
+
+#[test]
 fn jsonl_has_typed_ordered_records_and_a_completion_frame() {
     let (_directory, vinf) = fixture();
     let output = volmap(&[

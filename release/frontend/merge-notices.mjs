@@ -10,6 +10,13 @@ if (!process.argv[2] || !process.argv[3] || !process.argv[4]) {
   throw new Error("usage: merge-notices.mjs CARGO_NOTICES FRONTEND_NOTICES OUTPUT_NOTICES");
 }
 
-const cargo = readFileSync(cargoPath, "utf8").trimEnd();
-const frontend = readFileSync(frontendPath, "utf8").trim();
+const normalizeNotice = (contents) =>
+  contents
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .join("\n");
+
+const cargo = normalizeNotice(readFileSync(cargoPath, "utf8")).trimEnd();
+const frontend = normalizeNotice(readFileSync(frontendPath, "utf8")).trim();
 writeFileSync(outputPath, `${cargo}\n\n${frontend}\n`);

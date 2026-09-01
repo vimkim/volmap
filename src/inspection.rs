@@ -15,20 +15,19 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
-use crate::bytes::ByteView;
 use crate::diagnostics::{InspectionOutcome, OutcomeInputs};
 use crate::format::{
     BOOT_DB_PARM_SIZE, BtreePageFact, CatalogClassInfoFact, CatalogPageFact,
     CatalogRepresentationHeaderFact, ClassRepresentationFact, DB_PAGE_SIZE, DecodeError,
-    DroppedFilesPageFact, FileHeader, FileType, HeapPageFact, InterpretedAttribute, OosNext,
-    PageContent, PageType, RecordLayoutFact, RecordType, RepresentationTarget, SLOTTED_HEADER_SIZE,
-    SlottedPage, TDE_KEY_INFO_RECORD_SIZE, TdeAlgorithm, TrackerItemFact, UserPageFact,
-    VacuumPageFact, VolumePurpose, VolumeType, decode_bigone_target, decode_boot_db_parm,
-    decode_btree_page, decode_catalog_class_info, decode_catalog_directory, decode_catalog_page,
-    decode_catalog_representation_header, decode_class_representation,
-    decode_decrypted_page_envelope, decode_dropped_files_page, decode_extdata_header,
-    decode_file_header, decode_full_sectors, decode_heap_page, decode_heap_record_body,
-    decode_heap_record_envelope, decode_oos_chunk, decode_overflow_continuation,
+    DroppedFilesPageFact, FileClassAssociation, FileHeader, FileType, HeapPageFact,
+    InterpretedAttribute, OosNext, PageContent, PageType, RecordLayoutFact, RecordType,
+    RepresentationTarget, SLOTTED_HEADER_SIZE, SlottedPage, TDE_KEY_INFO_RECORD_SIZE, TdeAlgorithm,
+    TrackerItemFact, UserPageFact, VacuumPageFact, VolumePurpose, VolumeType, decode_bigone_target,
+    decode_boot_db_parm, decode_btree_page, decode_catalog_class_info, decode_catalog_directory,
+    decode_catalog_page, decode_catalog_representation_header, decode_class_record_name,
+    decode_class_representation, decode_decrypted_page_envelope, decode_dropped_files_page,
+    decode_extdata_header, decode_file_header, decode_full_sectors, decode_heap_object_body,
+    decode_heap_page, decode_heap_record_body, decode_oos_chunk, decode_overflow_continuation,
     decode_overflow_head, decode_page_envelope, decode_page_envelope_parts, decode_partial_sectors,
     decode_record_interpretation, decode_relocation_target, decode_sector_bitmap,
     decode_slotted_free_space_header, decode_slotted_page, decode_tracker_items, decode_user_pages,
@@ -254,14 +253,224 @@ pub enum RecordSelectionSupport {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ClassNameResolution {
     Resolved(Arc<str>),
-    Unresolved(&'static str),
+    Unresolved(ClassNameUnresolvedReason),
 }
 
-/// Class association carried by a file descriptor.
+/// A fail-closed reason attached to the exact class OID that could not be
+/// resolved. Format rules remain available without turning them into names.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ClassNameUnresolvedReason {
+    NotResolved,
+    DatabaseCodeset(DatabaseCodesetFailure),
+    PageUnavailable,
+    EncryptedPage,
+    DecryptionFailed,
+    InvalidSlotIdentifier,
+    MissingSlot,
+    DeadRecord(RecordType),
+    RelocationCycle,
+    RelocationDepthLimit,
+    Interrupted,
+    ResourceLimit,
+    InvalidOwnership(&'static str),
+    InvalidFormat(&'static str),
+    InvalidIdentifier(ClassIdentifierFailure),
+}
+
+/// Why bytes at the validated class-name attribute cannot be accepted as one
+/// identifier in the snapshot's proven database codeset.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ClassIdentifierFailure {
+    InvalidLengthOrContents,
+    NonAscii,
+    InvalidAscii,
+    InvalidEucKr,
+    InvalidUtf8,
+}
+
+impl ClassIdentifierFailure {
+    #[must_use]
+    pub const fn code(self) -> &'static str {
+        match self {
+            Self::InvalidLengthOrContents => "class-name.identifier-invalid",
+            Self::NonAscii => "class-name.identifier-non-ascii",
+            Self::InvalidAscii => "class-name.identifier-ascii-invalid",
+            Self::InvalidEucKr => "class-name.identifier-euc-kr-invalid",
+            Self::InvalidUtf8 => "class-name.identifier-utf8-invalid",
+        }
+    }
+
+    #[must_use]
+    pub const fn message(self) -> &'static str {
+        match self {
+            Self::InvalidLengthOrContents => "class name identifier length or contents are invalid",
+            Self::NonAscii => "ASCII database contains a non-ASCII class name",
+            Self::InvalidAscii => "ASCII class name is invalid",
+            Self::InvalidEucKr => "EUC-KR class name is invalid",
+            Self::InvalidUtf8 => "UTF-8 class name is invalid",
+        }
+    }
+}
+
+impl ClassNameUnresolvedReason {
+    #[must_use]
+    pub const fn code(self) -> &'static str {
+        match self {
+            Self::NotResolved => "class-name.not-resolved",
+            Self::DatabaseCodeset(failure) => failure.class_name_code(),
+            Self::PageUnavailable => "class-name.page-unavailable",
+            Self::EncryptedPage => "class-name.page-encrypted-opaque",
+            Self::DecryptionFailed => "class-name.page-decryption-failed",
+            Self::InvalidSlotIdentifier => "class-name.slot-invalid",
+            Self::MissingSlot => "class-name.slot-missing",
+            Self::DeadRecord(_) => "class-name.record-not-live",
+            Self::RelocationCycle => "class-name.relocation-cycle",
+            Self::RelocationDepthLimit => "class-name.relocation-limit",
+            Self::Interrupted => "class-name.interrupted",
+            Self::ResourceLimit => "class-name.resource-limit",
+            Self::InvalidOwnership(rule) | Self::InvalidFormat(rule) => rule,
+            Self::InvalidIdentifier(failure) => failure.code(),
+        }
+    }
+
+    #[must_use]
+    pub const fn message(self) -> &'static str {
+        match self {
+            Self::NotResolved => "class name was not resolved",
+            Self::DatabaseCodeset(failure) => failure.class_name_reason(),
+            Self::PageUnavailable => "class record page could not be read",
+            Self::EncryptedPage => "class record page is encrypted and unavailable",
+            Self::DecryptionFailed => "class record page decryption failed",
+            Self::InvalidSlotIdentifier => "class record slot identifier is invalid",
+            Self::MissingSlot => "class record slot does not exist",
+            Self::DeadRecord(_) => "class record slot is not live",
+            Self::RelocationCycle => "class record relocation cycle",
+            Self::RelocationDepthLimit => "class record relocation limit reached",
+            Self::Interrupted => "class record resolution was interrupted",
+            Self::ResourceLimit => "class record resolution resource limit reached",
+            Self::InvalidOwnership(_) => "class record ownership validation failed",
+            Self::InvalidFormat(_) => "class record format validation failed",
+            Self::InvalidIdentifier(failure) => failure.message(),
+        }
+    }
+}
+
+impl fmt::Display for ClassNameUnresolvedReason {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.message())
+    }
+}
+
+/// The database codeset proven consistently by the complete volume inventory.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DatabaseCodeset {
+    Ascii,
+    Iso88591,
+    EucKr,
+    Utf8,
+}
+
+impl DatabaseCodeset {
+    fn from_header(value: u8) -> Result<Self, DatabaseCodesetFailure> {
+        match value {
+            0 => Ok(Self::Ascii),
+            3 => Ok(Self::Iso88591),
+            4 => Ok(Self::EucKr),
+            5 => Ok(Self::Utf8),
+            unsupported => Err(DatabaseCodesetFailure::Unsupported(unsupported)),
+        }
+    }
+}
+
+/// Why the volume inventory could not prove one supported database codeset.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DatabaseCodesetFailure {
+    IncompleteInventory,
+    InconsistentVolumes,
+    Unsupported(u8),
+}
+
+impl DatabaseCodesetFailure {
+    const fn class_name_code(self) -> &'static str {
+        match self {
+            Self::IncompleteInventory => "class-name.codeset-inventory-incomplete",
+            Self::InconsistentVolumes => "class-name.codeset-inconsistent",
+            Self::Unsupported(_) => "class-name.codeset-unsupported",
+        }
+    }
+
+    const fn class_name_reason(self) -> &'static str {
+        match self {
+            Self::IncompleteInventory => "database codeset inventory is incomplete",
+            Self::InconsistentVolumes => "volume headers disagree on the database codeset",
+            Self::Unsupported(_) => "database codeset is unsupported",
+        }
+    }
+}
+
+/// Why a file's class association cannot be established from the current
+/// inspection graph.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ClassAssociationUnresolvedReason {
+    IncompleteInventory,
+}
+
+impl ClassAssociationUnresolvedReason {
+    #[must_use]
+    pub const fn code(self) -> &'static str {
+        match self {
+            Self::IncompleteInventory => "class-association.inventory-incomplete",
+        }
+    }
+
+    #[must_use]
+    pub const fn message(self) -> &'static str {
+        match self {
+            Self::IncompleteInventory => {
+                "complete file inventory is required for class attribution"
+            }
+        }
+    }
+}
+
+/// Why one validated file descriptor has no applicable class association.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ClassAssociationNotApplicableReason {
+    NullOid,
+    NoSingleClass,
+    InternalFile,
+    DeferredOos,
+}
+
+impl ClassAssociationNotApplicableReason {
+    #[must_use]
+    pub const fn code(self) -> &'static str {
+        match self {
+            Self::NullOid => "class-association.null-oid",
+            Self::NoSingleClass => "class-association.no-single-class",
+            Self::InternalFile => "class-association.internal-file",
+            Self::DeferredOos => "class-association.oos-deferred",
+        }
+    }
+
+    #[must_use]
+    pub const fn message(self) -> &'static str {
+        match self {
+            Self::NullOid => "file descriptor has a null class OID",
+            Self::NoSingleClass => "file type has no single class association",
+            Self::InternalFile => "internal file is not associated with one user class",
+            Self::DeferredOos => "OOS class attribution is intentionally deferred",
+        }
+    }
+}
+
+/// Class-association state for one file in the inspection graph.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ClassAssociation {
-    /// The file type carries no single class association (typed reason).
-    None(&'static str),
+    /// The inventory cannot yet prove a descriptor association.
+    Unresolved(ClassAssociationUnresolvedReason),
+    /// The validated descriptor carries no applicable single-class relation.
+    NotApplicable(ClassAssociationNotApplicableReason),
     Class {
         oid: Oid,
         name: ClassNameResolution,
@@ -879,6 +1088,8 @@ fn resource_limit_diagnostic(
 #[derive(Clone, Debug)]
 struct VolumeRecord {
     view: VolumeView,
+    database_codeset: u8,
+    next_vol_id: Option<VolId>,
     reserved_masks: Vec<u64>,
     pages: PageFactStore,
 }
@@ -1025,6 +1236,7 @@ struct SessionData {
     file_allocations: BTreeMap<Vpid, Vfid>,
     tracked_files: BTreeMap<Vfid, FileHeader>,
     sector_claims: BTreeMap<(VolId, SectorId), Vec<SectorClaimView>>,
+    database_codeset: Result<DatabaseCodeset, DatabaseCodesetFailure>,
     class_names: BTreeMap<Oid, ClassNameResolution>,
     oos_chains: BTreeMap<crate::model::Oid, OosChainFact>,
     overflow_chains: BTreeMap<Oid, OverflowChainFact>,
@@ -1112,6 +1324,144 @@ struct FileAllocationFacts {
     claims: Vec<((VolId, SectorId), SectorClaimKind)>,
 }
 
+#[derive(Clone, Copy)]
+struct ClassNameOwnership<'a> {
+    headers: &'a BTreeMap<Vfid, FileHeader>,
+    allocations: &'a BTreeMap<Vpid, Vfid>,
+}
+
+enum TraversalError<Failure> {
+    Source(SourceError),
+    Invalid(Failure),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum RelocationTargetFailure {
+    Interrupted,
+    ResourceLimit,
+    Owner,
+    PageRole,
+    SlotRole,
+    Encrypted,
+    Decrypt,
+    Format(&'static str),
+}
+
+impl RelocationTargetFailure {
+    const fn inspection_rule(self) -> &'static str {
+        match self {
+            Self::Interrupted => "interrupted",
+            Self::ResourceLimit => "resource-limit",
+            Self::Owner | Self::PageRole => "heap.relocation.target_page_role",
+            Self::SlotRole => "heap.relocation.target_slot_role",
+            Self::Encrypted => "heap.relocation.encrypted",
+            Self::Decrypt => "tde.page.decrypt",
+            Self::Format(rule) => rule,
+        }
+    }
+
+    const fn class_reason(self) -> ClassNameUnresolvedReason {
+        match self {
+            Self::Interrupted => ClassNameUnresolvedReason::Interrupted,
+            Self::ResourceLimit => ClassNameUnresolvedReason::ResourceLimit,
+            Self::Owner => ClassNameUnresolvedReason::InvalidOwnership("heap.relocation.same_heap"),
+            Self::PageRole => {
+                ClassNameUnresolvedReason::InvalidFormat("heap.relocation.target_page_role")
+            }
+            Self::SlotRole => {
+                ClassNameUnresolvedReason::InvalidFormat("heap.relocation.target_slot_role")
+            }
+            Self::Encrypted => ClassNameUnresolvedReason::EncryptedPage,
+            Self::Decrypt => ClassNameUnresolvedReason::DecryptionFailed,
+            Self::Format(rule) => ClassNameUnresolvedReason::InvalidFormat(rule),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum OverflowTraversalFailure {
+    Interrupted,
+    ResourceLimit,
+    PageOwner,
+    PageRole,
+    Encrypted,
+    Decrypt,
+    Format(&'static str),
+}
+
+impl OverflowTraversalFailure {
+    const fn inspection_rule(self) -> &'static str {
+        match self {
+            Self::Interrupted => "interrupted",
+            Self::ResourceLimit => "resource-limit",
+            Self::PageOwner | Self::PageRole => "overflow.chain.page_role",
+            Self::Encrypted => "overflow.chain.encrypted",
+            Self::Decrypt => "tde.page.decrypt",
+            Self::Format(rule) => rule,
+        }
+    }
+
+    const fn class_reason(self) -> ClassNameUnresolvedReason {
+        match self {
+            Self::Interrupted => ClassNameUnresolvedReason::Interrupted,
+            Self::ResourceLimit => ClassNameUnresolvedReason::ResourceLimit,
+            Self::PageOwner => {
+                ClassNameUnresolvedReason::InvalidOwnership("class.name.bigone.page_owner")
+            }
+            Self::PageRole => ClassNameUnresolvedReason::InvalidFormat("overflow.chain.page_role"),
+            Self::Encrypted => ClassNameUnresolvedReason::EncryptedPage,
+            Self::Decrypt => ClassNameUnresolvedReason::DecryptionFailed,
+            Self::Format(rule) => ClassNameUnresolvedReason::InvalidFormat(rule),
+        }
+    }
+}
+
+struct OverflowTraversal {
+    total_data_length: Option<u32>,
+    validated_payload_bytes: u64,
+    pages: Vec<OverflowPageView>,
+    payload: Vec<u8>,
+    failure: Option<OverflowTraversalFailure>,
+}
+
+impl OverflowTraversal {
+    fn stopped(
+        total_data_length: Option<u32>,
+        validated_payload_bytes: u64,
+        pages: Vec<OverflowPageView>,
+        payload: Vec<u8>,
+        failure: OverflowTraversalFailure,
+    ) -> Self {
+        Self {
+            total_data_length,
+            validated_payload_bytes,
+            pages,
+            payload,
+            failure: Some(failure),
+        }
+    }
+}
+
+impl<'a> ClassNameOwnership<'a> {
+    const fn complete(
+        headers: &'a BTreeMap<Vfid, FileHeader>,
+        allocations: &'a BTreeMap<Vpid, Vfid>,
+    ) -> Self {
+        Self {
+            headers,
+            allocations,
+        }
+    }
+
+    fn header(self, vfid: Vfid) -> Option<FileHeader> {
+        self.headers.get(&vfid).copied()
+    }
+
+    fn owner(self, vpid: Vpid) -> Option<Vfid> {
+        self.allocations.get(&vpid).copied()
+    }
+}
+
 #[derive(Default)]
 struct FileTraversal {
     table_pages: BTreeSet<Vpid>,
@@ -1138,6 +1488,7 @@ enum InspectionPageError {
     Format(&'static str),
     EncryptedOpaque,
     Decrypt,
+    ResourceLimit,
 }
 
 impl InspectionPageError {
@@ -1147,12 +1498,24 @@ impl InspectionPageError {
             Self::Format(rule) => OperationError::Structural(rule.to_owned()),
             Self::EncryptedOpaque => OperationError::Unsupported,
             Self::Decrypt => OperationError::Structural("tde.page.decrypt".to_owned()),
+            Self::ResourceLimit => OperationError::ResourceLimit,
         }
     }
 }
 
 impl OwnedInspectionPage {
     fn read(data: &SessionData, vpid: Vpid) -> Result<Self, InspectionPageError> {
+        Self::read_admitted(data, vpid, u64::MAX)
+    }
+
+    fn read_admitted(
+        data: &SessionData,
+        vpid: Vpid,
+        resident_limit: u64,
+    ) -> Result<Self, InspectionPageError> {
+        if resident_limit < crate::format::IO_PAGE_SIZE as u64 {
+            return Err(InspectionPageError::ResourceLimit);
+        }
         let source = data
             .sources
             .volume(vpid.vol_id)
@@ -1165,6 +1528,11 @@ impl OwnedInspectionPage {
             .tde_algorithm();
         let decrypted_user = match algorithm {
             Some(algorithm) => {
+                let required =
+                    crate::format::IO_PAGE_SIZE as u64 + crate::format::DB_PAGE_SIZE as u64;
+                if resident_limit < required {
+                    return Err(InspectionPageError::ResourceLimit);
+                }
                 let key = data
                     .tde_key
                     .as_deref()
@@ -1367,6 +1735,7 @@ impl Inspection {
                 .checked_add(total_pages)
                 .ok_or(OpenFailure::Arithmetic)?;
             hasher.update(header.vol_id().get().to_le_bytes());
+            hasher.update([header.database_charset()]);
             hasher.update(header.total_sectors().to_le_bytes());
             hasher.update(header.maximum_sectors().to_le_bytes());
             hasher.update(header.volume_creation().to_le_bytes());
@@ -1424,6 +1793,8 @@ impl Inspection {
             };
             volumes.push(VolumeRecord {
                 view,
+                database_codeset: header.database_charset(),
+                next_vol_id: header.next_vol_id(),
                 reserved_masks,
                 pages: PageFactStore::memory(),
             });
@@ -1434,6 +1805,14 @@ impl Inspection {
                 Some(sources.volumes().len() as u64),
             );
         }
+        let database_codeset = validate_database_codeset(
+            sources.volumes().len(),
+            volumes.iter().map(|volume| VolumeCodesetEvidence {
+                vol_id: volume.view.vol_id,
+                next_vol_id: volume.next_vol_id,
+                raw: volume.database_codeset,
+            }),
+        );
 
         report(
             &mut progress,
@@ -1810,6 +2189,7 @@ impl Inspection {
                 file_allocations: BTreeMap::new(),
                 tracked_files: BTreeMap::new(),
                 sector_claims: BTreeMap::new(),
+                database_codeset,
                 class_names: BTreeMap::new(),
                 oos_chains: BTreeMap::new(),
                 overflow_chains: BTreeMap::new(),
@@ -2001,6 +2381,12 @@ impl Inspection {
 }
 
 impl GraphView {
+    /// Return the supported codeset proven across the complete volume
+    /// inventory, or the precise reason that proof failed.
+    pub fn database_codeset(&self) -> Result<DatabaseCodeset, DatabaseCodesetFailure> {
+        self.data.database_codeset
+    }
+
     /// The contract this reading was taken under.
     #[must_use]
     pub fn source_mode(&self) -> SourceMode {
@@ -2123,30 +2509,41 @@ impl GraphView {
     /// Join one file's inventory facts into a shared association view.
     /// Names are never copied per page; they resolve once per class OID.
     fn file_association(&self, vfid: Vfid) -> FileAssociation {
-        let header = self.data.tracked_files.get(&vfid).copied().or_else(|| {
-            PageId::new(vfid.file_id.get()).ok().and_then(|page_id| {
+        let Some(header) = self.data.tracked_files.get(&vfid).copied() else {
+            let selective_header = PageId::new(vfid.file_id.get()).ok().and_then(|page_id| {
                 self.data
                     .deep_pages
                     .get(&Vpid::new(vfid.vol_id, page_id))
                     .and_then(|fact| fact.file_header)
-            })
-        });
-        let Some(header) = header else {
+            });
             return FileAssociation {
                 vfid,
-                file_type: None,
-                class: ClassAssociation::None("allocating file header is unavailable"),
+                file_type: selective_header.map(FileHeader::file_type),
+                class: ClassAssociation::Unresolved(
+                    ClassAssociationUnresolvedReason::IncompleteInventory,
+                ),
             };
         };
-        let class = header.class_oid().map_or_else(
-            || ClassAssociation::None(class_absence_reason(header.file_type())),
-            |oid| ClassAssociation::Class {
+        let class = match header.class_association() {
+            FileClassAssociation::Associated(oid) => ClassAssociation::Class {
                 oid,
                 name: self.data.class_names.get(&oid).cloned().unwrap_or(
-                    ClassNameResolution::Unresolved("class name was not resolved"),
+                    ClassNameResolution::Unresolved(ClassNameUnresolvedReason::NotResolved),
                 ),
             },
-        );
+            FileClassAssociation::Null => {
+                ClassAssociation::NotApplicable(ClassAssociationNotApplicableReason::NullOid)
+            }
+            FileClassAssociation::NoSingleClass => {
+                ClassAssociation::NotApplicable(ClassAssociationNotApplicableReason::NoSingleClass)
+            }
+            FileClassAssociation::Internal => {
+                ClassAssociation::NotApplicable(ClassAssociationNotApplicableReason::InternalFile)
+            }
+            FileClassAssociation::DeferredOos => {
+                ClassAssociation::NotApplicable(ClassAssociationNotApplicableReason::DeferredOos)
+            }
+        };
         FileAssociation {
             vfid,
             file_type: Some(header.file_type()),
@@ -2207,9 +2604,11 @@ impl GraphView {
     fn resolve_tracked_class_names(
         &self,
         headers: &BTreeMap<Vfid, FileHeader>,
+        ownership: ClassNameOwnership<'_>,
+        policy: ResourcePolicy,
         cancel: &CancelToken,
     ) -> Result<BTreeMap<Oid, ClassNameResolution>, OperationError> {
-        let charset = database_charset(&self.data);
+        let codeset = self.data.database_codeset;
         let mut class_names = BTreeMap::new();
         for header in headers.values() {
             let Some(oid) = header.class_oid() else {
@@ -2221,62 +2620,673 @@ impl GraphView {
             if cancel.is_cancelled() {
                 return Err(OperationError::Interrupted);
             }
-            let resolution = match charset {
-                Ok(charset) => match self.resolve_class_name(oid, charset) {
-                    Ok(name) => ClassNameResolution::Resolved(name),
-                    Err(reason) => ClassNameResolution::Unresolved(reason),
-                },
-                Err(reason) => ClassNameResolution::Unresolved(reason),
+            let resolution = match codeset {
+                Ok(codeset) => {
+                    match self.resolve_class_name(oid, codeset, ownership, policy, cancel) {
+                        Ok(name) => ClassNameResolution::Resolved(name),
+                        Err(reason) => ClassNameResolution::Unresolved(reason),
+                    }
+                }
+                Err(failure) => ClassNameResolution::Unresolved(
+                    ClassNameUnresolvedReason::DatabaseCodeset(failure),
+                ),
             };
+            if cancel.is_cancelled() {
+                return Err(OperationError::Interrupted);
+            }
             class_names.insert(oid, resolution);
         }
         Ok(class_names)
     }
 
     /// Read the class record at `class_oid` and decode its stored name.
-    /// Bounded and fail-closed: relocations are followed a fixed number of
-    /// steps; multipage (`REC_BIGONE`) class records and compressed names
-    /// stay typed-unresolved rather than guessed.
-    fn resolve_class_name(&self, class_oid: Oid, charset: u8) -> Result<Arc<str>, &'static str> {
-        let mut current = class_oid;
-        let mut visited = BTreeSet::new();
-        for _ in 0..8 {
-            if !visited.insert(current) {
-                return Err("class record relocation cycle");
+    /// Bounded and fail-closed: relocations, multipage (`REC_BIGONE`) records,
+    /// and compressed names are decoded only through validated structures.
+    fn resolve_class_name(
+        &self,
+        class_oid: Oid,
+        codeset: DatabaseCodeset,
+        ownership: ClassNameOwnership<'_>,
+        policy: ResourcePolicy,
+        cancel: &CancelToken,
+    ) -> Result<Arc<str>, ClassNameUnresolvedReason> {
+        if cancel.is_cancelled() {
+            return Err(ClassNameUnresolvedReason::Interrupted);
+        }
+        let vpid = Vpid::new(class_oid.vol_id, class_oid.page_id);
+        let mut decoded_bytes = self
+            .page_resident_bytes(vpid)
+            .map_err(|_| ClassNameUnresolvedReason::PageUnavailable)?;
+        if decoded_bytes > policy.max_decoded_bytes || decoded_bytes > policy.memory_limit {
+            return Err(ClassNameUnresolvedReason::ResourceLimit);
+        }
+        let owned = OwnedInspectionPage::read_admitted(
+            &self.data,
+            vpid,
+            policy.memory_limit.min(policy.max_decoded_bytes),
+        )
+        .map_err(|error| match error {
+            InspectionPageError::Source(_) => ClassNameUnresolvedReason::PageUnavailable,
+            InspectionPageError::Format(rule) => ClassNameUnresolvedReason::InvalidFormat(rule),
+            InspectionPageError::EncryptedOpaque => ClassNameUnresolvedReason::EncryptedPage,
+            InspectionPageError::Decrypt => ClassNameUnresolvedReason::DecryptionFailed,
+            InspectionPageError::ResourceLimit => ClassNameUnresolvedReason::ResourceLimit,
+        })?;
+        decoded_bytes = crate::format::IO_PAGE_SIZE as u64
+            + if owned.decrypted_user.is_some() {
+                crate::format::DB_PAGE_SIZE as u64
+            } else {
+                0
+            };
+        let envelope = owned
+            .envelope(vpid)
+            .map_err(|error| ClassNameUnresolvedReason::InvalidFormat(error.rule()))?;
+        let slotted = decode_slotted_page(&envelope)
+            .map_err(|error| ClassNameUnresolvedReason::InvalidFormat(error.rule()))?;
+        let slot_id = u16::try_from(class_oid.slot_id.get())
+            .map_err(|_| ClassNameUnresolvedReason::InvalidSlotIdentifier)?;
+        let slot = slotted
+            .slots()
+            .get(usize::from(slot_id))
+            .ok_or(ClassNameUnresolvedReason::MissingSlot)?;
+        match slot.record_type() {
+            RecordType::Home | RecordType::NewHome => {
+                let (record, body) =
+                    decode_heap_record_body(&envelope, &slotted, slot_id, false)
+                        .map_err(|error| ClassNameUnresolvedReason::InvalidFormat(error.rule()))?;
+                Self::decode_class_name_body(body, record.variable_offset_width, codeset)
             }
-            let vpid = Vpid::new(current.vol_id, current.page_id);
-            let owned = OwnedInspectionPage::read(&self.data, vpid)
-                .map_err(|_| "class record page could not be read")?;
-            let envelope = owned
-                .envelope(vpid)
-                .map_err(|_| "class record page envelope is invalid")?;
-            let slotted = decode_slotted_page(&envelope)
-                .map_err(|_| "class record page is not a valid heap page")?;
-            let slot_id = u16::try_from(current.slot_id.get())
-                .map_err(|_| "class record slot identifier is invalid")?;
-            let slot = slotted
-                .slots()
-                .get(usize::from(slot_id))
-                .ok_or("class record slot does not exist")?;
-            match slot.record_type() {
-                RecordType::Home | RecordType::NewHome => {
-                    return decode_class_name(&envelope, &slotted, slot_id, charset);
+            RecordType::Relocation => {
+                if policy.max_chain_steps < 2 {
+                    return Err(ClassNameUnresolvedReason::RelocationDepthLimit);
                 }
-                RecordType::Relocation => {
-                    current = decode_relocation_target(&envelope, &slotted, slot_id)
-                        .map_err(|_| "class record relocation target is invalid")?;
+                let target = decode_relocation_target(&envelope, &slotted, slot_id)
+                    .map_err(|error| ClassNameUnresolvedReason::InvalidFormat(error.rule()))?;
+                if target == class_oid {
+                    return Err(ClassNameUnresolvedReason::RelocationCycle);
                 }
-                RecordType::BigOne => {
-                    return Err("multipage class records are not yet decoded");
+                let (heap_owner, _) = Self::validated_heap_owner(vpid, ownership).ok_or(
+                    ClassNameUnresolvedReason::InvalidOwnership("heap.relocation.same_heap"),
+                )?;
+                drop(slotted);
+                drop(owned);
+                let record = self
+                    .read_validated_relocation_target(
+                        target,
+                        heap_owner,
+                        ownership,
+                        policy,
+                        cancel,
+                        &mut decoded_bytes,
+                        true,
+                    )
+                    .map_err(|error| match error {
+                        TraversalError::Source(_) => ClassNameUnresolvedReason::PageUnavailable,
+                        TraversalError::Invalid(failure) => failure.class_reason(),
+                    })?
+                    .ok_or(ClassNameUnresolvedReason::InvalidFormat(
+                        "heap.relocation.target_record",
+                    ))?;
+                let (record, body) = decode_heap_object_body(&record, false)
+                    .map_err(|error| ClassNameUnresolvedReason::InvalidFormat(error.rule()))?;
+                Self::decode_class_name_body(body, record.variable_offset_width, codeset)
+            }
+            RecordType::BigOne => {
+                let head = decode_bigone_target(&envelope, &slotted, slot_id)
+                    .map_err(|error| ClassNameUnresolvedReason::InvalidFormat(error.rule()))?;
+                drop(slotted);
+                drop(owned);
+                self.resolve_bigone_class_name(
+                    vpid,
+                    head,
+                    codeset,
+                    ownership,
+                    policy,
+                    cancel,
+                    decoded_bytes,
+                )
+            }
+            kind => Err(ClassNameUnresolvedReason::DeadRecord(kind)),
+        }
+    }
+
+    fn decode_class_name_body(
+        body: &[u8],
+        variable_offset_width: u8,
+        codeset: DatabaseCodeset,
+    ) -> Result<Arc<str>, ClassNameUnresolvedReason> {
+        let bytes = decode_class_record_name(body, variable_offset_width)
+            .map_err(|error| ClassNameUnresolvedReason::InvalidFormat(error.rule()))?;
+        decode_class_identifier(&bytes, codeset)
+            .map_err(ClassNameUnresolvedReason::InvalidIdentifier)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn resolve_bigone_class_name(
+        &self,
+        home: Vpid,
+        head: Vpid,
+        codeset: DatabaseCodeset,
+        ownership: ClassNameOwnership<'_>,
+        policy: ResourcePolicy,
+        cancel: &CancelToken,
+        decoded_bytes: u64,
+    ) -> Result<Arc<str>, ClassNameUnresolvedReason> {
+        let (heap_owner, heap_header) = Self::validated_heap_owner(home, ownership).ok_or(
+            ClassNameUnresolvedReason::InvalidOwnership("class.name.bigone.heap_owner"),
+        )?;
+        let overflow_owner =
+            Self::validated_overflow_owner(head, heap_owner, heap_header, ownership).ok_or(
+                ClassNameUnresolvedReason::InvalidOwnership("class.name.bigone.overflow_owner"),
+            )?;
+        let traversal = self
+            .walk_overflow_chain(
+                head,
+                overflow_owner,
+                ownership,
+                policy,
+                cancel,
+                decoded_bytes,
+                true,
+            )
+            .map_err(|_| ClassNameUnresolvedReason::PageUnavailable)?;
+        if let Some(failure) = traversal.failure {
+            return Err(failure.class_reason());
+        }
+        let (record, body) = decode_heap_object_body(&traversal.payload, false)
+            .map_err(|error| ClassNameUnresolvedReason::InvalidFormat(error.rule()))?;
+        Self::decode_class_name_body(body, record.variable_offset_width, codeset)
+    }
+
+    fn validated_heap_owner(
+        home: Vpid,
+        ownership: ClassNameOwnership<'_>,
+    ) -> Option<(Vfid, FileHeader)> {
+        let heap_owner = ownership.owner(home)?;
+        let heap_header = ownership.header(heap_owner).filter(|header| {
+            matches!(
+                header.file_type(),
+                FileType::Heap | FileType::HeapReuseSlots
+            )
+        })?;
+        Some((heap_owner, heap_header))
+    }
+
+    fn page_resident_bytes(&self, vpid: Vpid) -> Result<u64, QueryError> {
+        let page = self.page(vpid)?;
+        let decrypted = matches!(
+            page.tde_state,
+            TdeInspectionState::Decrypted | TdeInspectionState::DecryptedInvalid
+        );
+        Ok(crate::format::IO_PAGE_SIZE as u64
+            + if decrypted {
+                crate::format::DB_PAGE_SIZE as u64
+            } else {
+                0
+            })
+    }
+
+    fn validated_overflow_owner(
+        head: Vpid,
+        heap_owner: Vfid,
+        heap_header: FileHeader,
+        ownership: ClassNameOwnership<'_>,
+    ) -> Option<Vfid> {
+        let overflow_owner = ownership.owner(head)?;
+        let expected_heap = heap_header
+            .heap_header_page()
+            .map(|heap_page| (heap_owner, heap_page));
+        ownership
+            .header(overflow_owner)
+            .filter(|header| {
+                header.file_type() == FileType::MultipageObjectHeap
+                    && header.related_heap() == expected_heap
+            })
+            .map(|_| overflow_owner)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn read_validated_relocation_target(
+        &self,
+        target: Oid,
+        heap_owner: Vfid,
+        ownership: ClassNameOwnership<'_>,
+        policy: ResourcePolicy,
+        cancel: &CancelToken,
+        decoded_bytes: &mut u64,
+        capture_record: bool,
+    ) -> Result<Option<Vec<u8>>, TraversalError<RelocationTargetFailure>> {
+        if cancel.is_cancelled() {
+            return Err(TraversalError::Invalid(
+                RelocationTargetFailure::Interrupted,
+            ));
+        }
+        let target_vpid = Vpid::new(target.vol_id, target.page_id);
+        if ownership.owner(target_vpid) != Some(heap_owner) {
+            return Err(TraversalError::Invalid(RelocationTargetFailure::Owner));
+        }
+        let page_role_valid = self.page(target_vpid).is_ok_and(|page| {
+            page.page_type == Some(PageType::Heap) && page.availability == Availability::Available
+        });
+        if !page_role_valid {
+            return Err(TraversalError::Invalid(RelocationTargetFailure::PageRole));
+        }
+        let resident_page = self
+            .page_resident_bytes(target_vpid)
+            .map_err(|_| TraversalError::Invalid(RelocationTargetFailure::PageRole))?;
+        if resident_page > policy.memory_limit {
+            return Err(TraversalError::Invalid(
+                RelocationTargetFailure::ResourceLimit,
+            ));
+        }
+        let decoded_remaining =
+            policy
+                .max_decoded_bytes
+                .checked_sub(*decoded_bytes)
+                .ok_or(TraversalError::Invalid(
+                    RelocationTargetFailure::ResourceLimit,
+                ))?;
+        let owned = OwnedInspectionPage::read_admitted(
+            &self.data,
+            target_vpid,
+            policy.memory_limit.min(decoded_remaining),
+        )
+        .map_err(|error| match error {
+            InspectionPageError::Source(error) => TraversalError::Source(error),
+            InspectionPageError::Format(rule) => {
+                TraversalError::Invalid(RelocationTargetFailure::Format(rule))
+            }
+            InspectionPageError::EncryptedOpaque => {
+                TraversalError::Invalid(RelocationTargetFailure::Encrypted)
+            }
+            InspectionPageError::Decrypt => {
+                TraversalError::Invalid(RelocationTargetFailure::Decrypt)
+            }
+            InspectionPageError::ResourceLimit => {
+                TraversalError::Invalid(RelocationTargetFailure::ResourceLimit)
+            }
+        })?;
+        let actual_resident = crate::format::IO_PAGE_SIZE as u64
+            + if owned.decrypted_user.is_some() {
+                crate::format::DB_PAGE_SIZE as u64
+            } else {
+                0
+            };
+        *decoded_bytes =
+            decoded_bytes
+                .checked_add(actual_resident)
+                .ok_or(TraversalError::Invalid(
+                    RelocationTargetFailure::ResourceLimit,
+                ))?;
+        let envelope = owned.envelope(target_vpid).map_err(|error| {
+            TraversalError::Invalid(RelocationTargetFailure::Format(error.rule()))
+        })?;
+        if envelope.page_type() != PageType::Heap {
+            return Err(TraversalError::Invalid(RelocationTargetFailure::PageRole));
+        }
+        let slotted = decode_slotted_page(&envelope).map_err(|error| {
+            TraversalError::Invalid(RelocationTargetFailure::Format(error.rule()))
+        })?;
+        let target_slot = usize::try_from(target.slot_id.get())
+            .ok()
+            .and_then(|slot| slotted.slots().get(slot));
+        let Some(target_slot) = target_slot.filter(|slot| {
+            slot.record_type() == RecordType::NewHome && slot.offset() != 0 && slot.length() >= 8
+        }) else {
+            return Err(TraversalError::Invalid(RelocationTargetFailure::SlotRole));
+        };
+        if !capture_record {
+            return Ok(None);
+        }
+        Self::copy_relocation_target_record(
+            &envelope,
+            *target_slot,
+            owned.decrypted_user.is_some(),
+            policy,
+        )
+        .map(Some)
+    }
+
+    fn copy_relocation_target_record(
+        envelope: &crate::format::DecodedPageEnvelope<'_>,
+        target_slot: crate::format::SlotFact,
+        decrypted: bool,
+        policy: ResourcePolicy,
+    ) -> Result<Vec<u8>, TraversalError<RelocationTargetFailure>> {
+        let length = usize::from(target_slot.length());
+        let resident_page = crate::format::IO_PAGE_SIZE as u64
+            + if decrypted {
+                crate::format::DB_PAGE_SIZE as u64
+            } else {
+                0
+            };
+        if resident_page
+            .checked_add(u64::try_from(length).unwrap_or(u64::MAX))
+            .is_none_or(|bytes| bytes > policy.memory_limit)
+        {
+            return Err(TraversalError::Invalid(
+                RelocationTargetFailure::ResourceLimit,
+            ));
+        }
+        let bytes = envelope
+            .plaintext("heap.relocation.encrypted")
+            .map_err(|error| {
+                TraversalError::Invalid(RelocationTargetFailure::Format(error.rule()))
+            })?
+            .range(
+                usize::from(target_slot.offset()),
+                length,
+                "heap.relocation.target_record",
+            )
+            .map_err(|_| {
+                TraversalError::Invalid(RelocationTargetFailure::Format(
+                    "heap.relocation.target_record",
+                ))
+            })?;
+        let mut record = Vec::new();
+        record
+            .try_reserve_exact(length)
+            .map_err(|_| TraversalError::Invalid(RelocationTargetFailure::ResourceLimit))?;
+        record.extend_from_slice(bytes);
+        Ok(record)
+    }
+
+    /// Validate one owned multipage-overflow chain. Callers choose whether to
+    /// retain the transient payload; published enrichment always keeps only
+    /// the validated structural prefix.
+    #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
+    fn walk_overflow_chain(
+        &self,
+        head: Vpid,
+        overflow_owner: Vfid,
+        ownership: ClassNameOwnership<'_>,
+        policy: ResourcePolicy,
+        cancel: &CancelToken,
+        mut decoded_bytes: u64,
+        capture_payload: bool,
+    ) -> Result<OverflowTraversal, SourceError> {
+        let mut current = head;
+        let mut visited = BTreeSet::new();
+        let mut pages = Vec::new();
+        let mut payload = Vec::new();
+        let mut total = None;
+        let mut remaining = 0_u32;
+        let mut validated_payload_bytes = 0_u64;
+        loop {
+            let failure = if cancel.is_cancelled() {
+                Some(OverflowTraversalFailure::Interrupted)
+            } else if u64::try_from(pages.len()).unwrap_or(u64::MAX) >= policy.max_chain_steps {
+                Some(OverflowTraversalFailure::ResourceLimit)
+            } else if !visited.insert(current) {
+                Some(OverflowTraversalFailure::Format("overflow.chain.acyclic"))
+            } else {
+                None
+            };
+            if let Some(failure) = failure {
+                return Ok(OverflowTraversal::stopped(
+                    total,
+                    validated_payload_bytes,
+                    pages,
+                    payload,
+                    failure,
+                ));
+            }
+            if ownership.owner(current) != Some(overflow_owner) {
+                return Ok(OverflowTraversal::stopped(
+                    total,
+                    validated_payload_bytes,
+                    pages,
+                    payload,
+                    OverflowTraversalFailure::PageOwner,
+                ));
+            }
+            let page_role_valid = self.page(current).is_ok_and(|page| {
+                page.page_type == Some(PageType::Overflow)
+                    && page.availability == Availability::Available
+            });
+            if !page_role_valid {
+                return Ok(OverflowTraversal::stopped(
+                    total,
+                    validated_payload_bytes,
+                    pages,
+                    payload,
+                    OverflowTraversalFailure::PageRole,
+                ));
+            }
+            let retained_payload = if capture_payload {
+                u64::try_from(payload.capacity()).unwrap_or(u64::MAX)
+            } else {
+                0
+            };
+            let Some(resident_limit) = policy.memory_limit.checked_sub(retained_payload) else {
+                return Ok(OverflowTraversal::stopped(
+                    total,
+                    validated_payload_bytes,
+                    pages,
+                    payload,
+                    OverflowTraversalFailure::ResourceLimit,
+                ));
+            };
+            let Some(decoded_remaining) = policy.max_decoded_bytes.checked_sub(decoded_bytes)
+            else {
+                return Ok(OverflowTraversal::stopped(
+                    total,
+                    validated_payload_bytes,
+                    pages,
+                    payload,
+                    OverflowTraversalFailure::ResourceLimit,
+                ));
+            };
+            let owned = match OwnedInspectionPage::read_admitted(
+                &self.data,
+                current,
+                resident_limit.min(decoded_remaining),
+            ) {
+                Ok(page) => page,
+                Err(InspectionPageError::Source(error)) => return Err(error),
+                Err(InspectionPageError::Format(rule)) => {
+                    return Ok(OverflowTraversal::stopped(
+                        total,
+                        validated_payload_bytes,
+                        pages,
+                        payload,
+                        OverflowTraversalFailure::Format(rule),
+                    ));
                 }
-                RecordType::Unknown
-                | RecordType::AssignAddress
-                | RecordType::MarkDeleted
-                | RecordType::DeletedWillReuse
-                | RecordType::Reserved(_) => return Err("class record slot is not live"),
+                Err(InspectionPageError::EncryptedOpaque) => {
+                    return Ok(OverflowTraversal::stopped(
+                        total,
+                        validated_payload_bytes,
+                        pages,
+                        payload,
+                        OverflowTraversalFailure::Encrypted,
+                    ));
+                }
+                Err(InspectionPageError::Decrypt) => {
+                    return Ok(OverflowTraversal::stopped(
+                        total,
+                        validated_payload_bytes,
+                        pages,
+                        payload,
+                        OverflowTraversalFailure::Decrypt,
+                    ));
+                }
+                Err(InspectionPageError::ResourceLimit) => {
+                    return Ok(OverflowTraversal::stopped(
+                        total,
+                        validated_payload_bytes,
+                        pages,
+                        payload,
+                        OverflowTraversalFailure::ResourceLimit,
+                    ));
+                }
+            };
+            let actual_resident = crate::format::IO_PAGE_SIZE as u64
+                + if owned.decrypted_user.is_some() {
+                    crate::format::DB_PAGE_SIZE as u64
+                } else {
+                    0
+                };
+            decoded_bytes = match decoded_bytes.checked_add(actual_resident) {
+                Some(value) => value,
+                None => {
+                    return Ok(OverflowTraversal::stopped(
+                        total,
+                        validated_payload_bytes,
+                        pages,
+                        payload,
+                        OverflowTraversalFailure::ResourceLimit,
+                    ));
+                }
+            };
+            let envelope = match owned.envelope(current) {
+                Ok(value) => value,
+                Err(error) => {
+                    return Ok(OverflowTraversal::stopped(
+                        total,
+                        validated_payload_bytes,
+                        pages,
+                        payload,
+                        OverflowTraversalFailure::Format(error.rule()),
+                    ));
+                }
+            };
+            let is_head = pages.is_empty();
+            let page = match if is_head {
+                decode_overflow_head(&envelope)
+            } else {
+                decode_overflow_continuation(&envelope, remaining)
+            } {
+                Ok(value) => value,
+                Err(error) => {
+                    return Ok(OverflowTraversal::stopped(
+                        total,
+                        validated_payload_bytes,
+                        pages,
+                        payload,
+                        OverflowTraversalFailure::Format(error.rule()),
+                    ));
+                }
+            };
+            if is_head {
+                let Some(head_total) = page.total_length() else {
+                    return Ok(OverflowTraversal::stopped(
+                        total,
+                        validated_payload_bytes,
+                        pages,
+                        payload,
+                        OverflowTraversalFailure::Format("overflow.head.total_required"),
+                    ));
+                };
+                total = Some(head_total);
+                remaining = head_total;
+                if capture_payload {
+                    let Some(capacity) =
+                        admitted_overflow_payload_capacity(head_total, actual_resident, policy)
+                    else {
+                        return Ok(OverflowTraversal::stopped(
+                            total,
+                            validated_payload_bytes,
+                            pages,
+                            payload,
+                            OverflowTraversalFailure::ResourceLimit,
+                        ));
+                    };
+                    if payload.try_reserve_exact(capacity).is_err() {
+                        return Ok(OverflowTraversal::stopped(
+                            total,
+                            validated_payload_bytes,
+                            pages,
+                            payload,
+                            OverflowTraversalFailure::ResourceLimit,
+                        ));
+                    }
+                }
+            }
+            remaining = match remaining.checked_sub(u32::from(page.payload_length())) {
+                Some(value) => value,
+                None => {
+                    return Ok(OverflowTraversal::stopped(
+                        total,
+                        validated_payload_bytes,
+                        pages,
+                        payload,
+                        OverflowTraversalFailure::Format("overflow.chain.complete_length"),
+                    ));
+                }
+            };
+            if capture_payload {
+                let bytes = match envelope
+                    .plaintext("overflow.chain.encrypted")
+                    .and_then(|view| {
+                        view.range(
+                            usize::from(page.payload_offset()),
+                            usize::from(page.payload_length()),
+                            "overflow.chain.payload",
+                        )
+                        .map_err(|_| {
+                            DecodeError::new(
+                                crate::format::DecodeErrorKind::ByteAccess,
+                                "overflow.chain.payload",
+                            )
+                        })
+                    }) {
+                    Ok(value) => value,
+                    Err(error) => {
+                        return Ok(OverflowTraversal::stopped(
+                            total,
+                            validated_payload_bytes,
+                            pages,
+                            payload,
+                            OverflowTraversalFailure::Format(error.rule()),
+                        ));
+                    }
+                };
+                payload.extend_from_slice(bytes);
+            }
+            validated_payload_bytes =
+                match validated_payload_bytes.checked_add(u64::from(page.payload_length())) {
+                    Some(value) => value,
+                    None => {
+                        return Ok(OverflowTraversal::stopped(
+                            total,
+                            validated_payload_bytes,
+                            pages,
+                            payload,
+                            OverflowTraversalFailure::ResourceLimit,
+                        ));
+                    }
+                };
+            let next = page.next();
+            pages.push(OverflowPageView {
+                vpid: current,
+                head: is_head,
+                next,
+                payload_offset: page.payload_offset(),
+                payload_length: page.payload_length(),
+            });
+            match next {
+                Some(next) => current = next,
+                None if remaining == 0 => {
+                    return Ok(OverflowTraversal {
+                        total_data_length: total,
+                        validated_payload_bytes,
+                        pages,
+                        payload,
+                        failure: None,
+                    });
+                }
+                None => {
+                    return Ok(OverflowTraversal::stopped(
+                        total,
+                        validated_payload_bytes,
+                        pages,
+                        payload,
+                        OverflowTraversalFailure::Format("overflow.chain.complete_length"),
+                    ));
+                }
             }
         }
-        Err("class record relocation limit reached")
     }
 
     /// Decode one page body into a new immutable revision. The prior view is
@@ -2307,7 +3317,11 @@ impl GraphView {
         if policy.max_decoded_bytes < required_bytes || policy.memory_limit < required_bytes {
             return Err(OperationError::ResourceLimit);
         }
-        let owned = match OwnedInspectionPage::read(&self.data, vpid) {
+        let owned = match OwnedInspectionPage::read_admitted(
+            &self.data,
+            vpid,
+            policy.memory_limit.min(policy.max_decoded_bytes),
+        ) {
             Ok(page) => page,
             Err(InspectionPageError::Source(error)) => return Err(OperationError::Source(error)),
             Err(InspectionPageError::Format(rule)) => {
@@ -2318,6 +3332,9 @@ impl GraphView {
             }
             Err(InspectionPageError::Decrypt) => {
                 return self.page_decode_failure(vpid, "tde.page.decrypt");
+            }
+            Err(InspectionPageError::ResourceLimit) => {
+                return Err(OperationError::ResourceLimit);
             }
         };
         if cancel.is_cancelled() {
@@ -2501,7 +3518,11 @@ impl GraphView {
         {
             return Err(OperationError::Unsupported);
         }
-        let owned = match OwnedInspectionPage::read(&self.data, header_page) {
+        let owned = match OwnedInspectionPage::read_admitted(
+            &self.data,
+            header_page,
+            policy.memory_limit.min(policy.max_decoded_bytes),
+        ) {
             Ok(page) => page,
             Err(InspectionPageError::Source(error)) => return Err(OperationError::Source(error)),
             Err(InspectionPageError::Format(rule)) => {
@@ -2509,6 +3530,9 @@ impl GraphView {
             }
             Err(InspectionPageError::EncryptedOpaque | InspectionPageError::Decrypt) => {
                 return self.page_decode_failure(header_page, "tde.file_header.invalid_state");
+            }
+            Err(InspectionPageError::ResourceLimit) => {
+                return Err(OperationError::ResourceLimit);
             }
         };
         let envelope = match owned.envelope(header_page) {
@@ -2533,7 +3557,7 @@ impl GraphView {
         if let Some(stopped) = self.source_stability_stop()? {
             return Ok(stopped);
         }
-        self.publish_file(header_page, file_header, facts, cancel)
+        self.publish_file(header_page, file_header, facts)
     }
 
     /// Validate the permanent-file tracker and every referenced file header.
@@ -2570,17 +3594,22 @@ impl GraphView {
                 if decoded_bytes > policy.max_decoded_bytes {
                     return Err(OperationError::ResourceLimit);
                 }
-                let owned = match OwnedInspectionPage::read(&self.data, vpid) {
-                    Ok(page) => page,
-                    Err(InspectionPageError::Source(error)) => {
-                        return Err(OperationError::Source(error));
-                    }
-                    Err(
-                        InspectionPageError::Format(_)
-                        | InspectionPageError::EncryptedOpaque
-                        | InspectionPageError::Decrypt,
-                    ) => continue,
-                };
+                let owned =
+                    match OwnedInspectionPage::read_admitted(&self.data, vpid, policy.memory_limit)
+                    {
+                        Ok(page) => page,
+                        Err(InspectionPageError::Source(error)) => {
+                            return Err(OperationError::Source(error));
+                        }
+                        Err(
+                            InspectionPageError::Format(_)
+                            | InspectionPageError::EncryptedOpaque
+                            | InspectionPageError::Decrypt,
+                        ) => continue,
+                        Err(InspectionPageError::ResourceLimit) => {
+                            return Err(OperationError::ResourceLimit);
+                        }
+                    };
                 let Ok(envelope) = owned.envelope(vpid) else {
                     continue;
                 };
@@ -2679,7 +3708,8 @@ impl GraphView {
                 rule: "file.table.sector_owner_unique",
             })
             .collect();
-        let class_names = self.resolve_tracked_class_names(&headers, cancel)?;
+        let ownership = ClassNameOwnership::complete(&headers, &allocations);
+        let class_names = self.resolve_tracked_class_names(&headers, ownership, policy, cancel)?;
         let retained = (allocations.len() as u64)
             .checked_mul(size_of::<(Vpid, Vfid)>() as u64)
             .ok_or(OperationError::Arithmetic)?;
@@ -2926,16 +3956,22 @@ impl GraphView {
                 return Err(FileTraversalError::Decode("file.extdata.page_shared"));
             }
             let owned =
-                OwnedInspectionPage::read(&self.data, current).map_err(|error| match error {
-                    InspectionPageError::Source(error) => {
-                        FileTraversalError::Operation(OperationError::Source(error))
-                    }
-                    InspectionPageError::Format(rule) => FileTraversalError::Decode(rule),
-                    InspectionPageError::EncryptedOpaque => {
-                        FileTraversalError::Decode("file.extdata.encrypted")
-                    }
-                    InspectionPageError::Decrypt => FileTraversalError::Decode("tde.page.decrypt"),
-                })?;
+                OwnedInspectionPage::read_admitted(&self.data, current, policy.memory_limit)
+                    .map_err(|error| match error {
+                        InspectionPageError::Source(error) => {
+                            FileTraversalError::Operation(OperationError::Source(error))
+                        }
+                        InspectionPageError::Format(rule) => FileTraversalError::Decode(rule),
+                        InspectionPageError::EncryptedOpaque => {
+                            FileTraversalError::Decode("file.extdata.encrypted")
+                        }
+                        InspectionPageError::Decrypt => {
+                            FileTraversalError::Decode("tde.page.decrypt")
+                        }
+                        InspectionPageError::ResourceLimit => {
+                            FileTraversalError::Operation(OperationError::ResourceLimit)
+                        }
+                    })?;
             let envelope = owned
                 .envelope(current)
                 .map_err(|error| FileTraversalError::Decode(error.rule()))?;
@@ -3110,12 +4146,14 @@ impl GraphView {
         if self.data.file_allocations.get(&vpid) != Some(&catalog_owner) {
             return Err("catalog.record.owner");
         }
-        let owned = OwnedInspectionPage::read(&self.data, vpid).map_err(|error| match error {
-            InspectionPageError::Source(_) => "catalog.record.unreadable",
-            InspectionPageError::Format(rule) => rule,
-            InspectionPageError::EncryptedOpaque => "catalog.record.encrypted",
-            InspectionPageError::Decrypt => "tde.page.decrypt",
-        })?;
+        let owned = OwnedInspectionPage::read_admitted(&self.data, vpid, policy.memory_limit)
+            .map_err(|error| match error {
+                InspectionPageError::Source(_) => "catalog.record.unreadable",
+                InspectionPageError::Format(rule) => rule,
+                InspectionPageError::EncryptedOpaque => "catalog.record.encrypted",
+                InspectionPageError::Decrypt => "tde.page.decrypt",
+                InspectionPageError::ResourceLimit => "resource-limit",
+            })?;
         if owned.decrypted_user.is_some() {
             *decoded_bytes = decoded_bytes
                 .checked_add(crate::format::DB_PAGE_SIZE as u64)
@@ -3184,23 +4222,22 @@ impl GraphView {
             return Ok(stopped);
         }
         let source_vpid = Vpid::new(source.vol_id, source.page_id);
-        let Some(heap_owner) = self.data.file_allocations.get(&source_vpid).copied() else {
+        let ownership =
+            ClassNameOwnership::complete(&self.data.tracked_files, &self.data.file_allocations);
+        let Some((heap_owner, _)) = Self::validated_heap_owner(source_vpid, ownership) else {
             return self.publish_relocation_edge(source, None, Some("heap.relocation.heap_owner"));
         };
-        let valid_heap_owner = self
-            .data
-            .tracked_files
-            .get(&heap_owner)
-            .is_some_and(|header| {
-                matches!(
-                    header.file_type(),
-                    crate::format::FileType::Heap | crate::format::FileType::HeapReuseSlots
-                )
-            });
-        if !valid_heap_owner {
-            return self.publish_relocation_edge(source, None, Some("heap.relocation.heap_owner"));
-        }
-        let source_owned = match OwnedInspectionPage::read(&self.data, source_vpid) {
+        let mut decoded_bytes = match self.page_resident_bytes(source_vpid) {
+            Ok(value) if value <= policy.max_decoded_bytes && value <= policy.memory_limit => value,
+            _ => {
+                return self.publish_relocation_edge(source, None, Some("resource-limit"));
+            }
+        };
+        let source_owned = match OwnedInspectionPage::read_admitted(
+            &self.data,
+            source_vpid,
+            policy.memory_limit.min(policy.max_decoded_bytes),
+        ) {
             Ok(page) => page,
             Err(InspectionPageError::Source(error)) => return Err(OperationError::Source(error)),
             Err(InspectionPageError::Format(rule)) => {
@@ -3215,6 +4252,9 @@ impl GraphView {
             }
             Err(InspectionPageError::Decrypt) => {
                 return self.publish_relocation_edge(source, None, Some("tde.page.decrypt"));
+            }
+            Err(InspectionPageError::ResourceLimit) => {
+                return self.publish_relocation_edge(source, None, Some("resource-limit"));
             }
         };
         let source_envelope = match source_owned.envelope(source_vpid) {
@@ -3247,73 +4287,23 @@ impl GraphView {
         };
         drop(source_slotted);
         drop(source_owned);
-        let target_vpid = Vpid::new(target.vol_id, target.page_id);
-        if policy.max_decoded_bytes < 2 * crate::format::IO_PAGE_SIZE as u64 {
-            return self.publish_relocation_edge(source, Some(target), Some("resource-limit"));
-        }
-        let target_role_valid = self.data.file_allocations.get(&target_vpid) == Some(&heap_owner)
-            && self.page(target_vpid).is_ok_and(|page| {
-                page.page_type == Some(PageType::Heap)
-                    && page.availability == Availability::Available
-            });
-        if !target_role_valid {
-            return self.publish_relocation_edge(
-                source,
-                Some(target),
-                Some("heap.relocation.target_page_role"),
-            );
-        }
-        let target_owned = match OwnedInspectionPage::read(&self.data, target_vpid) {
-            Ok(page) => page,
-            Err(InspectionPageError::Source(error)) => return Err(OperationError::Source(error)),
-            Err(InspectionPageError::Format(rule)) => {
-                return self.publish_relocation_edge(source, Some(target), Some(rule));
-            }
-            Err(InspectionPageError::EncryptedOpaque) => {
-                return self.publish_relocation_edge(
+        if let Err(error) = self.read_validated_relocation_target(
+            target,
+            heap_owner,
+            ownership,
+            policy,
+            cancel,
+            &mut decoded_bytes,
+            false,
+        ) {
+            return match error {
+                TraversalError::Source(error) => Err(OperationError::Source(error)),
+                TraversalError::Invalid(failure) => self.publish_relocation_edge(
                     source,
                     Some(target),
-                    Some("heap.relocation.encrypted"),
-                );
-            }
-            Err(InspectionPageError::Decrypt) => {
-                return self.publish_relocation_edge(
-                    source,
-                    Some(target),
-                    Some("tde.page.decrypt"),
-                );
-            }
-        };
-        let target_envelope = match target_owned.envelope(target_vpid) {
-            Ok(value) if value.page_type() == PageType::Heap => value,
-            Ok(_) => {
-                return self.publish_relocation_edge(
-                    source,
-                    Some(target),
-                    Some("heap.relocation.target_page_role"),
-                );
-            }
-            Err(error) => {
-                return self.publish_relocation_edge(source, Some(target), Some(error.rule()));
-            }
-        };
-        let target_slotted = match decode_slotted_page(&target_envelope) {
-            Ok(value) => value,
-            Err(error) => {
-                return self.publish_relocation_edge(source, Some(target), Some(error.rule()));
-            }
-        };
-        let target_slot = usize::try_from(target.slot_id.get())
-            .ok()
-            .and_then(|slot| target_slotted.slots().get(slot));
-        if !target_slot.is_some_and(|slot| {
-            slot.record_type() == RecordType::NewHome && slot.offset() != 0 && slot.length() >= 8
-        }) {
-            return self.publish_relocation_edge(
-                source,
-                Some(target),
-                Some("heap.relocation.target_slot_role"),
-            );
+                    Some(failure.inspection_rule()),
+                ),
+            };
         }
         if let Some(stopped) = self.source_stability_stop()? {
             return Ok(stopped);
@@ -3563,7 +4553,11 @@ impl GraphView {
             }
         };
 
-        let owned = match OwnedInspectionPage::read(&self.data, vpid) {
+        let owned = match OwnedInspectionPage::read_admitted(
+            &self.data,
+            vpid,
+            policy.memory_limit.min(policy.max_decoded_bytes),
+        ) {
             Ok(page) => page,
             Err(InspectionPageError::Source(error)) => return Err(OperationError::Source(error)),
             Err(InspectionPageError::Format(rule)) => {
@@ -3586,6 +4580,9 @@ impl GraphView {
                     None,
                     Some("tde.page.decrypt"),
                 );
+            }
+            Err(InspectionPageError::ResourceLimit) => {
+                return Err(OperationError::ResourceLimit);
             }
         };
         let envelope = match owned.envelope(vpid) {
@@ -4086,7 +5083,9 @@ impl GraphView {
             return Ok(stopped);
         }
         let home = Vpid::new(source.vol_id, source.page_id);
-        let Some(heap_owner) = self.data.file_allocations.get(&home).copied() else {
+        let ownership =
+            ClassNameOwnership::complete(&self.data.tracked_files, &self.data.file_allocations);
+        let Some((heap_owner, heap_header)) = Self::validated_heap_owner(home, ownership) else {
             return self.publish_overflow_chain(
                 source,
                 None,
@@ -4096,30 +5095,24 @@ impl GraphView {
                 Some("overflow.chain.heap_owner"),
             );
         };
-        let Some(heap_header) = self.data.tracked_files.get(&heap_owner).copied() else {
-            return self.publish_overflow_chain(
-                source,
-                None,
-                None,
-                0,
-                Vec::new(),
-                Some("overflow.chain.heap_owner"),
-            );
+        let decoded_bytes = match self.page_resident_bytes(home) {
+            Ok(value) if value <= policy.max_decoded_bytes && value <= policy.memory_limit => value,
+            _ => {
+                return self.publish_overflow_chain(
+                    source,
+                    None,
+                    None,
+                    0,
+                    Vec::new(),
+                    Some("resource-limit"),
+                );
+            }
         };
-        if !matches!(
-            heap_header.file_type(),
-            crate::format::FileType::Heap | crate::format::FileType::HeapReuseSlots
+        let source_owned = match OwnedInspectionPage::read_admitted(
+            &self.data,
+            home,
+            policy.memory_limit.min(policy.max_decoded_bytes),
         ) {
-            return self.publish_overflow_chain(
-                source,
-                None,
-                None,
-                0,
-                Vec::new(),
-                Some("overflow.chain.heap_owner"),
-            );
-        }
-        let source_owned = match OwnedInspectionPage::read(&self.data, home) {
             Ok(page) => page,
             Err(InspectionPageError::Source(error)) => return Err(OperationError::Source(error)),
             Err(InspectionPageError::Format(rule)) => {
@@ -4143,6 +5136,16 @@ impl GraphView {
                     0,
                     Vec::new(),
                     Some("tde.page.decrypt"),
+                );
+            }
+            Err(InspectionPageError::ResourceLimit) => {
+                return self.publish_overflow_chain(
+                    source,
+                    None,
+                    None,
+                    0,
+                    Vec::new(),
+                    Some("resource-limit"),
                 );
             }
         };
@@ -4199,7 +5202,9 @@ impl GraphView {
         };
         drop(source_slotted);
         drop(source_owned);
-        let Some(overflow_owner) = self.data.file_allocations.get(&head).copied() else {
+        let Some(overflow_owner) =
+            Self::validated_overflow_owner(head, heap_owner, heap_header, ownership)
+        else {
             return self.publish_overflow_chain(
                 source,
                 Some(head),
@@ -4209,247 +5214,30 @@ impl GraphView {
                 Some("overflow.chain.file_owner"),
             );
         };
-        let valid_owner = self
-            .data
-            .tracked_files
-            .get(&overflow_owner)
-            .is_some_and(|header| {
-                header.file_type() == crate::format::FileType::MultipageObjectHeap
-                    && header.related_heap()
-                        == heap_header
-                            .heap_header_page()
-                            .map(|heap_header_page| (heap_owner, heap_header_page))
-            });
-        if !valid_owner {
-            return self.publish_overflow_chain(
-                source,
-                Some(head),
-                None,
-                0,
-                Vec::new(),
-                Some("overflow.chain.file_owner"),
-            );
-        }
 
-        let mut current = head;
-        let mut visited = BTreeSet::new();
-        let mut pages = Vec::new();
-        let mut total = None;
-        let mut remaining = 0_u32;
-        let mut validated_payload_bytes = 0_u64;
-        let mut decoded_bytes = crate::format::IO_PAGE_SIZE as u64;
-        loop {
-            if cancel.is_cancelled() {
-                return self.publish_overflow_chain(
-                    source,
-                    Some(head),
-                    total,
-                    validated_payload_bytes,
-                    pages,
-                    Some("interrupted"),
-                );
-            }
-            if u64::try_from(pages.len()).unwrap_or(u64::MAX) >= policy.max_chain_steps {
-                return self.publish_overflow_chain(
-                    source,
-                    Some(head),
-                    total,
-                    validated_payload_bytes,
-                    pages,
-                    Some("resource-limit"),
-                );
-            }
-            if !visited.insert(current) {
-                return self.publish_overflow_chain(
-                    source,
-                    Some(head),
-                    total,
-                    validated_payload_bytes,
-                    pages,
-                    Some("overflow.chain.acyclic"),
-                );
-            }
-            decoded_bytes = match decoded_bytes.checked_add(crate::format::IO_PAGE_SIZE as u64) {
-                Some(value)
-                    if value <= policy.max_decoded_bytes
-                        && value <= policy.memory_limit.saturating_mul(2) =>
-                {
-                    value
-                }
-                _ => {
-                    return self.publish_overflow_chain(
-                        source,
-                        Some(head),
-                        total,
-                        validated_payload_bytes,
-                        pages,
-                        Some("resource-limit"),
-                    );
-                }
-            };
-            let page_role_ok = self.page(current).is_ok_and(|page| {
-                page.page_type == Some(PageType::Overflow)
-                    && page.availability == Availability::Available
-            }) && self.data.file_allocations.get(&current)
-                == Some(&overflow_owner);
-            if !page_role_ok {
-                return self.publish_overflow_chain(
-                    source,
-                    Some(head),
-                    total,
-                    validated_payload_bytes,
-                    pages,
-                    Some("overflow.chain.page_role"),
-                );
-            }
-            let owned = match OwnedInspectionPage::read(&self.data, current) {
-                Ok(page) => page,
-                Err(InspectionPageError::Source(error)) => {
-                    return Err(OperationError::Source(error));
-                }
-                Err(InspectionPageError::Format(rule)) => {
-                    return self.publish_overflow_chain(
-                        source,
-                        Some(head),
-                        total,
-                        validated_payload_bytes,
-                        pages,
-                        Some(rule),
-                    );
-                }
-                Err(InspectionPageError::EncryptedOpaque) => {
-                    return self.publish_overflow_chain(
-                        source,
-                        Some(head),
-                        total,
-                        validated_payload_bytes,
-                        pages,
-                        Some("overflow.chain.encrypted"),
-                    );
-                }
-                Err(InspectionPageError::Decrypt) => {
-                    return self.publish_overflow_chain(
-                        source,
-                        Some(head),
-                        total,
-                        validated_payload_bytes,
-                        pages,
-                        Some("tde.page.decrypt"),
-                    );
-                }
-            };
-            if owned.decrypted_user.is_some() {
-                decoded_bytes = match decoded_bytes.checked_add(crate::format::DB_PAGE_SIZE as u64)
-                {
-                    Some(value) if value <= policy.max_decoded_bytes => value,
-                    _ => {
-                        return self.publish_overflow_chain(
-                            source,
-                            Some(head),
-                            total,
-                            validated_payload_bytes,
-                            pages,
-                            Some("resource-limit"),
-                        );
-                    }
-                };
-            }
-            let envelope = match owned.envelope(current) {
-                Ok(value) => value,
-                Err(error) => {
-                    return self.publish_overflow_chain(
-                        source,
-                        Some(head),
-                        total,
-                        validated_payload_bytes,
-                        pages,
-                        Some(error.rule()),
-                    );
-                }
-            };
-            let is_head = pages.is_empty();
-            let page = if is_head {
-                match decode_overflow_head(&envelope) {
-                    Ok(value) => value,
-                    Err(error) => {
-                        return self.publish_overflow_chain(
-                            source,
-                            Some(head),
-                            total,
-                            validated_payload_bytes,
-                            pages,
-                            Some(error.rule()),
-                        );
-                    }
-                }
-            } else {
-                match decode_overflow_continuation(&envelope, remaining) {
-                    Ok(value) => value,
-                    Err(error) => {
-                        return self.publish_overflow_chain(
-                            source,
-                            Some(head),
-                            total,
-                            validated_payload_bytes,
-                            pages,
-                            Some(error.rule()),
-                        );
-                    }
-                }
-            };
-            if is_head {
-                let Some(head_total) = page.total_length() else {
-                    return self.publish_overflow_chain(
-                        source,
-                        Some(head),
-                        total,
-                        validated_payload_bytes,
-                        pages,
-                        Some("overflow.head.total_required"),
-                    );
-                };
-                total = Some(head_total);
-                remaining = head_total;
-            }
-            remaining = remaining
-                .checked_sub(u32::from(page.payload_length()))
-                .ok_or(OperationError::Arithmetic)?;
-            validated_payload_bytes = validated_payload_bytes
-                .checked_add(u64::from(page.payload_length()))
-                .ok_or(OperationError::Arithmetic)?;
-            let next = page.next();
-            pages.push(OverflowPageView {
-                vpid: current,
-                head: is_head,
-                next,
-                payload_offset: page.payload_offset(),
-                payload_length: page.payload_length(),
-            });
-            match next {
-                Some(next) => current = next,
-                None if remaining == 0 => break,
-                None => {
-                    return self.publish_overflow_chain(
-                        source,
-                        Some(head),
-                        total,
-                        validated_payload_bytes,
-                        pages,
-                        Some("overflow.chain.complete_length"),
-                    );
-                }
-            }
-        }
+        let traversal = self
+            .walk_overflow_chain(
+                head,
+                overflow_owner,
+                ownership,
+                policy,
+                cancel,
+                decoded_bytes,
+                false,
+            )
+            .map_err(OperationError::Source)?;
         if let Some(stopped) = self.source_stability_stop()? {
             return Ok(stopped);
         }
         self.publish_overflow_chain(
             source,
             Some(head),
-            total,
-            validated_payload_bytes,
-            pages,
-            None,
+            traversal.total_data_length,
+            traversal.validated_payload_bytes,
+            traversal.pages,
+            traversal
+                .failure
+                .map(OverflowTraversalFailure::inspection_rule),
         )
     }
 
@@ -4567,7 +5355,11 @@ impl GraphView {
                 );
             }
             let current_vpid = Vpid::new(current.vol_id, current.page_id);
-            let owned = match OwnedInspectionPage::read(&self.data, current_vpid) {
+            let owned = match OwnedInspectionPage::read_admitted(
+                &self.data,
+                current_vpid,
+                policy.memory_limit,
+            ) {
                 Ok(page) => page,
                 Err(InspectionPageError::Source(error)) => {
                     return Err(OperationError::Source(error));
@@ -4597,6 +5389,15 @@ impl GraphView {
                         validated_payload_bytes,
                         chunks,
                         Some("tde.page.decrypt"),
+                    );
+                }
+                Err(InspectionPageError::ResourceLimit) => {
+                    return self.publish_oos_chain(
+                        head,
+                        expected_total,
+                        validated_payload_bytes,
+                        chunks,
+                        Some("resource-limit"),
                     );
                 }
             };
@@ -4979,7 +5780,6 @@ impl GraphView {
         header_page: Vpid,
         header: FileHeader,
         facts: FileAllocationFacts,
-        cancel: &CancelToken,
     ) -> Result<Self, OperationError> {
         if facts.pages.iter().any(|vpid| {
             self.data
@@ -4989,9 +5789,6 @@ impl GraphView {
         }) {
             return self.page_decode_failure(header_page, "file.table.owner_unique");
         }
-        let mut single = BTreeMap::new();
-        single.insert(header.vfid(), header);
-        let class_names = self.resolve_tracked_class_names(&single, cancel)?;
         let mut next = (*self.data).clone();
         next.revision = next
             .revision
@@ -5022,7 +5819,6 @@ impl GraphView {
                     kind,
                 });
         }
-        next.class_names.extend(class_names);
         refresh_deep_coverage(&mut next, None);
         let inspected_files = next
             .deep_pages
@@ -5154,171 +5950,86 @@ impl GraphView {
     }
 }
 
-/// Typed reason a file type carries no single class association.
-const fn class_absence_reason(file_type: FileType) -> &'static str {
-    match file_type {
-        FileType::Oos => "OOS class attribution is intentionally deferred",
-        FileType::Heap
-        | FileType::HeapReuseSlots
-        | FileType::MultipageObjectHeap
-        | FileType::Btree
-        | FileType::BtreeOverflowKey
-        | FileType::ExtensibleHash
-        | FileType::HashDirectory => "file descriptor has a null class OID",
-        FileType::Tracker
-        | FileType::Catalog
-        | FileType::DroppedFiles
-        | FileType::VacuumData
-        | FileType::QueryArea
-        | FileType::Temporary
-        | FileType::Unknown => "file type has no single class association",
+fn admitted_overflow_payload_capacity(
+    total: u32,
+    actual_resident: u64,
+    policy: ResourcePolicy,
+) -> Option<usize> {
+    let capacity = usize::try_from(total).ok()?;
+    let total = u64::from(total);
+    if total > policy.max_decoded_bytes
+        || total
+            .checked_add(actual_resident)
+            .is_none_or(|bytes| bytes > policy.memory_limit)
+    {
+        return None;
     }
+    Some(capacity)
 }
 
-fn database_charset(data: &SessionData) -> Result<u8, &'static str> {
-    let source = data
-        .sources
-        .volumes()
-        .iter()
-        .find(|volume| volume.declared_id().get() == 0)
-        .ok_or("primary volume is unavailable")?;
-    let page_id = PageId::new(0).map_err(|_| "primary volume header page is invalid")?;
-    let bytes = source
-        .read_page(page_id)
-        .map_err(|_| "primary volume header could not be read")?;
-    let envelope = decode_page_envelope(bytes.as_slice(), Vpid::new(source.declared_id(), page_id))
-        .map_err(|_| "primary volume header envelope is invalid")?;
-    let header = decode_volume_header(&envelope, source.stamp().length)
-        .map_err(|_| "primary volume header is invalid")?;
-    Ok(header.database_charset())
+#[derive(Clone, Copy)]
+struct VolumeCodesetEvidence {
+    vol_id: VolId,
+    next_vol_id: Option<VolId>,
+    raw: u8,
 }
 
-fn decode_class_name(
-    envelope: &crate::format::DecodedPageEnvelope<'_>,
-    slotted: &SlottedPage,
-    slot_id: u16,
-    charset: u8,
-) -> Result<Arc<str>, &'static str> {
-    let slot = slotted
-        .slots()
-        .get(usize::from(slot_id))
-        .ok_or("class record slot does not exist")?;
-    let record = decode_heap_record_envelope(envelope, slotted, slot_id, false)
-        .map_err(|_| "class object header is invalid")?;
-    let view = envelope
-        .plaintext("class.record.encrypted")
-        .map_err(|_| "class record is encrypted and unavailable")?;
-    let record_start = usize::from(slot.offset());
-    let header_length = usize::from(record.header_length);
-    let offset_width = usize::from(record.variable_offset_width);
-    let table_start = record_start
-        .checked_add(header_length)
-        .ok_or("class variable table offset overflow")?;
-    let first_raw = read_class_var_offset(&view, table_start, offset_width)?;
-    let next_entry = table_start
-        .checked_add(offset_width)
-        .ok_or("class variable table offset overflow")?;
-    let second_raw = read_class_var_offset(&view, next_entry, offset_width)?;
-    if first_raw & 1 != 0 {
-        return Err("out-of-row class names are outside this POC");
+fn validate_database_codeset<I>(
+    expected_volume_count: usize,
+    evidence: I,
+) -> Result<DatabaseCodeset, DatabaseCodesetFailure>
+where
+    I: IntoIterator<Item = VolumeCodesetEvidence>,
+{
+    let evidence = evidence.into_iter().collect::<Vec<_>>();
+    if evidence.len() != expected_volume_count
+        || evidence.first().map(|volume| volume.vol_id.get()) != Some(0)
+        || evidence.iter().enumerate().any(|(index, volume)| {
+            volume.next_vol_id != evidence.get(index + 1).map(|next| next.vol_id)
+        })
+    {
+        return Err(DatabaseCodesetFailure::IncompleteInventory);
     }
-    let first =
-        usize::try_from(first_raw & !3).map_err(|_| "class name offset does not fit in memory")?;
-    let second = usize::try_from(second_raw & !3)
-        .map_err(|_| "class name end offset does not fit in memory")?;
-    if first >= second {
-        return Err("class name variable attribute is empty or inverted");
+    let common = evidence
+        .first()
+        .map(|volume| volume.raw)
+        .ok_or(DatabaseCodesetFailure::IncompleteInventory)?;
+    if evidence.iter().any(|volume| volume.raw != common) {
+        return Err(DatabaseCodesetFailure::InconsistentVolumes);
     }
-    let variable_start = record_start
-        .checked_add(header_length)
-        .and_then(|base| base.checked_add(first))
-        .ok_or("class name offset overflow")?;
-    let variable_length = second
-        .checked_sub(first)
-        .ok_or("class name length underflow")?;
-    let record_end = record_start
-        .checked_add(usize::from(slot.length()))
-        .ok_or("class record length overflow")?;
-    let variable_end = variable_start
-        .checked_add(variable_length)
-        .ok_or("class name length overflow")?;
-    if variable_end > record_end {
-        return Err("class name exceeds its record slot");
-    }
-    let variable = view
-        .range(variable_start, variable_length, "class.record.name")
-        .map_err(|_| "class name bytes are out of bounds")?;
-    let (name_start, name_length) = class_varchar_shape(variable)?;
-    let name_end = name_start
-        .checked_add(name_length)
-        .ok_or("class name length overflow")?;
-    if name_length > 255 || name_end >= variable.len() || variable[name_end] != 0 {
-        return Err("class name length or terminator is invalid");
-    }
-    decode_class_identifier(&variable[name_start..name_end], charset)
+    DatabaseCodeset::from_header(common)
 }
 
-fn read_class_var_offset(
-    view: &ByteView<'_>,
-    offset: usize,
-    width: usize,
-) -> Result<u32, &'static str> {
-    let bytes = view
-        .range(offset, width, "class.record.var_offset")
-        .map_err(|_| "class variable offset is out of bounds")?;
-    match bytes {
-        [value] => Ok(u32::from(*value)),
-        [first, second] => Ok(u32::from(u16::from_be_bytes([*first, *second]))),
-        [first, second, third, fourth] => {
-            Ok(u32::from_be_bytes([*first, *second, *third, *fourth]))
-        }
-        _ => Err("class variable offset width is unsupported"),
+fn decode_class_identifier(
+    bytes: &[u8],
+    codeset: DatabaseCodeset,
+) -> Result<Arc<str>, ClassIdentifierFailure> {
+    if bytes.is_empty() || bytes.len() > 255 || bytes.contains(&0) {
+        return Err(ClassIdentifierFailure::InvalidLengthOrContents);
     }
-}
-
-fn class_varchar_shape(variable: &[u8]) -> Result<(usize, usize), &'static str> {
-    let prefix = *variable.first().ok_or("class name VARCHAR is empty")?;
-    if prefix != 0xff {
-        return Ok((1, usize::from(prefix)));
-    }
-    let compressed = variable
-        .get(1..5)
-        .and_then(|bytes| <[u8; 4]>::try_from(bytes).ok())
-        .map(u32::from_be_bytes)
-        .ok_or("class name compression header is truncated")?;
-    let decompressed = variable
-        .get(5..9)
-        .and_then(|bytes| <[u8; 4]>::try_from(bytes).ok())
-        .map(u32::from_be_bytes)
-        .ok_or("class name compression header is truncated")?;
-    if compressed != 0 {
-        return Err("compressed class names are not yet decoded");
-    }
-    Ok((
-        9,
-        usize::try_from(decompressed).map_err(|_| "class name length does not fit in memory")?,
-    ))
-}
-
-fn decode_class_identifier(bytes: &[u8], charset: u8) -> Result<Arc<str>, &'static str> {
-    if bytes.is_ascii() {
-        return std::str::from_utf8(bytes)
-            .map(Arc::from)
-            .map_err(|_| "ASCII class name is invalid");
-    }
-    match charset {
-        3 => Ok(bytes
+    match codeset {
+        DatabaseCodeset::Ascii => bytes
+            .is_ascii()
+            .then_some(bytes)
+            .ok_or(ClassIdentifierFailure::NonAscii)
+            .and_then(|ascii| {
+                std::str::from_utf8(ascii)
+                    .map(Arc::from)
+                    .map_err(|_| ClassIdentifierFailure::InvalidAscii)
+            }),
+        DatabaseCodeset::Iso88591 => Ok(bytes
             .iter()
             .copied()
             .map(char::from)
             .collect::<String>()
             .into()),
-        5 => std::str::from_utf8(bytes)
+        DatabaseCodeset::EucKr => encoding_rs::EUC_KR
+            .decode_without_bom_handling_and_without_replacement(bytes)
+            .map(|decoded| Arc::from(decoded.as_ref()))
+            .ok_or(ClassIdentifierFailure::InvalidEucKr),
+        DatabaseCodeset::Utf8 => std::str::from_utf8(bytes)
             .map(Arc::from)
-            .map_err(|_| "UTF-8 class name is invalid"),
-        4 => Err("EUC-KR class names are not yet decoded"),
-        0 => Err("ASCII database contains a non-ASCII class name"),
-        _ => Err("database codeset is unsupported"),
+            .map_err(|_| ClassIdentifierFailure::InvalidUtf8),
     }
 }
 
@@ -5691,11 +6402,21 @@ mod tests {
     use std::mem::size_of;
 
     use super::{
-        PACKED_PAGE_FACT_SIZE_USIZE, PackedPageFact, PageFastFact, SourceMode,
-        classify_mid_scan_source_change, page_uses_slotted_layout,
+        DatabaseCodeset, DatabaseCodesetFailure, PACKED_PAGE_FACT_SIZE_USIZE, PackedPageFact,
+        PageFastFact, ResourcePolicy, SourceMode, VolumeCodesetEvidence,
+        admitted_overflow_payload_capacity, classify_mid_scan_source_change,
+        decode_class_identifier, page_uses_slotted_layout, validate_database_codeset,
     };
     use crate::format::{FileType, PageType};
-    use crate::model::{Availability, PageId, SnapshotValidity, TdeInspectionState};
+    use crate::model::{Availability, PageId, SnapshotValidity, TdeInspectionState, VolId};
+
+    fn codeset_evidence(vol_id: i16, next_vol_id: Option<i16>, raw: u8) -> VolumeCodesetEvidence {
+        VolumeCodesetEvidence {
+            vol_id: VolId::new(vol_id).unwrap(),
+            next_vol_id: next_vol_id.map(|value| VolId::new(value).unwrap()),
+            raw,
+        }
+    }
 
     #[test]
     fn a_mid_scan_change_is_fatal_offline_but_torn_when_following() {
@@ -5738,5 +6459,112 @@ mod tests {
         ));
         assert!(!page_uses_slotted_layout(PageType::ExtensibleHash, None));
         assert!(page_uses_slotted_layout(PageType::Heap, None));
+    }
+
+    #[test]
+    fn complete_volume_evidence_accepts_each_supported_database_codeset() {
+        for (raw, expected) in [
+            (0, DatabaseCodeset::Ascii),
+            (3, DatabaseCodeset::Iso88591),
+            (4, DatabaseCodeset::EucKr),
+            (5, DatabaseCodeset::Utf8),
+        ] {
+            assert_eq!(
+                validate_database_codeset(
+                    2,
+                    [
+                        codeset_evidence(0, Some(1), raw),
+                        codeset_evidence(1, None, raw),
+                    ],
+                ),
+                Ok(expected)
+            );
+        }
+    }
+
+    #[test]
+    fn database_codeset_validation_fails_closed_for_untrusted_inventory() {
+        assert_eq!(
+            validate_database_codeset(2, [codeset_evidence(0, Some(1), 5)]),
+            Err(DatabaseCodesetFailure::IncompleteInventory)
+        );
+        assert_eq!(
+            validate_database_codeset(1, [codeset_evidence(0, Some(1), 5)]),
+            Err(DatabaseCodesetFailure::IncompleteInventory)
+        );
+        assert_eq!(
+            validate_database_codeset(
+                2,
+                [
+                    codeset_evidence(0, Some(1), 5),
+                    codeset_evidence(1, None, 4),
+                ],
+            ),
+            Err(DatabaseCodesetFailure::InconsistentVolumes)
+        );
+        assert_eq!(
+            validate_database_codeset(1, [codeset_evidence(0, None, 42)]),
+            Err(DatabaseCodesetFailure::Unsupported(42))
+        );
+    }
+
+    #[test]
+    fn class_identifier_decoding_is_strict_for_every_supported_codeset() {
+        assert_eq!(
+            decode_class_identifier(b"table_name", DatabaseCodeset::Ascii).as_deref(),
+            Ok("table_name")
+        );
+        assert_eq!(
+            decode_class_identifier(b"caf\xe9", DatabaseCodeset::Iso88591).as_deref(),
+            Ok("café")
+        );
+        assert_eq!(
+            decode_class_identifier(
+                &[0xc5, 0xd7, 0xc0, 0xcc, 0xba, 0xed],
+                DatabaseCodeset::EucKr,
+            )
+            .as_deref(),
+            Ok("테이블")
+        );
+        assert_eq!(
+            decode_class_identifier("테이블".as_bytes(), DatabaseCodeset::Utf8).as_deref(),
+            Ok("테이블")
+        );
+    }
+
+    #[test]
+    fn class_identifier_decoding_rejects_invalid_sequences_and_bounds() {
+        assert!(decode_class_identifier(&[0x80], DatabaseCodeset::Ascii).is_err());
+        assert!(decode_class_identifier(&[0x81], DatabaseCodeset::EucKr).is_err());
+        assert!(decode_class_identifier(&[0xc3, 0x28], DatabaseCodeset::Utf8).is_err());
+        assert!(decode_class_identifier(&[], DatabaseCodeset::Iso88591).is_err());
+        assert!(decode_class_identifier(&[b'a'; 256], DatabaseCodeset::Utf8).is_err());
+        assert!(decode_class_identifier(b"bad\0name", DatabaseCodeset::Utf8).is_err());
+    }
+
+    #[test]
+    fn overflow_capture_accounts_for_actual_encrypted_page_residency() {
+        let physical = crate::format::IO_PAGE_SIZE as u64;
+        let encrypted = physical + crate::format::DB_PAGE_SIZE as u64;
+        let payload = 1_024_u32;
+        let stale_plaintext_fit = encrypted + u64::from(payload) - 1;
+        let constrained =
+            ResourcePolicy::new(stale_plaintext_fit, 1 << 20, 1, 32, 1 << 20).unwrap();
+
+        assert!(
+            physical + u64::from(payload) <= constrained.memory_limit,
+            "the cached plaintext estimate would have admitted the capture"
+        );
+        assert_eq!(
+            admitted_overflow_payload_capacity(payload, encrypted, constrained),
+            None
+        );
+
+        let admitted =
+            ResourcePolicy::new(encrypted + u64::from(payload), 1 << 20, 1, 32, 1 << 20).unwrap();
+        assert_eq!(
+            admitted_overflow_payload_capacity(payload, encrypted, admitted),
+            Some(payload as usize)
+        );
     }
 }

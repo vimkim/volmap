@@ -16,6 +16,10 @@ mod tests {
         assert!(THIRD_PARTY_NOTICES.contains("aria 0.2.0"));
         assert!(THIRD_PARTY_NOTICES.contains("unicode-segmentation 1.13.3"));
         assert!(THIRD_PARTY_NOTICES.contains("unicode-width 0.2.2"));
+        assert!(THIRD_PARTY_NOTICES.contains("encoding_rs 0.8.35"));
+        assert!(THIRD_PARTY_NOTICES.contains("Copyright © WHATWG"));
+        assert!(THIRD_PARTY_NOTICES.contains("Copyright (c) 2013, Julien Schmidt"));
+        assert!(!THIRD_PARTY_NOTICES.contains("GB18030_2022_OVERRIDE_PUA"));
         assert!(THIRD_PARTY_NOTICES.contains("react 19.2.8"));
         assert!(THIRD_PARTY_NOTICES.contains("react-dom 19.2.8"));
         assert!(RELEASE_SBOM.contains("pkg:npm/react@19.2.8"));

@@ -186,8 +186,22 @@ function FieldList({ fields }: { readonly fields: readonly (readonly [string, st
 }
 
 function fileRows(association: Page["file_association"]): readonly (readonly [string, string])[] {
-  if (association.state === "none") return [["File", "none"]];
-  if (association.state === "mixed-claims") return [["File", "mixed claims"]];
+  if (association.state === "none") {
+    return [
+      ["File", "none"],
+      ["File role", "none"],
+      ["Class OID", "none"],
+      ["Class/table", "none"],
+    ];
+  }
+  if (association.state === "mixed-claims") {
+    return [
+      ["File", "mixed claims"],
+      ["File role", "mixed claims"],
+      ["Class OID", "mixed claims"],
+      ["Class/table", "mixed claims"],
+    ];
+  }
   const file = association.file;
   const rows: (readonly [string, string])[] = [
     [
@@ -195,12 +209,14 @@ function fileRows(association: Page["file_association"]): readonly (readonly [st
       `file:${file.vol_id}:${file.file_id}${association.state === "reserved-for" ? " (reserved, not allocated)" : ""}`,
     ],
     ["File role", file.file_type.state === "known" ? file.file_type.value : "unavailable"],
+    [
+      "Class OID",
+      file.class_oid.state === "present"
+        ? `oid:${file.class_oid.oid.vol_id}:${file.class_oid.oid.page_id}:${file.class_oid.oid.slot_id}`
+        : "none",
+    ],
+    ["Class/table", classNameLabel(file.class_name)],
   ];
-  if (file.class_oid.state === "present") {
-    const oid = file.class_oid.oid;
-    rows.push(["Class OID", `oid:${oid.vol_id}:${oid.page_id}:${oid.slot_id}`]);
-  }
-  rows.push(["Class/table", classNameLabel(file.class_name)]);
   return rows;
 }
 

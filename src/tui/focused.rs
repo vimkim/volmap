@@ -2008,10 +2008,10 @@ impl PageAttributionMark {
                 ClassNameProjection::Resolved { value } => {
                     ClassAttributionMark::Resolved(value.clone())
                 }
-                ClassNameProjection::Unresolved { reason } => {
+                ClassNameProjection::Unresolved { reason, .. } => {
                     ClassAttributionMark::Unresolved(reason)
                 }
-                ClassNameProjection::NotApplicable { reason } => {
+                ClassNameProjection::NotApplicable { reason, .. } => {
                     ClassAttributionMark::NotApplicable(reason)
                 }
             },
@@ -2135,10 +2135,10 @@ impl SectorAttributionMark {
                     ClassNameProjection::Resolved { value } => {
                         ClassAttributionMark::Resolved(value.clone())
                     }
-                    ClassNameProjection::Unresolved { reason } => {
+                    ClassNameProjection::Unresolved { reason, .. } => {
                         ClassAttributionMark::Unresolved(reason)
                     }
-                    ClassNameProjection::NotApplicable { reason } => {
+                    ClassNameProjection::NotApplicable { reason, .. } => {
                         ClassAttributionMark::NotApplicable(reason)
                     }
                 },
@@ -3375,8 +3375,8 @@ fn optional_oid_label(oid: &OptionalOidProjection) -> Option<String> {
 fn class_name_label(class_name: &ClassNameProjection) -> &str {
     match class_name {
         ClassNameProjection::Resolved { value } => value,
-        ClassNameProjection::Unresolved { reason }
-        | ClassNameProjection::NotApplicable { reason } => reason,
+        ClassNameProjection::Unresolved { reason, .. }
+        | ClassNameProjection::NotApplicable { reason, .. } => reason,
     }
 }
 
@@ -4022,6 +4022,24 @@ mod tests {
         }
     }
 
+    fn projected_file(
+        vol_id: i16,
+        file_id: i32,
+        role: &'static str,
+        class_oid: Option<OidProjection>,
+        class_name: ClassNameProjection,
+    ) -> FileAssociationBodyProjection {
+        FileAssociationBodyProjection {
+            vol_id,
+            file_id,
+            file_type: OptionalTextProjection::Known(role),
+            class_oid: class_oid.map_or(OptionalOidProjection::Absent, |oid| {
+                OptionalOidProjection::Present { oid }
+            }),
+            class_name,
+        }
+    }
+
     fn synthetic_card(sector_id: i32) -> SectorCard {
         let percentages = [1, 13, 26, 38, 51, 63, 76, 100];
         let pages = (0_i32..64)
@@ -4446,6 +4464,129 @@ mod tests {
                 reserved_unallocated_pages: 0,
             }
         ));
+    }
+
+    struct PageAssociationCase {
+        association: FileAssociationProjection,
+        expected_file: &'static str,
+        expected_table: &'static str,
+        rendered_marker: &'static str,
+    }
+
+    fn page_association_cases() -> Vec<PageAssociationCase> {
+        let oid = OidProjection {
+            vol_id: 0,
+            page_id: 209,
+            slot_id: 2,
+        };
+        vec![
+            PageAssociationCase {
+                association: FileAssociationProjection::None,
+                expected_file: "file none / class -",
+                expected_table: "table -",
+                rendered_marker: "file none",
+            },
+            PageAssociationCase {
+                association: FileAssociationProjection::MixedClaims,
+                expected_file: "file mixed / class ?",
+                expected_table: "table ?",
+                rendered_marker: "file mixed",
+            },
+            PageAssociationCase {
+                association: FileAssociationProjection::Allocated {
+                    file: projected_file(
+                        1,
+                        640,
+                        "heap-reuse-slots",
+                        Some(oid),
+                        ClassNameProjection::Resolved {
+                            value: "dba.orders".to_owned(),
+                        },
+                    ),
+                },
+                expected_file: "allocated-by file 1:640 (heap-reuse-slots) / class 0:209:2",
+                expected_table: "table dba.orders",
+                rendered_marker: "allocated-by",
+            },
+            PageAssociationCase {
+                association: FileAssociationProjection::ReservedFor {
+                    file: projected_file(
+                        1,
+                        640,
+                        "heap-reuse-slots",
+                        Some(oid),
+                        ClassNameProjection::Unresolved {
+                            reason_code: "class-name.page-unavailable",
+                            reason: "class page unavailable",
+                        },
+                    ),
+                },
+                expected_file: "reserved-for file 1:640 (heap-reuse-slots) / class 0:209:2",
+                expected_table: "table ? (class page unavailable)",
+                rendered_marker: "reserved-for",
+            },
+            PageAssociationCase {
+                association: FileAssociationProjection::Allocated {
+                    file: projected_file(
+                        0,
+                        576,
+                        "catalog",
+                        None,
+                        ClassNameProjection::NotApplicable {
+                            reason_code: "class-association.internal-file",
+                            reason: "internal file",
+                        },
+                    ),
+                },
+                expected_file: "allocated-by file 0:576 (catalog) / class -",
+                expected_table: "table - (internal file)",
+                rendered_marker: "allocated-by",
+            },
+            PageAssociationCase {
+                association: FileAssociationProjection::Allocated {
+                    file: projected_file(
+                        1,
+                        704,
+                        "oos",
+                        None,
+                        ClassNameProjection::NotApplicable {
+                            reason_code: "class-association.oos-deferred",
+                            reason: "OOS attribution deferred",
+                        },
+                    ),
+                },
+                expected_file: "allocated-by file 1:704 (oos) / class -",
+                expected_table: "table - (OOS attribution deferred)",
+                rendered_marker: "allocated-by",
+            },
+        ]
+    }
+
+    #[test]
+    fn page_view_consumes_every_shared_association_state_without_inference() {
+        let mut scene = ready_page_scene();
+        for case in page_association_cases() {
+            let mut projection = page(7, "allocated", PageOccupancyProjection::Unknown, false);
+            projection.file_association = case.association;
+            let page = PageMark::try_from_projection(&projection).unwrap();
+            assert_eq!(
+                page.attribution.labels(),
+                (
+                    case.expected_file.to_owned(),
+                    case.expected_table.to_owned()
+                )
+            );
+            scene.page = page;
+            let frame = PageRenderer::render(
+                &scene,
+                Surface::new(120, 36),
+                PresentationProfile::ANSI_UNICODE,
+            )
+            .unwrap();
+            let facts = frame.line(2);
+            assert!(facts.contains(case.expected_table), "{facts}");
+            assert!(facts.contains(case.rendered_marker), "{facts}");
+        }
     }
 
     #[test]

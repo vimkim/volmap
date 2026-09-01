@@ -1,8 +1,20 @@
 # Table attribution survey
 
+> **Implementation status (2026-09-01).** This is the source-pinned design
+> survey that preceded the production implementation. The released Page
+> projection and its fail-closed states are documented in the
+> [Page file/class association contract](page-association-contract.md). The
+> historical “missing work” statements below describe the survey baseline, not
+> the current code. Production attribution is per Page; sector attribution is a
+> separate claim summary, and OOS class attribution remains deferred.
+
 ## Scope and source baseline
 
-This survey answers how the existing offline volume inspector can show a CUBRID class/table name for a page and, when the evidence permits, for a sector. OOS is intentionally deferred; the scoped file families are heap, heap-reuse, multipage heap overflow, B-tree, B-tree overflow-key, extensible-hash bucket/directory, and catalog.
+This survey asked how the offline volume inspector could show a CUBRID
+class/table name for a Page and explored a possible sector summary. OOS was
+intentionally deferred; the scoped file families were heap, heap-reuse,
+multipage heap overflow, B-tree, B-tree overflow-key, extensible-hash
+bucket/directory, and catalog.
 
 The volmap worktree was inspected on `main` at `7e58c4e496cb68ae585e14b227e5cda9b02ad153`. Its README pins the interpreted CUBRID format to `e1e651debf6cc100172bde96603b17424f9c135a`, a commit contained by `feat/oos`; all CUBRID layout claims below are against that exact commit. The nearby non-OOS `develop` worktree is at `f30f1c26003e5aa8e93182648e06cad76fc77064`; its relevant pre-OOS descriptor definitions are unchanged. See the [volmap format pin](/home/vimkim/temp/volmap/README.md:5) and CUBRID's stable [`FILE_DESCRIPTORS` definitions](https://github.com/CUBRID/CUBRID/blob/e1e651debf6cc100172bde96603b17424f9c135a/src/storage/file_manager.h#L81-L149).
 
@@ -137,7 +149,7 @@ For a partial sector, the analogous `single` object should include `allocated_pa
 | Direct descriptor + class-record OID read | Yes | All scoped class-associated files; allocated pages and retained sector reservations | Recommended. Smallest trustworthy dependency surface; requires a narrow object-record/name decoder and codeset conversion |
 | Scan root-class heap and build all OID/name pairs | Yes | All classes, including those with no tracked file | More I/O and parser surface than needed; useful only for a future class browser |
 | Reverse/read the classname E-hash | Yes | Name-to-OID index | Wrong direction and additional boot/hash complexity; not recommended |
-| Sidecar produced by SQL/engine dump | Snapshot-dependent | Whatever was exported | Easy POC but stale/mismatched metadata is possible and standalone/offline operation is lost |
+| Sidecar produced by SQL/engine dump | Snapshot-dependent | Whatever was exported | Easy validation route, but stale/mismatched metadata is possible and standalone/offline operation is lost |
 | Invoke CUBRID engine/`diagdb` | No, engine restart required | Engine-supported dumps | Excellent validation oracle, poor product dependency; may perform recovery/startup work |
 
 ## Limitations and validation

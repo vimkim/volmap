@@ -7,3 +7,24 @@ accepted = [
     "Unicode-3.0",
     "Unlicense",
 ]
+
+# encoding_rs carries its WHATWG terms in a dedicated license file, but also
+# repeats them in a generated Rust data file. Pin the packaged license files so
+# release notices contain the complete terms without embedding generated code.
+[encoding_rs.clarify]
+license = "(Apache-2.0 OR MIT) AND BSD-3-Clause"
+
+[[encoding_rs.clarify.files]]
+path = "LICENSE-APACHE"
+license = "Apache-2.0"
+checksum = "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+
+[[encoding_rs.clarify.files]]
+path = "LICENSE-MIT"
+license = "MIT"
+checksum = "3fa4ca83dcc9237839b1bdeb2e6d16bdfb5ec0c5ce42b24694d8bbf0dcbef72c"
+
+[[encoding_rs.clarify.files]]
+path = "LICENSE-WHATWG"
+license = "BSD-3-Clause"
+checksum = "838118388fe5c2e7f1dbbaeed13e1c7f3ebf88be91319c7c1d77c18e987d1a50"

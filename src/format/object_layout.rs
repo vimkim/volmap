@@ -100,25 +100,44 @@ pub(super) const fn is_supported_offset_width(width: u8) -> bool {
 ///
 /// Returns raw bytes rather than text: the codeset that decides how to render
 /// them lives in the attribute's domain, not in the value (research §4.4).
-pub(super) fn read_packed_string(
+pub(super) struct PackedString {
+    pub bytes: Vec<u8>,
+    pub encoded_length: usize,
+}
+
+pub(super) fn read_packed_string_with_length(
     view: &ByteView<'_>,
     offset: usize,
     extent: usize,
+    maximum_decoded_length: usize,
     rule: &'static str,
-) -> Result<Vec<u8>, DecodeError> {
+) -> Result<PackedString, DecodeError> {
     let value = view
         .subview(offset, extent, rule)
         .map_err(|_| DecodeError::new(DecodeErrorKind::ByteAccess, rule))?;
     let prefix = read_u8(&value, 0, rule)?;
     if prefix < STRING_COMPRESSION_PREFIX {
-        return Ok(range(&value, 1, usize::from(prefix), rule)?.to_vec());
+        let length = usize::from(prefix);
+        if length > maximum_decoded_length {
+            return Err(DecodeError::new(DecodeErrorKind::InvalidLength, rule));
+        }
+        return Ok(PackedString {
+            bytes: range(&value, 1, length, rule)?.to_vec(),
+            encoded_length: 1 + length,
+        });
     }
 
     let compressed = non_negative(read_i32_be(&value, 1, rule)?, rule)?;
     let decompressed = non_negative(read_i32_be(&value, 5, rule)?, rule)?;
+    if decompressed > maximum_decoded_length {
+        return Err(DecodeError::new(DecodeErrorKind::InvalidLength, rule));
+    }
     if compressed == 0 {
         // Compression was skipped or unprofitable; the payload is stored raw.
-        return Ok(range(&value, 9, decompressed, rule)?.to_vec());
+        return Ok(PackedString {
+            bytes: range(&value, 9, decompressed, rule)?.to_vec(),
+            encoded_length: 9 + decompressed,
+        });
     }
 
     // The payload is read first, so `compressed` is proven to lie inside the
@@ -127,8 +146,21 @@ pub(super) fn read_packed_string(
     if decompressed > payload.len().saturating_mul(LZ4_MAX_EXPANSION_RATIO) {
         return Err(DecodeError::new(DecodeErrorKind::InvalidLength, rule));
     }
-    lz4_flex::block::decompress(payload, decompressed)
-        .map_err(|_| DecodeError::new(DecodeErrorKind::InvalidLength, rule))
+    let bytes = lz4_flex::block::decompress(payload, decompressed)
+        .map_err(|_| DecodeError::new(DecodeErrorKind::InvalidLength, rule))?;
+    Ok(PackedString {
+        bytes,
+        encoded_length: 9 + compressed,
+    })
+}
+
+pub(super) fn read_packed_string(
+    view: &ByteView<'_>,
+    offset: usize,
+    extent: usize,
+    rule: &'static str,
+) -> Result<Vec<u8>, DecodeError> {
+    Ok(read_packed_string_with_length(view, offset, extent, usize::MAX, rule)?.bytes)
 }
 
 /// Renders string bytes for display. Version one assumes a UTF-8-compatible

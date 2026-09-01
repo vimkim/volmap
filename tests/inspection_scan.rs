@@ -8,7 +8,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use volmap::diagnostics::InspectionOutcome;
 use volmap::export::{ExportError, export_html};
 use volmap::format::{IO_PAGE_SIZE, PageType};
-use volmap::inspection::{CancelToken, Inspection, OpenRequest, ResourcePolicy, RevisionSelector};
+use volmap::inspection::{
+    CancelToken, DatabaseCodeset, Inspection, OpenRequest, ResourcePolicy, RevisionSelector,
+};
 use volmap::model::{Availability, Oid, PageId, SectorId, SlotId, VolId, Vpid};
 use volmap::projection::{DataProjection, page_projection, result_document, summary_projection};
 use volmap::source::InputSpec;
@@ -161,6 +163,7 @@ fn inspection_opens_sparse_volume_and_scans_only_reserved_sector_envelopes() {
     let view = inspection.view(RevisionSelector::Latest).unwrap();
     let overview = view.overview();
 
+    assert_eq!(view.database_codeset(), Ok(DatabaseCodeset::Ascii));
     assert_eq!(overview.outcome, InspectionOutcome::SuccessLimited);
     assert_eq!(overview.physical_page_count, 4096);
     assert_eq!(overview.inspected_page_envelopes, 64);

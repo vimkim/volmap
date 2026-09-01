@@ -21,8 +21,13 @@ THIRD-PARTY COMPONENTS
 
 LICENSE TEXTS
 -------------
-{{#each overview}}
+{{#each licenses}}
 
 ===== {{{name}}} ({{{id}}}) =====
+Used by:
+{{#each used_by}}
+- {{{crate.name}}} {{{crate.version}}}
+{{/each}}
+
 {{{text}}}
 {{/each}}

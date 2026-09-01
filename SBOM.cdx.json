@@ -709,6 +709,41 @@
     },
     {
       "type": "library",
+      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#encoding_rs@0.8.35",
+      "author": "Henri Sivonen <hsivonen@hsivonen.fi>",
+      "name": "encoding_rs",
+      "version": "0.8.35",
+      "description": "A Gecko-oriented implementation of the Encoding Standard",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "75030f3c4f45dafd7586dd6780965a8c7e8e285a5ecb86713e63a79c5b2766f3"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "(Apache-2.0 OR MIT) AND BSD-3-Clause"
+        }
+      ],
+      "purl": "pkg:cargo/encoding_rs@0.8.35",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/encoding_rs/"
+        },
+        {
+          "type": "website",
+          "url": "https://docs.rs/encoding_rs/"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/hsivonen/encoding_rs"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#errno@0.3.14",
       "author": "Chris Wong <lambda.fairy@gmail.com>, Dan Gohman <dev@sunfishcode.online>",
       "name": "errno",
@@ -2791,6 +2826,7 @@
         "registry+https://github.com/rust-lang/crates.io-index#clap@4.6.6",
         "registry+https://github.com/rust-lang/crates.io-index#crossterm@0.29.0",
         "registry+https://github.com/rust-lang/crates.io-index#ctr@0.10.1",
+        "registry+https://github.com/rust-lang/crates.io-index#encoding_rs@0.8.35",
         "registry+https://github.com/rust-lang/crates.io-index#if-addrs@0.15.0",
         "registry+https://github.com/rust-lang/crates.io-index#lz4_flex@0.14.0",
         "registry+https://github.com/rust-lang/crates.io-index#serde@1.0.229",
@@ -2961,6 +2997,12 @@
       "ref": "registry+https://github.com/rust-lang/crates.io-index#document-features@0.2.12",
       "dependsOn": [
         "registry+https://github.com/rust-lang/crates.io-index#litrs@1.0.0"
+      ]
+    },
+    {
+      "ref": "registry+https://github.com/rust-lang/crates.io-index#encoding_rs@0.8.35",
+      "dependsOn": [
+        "registry+https://github.com/rust-lang/crates.io-index#cfg-if@1.0.4"
       ]
     },
     {
