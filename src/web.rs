@@ -116,6 +116,7 @@ async fn serve_async(view: GraphView, options: ServeOptions) -> Result<(), Serve
     let local = listener.local_addr().map_err(ServeError::Io)?;
     let cursor_key = Arc::new(generate_cursor_key()?);
     let config = options.follow.unwrap_or_default();
+    let format_profile = view.format_profile();
     let source = LiveSource::new(view, config, options.follow.is_some());
     let state = WebState {
         source: Arc::clone(&source),
@@ -130,6 +131,7 @@ async fn serve_async(view: GraphView, options: ServeOptions) -> Result<(), Serve
         tokio::spawn(crate::follow::follow(
             source,
             options.request.clone(),
+            format_profile,
             options.policy,
         ));
     }
@@ -1229,6 +1231,12 @@ async fn enrich(
         Err(crate::inspection::OperationError::ResourceLimit) => {
             return error_response(StatusCode::TOO_MANY_REQUESTS, "resource-admission-refused");
         }
+        Err(crate::inspection::OperationError::UnsupportedFormatProfile { .. }) => {
+            return error_response(
+                StatusCode::BAD_REQUEST,
+                "unsupported-format-profile-operation",
+            );
+        }
         Err(
             crate::inspection::OperationError::Unsupported
             | crate::inspection::OperationError::Query(_),
@@ -1520,6 +1528,9 @@ fn default_error_message(code: &str) -> &'static str {
         }
         "resource-not-found" => "The requested Volmap resource does not exist.",
         "session-unavailable" => "The Volmap inspection session is unavailable.",
+        "unsupported-format-profile-operation" => {
+            "OOS inspection is unavailable under the develop format profile; reopen with --format-profile feat-oos."
+        }
         "uri-too-long" => "The request URL exceeds the server limit.",
         _ => "The Volmap request failed.",
     }
@@ -1545,6 +1556,14 @@ mod tests {
     use super::*;
     use axum::body::Body;
     use axum::http::{Method, Request};
+
+    #[test]
+    fn unsupported_format_profile_error_explains_the_profile_constraint() {
+        assert_eq!(
+            default_error_message("unsupported-format-profile-operation"),
+            "OOS inspection is unavailable under the develop format profile; reopen with --format-profile feat-oos."
+        );
+    }
 
     /// A session over one uninteresting volume, for the tests that exercise
     /// the request guards and cursor authenticity and never read a page. A real
@@ -2662,6 +2681,7 @@ mod tests {
             rewrite_fixture_volume(&volume);
         }
         let following = follow.is_some();
+        let format_profile = view.format_profile();
         let source = LiveSource::new(view, follow.unwrap_or_default(), following);
         let server_source = Arc::clone(&source);
 
@@ -2685,7 +2705,12 @@ mod tests {
                     watchers: Arc::new(Semaphore::new(MAX_CONCURRENT_WATCHERS)),
                 };
                 if following {
-                    tokio::spawn(crate::follow::follow(source, request, policy));
+                    tokio::spawn(crate::follow::follow(
+                        source,
+                        request,
+                        format_profile,
+                        policy,
+                    ));
                 }
                 sender.send(address).unwrap();
                 let _ = axum::serve(listener, build_router(state)).await;

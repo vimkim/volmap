@@ -1,7 +1,7 @@
 use crate::bytes::ByteView;
 use crate::model::Vpid;
 
-use super::{DecodeError, DecodeErrorKind};
+use super::{DecodeError, DecodeErrorKind, FormatProfile};
 
 pub const IO_PAGE_SIZE: usize = 16_384;
 pub const DB_PAGE_SIZE: usize = 16_344;
@@ -70,23 +70,23 @@ impl PageType {
         }
     }
 
-    fn from_ordinal(value: u8) -> Result<Self, DecodeError> {
-        match value {
-            0 => Ok(Self::Unknown),
-            1 => Ok(Self::FileTable),
-            2 => Ok(Self::Heap),
-            3 => Ok(Self::VolumeHeader),
-            4 => Ok(Self::VolumeBitmap),
-            5 => Ok(Self::QueryResult),
-            6 => Ok(Self::ExtensibleHash),
-            7 => Ok(Self::Overflow),
-            8 => Ok(Self::Oos),
-            9 => Ok(Self::Area),
-            10 => Ok(Self::Catalog),
-            11 => Ok(Self::Btree),
-            12 => Ok(Self::Log),
-            13 => Ok(Self::DroppedFiles),
-            14 => Ok(Self::VacuumData),
+    fn from_ordinal(value: u8, profile: FormatProfile) -> Result<Self, DecodeError> {
+        match (profile, value) {
+            (_, 0) => Ok(Self::Unknown),
+            (_, 1) => Ok(Self::FileTable),
+            (_, 2) => Ok(Self::Heap),
+            (_, 3) => Ok(Self::VolumeHeader),
+            (_, 4) => Ok(Self::VolumeBitmap),
+            (_, 5) => Ok(Self::QueryResult),
+            (_, 6) => Ok(Self::ExtensibleHash),
+            (_, 7) => Ok(Self::Overflow),
+            (FormatProfile::FeatOos, 8) => Ok(Self::Oos),
+            (FormatProfile::Develop, 8) | (FormatProfile::FeatOos, 9) => Ok(Self::Area),
+            (FormatProfile::Develop, 9) | (FormatProfile::FeatOos, 10) => Ok(Self::Catalog),
+            (FormatProfile::Develop, 10) | (FormatProfile::FeatOos, 11) => Ok(Self::Btree),
+            (FormatProfile::Develop, 11) | (FormatProfile::FeatOos, 12) => Ok(Self::Log),
+            (FormatProfile::Develop, 12) | (FormatProfile::FeatOos, 13) => Ok(Self::DroppedFiles),
+            (FormatProfile::Develop, 13) | (FormatProfile::FeatOos, 14) => Ok(Self::VacuumData),
             _ => Err(DecodeError::new(
                 DecodeErrorKind::UnknownEnum,
                 "page.envelope.type_known",
@@ -111,6 +111,7 @@ pub enum PageContent {
 #[derive(Clone, Copy, Debug)]
 pub struct DecodedPageEnvelope<'a> {
     id: Vpid,
+    profile: FormatProfile,
     page_type: PageType,
     lsa_word: u64,
     content: PageContent,
@@ -121,12 +122,18 @@ pub struct DecodedPageEnvelope<'a> {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct PageEnvelopeSummary {
     id: Vpid,
+    profile: FormatProfile,
     page_type: PageType,
     lsa_word: u64,
     content: PageContent,
 }
 
 impl PageEnvelopeSummary {
+    #[must_use]
+    pub const fn profile(self) -> FormatProfile {
+        self.profile
+    }
+
     #[must_use]
     pub const fn id(self) -> Vpid {
         self.id
@@ -149,6 +156,11 @@ impl PageEnvelopeSummary {
 }
 
 impl<'a> DecodedPageEnvelope<'a> {
+    #[must_use]
+    pub const fn profile(&self) -> FormatProfile {
+        self.profile
+    }
+
     #[must_use]
     pub const fn id(&self) -> Vpid {
         self.id
@@ -201,13 +213,27 @@ pub fn decode_decrypted_page_envelope<'a>(
     decrypted_user: &'a [u8],
     expected: Vpid,
 ) -> Result<DecodedPageEnvelope<'a>, DecodeError> {
+    decode_decrypted_page_envelope_with_profile(
+        encrypted_page,
+        decrypted_user,
+        expected,
+        FormatProfile::FeatOos,
+    )
+}
+
+pub fn decode_decrypted_page_envelope_with_profile<'a>(
+    encrypted_page: &[u8],
+    decrypted_user: &'a [u8],
+    expected: Vpid,
+    profile: FormatProfile,
+) -> Result<DecodedPageEnvelope<'a>, DecodeError> {
     if encrypted_page.len() != IO_PAGE_SIZE || decrypted_user.len() != DB_PAGE_SIZE {
         return Err(DecodeError::new(
             DecodeErrorKind::InvalidLength,
             "page.decrypted.physical_size",
         ));
     }
-    let summary = decode_page_envelope_parts(
+    let summary = decode_page_envelope_parts_with_profile(
         encrypted_page.get(..PAGE_PREFIX_SIZE).ok_or_else(|| {
             DecodeError::new(DecodeErrorKind::InvalidLength, "page.decrypted.prefix")
         })?,
@@ -217,6 +243,7 @@ pub fn decode_decrypted_page_envelope<'a>(
                 DecodeError::new(DecodeErrorKind::InvalidLength, "page.decrypted.watermark")
             })?,
         expected,
+        profile,
     )?;
     let PageContent::EncryptedOpaque { algorithm } = summary.content else {
         return Err(DecodeError::new(
@@ -235,6 +262,7 @@ pub fn decode_decrypted_page_envelope<'a>(
         })?;
     Ok(DecodedPageEnvelope {
         id: summary.id,
+        profile: summary.profile,
         page_type: summary.page_type,
         lsa_word: summary.lsa_word,
         content: PageContent::Decrypted { algorithm },
@@ -246,6 +274,14 @@ pub fn decode_page_envelope(
     bytes: &[u8],
     expected: Vpid,
 ) -> Result<DecodedPageEnvelope<'_>, DecodeError> {
+    decode_page_envelope_with_profile(bytes, expected, FormatProfile::FeatOos)
+}
+
+pub fn decode_page_envelope_with_profile(
+    bytes: &[u8],
+    expected: Vpid,
+    profile: FormatProfile,
+) -> Result<DecodedPageEnvelope<'_>, DecodeError> {
     if bytes.len() != IO_PAGE_SIZE {
         return Err(DecodeError::new(
             DecodeErrorKind::InvalidLength,
@@ -253,7 +289,7 @@ pub fn decode_page_envelope(
         ));
     }
 
-    let summary = decode_page_envelope_parts(
+    let summary = decode_page_envelope_parts_with_profile(
         bytes.get(..PAGE_PREFIX_SIZE).ok_or_else(|| {
             DecodeError::new(DecodeErrorKind::InvalidLength, "page.envelope.prefix_size")
         })?,
@@ -266,6 +302,7 @@ pub fn decode_page_envelope(
                 )
             })?,
         expected,
+        profile,
     )?;
     let page_offset = page_file_offset(expected)?;
     let view = ByteView::new(bytes, page_offset);
@@ -284,6 +321,7 @@ pub fn decode_page_envelope(
 
     Ok(DecodedPageEnvelope {
         id: summary.id,
+        profile: summary.profile,
         page_type: summary.page_type,
         lsa_word: summary.lsa_word,
         content: summary.content,
@@ -297,6 +335,15 @@ pub fn decode_page_envelope_parts(
     prefix: &[u8],
     watermark: &[u8],
     expected: Vpid,
+) -> Result<PageEnvelopeSummary, DecodeError> {
+    decode_page_envelope_parts_with_profile(prefix, watermark, expected, FormatProfile::FeatOos)
+}
+
+pub fn decode_page_envelope_parts_with_profile(
+    prefix: &[u8],
+    watermark: &[u8],
+    expected: Vpid,
+    profile: FormatProfile,
 ) -> Result<PageEnvelopeSummary, DecodeError> {
     if prefix.len() != PAGE_PREFIX_SIZE || watermark.len() != PAGE_WATERMARK_SIZE {
         return Err(DecodeError::new(
@@ -356,6 +403,7 @@ pub fn decode_page_envelope_parts(
     let page_type = PageType::from_ordinal(
         view.read_u8(14, "physical page type")
             .map_err(|_| DecodeError::new(DecodeErrorKind::ByteAccess, "page.envelope.type"))?,
+        profile,
     )?;
     let flags = view
         .read_u8(15, "page flags")
@@ -379,6 +427,7 @@ pub fn decode_page_envelope_parts(
 
     Ok(PageEnvelopeSummary {
         id: expected,
+        profile,
         page_type,
         lsa_word: leading_lsa,
         content,

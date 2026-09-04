@@ -52,12 +52,17 @@ Every command accepts exactly one of these inputs:
 --vinf PATH [--volume-root DIR]
 ```
 
+The CUBRID `develop` format is selected by default. Use
+`--format-profile feat-oos` when inspecting volumes created by the experimental
+OOS branch; Volmap cannot infer this choice reliably from the volume header.
+
 ## What can Volmap inspect?
 
 - Volume geometry, Sector reservation, and Page allocation
 - File ownership and Page-to-table association
 - Slotted-page structure, free space, slots, and record layout
-- Heap, B-tree, catalog, vacuum, OOS, and `REC_BIGONE` overflow metadata
+- Heap, B-tree, catalog, vacuum, and `REC_BIGONE` overflow metadata
+- OOS metadata and chains under the `feat-oos` format profile
 - Validated relocation and overflow chains
 - TDE-encrypted Pages when an explicit local key file is supplied
 - Typed record values only when the operator explicitly selects that record
@@ -115,9 +120,13 @@ oos:VOLID:PAGEID:SLOTID
   Decoded values appear only for explicitly selected records.
 - The web server has no built-in authentication. Keep it on loopback or place
   remote access behind SSH, a VPN, firewall, or trusted TLS reverse proxy.
-- This project is under active development and currently targets the CUBRID
-  `feat/oos` volume format at commit
-  `e1e651debf6cc100172bde96603b17424f9c135a`.
+- This project is under active development and targets two pinned CUBRID volume
+  formats: `develop` commit `cd593bcf2d8643b4698f1cb311c4c23af23a9d57`
+  (the default) and `feat/oos` commit
+  `e1e651debf6cc100172bde96603b17424f9c135a` (selected with
+  `--format-profile feat-oos`). A selected profile is never changed
+  automatically; contradictory evidence may produce a diagnostic suggesting an
+  explicit retry with the other profile.
 
 The disclosure policy is documented in
 [ADR-0001](docs/adr/0001-explicit-target-disclosure.md). See

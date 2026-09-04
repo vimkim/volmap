@@ -1,7 +1,8 @@
 use volmap::format::{
-    FILE_DESCRIPTOR_SIZE, FileClassAssociation, FileDescriptor, FileType, IO_PAGE_SIZE, PageType,
-    decode_extdata_header, decode_file_descriptor, decode_file_header, decode_full_sectors,
-    decode_page_envelope, decode_partial_sectors, decode_tracker_items, decode_user_pages,
+    FILE_DESCRIPTOR_SIZE, FileClassAssociation, FileDescriptor, FileType, FormatProfile,
+    IO_PAGE_SIZE, PageType, decode_extdata_header, decode_file_descriptor, decode_file_header,
+    decode_full_sectors, decode_page_envelope, decode_page_envelope_with_profile,
+    decode_partial_sectors, decode_tracker_items, decode_user_pages,
 };
 use volmap::model::{FileId, PageId, Vfid, VolId, Vpid};
 
@@ -39,6 +40,18 @@ fn envelope(bytes: &[u8]) -> volmap::format::DecodedPageEnvelope<'_> {
     decode_page_envelope(
         bytes,
         Vpid::new(VolId::new(1).unwrap(), PageId::new(5).unwrap()),
+    )
+    .unwrap()
+}
+
+fn envelope_with_profile(
+    bytes: &[u8],
+    profile: FormatProfile,
+) -> volmap::format::DecodedPageEnvelope<'_> {
+    decode_page_envelope_with_profile(
+        bytes,
+        Vpid::new(VolId::new(1).unwrap(), PageId::new(5).unwrap()),
+        profile,
     )
     .unwrap()
 }
@@ -278,6 +291,40 @@ fn file_header_validates_identity_accounting_and_table_boundaries() {
     let table = decode_extdata_header(&envelope, 216, 16).unwrap();
     assert_eq!(table.item_count, 0);
     assert!(table.next.is_none());
+}
+
+#[test]
+fn selected_format_profile_decodes_ambiguous_file_type_ordinal() {
+    let bytes = file_page();
+
+    let develop =
+        decode_file_header(&envelope_with_profile(&bytes, FormatProfile::Develop)).unwrap();
+    let feat_oos =
+        decode_file_header(&envelope_with_profile(&bytes, FormatProfile::FeatOos)).unwrap();
+
+    assert_eq!(develop.file_type(), FileType::Unknown);
+    assert_eq!(feat_oos.file_type(), FileType::Oos);
+
+    let mut raw_fourteen = bytes;
+    raw_fourteen[32 + 140..32 + 144].copy_from_slice(&14_i32.to_le_bytes());
+    assert_eq!(
+        decode_file_header(&envelope_with_profile(
+            &raw_fourteen,
+            FormatProfile::Develop
+        ))
+        .unwrap_err()
+        .rule(),
+        "file.header.type"
+    );
+    assert_eq!(
+        decode_file_header(&envelope_with_profile(
+            &raw_fourteen,
+            FormatProfile::FeatOos
+        ))
+        .unwrap()
+        .file_type(),
+        FileType::Unknown
+    );
 }
 
 #[test]

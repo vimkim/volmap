@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use volmap::diagnostics::InspectionOutcome;
 use volmap::export::{ExportError, export_html};
-use volmap::format::{IO_PAGE_SIZE, PageType};
+use volmap::format::{FormatProfile, IO_PAGE_SIZE, PageType};
 use volmap::inspection::{
     CancelToken, DatabaseCodeset, Inspection, OpenRequest, ResourcePolicy, RevisionSelector,
 };
@@ -216,6 +216,144 @@ fn inspection_opens_sparse_volume_and_scans_only_reserved_sector_envelopes() {
             .iter()
             .all(|page| page["file_association"]["state"] == "none")
     );
+}
+
+#[test]
+fn one_selected_format_profile_governs_the_snapshot() {
+    let (_directory, _volume, vinf) = fixture();
+    let request = OpenRequest {
+        input: InputSpec::Vinf {
+            path: vinf,
+            volume_root: None,
+        },
+        tde_keys_file: None,
+        spill_directory: None,
+    };
+    let selected = Vpid::new(VolId::new(0).unwrap(), PageId::new(20).unwrap());
+
+    let develop = Inspection::open_with_profile(
+        &request,
+        FormatProfile::Develop,
+        policy(4 * 1024 * 1024),
+        &CancelToken::new(),
+        None,
+    )
+    .unwrap()
+    .view(RevisionSelector::Latest)
+    .unwrap();
+    let feat_oos = Inspection::open_with_profile(
+        &request,
+        FormatProfile::FeatOos,
+        policy(4 * 1024 * 1024),
+        &CancelToken::new(),
+        None,
+    )
+    .unwrap()
+    .view(RevisionSelector::Latest)
+    .unwrap();
+
+    assert_eq!(
+        develop.overview().format_profile,
+        FormatProfile::Develop.authority_id()
+    );
+    assert_eq!(
+        develop.page(selected).unwrap().page_type,
+        Some(PageType::Area)
+    );
+    assert_eq!(
+        feat_oos.overview().format_profile,
+        FormatProfile::FeatOos.authority_id()
+    );
+    assert_eq!(
+        feat_oos.page(selected).unwrap().page_type,
+        Some(PageType::Oos)
+    );
+}
+
+#[test]
+fn develop_profile_rejects_oos_only_enrichment() {
+    let (_directory, _volume, vinf) = fixture();
+    let request = OpenRequest {
+        input: InputSpec::Vinf {
+            path: vinf,
+            volume_root: None,
+        },
+        tde_keys_file: None,
+        spill_directory: None,
+    };
+    let view = Inspection::open_with_profile(
+        &request,
+        FormatProfile::Develop,
+        policy(4 * 1024 * 1024),
+        &CancelToken::new(),
+        None,
+    )
+    .unwrap()
+    .view(RevisionSelector::Latest)
+    .unwrap();
+    let head = Oid::new(
+        VolId::new(0).unwrap(),
+        PageId::new(20).unwrap(),
+        SlotId::new(0).unwrap(),
+    );
+
+    let error = view
+        .enrich_oos(head, policy(4 * 1024 * 1024), &CancelToken::new())
+        .unwrap_err();
+
+    assert_eq!(
+        error.to_string(),
+        "OOS enrichment is unsupported by the develop format profile"
+    );
+}
+
+#[test]
+fn contradictory_profile_evidence_suggests_an_explicit_retry_without_switching() {
+    let (_directory, volume, vinf) = fixture();
+    let mut alternate_only = envelope_page(30, PageType::Unknown);
+    alternate_only[14] = 14;
+    OpenOptions::new()
+        .write(true)
+        .open(volume)
+        .unwrap()
+        .write_all_at(&alternate_only, 30 * IO_PAGE_SIZE as u64)
+        .unwrap();
+    let request = OpenRequest {
+        input: InputSpec::Vinf {
+            path: vinf,
+            volume_root: None,
+        },
+        tde_keys_file: None,
+        spill_directory: None,
+    };
+
+    let overview = Inspection::open_with_profile(
+        &request,
+        FormatProfile::Develop,
+        policy(4 * 1024 * 1024),
+        &CancelToken::new(),
+        None,
+    )
+    .unwrap()
+    .view(RevisionSelector::Latest)
+    .unwrap()
+    .overview();
+
+    assert_eq!(
+        overview.format_profile,
+        FormatProfile::Develop.authority_id()
+    );
+    assert!(overview.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == "page.envelope.type_unknown" && diagnostic.subject == "page:0:30"
+    }));
+    assert!(overview.diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == "input.format_profile_alternative"
+            && diagnostic.severity == "warning"
+            && diagnostic.subject == "page:0:30"
+            && diagnostic
+                .message
+                .contains("retry with --format-profile feat-oos")
+    }));
 }
 
 #[test]

@@ -314,6 +314,10 @@ _Avoid_: Portable installation
 
 ## Evidence governance
 
+**Format profile**:
+The explicit choice of one format authority for an entire inspection input set. It determines how ambiguous persistent bytes are interpreted and remains visible with the resulting facts.
+_Avoid_: Auto-detected version, database version
+
 **Format authority**:
 The pinned CUBRID source revision and company-generated fixtures from which supported persistent layouts and invariants are established.
 _Avoid_: Legacy implementation

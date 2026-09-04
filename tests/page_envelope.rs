@@ -1,7 +1,8 @@
 use volmap::format::{
-    DB_PAGE_SIZE, DecodeErrorKind, IO_PAGE_SIZE, PAGE_PREFIX_SIZE, PAGE_WATERMARK_SIZE,
-    PageContent, PageType, TdeAlgorithm, decode_decrypted_page_envelope, decode_page_envelope,
-    decode_page_envelope_parts, decode_slotted_page,
+    DB_PAGE_SIZE, DecodeErrorKind, FormatProfile, IO_PAGE_SIZE, PAGE_PREFIX_SIZE,
+    PAGE_WATERMARK_SIZE, PageContent, PageType, TdeAlgorithm, decode_decrypted_page_envelope,
+    decode_page_envelope, decode_page_envelope_parts, decode_page_envelope_with_profile,
+    decode_slotted_page,
 };
 use volmap::model::{PageId, VolId, Vpid};
 
@@ -19,6 +20,57 @@ fn synthetic_page(expected: Vpid, page_type: u8, flags: u8) -> Vec<u8> {
 
 fn vpid() -> Vpid {
     Vpid::new(VolId::new(2).unwrap(), PageId::new(7).unwrap())
+}
+
+#[test]
+fn selected_format_profile_decodes_ambiguous_page_ordinal() {
+    let develop = [
+        PageType::Area,
+        PageType::Catalog,
+        PageType::Btree,
+        PageType::Log,
+        PageType::DroppedFiles,
+        PageType::VacuumData,
+    ];
+    let feat_oos = [
+        PageType::Oos,
+        PageType::Area,
+        PageType::Catalog,
+        PageType::Btree,
+        PageType::Log,
+        PageType::DroppedFiles,
+    ];
+
+    for (index, (develop, feat_oos)) in develop.into_iter().zip(feat_oos).enumerate() {
+        let raw = u8::try_from(index + 8).unwrap();
+        let bytes = synthetic_page(vpid(), raw, 0);
+        assert_eq!(
+            decode_page_envelope_with_profile(&bytes, vpid(), FormatProfile::Develop)
+                .unwrap()
+                .page_type(),
+            develop
+        );
+        assert_eq!(
+            decode_page_envelope_with_profile(&bytes, vpid(), FormatProfile::FeatOos)
+                .unwrap()
+                .page_type(),
+            feat_oos
+        );
+    }
+
+    let raw_fourteen = synthetic_page(vpid(), 14, 0);
+    assert_eq!(
+        decode_page_envelope_with_profile(&raw_fourteen, vpid(), FormatProfile::Develop)
+            .unwrap_err()
+            .rule(),
+        "page.envelope.type_known"
+    );
+    assert_eq!(
+        decode_page_envelope_with_profile(&raw_fourteen, vpid(), FormatProfile::FeatOos)
+            .unwrap()
+            .page_type(),
+        PageType::VacuumData
+    );
 }
 
 #[test]

@@ -12,6 +12,7 @@ use serde::Serialize;
 
 use crate::diagnostics::InspectionOutcome;
 use crate::follow::FollowConfig;
+use crate::format::FormatProfile;
 use crate::inspection::{
     CancelToken, GraphView, Inspection, OpenFailure, OpenRequest, OperationError, ProgressObserver,
     QueryError, ResourcePolicy, RevisionSelector, ScanPhase, ScanProgress, SourceMode,
@@ -171,6 +172,8 @@ struct InputArgs {
     volume_root: Option<PathBuf>,
     #[arg(long)]
     tde_keys_file: Option<PathBuf>,
+    #[arg(long, value_enum, default_value_t = FormatProfileChoice::Develop)]
+    format_profile: FormatProfileChoice,
 }
 
 impl InputArgs {
@@ -187,6 +190,21 @@ impl InputArgs {
             _ => Err(CliError::Usage(
                 "exactly one snapshot input is required".to_owned(),
             )),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+enum FormatProfileChoice {
+    Develop,
+    FeatOos,
+}
+
+impl FormatProfileChoice {
+    const fn profile(self) -> FormatProfile {
+        match self {
+            Self::Develop => FormatProfile::Develop,
+            Self::FeatOos => FormatProfile::FeatOos,
         }
     }
 }
@@ -783,14 +801,15 @@ fn open_reading(
         ProgressChoice::Auto => format == OutputFormat::Human && io::stderr().is_terminal(),
     };
     let mut observer = StderrProgress::default();
-    let open = match mode {
-        SourceMode::Immutable => Inspection::open,
-        SourceMode::Live => Inspection::open_live,
-    };
-    let inspection = if show_progress {
-        open(&request, policy, &cancel, Some(&mut observer))
-    } else {
-        open(&request, policy, &cancel, None)
+    let progress = show_progress.then_some(&mut observer as &mut dyn ProgressObserver);
+    let profile = input.format_profile.profile();
+    let inspection = match mode {
+        SourceMode::Immutable => {
+            Inspection::open_with_profile(&request, profile, policy, &cancel, progress)
+        }
+        SourceMode::Live => {
+            Inspection::open_live_with_profile(&request, profile, policy, &cancel, progress)
+        }
     }
     .map_err(CliError::Open)?;
     let view = inspection

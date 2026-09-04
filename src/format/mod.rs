@@ -1,9 +1,9 @@
-//! Decoders for the pinned CUBRID `feat/oos` profile.
+//! Decoders for pinned CUBRID persistent-format profiles.
 //!
-//! Format authority: CUBRID commit
+//! Format authorities: CUBRID `develop` commit
+//! `cd593bcf2d8643b4698f1cb311c4c23af23a9d57` and `feat/oos` commit
 //! `e1e651debf6cc100172bde96603b17424f9c135a`. The decoder translates explicit
-//! offsets from `src/storage/file_io.h`, `storage_common.h`, and
-//! `disk_manager.c`; it does not reproduce a C/C++ memory layout.
+//! persistent layouts; it does not reproduce a C/C++ memory layout.
 
 mod boot;
 mod btree;
@@ -23,10 +23,56 @@ mod volume;
 
 use core::fmt;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum FormatProfile {
+    Develop,
+    FeatOos,
+}
+
+impl FormatProfile {
+    #[must_use]
+    pub const fn alternative(self) -> Self {
+        match self {
+            Self::Develop => Self::FeatOos,
+            Self::FeatOos => Self::Develop,
+        }
+    }
+
+    #[must_use]
+    pub const fn cli_name(self) -> &'static str {
+        match self {
+            Self::Develop => "develop",
+            Self::FeatOos => "feat-oos",
+        }
+    }
+
+    #[must_use]
+    pub const fn authority_id(self) -> &'static str {
+        match self {
+            Self::Develop => "cubrid-develop-linux-x86_64-gcc-cd593bc",
+            Self::FeatOos => "cubrid-feat-oos-linux-x86_64-gcc-e1e651de",
+        }
+    }
+
+    #[must_use]
+    pub const fn retry_hint_message(self) -> &'static str {
+        match self {
+            Self::Develop => "Format mismatch: retry with --format-profile develop.",
+            Self::FeatOos => "Format mismatch: retry with --format-profile feat-oos.",
+        }
+    }
+
+    #[must_use]
+    pub const fn supports_oos(self) -> bool {
+        matches!(self, Self::FeatOos)
+    }
+}
+
 pub use page::{
     DB_PAGE_SIZE, DecodedPageEnvelope, IO_PAGE_SIZE, PAGE_PREFIX_SIZE, PAGE_WATERMARK_SIZE,
     PageContent, PageEnvelopeSummary, PageType, TdeAlgorithm, decode_decrypted_page_envelope,
-    decode_page_envelope, decode_page_envelope_parts,
+    decode_decrypted_page_envelope_with_profile, decode_page_envelope, decode_page_envelope_parts,
+    decode_page_envelope_parts_with_profile, decode_page_envelope_with_profile,
 };
 pub use sector::{SectorBitmap, decode_sector_bitmap};
 pub use slotted::{

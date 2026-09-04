@@ -13,6 +13,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use tokio::sync::watch;
 
+use crate::format::FormatProfile;
 use crate::inspection::{
     CancelToken, GraphView, Inspection, OpenRequest, ResourcePolicy, RevisionSelector,
 };
@@ -316,7 +317,12 @@ impl LiveSource {
 /// Every failure mode here is transient by nature — a manifest being rewritten,
 /// a volume briefly absent, a scan that hits a resource ceiling — so the loop
 /// reports and keeps following rather than tearing the session down.
-pub async fn follow(source: Arc<LiveSource>, request: OpenRequest, policy: ResourcePolicy) {
+pub async fn follow(
+    source: Arc<LiveSource>,
+    request: OpenRequest,
+    format_profile: FormatProfile,
+    policy: ResourcePolicy,
+) {
     let config = *source.config();
     let mut ticker = tokio::time::interval(config.poll_interval);
     ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -384,13 +390,18 @@ pub async fn follow(source: Arc<LiveSource>, request: OpenRequest, policy: Resou
         let scan_request = request.clone();
         let began = Instant::now();
         let scanned = tokio::task::spawn_blocking(move || {
-            Inspection::open_live(&scan_request, policy, &CancelToken::new(), None).and_then(
-                |inspection| {
-                    inspection
-                        .view(RevisionSelector::Latest)
-                        .map_err(|_| crate::inspection::OpenFailure::FactStore)
-                },
+            Inspection::open_live_with_profile(
+                &scan_request,
+                format_profile,
+                policy,
+                &CancelToken::new(),
+                None,
             )
+            .and_then(|inspection| {
+                inspection
+                    .view(RevisionSelector::Latest)
+                    .map_err(|_| crate::inspection::OpenFailure::FactStore)
+            })
         })
         .await;
         last_scan_duration = began.elapsed();

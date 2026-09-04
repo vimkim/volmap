@@ -19,19 +19,20 @@ use crate::diagnostics::{InspectionOutcome, OutcomeInputs};
 use crate::format::{
     BOOT_DB_PARM_SIZE, BtreePageFact, CatalogClassInfoFact, CatalogPageFact,
     CatalogRepresentationHeaderFact, ClassRepresentationFact, DB_PAGE_SIZE, DecodeError,
-    DroppedFilesPageFact, FileClassAssociation, FileHeader, FileType, HeapPageFact,
+    DroppedFilesPageFact, FileClassAssociation, FileHeader, FileType, FormatProfile, HeapPageFact,
     InterpretedAttribute, OosNext, PageContent, PageType, RecordLayoutFact, RecordType,
     RepresentationTarget, SLOTTED_HEADER_SIZE, SlottedPage, TDE_KEY_INFO_RECORD_SIZE, TdeAlgorithm,
     TrackerItemFact, UserPageFact, VacuumPageFact, VolumePurpose, VolumeType, decode_bigone_target,
     decode_boot_db_parm, decode_btree_page, decode_catalog_class_info, decode_catalog_directory,
     decode_catalog_page, decode_catalog_representation_header, decode_class_record_name,
-    decode_class_representation, decode_decrypted_page_envelope, decode_dropped_files_page,
-    decode_extdata_header, decode_file_header, decode_full_sectors, decode_heap_object_body,
-    decode_heap_page, decode_heap_record_body, decode_oos_chunk, decode_overflow_continuation,
-    decode_overflow_head, decode_page_envelope, decode_page_envelope_parts, decode_partial_sectors,
-    decode_record_interpretation, decode_relocation_target, decode_sector_bitmap,
-    decode_slotted_free_space_header, decode_slotted_page, decode_tracker_items, decode_user_pages,
-    decode_vacuum_page, decode_volume_header,
+    decode_class_representation, decode_decrypted_page_envelope_with_profile,
+    decode_dropped_files_page, decode_extdata_header, decode_file_header, decode_full_sectors,
+    decode_heap_object_body, decode_heap_page, decode_heap_record_body, decode_oos_chunk,
+    decode_overflow_continuation, decode_overflow_head, decode_page_envelope_parts_with_profile,
+    decode_page_envelope_with_profile, decode_partial_sectors, decode_record_interpretation,
+    decode_relocation_target, decode_sector_bitmap, decode_slotted_free_space_header,
+    decode_slotted_page, decode_tracker_items, decode_user_pages, decode_vacuum_page,
+    decode_volume_header,
 };
 use crate::model::{
     Availability, Coverage, Hfid, InspectionRevision, Oid, PageAllocationClass, PageId, SectorId,
@@ -43,7 +44,6 @@ use crate::tde::{
     load_permanent_key,
 };
 
-const FORMAT_PROFILE: &str = "cubrid-feat-oos-linux-x86_64-gcc-e1e651de";
 const SECTOR_PAGES: u32 = 64;
 const PACKED_PAGE_FACT_SIZE: u64 = 16;
 const PACKED_PAGE_FACT_SIZE_USIZE: usize = 16;
@@ -563,6 +563,16 @@ pub struct OverviewView {
     pub diagnostics: Vec<DiagnosticRecord>,
 }
 
+impl OverviewView {
+    #[must_use]
+    pub fn format_profile_retry_hint(&self) -> Option<&'static str> {
+        self.diagnostics
+            .iter()
+            .find(|diagnostic| diagnostic.code == "input.format_profile_alternative")
+            .map(|diagnostic| diagnostic.message)
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct FastScanResources {
     pub memory_limit: u64,
@@ -880,6 +890,7 @@ enum EnvelopeScanResult {
     Fact {
         fact: PageFastFact,
         diagnostic: Option<(&'static str, &'static str)>,
+        profile_hint: Option<FormatProfile>,
     },
     Unreadable(PageId),
     Cancelled,
@@ -946,6 +957,7 @@ impl PageFactSummary {
 fn scan_page_envelope(
     source: &VolumeHandle,
     page_id: PageId,
+    format_profile: FormatProfile,
     has_tde_key: bool,
     cancel: &CancelToken,
 ) -> EnvelopeScanResult {
@@ -955,7 +967,12 @@ fn scan_page_envelope(
     let Ok((prefix, watermark)) = source.read_envelope(page_id) else {
         return EnvelopeScanResult::Unreadable(page_id);
     };
-    match decode_page_envelope_parts(&prefix, &watermark, source.vpid(page_id)) {
+    match decode_page_envelope_parts_with_profile(
+        &prefix,
+        &watermark,
+        source.vpid(page_id),
+        format_profile,
+    ) {
         Ok(summary) => {
             let page_type = summary.page_type();
             let (availability, tde_state) = match summary.content() {
@@ -1000,10 +1017,20 @@ fn scan_page_envelope(
                     diagnostic_code: None,
                 },
                 diagnostic: None,
+                profile_hint: None,
             }
         }
         Err(error) => {
             let code = page_diagnostic_code(&error);
+            let alternative = format_profile.alternative();
+            let profile_hint = decode_page_envelope_parts_with_profile(
+                &prefix,
+                &watermark,
+                source.vpid(page_id),
+                alternative,
+            )
+            .is_ok()
+            .then_some(alternative);
             EnvelopeScanResult::Fact {
                 fact: PageFastFact {
                     page_id,
@@ -1019,6 +1046,7 @@ fn scan_page_envelope(
                     diagnostic_code: Some(code),
                 },
                 diagnostic: Some((code, error.rule())),
+                profile_hint,
             }
         }
     }
@@ -1221,6 +1249,7 @@ pub struct DeepPageView {
 struct SessionData {
     sources: Arc<SourceSet>,
     source_mode: SourceMode,
+    format_profile: FormatProfile,
     tde_key: Option<Arc<PermanentDataKey>>,
     snapshot_id: SnapshotId,
     revision: InspectionRevision,
@@ -1481,6 +1510,7 @@ enum FileTraversalError {
 struct OwnedInspectionPage {
     physical: Box<[u8; crate::format::IO_PAGE_SIZE]>,
     decrypted_user: Option<Zeroizing<Vec<u8>>>,
+    format_profile: FormatProfile,
 }
 
 enum InspectionPageError {
@@ -1523,9 +1553,10 @@ impl OwnedInspectionPage {
         let physical = source
             .read_page(vpid.page_id)
             .map_err(InspectionPageError::Source)?;
-        let algorithm = decode_page_envelope(physical.as_slice(), vpid)
-            .map_err(|error| InspectionPageError::Format(error.rule()))?
-            .tde_algorithm();
+        let algorithm =
+            decode_page_envelope_with_profile(physical.as_slice(), vpid, data.format_profile)
+                .map_err(|error| InspectionPageError::Format(error.rule()))?
+                .tde_algorithm();
         let decrypted_user = match algorithm {
             Some(algorithm) => {
                 let required =
@@ -1547,14 +1578,20 @@ impl OwnedInspectionPage {
         Ok(Self {
             physical,
             decrypted_user,
+            format_profile: data.format_profile,
         })
     }
 
     fn envelope(&self, vpid: Vpid) -> Result<crate::format::DecodedPageEnvelope<'_>, DecodeError> {
         if let Some(plaintext) = self.decrypted_user.as_deref() {
-            decode_decrypted_page_envelope(self.physical.as_slice(), plaintext, vpid)
+            decode_decrypted_page_envelope_with_profile(
+                self.physical.as_slice(),
+                plaintext,
+                vpid,
+                self.format_profile,
+            )
         } else {
-            decode_page_envelope(self.physical.as_slice(), vpid)
+            decode_page_envelope_with_profile(self.physical.as_slice(), vpid, self.format_profile)
         }
     }
 }
@@ -1562,6 +1599,7 @@ impl OwnedInspectionPage {
 fn read_special_heap_record<const N: usize>(
     sources: &SourceSet,
     hfid: Hfid,
+    format_profile: FormatProfile,
     policy: ResourcePolicy,
     cancel: &CancelToken,
 ) -> Result<[u8; N], OpenFailure> {
@@ -1594,8 +1632,8 @@ fn read_special_heap_record<const N: usize>(
             .volume(current.vol_id)
             .ok_or(OpenFailure::TdeBootstrap)?;
         let bytes = source.read_page(current.page_id)?;
-        let envelope =
-            decode_page_envelope(bytes.as_slice(), current).map_err(OpenFailure::Format)?;
+        let envelope = decode_page_envelope_with_profile(bytes.as_slice(), current, format_profile)
+            .map_err(OpenFailure::Format)?;
         let slotted = decode_slotted_page(&envelope).map_err(OpenFailure::Format)?;
         let page = decode_heap_page(&envelope, &slotted, current == header)
             .map_err(OpenFailure::Format)?;
@@ -1671,7 +1709,25 @@ impl Inspection {
         cancel: &CancelToken,
         progress: Option<&mut dyn ProgressObserver>,
     ) -> Result<Self, OpenFailure> {
-        Self::open_with_mode(request, SourceMode::Immutable, policy, cancel, progress)
+        Self::open_with_profile(request, FormatProfile::FeatOos, policy, cancel, progress)
+    }
+
+    /// Reads the input under one explicit persistent-format interpretation.
+    pub fn open_with_profile(
+        request: &OpenRequest,
+        format_profile: FormatProfile,
+        policy: ResourcePolicy,
+        cancel: &CancelToken,
+        progress: Option<&mut dyn ProgressObserver>,
+    ) -> Result<Self, OpenFailure> {
+        Self::open_profiled_with_mode(
+            request,
+            SourceMode::Immutable,
+            format_profile,
+            policy,
+            cancel,
+            progress,
+        )
     }
 
     /// Reads the input as one generation of a live follow. A change observed
@@ -1683,13 +1739,32 @@ impl Inspection {
         cancel: &CancelToken,
         progress: Option<&mut dyn ProgressObserver>,
     ) -> Result<Self, OpenFailure> {
-        Self::open_with_mode(request, SourceMode::Live, policy, cancel, progress)
+        Self::open_live_with_profile(request, FormatProfile::FeatOos, policy, cancel, progress)
+    }
+
+    /// Reads one live generation under an explicit persistent-format interpretation.
+    pub fn open_live_with_profile(
+        request: &OpenRequest,
+        format_profile: FormatProfile,
+        policy: ResourcePolicy,
+        cancel: &CancelToken,
+        progress: Option<&mut dyn ProgressObserver>,
+    ) -> Result<Self, OpenFailure> {
+        Self::open_profiled_with_mode(
+            request,
+            SourceMode::Live,
+            format_profile,
+            policy,
+            cancel,
+            progress,
+        )
     }
 
     #[allow(clippy::too_many_lines, clippy::single_match_else)]
-    fn open_with_mode(
+    fn open_profiled_with_mode(
         request: &OpenRequest,
         source_mode: SourceMode,
+        format_profile: FormatProfile,
         policy: ResourcePolicy,
         cancel: &CancelToken,
         mut progress: Option<&mut dyn ProgressObserver>,
@@ -1708,7 +1783,7 @@ impl Inspection {
 
         let mut volumes = Vec::with_capacity(sources.volumes().len());
         let mut hasher = Sha256::new();
-        hasher.update(FORMAT_PROFILE.as_bytes());
+        hasher.update(format_profile.authority_id().as_bytes());
         hasher.update(sources.input_kind().as_bytes());
         let mut physical_page_count = 0_u64;
         let mut primary_boot_hfid = None;
@@ -1718,9 +1793,10 @@ impl Inspection {
                 return Err(OpenFailure::Interrupted);
             }
             let page = source.read_page(PageId::new(0).map_err(|_| OpenFailure::Arithmetic)?)?;
-            let envelope = decode_page_envelope(
+            let envelope = decode_page_envelope_with_profile(
                 page.as_slice(),
                 source.vpid(PageId::new(0).map_err(|_| OpenFailure::Arithmetic)?),
+                format_profile,
             )
             .map_err(OpenFailure::Format)?;
             let header = decode_volume_header(&envelope, source.stamp().length)
@@ -1756,9 +1832,12 @@ impl Inspection {
                     .ok_or(OpenFailure::Arithmetic)?;
                 let page_id = PageId::new(bitmap_page_id).map_err(|_| OpenFailure::Arithmetic)?;
                 let bitmap_page = source.read_page(page_id)?;
-                let bitmap_envelope =
-                    decode_page_envelope(bitmap_page.as_slice(), source.vpid(page_id))
-                        .map_err(OpenFailure::Format)?;
+                let bitmap_envelope = decode_page_envelope_with_profile(
+                    bitmap_page.as_slice(),
+                    source.vpid(page_id),
+                    format_profile,
+                )
+                .map_err(OpenFailure::Format)?;
                 let bitmap = decode_sector_bitmap(&bitmap_envelope, &header, bitmap_index)
                     .map_err(OpenFailure::Format)?;
                 for relative in 0..bitmap.sector_count() {
@@ -1833,12 +1912,18 @@ impl Inspection {
             request.tde_keys_file.as_deref()
         {
             let boot_hfid = primary_boot_hfid.ok_or(OpenFailure::TdeBootstrap)?;
-            let boot_record =
-                read_special_heap_record::<BOOT_DB_PARM_SIZE>(&sources, boot_hfid, policy, cancel)?;
+            let boot_record = read_special_heap_record::<BOOT_DB_PARM_SIZE>(
+                &sources,
+                boot_hfid,
+                format_profile,
+                policy,
+                cancel,
+            )?;
             let boot = decode_boot_db_parm(&boot_record, boot_hfid).map_err(OpenFailure::Format)?;
             let key_info_record = read_special_heap_record::<TDE_KEY_INFO_RECORD_SIZE>(
                 &sources,
                 boot.tde_keyinfo_hfid,
+                format_profile,
                 policy,
                 cancel,
             )?;
@@ -1981,7 +2066,13 @@ impl Inspection {
                                     .iter()
                                     .copied()
                                     .map(|page_id| {
-                                        scan_page_envelope(source, page_id, has_tde_key, cancel)
+                                        scan_page_envelope(
+                                            source,
+                                            page_id,
+                                            format_profile,
+                                            has_tde_key,
+                                            cancel,
+                                        )
                                     })
                                     .collect::<Vec<_>>()
                             })
@@ -1997,7 +2088,12 @@ impl Inspection {
                         stopped_reason = Some("interrupted");
                         break 'volume_scan;
                     }
-                    let EnvelopeScanResult::Fact { fact, diagnostic } = result else {
+                    let EnvelopeScanResult::Fact {
+                        fact,
+                        diagnostic,
+                        profile_hint,
+                    } = result
+                    else {
                         let EnvelopeScanResult::Unreadable(unreadable_page) = result else {
                             unreachable!("cancelled scan results stop before interpretation")
                         };
@@ -2042,6 +2138,29 @@ impl Inspection {
                                 fact.page_id.get()
                             ),
                             rule,
+                        };
+                        if !admit_diagnostic(&mut resident_used, policy.memory_limit, &finding)? {
+                            diagnostics.push(resource_limit_diagnostic(
+                                volume.view.vol_id,
+                                fact.page_id,
+                                "inspection.resource_policy.diagnostics",
+                            ));
+                            stopped_reason = Some("resource-limit");
+                            break 'volume_scan;
+                        }
+                        diagnostics.push(finding);
+                    }
+                    if let Some(alternative) = profile_hint {
+                        let finding = DiagnosticRecord {
+                            code: "input.format_profile_alternative",
+                            severity: "warning",
+                            message: alternative.retry_hint_message(),
+                            subject: format!(
+                                "page:{}:{}",
+                                volume.view.vol_id.get(),
+                                fact.page_id.get()
+                            ),
+                            rule: "input.format_profile.alternative_evidence",
                         };
                         if !admit_diagnostic(&mut resident_used, policy.memory_limit, &finding)? {
                             diagnostics.push(resource_limit_diagnostic(
@@ -2174,6 +2293,7 @@ impl Inspection {
             data: Arc::new(SessionData {
                 sources,
                 source_mode,
+                format_profile,
                 tde_key,
                 snapshot_id: SnapshotId::from_bytes(snapshot_bytes),
                 revision: InspectionRevision::new(0),
@@ -2286,19 +2406,21 @@ impl Inspection {
                     rule: "inspection.resource_policy.file_inventory",
                 }),
             )),
-            Err(OperationError::Unsupported) => Ok(self.with_initial_inventory_result(
-                Coverage::Partial,
-                0,
-                None,
-                Some("unsupported"),
-                Some(DiagnosticRecord {
-                    code: "file.inventory.unavailable",
-                    severity: "warning",
-                    message: "Authoritative file metadata is unavailable for structural inspection.",
-                    subject: "snapshot".to_owned(),
-                    rule: "file.tracker.required_metadata",
-                }),
-            )),
+            Err(OperationError::Unsupported | OperationError::UnsupportedFormatProfile { .. }) => {
+                Ok(self.with_initial_inventory_result(
+                    Coverage::Partial,
+                    0,
+                    None,
+                    Some("unsupported"),
+                    Some(DiagnosticRecord {
+                        code: "file.inventory.unavailable",
+                        severity: "warning",
+                        message: "Authoritative file metadata is unavailable for structural inspection.",
+                        subject: "snapshot".to_owned(),
+                        rule: "file.tracker.required_metadata",
+                    }),
+                ))
+            }
             Err(OperationError::Source(_)) => Ok(self.with_initial_inventory_result(
                 Coverage::Partial,
                 0,
@@ -2381,6 +2503,11 @@ impl Inspection {
 }
 
 impl GraphView {
+    #[must_use]
+    pub fn format_profile(&self) -> FormatProfile {
+        self.data.format_profile
+    }
+
     /// Return the supported codeset proven across the complete volume
     /// inventory, or the precise reason that proof failed.
     pub fn database_codeset(&self) -> Result<DatabaseCodeset, DatabaseCodesetFailure> {
@@ -2439,7 +2566,7 @@ impl GraphView {
             snapshot_id: self.data.snapshot_id,
             revision: self.data.revision,
             validity: self.data.validity,
-            format_profile: FORMAT_PROFILE,
+            format_profile: self.data.format_profile.authority_id(),
             input_kind: self.data.sources.input_kind(),
             outcome: self.data.outcome,
             volume_count: self.data.volumes.len() as u64,
@@ -5276,6 +5403,12 @@ impl GraphView {
         policy: ResourcePolicy,
         cancel: &CancelToken,
     ) -> Result<Self, OperationError> {
+        if !self.data.format_profile.supports_oos() {
+            return Err(OperationError::UnsupportedFormatProfile {
+                operation: "OOS enrichment",
+                profile: self.data.format_profile,
+            });
+        }
         if self.data.oos_chains.contains_key(&head) {
             return Ok(self.clone());
         }
@@ -6077,6 +6210,10 @@ pub enum OperationError {
     Query(QueryError),
     Interrupted,
     Unsupported,
+    UnsupportedFormatProfile {
+        operation: &'static str,
+        profile: FormatProfile,
+    },
     Structural(String),
     ResourceLimit,
     FactStore,
@@ -6091,6 +6228,11 @@ impl fmt::Display for OperationError {
             Self::Query(error) => write!(formatter, "{error}"),
             Self::Interrupted => formatter.write_str("inspection enrichment interrupted"),
             Self::Unsupported => formatter.write_str("page body is unavailable for enrichment"),
+            Self::UnsupportedFormatProfile { operation, profile } => write!(
+                formatter,
+                "{operation} is unsupported by the {} format profile",
+                profile.cli_name()
+            ),
             Self::Structural(rule) => write!(formatter, "structural validation failed: {rule}"),
             Self::ResourceLimit => formatter.write_str("page enrichment exceeds resource policy"),
             Self::FactStore => formatter.write_str("packed page fact storage is unavailable"),

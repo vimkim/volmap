@@ -6,7 +6,7 @@ use std::process::{Command, Output, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde_json::Value;
-use volmap::format::{IO_PAGE_SIZE, PageType};
+use volmap::format::{FormatProfile, IO_PAGE_SIZE, PageType};
 
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
 
@@ -158,6 +158,38 @@ fn json_document_is_revision_pinned_and_path_free() {
     let output_text = String::from_utf8(output.stdout).unwrap();
     assert!(!output_text.contains(vinf.to_str().unwrap()));
     assert!(!output_text.contains("synthetic-volume"));
+}
+
+#[test]
+fn cli_defaults_to_develop_and_accepts_an_explicit_feat_oos_profile() {
+    let (_directory, vinf) = fixture();
+    let base = [
+        "summary",
+        "--vinf",
+        vinf.to_str().unwrap(),
+        "--format",
+        "json",
+        "--progress",
+        "never",
+    ];
+
+    let default = volmap(&base);
+    assert_eq!(default.status.code(), Some(0));
+    let default: Value = serde_json::from_slice(&default.stdout).unwrap();
+    assert_eq!(
+        default["tool"]["format_profile"],
+        FormatProfile::Develop.authority_id()
+    );
+
+    let mut explicit = base.to_vec();
+    explicit.extend(["--format-profile", "feat-oos"]);
+    let explicit = volmap(&explicit);
+    assert_eq!(explicit.status.code(), Some(0));
+    let explicit: Value = serde_json::from_slice(&explicit.stdout).unwrap();
+    assert_eq!(
+        explicit["tool"]["format_profile"],
+        FormatProfile::FeatOos.authority_id()
+    );
 }
 
 #[test]

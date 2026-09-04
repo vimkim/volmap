@@ -254,6 +254,7 @@ pub(crate) enum PageEnrichmentFailure {
     Query,
     Interrupted,
     Unsupported,
+    UnsupportedFormatProfile,
     Structural,
     ResourceLimit,
     FactStore,
@@ -268,6 +269,9 @@ impl PageEnrichmentFailure {
             Self::Query => "Page is no longer addressable",
             Self::Interrupted => "Page enrichment cancelled",
             Self::Unsupported => "Page distribution is unsupported",
+            Self::UnsupportedFormatProfile => {
+                "This operation is unsupported by the selected format profile"
+            }
             Self::Structural => "Page structure is invalid",
             Self::ResourceLimit => "Page enrichment reached its resource limit",
             Self::FactStore => "Page facts are unavailable",
@@ -284,6 +288,7 @@ impl From<&OperationError> for PageEnrichmentFailure {
             OperationError::Query(_) => Self::Query,
             OperationError::Interrupted => Self::Interrupted,
             OperationError::Unsupported => Self::Unsupported,
+            OperationError::UnsupportedFormatProfile { .. } => Self::UnsupportedFormatProfile,
             OperationError::Structural(_) => Self::Structural,
             OperationError::ResourceLimit => Self::ResourceLimit,
             OperationError::FactStore => Self::FactStore,
@@ -818,6 +823,7 @@ impl FocusedSession {
             snapshot_id: overview.snapshot_id,
             revision: overview.revision,
             outcome: outcome_name(overview.outcome),
+            format_profile_hint: overview.format_profile_retry_hint(),
             volume: volume_projection(volume),
             volume_index: self.volume_index,
             volume_count: self.volumes.len(),
@@ -846,6 +852,7 @@ impl FocusedSession {
             snapshot_id: overview.snapshot_id,
             revision: overview.revision,
             outcome: outcome_name(overview.outcome),
+            format_profile_hint: overview.format_profile_retry_hint(),
             volume: volume_projection(volume),
             volume_index: self.volume_index,
             volume_count: self.volumes.len(),
@@ -885,6 +892,7 @@ impl FocusedSession {
             snapshot_id: overview.snapshot_id,
             revision: overview.revision,
             outcome: outcome_name(overview.outcome),
+            format_profile_hint: overview.format_profile_retry_hint(),
             volume: volume_projection(volume),
             volume_index: self.volume_index,
             volume_count: self.volumes.len(),
@@ -1531,6 +1539,7 @@ pub(crate) struct VolumeScene {
     pub snapshot_id: SnapshotId,
     pub revision: InspectionRevision,
     pub outcome: &'static str,
+    pub format_profile_hint: Option<&'static str>,
     pub volume: crate::projection::VolumeProjection,
     pub volume_index: usize,
     pub volume_count: usize,
@@ -1545,6 +1554,7 @@ pub(crate) struct SectorScene {
     pub snapshot_id: SnapshotId,
     pub revision: InspectionRevision,
     pub outcome: &'static str,
+    pub format_profile_hint: Option<&'static str>,
     pub volume: crate::projection::VolumeProjection,
     pub volume_index: usize,
     pub volume_count: usize,
@@ -1557,6 +1567,7 @@ pub(crate) struct PageScene {
     pub snapshot_id: SnapshotId,
     pub revision: InspectionRevision,
     pub outcome: &'static str,
+    pub format_profile_hint: Option<&'static str>,
     pub volume: crate::projection::VolumeProjection,
     pub volume_index: usize,
     pub volume_count: usize,
@@ -2546,6 +2557,19 @@ fn fitted_clusters(value: &str, maximum: usize, glyphs: GlyphProfile) -> Vec<Dis
 
 pub(crate) struct VolumeRenderer;
 
+fn draw_header_detail(
+    frame: &mut VolumeFrame,
+    surface: Surface,
+    format_profile_hint: Option<&'static str>,
+    detail: &str,
+    detail_style: SemanticStyle,
+) {
+    let (text, style) = format_profile_hint.map_or((detail, detail_style), |hint| {
+        (hint, SemanticStyle::Finding)
+    });
+    frame.put_text(0, 2, surface.width, text, style);
+}
+
 impl VolumeRenderer {
     #[allow(clippy::too_many_lines)]
     pub(crate) fn render(
@@ -2589,10 +2613,10 @@ impl VolumeRenderer {
             ),
             SemanticStyle::Plain,
         );
-        frame.put_text(
-            0,
-            2,
-            surface.width,
+        draw_header_detail(
+            &mut frame,
+            surface,
+            scene.format_profile_hint,
             &format!("S/A/R/U allocation{separator}fill 0,1-8,?,-{separator}! finding"),
             SemanticStyle::Muted,
         );
@@ -2733,10 +2757,10 @@ impl SectorRenderer {
             ),
             SemanticStyle::Plain,
         );
-        frame.put_text(
-            0,
-            2,
-            surface.width,
+        draw_header_detail(
+            &mut frame,
+            surface,
+            scene.format_profile_hint,
             if surface.width >= 80 {
                 "cell: within-Sector Page · exact occupied % · physical type"
             } else {
@@ -2944,7 +2968,13 @@ impl PageRenderer {
                 scene.page.occupancy.descriptor(),
             )
         };
-        frame.put_text(0, 2, surface.width, &page_facts, SemanticStyle::Focus);
+        draw_header_detail(
+            &mut frame,
+            surface,
+            scene.format_profile_hint,
+            &page_facts,
+            SemanticStyle::Focus,
+        );
 
         if scene.interpretation_state != PageInterpretationState::Closed {
             draw_record_interpretation(&mut frame, scene, surface, separator);
@@ -4122,6 +4152,7 @@ mod tests {
             snapshot_id: SnapshotId::from_bytes([0xAB; 16]),
             revision: InspectionRevision::new(7),
             outcome: "success-limited",
+            format_profile_hint: None,
             volume: VolumeProjection {
                 vol_id: 0,
                 purpose: "permanent-data",
@@ -4147,6 +4178,7 @@ mod tests {
             snapshot_id: SnapshotId::from_bytes([0xAB; 16]),
             revision: InspectionRevision::new(7),
             outcome: "success-limited",
+            format_profile_hint: None,
             volume: VolumeProjection {
                 vol_id: 0,
                 purpose: "permanent-data",
@@ -5873,6 +5905,7 @@ mod tests {
             snapshot_id: SnapshotId::from_bytes([0xAB; 16]),
             revision: InspectionRevision::new(7),
             outcome: "success-limited",
+            format_profile_hint: None,
             volume: synthetic_sector_scene(0).volume,
             volume_index: 0,
             volume_count: 1,
@@ -6134,6 +6167,22 @@ mod tests {
         let ascii =
             VolumeRenderer::render(&scene, surface, PresentationProfile::MONO_ASCII).unwrap();
         assert!((0..surface.height).all(|row| ascii.line(row).is_ascii()));
+    }
+
+    #[test]
+    fn renderer_exposes_the_format_profile_retry_hint() {
+        let surface = Surface::new(60, 20);
+        let mut scene = synthetic_scene(surface);
+        scene.format_profile_hint = Some("Format mismatch: retry with --format-profile feat-oos.");
+
+        let frame =
+            VolumeRenderer::render(&scene, surface, PresentationProfile::ANSI_UNICODE).unwrap();
+
+        assert_eq!(
+            frame.line(2),
+            "Format mismatch: retry with --format-profile feat-oos."
+        );
+        assert_eq!(frame.cell(0, 2).style, SemanticStyle::Finding);
     }
 
     #[test]

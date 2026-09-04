@@ -1,7 +1,9 @@
 use crate::bytes::ByteView;
 use crate::model::{Btid, FileId, Hfid, Oid, PageId, SectorId, SlotId, Vfid, VolId, Vpid};
 
-use super::{DB_PAGE_SIZE, DecodeError, DecodeErrorKind, DecodedPageEnvelope, PageType};
+use super::{
+    DB_PAGE_SIZE, DecodeError, DecodeErrorKind, DecodedPageEnvelope, FormatProfile, PageType,
+};
 
 const FILE_HEADER_SIZE: usize = 216;
 const FILE_DESCRIPTOR_OFFSET: usize = 40;
@@ -348,7 +350,10 @@ pub fn decode_file_header(envelope: &DecodedPageEnvelope<'_>) -> Result<FileHead
             "file.header.sector_accounting",
         ));
     }
-    let file_type = decode_file_type(read_i32(&view, 140, "file.header.type")?)?;
+    let file_type = decode_file_type(
+        read_i32(&view, 140, "file.header.type")?,
+        envelope.profile(),
+    )?;
     let flags = read_u32(&view, 144, "file.header.flags")?;
     if flags & !0x0f != 0 || flags & 0x0c == 0x0c {
         return Err(error(DecodeErrorKind::InvalidFlags, "file.header.flags"));
@@ -643,8 +648,10 @@ pub fn decode_tracker_items(
             let offset = usize::from(header.items_offset) + usize::from(index) * 16;
             let file_id = read_i32(&view, offset, "file.tracker.file")?;
             let vol_id = read_i16(&view, offset + 4, "file.tracker.volume")?;
-            let file_type =
-                decode_file_type(i32::from(read_i16(&view, offset + 6, "file.tracker.type")?))?;
+            let file_type = decode_file_type(
+                i32::from(read_i16(&view, offset + 6, "file.tracker.type")?),
+                envelope.profile(),
+            )?;
             let metadata = view
                 .read_u64_le(offset + 8, "file.tracker.metadata")
                 .map_err(|_| error(DecodeErrorKind::ByteAccess, "file.tracker.metadata"))?;
@@ -676,23 +683,23 @@ pub fn decode_tracker_items(
         .collect()
 }
 
-fn decode_file_type(value: i32) -> Result<FileType, DecodeError> {
-    match value {
-        0 => Ok(FileType::Tracker),
-        1 => Ok(FileType::Heap),
-        2 => Ok(FileType::HeapReuseSlots),
-        3 => Ok(FileType::MultipageObjectHeap),
-        4 => Ok(FileType::Btree),
-        5 => Ok(FileType::BtreeOverflowKey),
-        6 => Ok(FileType::ExtensibleHash),
-        7 => Ok(FileType::HashDirectory),
-        8 => Ok(FileType::Catalog),
-        9 => Ok(FileType::DroppedFiles),
-        10 => Ok(FileType::VacuumData),
-        11 => Ok(FileType::QueryArea),
-        12 => Ok(FileType::Temporary),
-        13 => Ok(FileType::Oos),
-        14 => Ok(FileType::Unknown),
+fn decode_file_type(value: i32, profile: FormatProfile) -> Result<FileType, DecodeError> {
+    match (profile, value) {
+        (_, 0) => Ok(FileType::Tracker),
+        (_, 1) => Ok(FileType::Heap),
+        (_, 2) => Ok(FileType::HeapReuseSlots),
+        (_, 3) => Ok(FileType::MultipageObjectHeap),
+        (_, 4) => Ok(FileType::Btree),
+        (_, 5) => Ok(FileType::BtreeOverflowKey),
+        (_, 6) => Ok(FileType::ExtensibleHash),
+        (_, 7) => Ok(FileType::HashDirectory),
+        (_, 8) => Ok(FileType::Catalog),
+        (_, 9) => Ok(FileType::DroppedFiles),
+        (_, 10) => Ok(FileType::VacuumData),
+        (_, 11) => Ok(FileType::QueryArea),
+        (_, 12) => Ok(FileType::Temporary),
+        (FormatProfile::Develop, 13) | (FormatProfile::FeatOos, 14) => Ok(FileType::Unknown),
+        (FormatProfile::FeatOos, 13) => Ok(FileType::Oos),
         _ => Err(error(DecodeErrorKind::UnknownEnum, "file.header.type")),
     }
 }
