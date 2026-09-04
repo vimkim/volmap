@@ -1,0 +1,65 @@
+#!/usr/bin/expect -f
+
+if {$argc != 3} {
+    puts stderr "usage: tui-demo.exp VOLMAP_BINARY VINF VOLUME_ROOT"
+    exit 2
+}
+
+set timeout 60
+set binary [lindex $argv 0]
+set vinf [lindex $argv 1]
+set volume_root [lindex $argv 2]
+
+proc pause_and_drain {milliseconds} {
+    set deadline [expr {[clock milliseconds] + $milliseconds}]
+    while {[clock milliseconds] < $deadline} {
+        set timeout 0
+        expect {
+            -re {(?s).+} {}
+            timeout {}
+            eof {
+                puts stderr "Volmap exited before the recording finished"
+                exit 1
+            }
+        }
+        after 50
+    }
+}
+
+set env(TERM) "xterm-256color"
+set env(LANG) "C.UTF-8"
+
+spawn -noecho $binary tui --vinf $vinf --volume-root $volume_root
+
+# Wait for the fast scan to reach its last phase before the alternate-screen
+# interface appears. The short pause lets the first Volume frame settle.
+expect {
+    -re {progress Reconciliation:} {}
+    timeout {
+        puts stderr "timed out waiting for Volmap to finish scanning"
+        exit 1
+    }
+    eof {
+        puts stderr "Volmap exited before opening the TUI"
+        exit 1
+    }
+}
+pause_and_drain 1800
+
+# Select the focused Sector from the Volume view.
+send -- "\r"
+pause_and_drain 1600
+
+# Focus Page 10 in the eight-column Sector grid and open its detail view.
+send -- "\033\[B"
+send -- "\033\[C"
+send -- "\033\[C"
+pause_and_drain 1400
+send -- "\r"
+pause_and_drain 2600
+
+# Keep the fully loaded Page as the GIF's last frame. The shutdown sequence
+# restores the pre-TUI progress screen, so do not include it in the recording.
+log_user 0
+send -- "q"
+expect eof
