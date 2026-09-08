@@ -15,13 +15,19 @@ export default defineConfig({
     trace: "retain-on-failure",
     video: "off",
   },
-  webServer: {
+  webServer: [{
     command: "../release/run-browser-server.sh",
     cwd: ".",
     reuseExistingServer: false,
     timeout: 120_000,
     url: serverUrl,
-  },
+  }, {
+    command: "VOLMAP_BROWSER_PORT=41740 VOLMAP_BROWSER_RUNTIME=1 ../release/run-browser-server.sh",
+    cwd: ".",
+    reuseExistingServer: false,
+    timeout: 120_000,
+    url: "http://127.0.0.1:41740",
+  }],
   projects: [
     { name: "chromium", use: { browserName: "chromium" } },
     { name: "firefox", use: { browserName: "firefox" } },

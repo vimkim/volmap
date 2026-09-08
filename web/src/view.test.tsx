@@ -5,6 +5,19 @@ import type { FileAssociation, Page } from "./domain";
 import { initialState, reduce } from "./model";
 import { Viewer } from "./view";
 
+test("runtime capability is separately labelled without changing disk inspection state", () => {
+  const original = initialState({ kind: "root" });
+  for (const capability of ["disabled", "unavailable"] as const) {
+    const state = reduce(original, { kind: "runtime-capability-loaded", state: capability });
+    const markup = renderToStaticMarkup(<Viewer state={state} dispatch={() => undefined} nowUnixSeconds={0} />);
+    expect(markup).toContain('aria-label="CUBRID page-buffer observation"');
+    expect(markup).toContain(`Observation source: ${capability}`);
+    expect(state.outcome).toBe(original.outcome);
+    expect(state.snapshot).toBe(original.snapshot);
+    expect(state.error).toBeNull();
+  }
+});
+
 const snapshot = {
   id: "0123456789abcdef",
   revision: "7",

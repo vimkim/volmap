@@ -11,7 +11,10 @@ import { parentRoute, routePath, type Route } from "./routes";
 
 export type HistoryMode = "none" | "push" | "replace" | "restore";
 
+export type RuntimeCapabilityState = "disabled" | "connecting" | "active" | "stale" | "unavailable" | "refused" | "incompatible";
+
 export type Effect =
+  | Readonly<{ id: number; kind: "read-runtime-capability" }>
   | ReadRouteEffect
   | ReadSectorBatchEffect
   | EnrichRouteEffect
@@ -94,6 +97,8 @@ export interface LicenseUiState {
 }
 
 export interface UiState {
+  readonly runtimeCapability: RuntimeCapabilityState | null;
+  readonly runtimeCapabilityRequested: boolean;
   readonly route: Route;
   readonly scope: string;
   readonly nextEpoch: number;
@@ -121,6 +126,7 @@ export interface UiError {
 }
 
 export type Action =
+  | Readonly<{ kind: "runtime-capability-loaded"; state: RuntimeCapabilityState }>
   | Readonly<{
       kind: "navigate";
       route: Route;
@@ -227,6 +233,8 @@ export function initialState(route: Route): UiState {
   const scope = routeScope(1, route);
   return {
     route,
+    runtimeCapability: null,
+    runtimeCapabilityRequested: false,
     scope,
     nextEpoch: 2,
     nextEffectId: 2,
@@ -621,7 +629,17 @@ export function reduce(state: UiState, action: Action): UiState {
       effects: [...state.effects, { id: state.nextEffectId, kind: "history-back", parent }],
     };
   }
-  if (action.kind === "visibility-changed") return { ...state, visible: action.visible };
+  if (action.kind === "runtime-capability-loaded") return { ...state, runtimeCapability: action.state };
+  if (action.kind === "visibility-changed") {
+    if (!action.visible || state.runtimeCapabilityRequested) return { ...state, visible: action.visible };
+    return {
+      ...state,
+      visible: true,
+      runtimeCapabilityRequested: true,
+      nextEffectId: state.nextEffectId + 1,
+      effects: [...state.effects, { id: state.nextEffectId, kind: "read-runtime-capability" }],
+    };
+  }
   if (action.kind === "clock-ticked") return { ...state, nowUnixSeconds: action.nowUnixSeconds };
   return loadRoute(state, action.route, action.history, action.autoEnrich);
 }

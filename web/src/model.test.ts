@@ -2,6 +2,19 @@ import { expect, test } from "vitest";
 
 import { initialState, reduce } from "./model";
 
+test("capability metadata is requested once when visible and remains independent of navigation", () => {
+  const initial = initialState({ kind: "root" });
+  const hidden = reduce(initial, { kind: "visibility-changed", visible: false });
+  expect(hidden.effects.some((effect) => effect.kind === "read-runtime-capability")).toBe(false);
+  const visible = reduce(hidden, { kind: "visibility-changed", visible: true });
+  expect(visible.effects.filter((effect) => effect.kind === "read-runtime-capability")).toHaveLength(1);
+  const repeated = reduce(visible, { kind: "visibility-changed", visible: true });
+  expect(repeated.effects).toEqual(visible.effects);
+  const loaded = reduce(visible, { kind: "runtime-capability-loaded", state: "disabled" });
+  const navigated = reduce(loaded, { kind: "navigate", route: { kind: "page", vol: 0, page: 10 }, history: "push", autoEnrich: false });
+  expect(navigated.runtimeCapability).toBe("disabled");
+});
+
 const snapshot = {
   id: "0123456789abcdef",
   revision: "7",

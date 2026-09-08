@@ -57,6 +57,7 @@ test("the route reader resolves a direct sector from typed same-origin resources
     enrich: unavailable,
     watch: unavailable,
     licenses: unavailable,
+    runtimeCapabilities: unavailable,
   };
 
   const result = await readRoute(api, { kind: "sector", vol: 0, sector: 2 });

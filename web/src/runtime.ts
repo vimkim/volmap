@@ -50,7 +50,7 @@ export interface RuntimePorts {
   readonly api: InspectorApi;
   readonly history: HistoryPort;
   readonly schedule: (milliseconds: number, action: () => void) => void;
-  readonly requestSignal?: (group: "route" | "collection" | "enrichment" | "watch" | "license") =>
+  readonly requestSignal?: (group: "route" | "collection" | "enrichment" | "watch" | "license" | "runtime-capability") =>
     | AbortSignal
     | undefined;
 }
@@ -129,6 +129,11 @@ export async function executeEffect(
 ): Promise<void> {
   try {
     switch (effect.kind) {
+      case "read-runtime-capability": {
+        const state = await ports.api.runtimeCapabilities(ports.requestSignal?.("runtime-capability"));
+        dispatch({ kind: "runtime-capability-loaded", state });
+        return;
+      }
       case "write-history":
         applyHistory(ports.history, effect);
         return;
@@ -199,6 +204,11 @@ export async function executeEffect(
       }
     }
   } catch (error) {
+    if (effect.kind === "read-runtime-capability") {
+      // Never surface network/decoder text through inspection errors or UI.
+      dispatch({ kind: "runtime-capability-loaded", state: "unavailable" });
+      return;
+    }
     if (aborted(error)) return;
     if (effect.kind === "watch-generation") {
       dispatch({ kind: "watch-failed", knownGeneration: effect.knownGeneration });

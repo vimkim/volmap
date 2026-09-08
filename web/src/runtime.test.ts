@@ -1,6 +1,29 @@
 import { expect, test } from "vitest";
 
 import { applyHistory, executeEffect, type HistoryPort } from "./runtime";
+import { createHttpApi } from "./api";
+import { initialState, reduce, type Action } from "./model";
+
+test("capability effects adopt normalized metadata and sanitize failures outside inspection errors", async () => {
+  for (const fails of [false, true]) {
+    const fetcher: typeof fetch = async () => {
+      if (fails) throw new Error("/private/socket uid=1000 raw OS failure");
+      return new Response(JSON.stringify({
+        schema: "volmap.runtime", schema_version: 1,
+        source: "cubrid-page-buffer-observation", state: "disabled",
+        verification: "unverified", reason: "not-requested",
+      }));
+    };
+    const actions: Action[] = [];
+    await executeEffect({ id: 2, kind: "read-runtime-capability" }, {
+      api: createHttpApi(fetcher), history: null as never, schedule: () => undefined,
+    }, (action) => actions.push(action));
+    expect(actions).toEqual([{ kind: "runtime-capability-loaded", state: fails ? "unavailable" : "disabled" }]);
+    const result = actions.reduce(reduce, initialState({ kind: "root" }));
+    expect(result.error).toBeNull();
+    expect(result.outcome).toBe("loading");
+  }
+});
 
 test("history writes keep entity paths generation-neutral and remember semantic parents", () => {
   const writes: unknown[] = [];

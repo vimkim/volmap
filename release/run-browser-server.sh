@@ -24,11 +24,16 @@ mkdir "$server_root/snapshot"
 "$server_root/create-smoke-fixture" "$server_root/snapshot"
 
 cargo build --locked
+runtime_arguments=()
+if [[ ${VOLMAP_BROWSER_RUNTIME:-0} == 1 ]]; then
+  runtime_arguments=(--runtime-page-buffer --runtime-socket "$server_root/no-producer.sock")
+fi
 "target/$TARGET/debug/volmap" serve \
   --vinf "$server_root/snapshot/fixture_vinf" \
   --volume-root "$server_root/snapshot" \
   --listen "127.0.0.1:$PORT" \
   --no-follow \
+  "${runtime_arguments[@]}" \
   --progress never &
 server_pid=$!
 wait "$server_pid"

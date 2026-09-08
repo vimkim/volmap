@@ -1,5 +1,24 @@
 import { expect, test } from "@playwright/test";
 
+test("optional runtime capability stays separate from working disk inspection", async ({ page }) => {
+  for (const [origin, state] of [
+    ["http://127.0.0.1:41739", "disabled"],
+    ["http://127.0.0.1:41740", "unavailable"],
+  ]) {
+    await page.goto(`${origin}/page/0/10`);
+    const capability = page.getByRole("region", { name: "CUBRID page-buffer observation" });
+    await expect(capability).toContainText(`Observation source: ${state}`);
+    await expect(page.getByRole("heading", { name: "Page facts" })).toBeVisible();
+    await expect(page.locator("#outcome")).not.toHaveText("loading");
+    const metadata = await page.request.get(`${origin}/api/v1/runtime/capabilities`);
+    expect(metadata.status()).toBe(200);
+    expect(metadata.headers()["cache-control"]).toBe("no-store");
+    expect(await metadata.json()).toMatchObject({ state, verification: "unverified" });
+    await page.getByRole("button", { name: "About & licenses" }).click();
+    await expect(page.locator("#infoDialog")).toBeVisible();
+  }
+});
+
 test("the embedded live viewer boots from the real server and supports a direct entity route", async ({
   page,
 }) => {

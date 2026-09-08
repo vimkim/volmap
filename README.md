@@ -90,6 +90,30 @@ Start the live web viewer on loopback:
 volmap serve --vinf /snapshot/demodb_vinf --listen 127.0.0.1:8080
 ```
 
+The optional CUBRID page-buffer observation capability requires explicit opt-in
+and a socket path together:
+
+```sh
+volmap serve --vinf /snapshot/demodb_vinf --listen 127.0.0.1:8080 \
+  --runtime-page-buffer --runtime-socket /run/user/1000/cubrid/inspector.sock
+```
+
+This is currently capability-only: the viewer reports `disabled` without
+opt-in, or `unavailable` / `unverified` with reason
+`attachment-not-implemented` when requested. It does not open or probe the
+producer socket yet, and cannot supply page observations. A missing socket
+does not prove the engine's parameter setting. Ordinary disk inspection needs
+no CUBRID service or installation and continues unchanged.
+
+Runtime attachment is rejected with any non-loopback HTTP listener. For remote
+use, run the viewer on the database host and forward its loopback port with
+SSH (for example, `ssh -L 8080:127.0.0.1:8080 database-host`). There is no socket
+discovery or environment fallback, and no new HTTP authentication or TLS.
+The capability endpoint uses its own bounded admission and returns sanitized,
+non-cacheable metadata; it never changes inspection facts, outcomes, revisions,
+TUI or exports. Page-buffer observations, when implemented, will not prove
+memory/disk correspondence, commit visibility, durability or event history.
+
 Or create a deterministic, self-contained HTML report:
 
 ```sh

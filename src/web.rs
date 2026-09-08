@@ -1,6 +1,7 @@
 //! Read-only HTTP adapter with embedded Atlas assets.
 
 mod assets;
+mod observations;
 
 use std::collections::BTreeSet;
 use std::fs::OpenOptions;
@@ -48,6 +49,8 @@ const MAX_CONCURRENT_REQUESTS: usize = 32;
 /// from the inspection concurrency limit and cannot starve real requests.
 const MAX_CONCURRENT_WATCHERS: usize = 64;
 const WATCH_PATH: &str = "/api/v1/live/watch";
+const CAPABILITIES_PATH: &str = "/api/v1/runtime/capabilities";
+const MAX_CONCURRENT_CAPABILITIES: usize = 4;
 const DEFAULT_COLLECTION_LIMIT: usize = 100;
 const MAX_COLLECTION_LIMIT: usize = 512;
 const DEFAULT_SECTOR_COLLECTION_LIMIT: usize = 24;
@@ -56,6 +59,8 @@ const MAX_SECTOR_COLLECTION_LIMIT: usize = 64;
 #[derive(Clone, Debug)]
 pub struct ServeOptions {
     pub listen: SocketAddr,
+    /// Explicitly requested runtime attachment; absent for ordinary inspection.
+    pub runtime_socket: Option<std::path::PathBuf>,
     pub policy: ResourcePolicy,
     /// How the input was opened, so a follower can read it again.
     pub request: OpenRequest,
@@ -65,6 +70,8 @@ pub struct ServeOptions {
 
 #[derive(Clone)]
 struct WebState {
+    runtime: Arc<observations::Broker>,
+    capabilities: Arc<Semaphore>,
     source: Arc<LiveSource>,
     enrichment: Arc<Mutex<()>>,
     policy: ResourcePolicy,
@@ -77,6 +84,7 @@ struct WebState {
 #[derive(Debug)]
 pub enum ServeError {
     RemoteWildcardRequired,
+    RuntimeLoopbackRequired,
     Io(io::Error),
     Runtime(String),
 }
@@ -84,6 +92,9 @@ pub enum ServeError {
 impl std::fmt::Display for ServeError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::RuntimeLoopbackRequired => {
+                formatter.write_str("runtime attachment requires a loopback HTTP listener")
+            }
             Self::RemoteWildcardRequired => formatter
                 .write_str("remote HTTP requires an explicit --listen 0.0.0.0:PORT listener"),
             Self::Io(error) => write!(formatter, "web I/O failed: {error}"),
@@ -119,6 +130,8 @@ async fn serve_async(view: GraphView, options: ServeOptions) -> Result<(), Serve
     let format_profile = view.format_profile();
     let source = LiveSource::new(view, config, options.follow.is_some());
     let state = WebState {
+        runtime: Arc::new(observations::Broker::new(options.runtime_socket)),
+        capabilities: Arc::new(Semaphore::new(MAX_CONCURRENT_CAPABILITIES)),
         source: Arc::clone(&source),
         enrichment: Arc::new(Mutex::new(())),
         policy: options.policy,
@@ -227,6 +240,7 @@ fn build_router(state: WebState) -> Router {
         .route("/slot/{vol}/{page}/{slot}", get(assets::index))
         .route("/oos/{vol}/{page}/{slot}", get(assets::index))
         .route("/api/v1/session", get(session))
+        .route(CAPABILITIES_PATH, get(runtime_capabilities))
         .route("/api/v1/licenses", get(licenses))
         .route("/api/v1/live/watch", get(watch))
         .route("/api/v1/overview", get(overview))
@@ -263,8 +277,18 @@ async fn shutdown_signal() {
     let _ = tokio::signal::ctrl_c().await;
 }
 
+async fn runtime_capabilities(State(state): State<WebState>) -> Response {
+    match state.runtime.capabilities().await {
+        Ok(capability) => Json(capability).into_response(),
+        Err(()) => error_response(StatusCode::GATEWAY_TIMEOUT, "runtime-deadline-exceeded"),
+    }
+}
+
 async fn request_guard(State(state): State<WebState>, request: Request, next: Next) -> Response {
-    let pool = if request.uri().path() == WATCH_PATH {
+    let runtime_request = request.uri().path() == CAPABILITIES_PATH;
+    let pool = if runtime_request {
+        state.capabilities.clone()
+    } else if request.uri().path() == WATCH_PATH {
         state.watchers.clone()
     } else {
         state.semaphore.clone()
@@ -276,7 +300,14 @@ async fn request_guard(State(state): State<WebState>, request: Request, next: Ne
                 drop(permit);
                 response
             }
-            Err(_) => error_response(StatusCode::TOO_MANY_REQUESTS, "resource-admission-refused"),
+            Err(_) => error_response(
+                StatusCode::TOO_MANY_REQUESTS,
+                if runtime_request {
+                    "runtime-admission-refused"
+                } else {
+                    "resource-admission-refused"
+                },
+            ),
         },
         Err(error) => error_response(error.status, error.code),
     };
@@ -1526,6 +1557,10 @@ fn default_error_message(code: &str) -> &'static str {
         "resource-admission-refused" => {
             "Volmap is already processing the allowed amount of inspection work. Wait for it to finish and try again."
         }
+        "runtime-admission-refused" => "Runtime capability capacity is full. Try again later.",
+        "runtime-deadline-exceeded" => {
+            "Runtime capability metadata was not available within its deadline."
+        }
         "resource-not-found" => "The requested Volmap resource does not exist.",
         "session-unavailable" => "The Volmap inspection session is unavailable.",
         "unsupported-format-profile-operation" => {
@@ -1538,6 +1573,9 @@ fn default_error_message(code: &str) -> &'static str {
 
 fn validate_listener(options: &ServeOptions) -> Result<(), ServeError> {
     let ip = options.listen.ip();
+    if options.runtime_socket.is_some() && !ip.is_loopback() {
+        return Err(ServeError::RuntimeLoopbackRequired);
+    }
     if !ip.is_loopback() && ip != IpAddr::V4(Ipv4Addr::UNSPECIFIED) {
         return Err(ServeError::RemoteWildcardRequired);
     }
@@ -1596,6 +1634,8 @@ mod tests {
             .unwrap();
         let state = WebState {
             source: LiveSource::new(view, FollowConfig::default(), false),
+            runtime: Arc::new(observations::Broker::new(None)),
+            capabilities: Arc::new(Semaphore::new(MAX_CONCURRENT_CAPABILITIES)),
             enrichment: Arc::new(Mutex::new(())),
             policy,
             cursor_key: Arc::new([7_u8; 32]),
@@ -1754,6 +1794,7 @@ mod tests {
     fn options(listen: &str) -> ServeOptions {
         ServeOptions {
             listen: listen.parse().unwrap(),
+            runtime_socket: None,
             policy: ResourcePolicy::new(1024, 1024, 1, 1, 1024).unwrap(),
             request: OpenRequest {
                 input: crate::source::InputSpec::Vinf {
@@ -1969,6 +2010,8 @@ mod tests {
             .unwrap();
         let state = WebState {
             source: LiveSource::new(view.clone(), FollowConfig::default(), false),
+            runtime: Arc::new(observations::Broker::new(None)),
+            capabilities: Arc::new(Semaphore::new(MAX_CONCURRENT_CAPABILITIES)),
             enrichment: Arc::new(Mutex::new(())),
             policy,
             cursor_key: Arc::new([7_u8; 32]),
@@ -2647,6 +2690,14 @@ mod tests {
     /// follower starts. That is the deterministic scheduling state left by a
     /// mid-scan change: the reading's recorded manifest is already stale.
     fn boot_after_open(follow: Option<FollowConfig>, change_after_open: bool) -> LiveServer {
+        boot_runtime(follow, change_after_open, observations::Broker::new(None))
+    }
+
+    fn boot_runtime(
+        follow: Option<FollowConfig>,
+        change_after_open: bool,
+        broker: observations::Broker,
+    ) -> LiveServer {
         use std::io::Write as _;
 
         let directory = FixtureDirectory::new();
@@ -2697,6 +2748,8 @@ mod tests {
                 let address = listener.local_addr().unwrap();
                 let state = WebState {
                     source: Arc::clone(&source),
+                    runtime: Arc::new(broker),
+                    capabilities: Arc::new(Semaphore::new(MAX_CONCURRENT_CAPABILITIES)),
                     enrichment: Arc::new(Mutex::new(())),
                     policy,
                     cursor_key: Arc::new([7_u8; 32]),
@@ -2729,6 +2782,11 @@ mod tests {
     /// makes the response self-delimiting, which is all a test needs and keeps
     /// the release dependency graph pinned.
     fn exchange_raw(address: SocketAddr, request: &str) -> (u16, String) {
+        let (status, _, body) = exchange_with_headers(address, request);
+        (status, body)
+    }
+
+    fn exchange_with_headers(address: SocketAddr, request: &str) -> (u16, String, String) {
         use std::io::{Read as _, Write as _};
 
         let mut stream = std::net::TcpStream::connect(address).unwrap();
@@ -2748,7 +2806,8 @@ mod tests {
             .split_once("\r\n\r\n")
             .map_or("", |(_, body)| body)
             .to_owned();
-        (status, body)
+        let headers = text.split_once("\r\n\r\n").unwrap().0.to_owned();
+        (status, headers, body)
     }
 
     fn exchange(address: SocketAddr, request: &str) -> (u16, serde_json::Value) {
@@ -2771,6 +2830,109 @@ mod tests {
             address,
             &format!("GET {path} HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\n\r\n"),
         )
+    }
+
+    #[test]
+    fn runtime_capabilities_are_independent_of_disk_inspection_over_http() {
+        let server = boot(None);
+        let before = get(server.address, "/api/v1/session");
+        let (status, capability) = get(server.address, "/api/v1/runtime/capabilities");
+        assert_eq!(status, 200);
+        assert_eq!(
+            capability,
+            serde_json::json!({
+                "schema": "volmap.runtime", "schema_version": 1,
+                "source": "cubrid-page-buffer-observation",
+                "state": "disabled", "verification": "unverified",
+                "reason": "not-requested"
+            })
+        );
+        assert_eq!(get(server.address, "/api/v1/session"), before);
+    }
+
+    #[test]
+    fn configured_runtime_is_unavailable_unverified_and_sanitized_over_http() {
+        let server = boot_runtime(
+            None,
+            false,
+            observations::Broker::new(Some("/private/uid-1000/inspector".into())),
+        );
+        let before = get(server.address, "/api/v1/session");
+        let (status, headers, body) = exchange_with_headers(
+            server.address,
+            &format!(
+                "GET /api/v1/runtime/capabilities HTTP/1.1\r\nHost: {}\r\nConnection: close\r\n\r\n",
+                server.address
+            ),
+        );
+        assert_eq!(status, 200);
+        assert!(
+            headers
+                .to_ascii_lowercase()
+                .contains("cache-control: no-store\r\n")
+        );
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&body).unwrap(),
+            serde_json::json!({
+                "schema": "volmap.runtime", "schema_version": 1,
+                "source": "cubrid-page-buffer-observation", "state": "unavailable",
+                "verification": "unverified", "reason": "attachment-not-implemented"
+            })
+        );
+        assert!(!body.contains("private"));
+        assert!(!body.contains("1000"));
+        assert_eq!(get(server.address, "/api/v1/session"), before);
+    }
+
+    #[test]
+    fn runtime_capability_admission_is_bounded_and_independent_over_http() {
+        let (arrived, arrivals) = std::sync::mpsc::channel();
+        let release = Arc::new(Semaphore::new(0));
+        let broker = observations::Broker::simulated(arrived, Arc::clone(&release));
+        let server = boot_runtime(None, false, broker);
+        let mut requests = Vec::new();
+        // Three admitted requests, then exactly four, then overload: no sleeps
+        // or races against polling determine whether a slot is occupied.
+        for _ in 0..4 {
+            let address = server.address;
+            requests.push(std::thread::spawn(move || {
+                get(address, "/api/v1/runtime/capabilities")
+            }));
+            arrivals
+                .recv_timeout(std::time::Duration::from_secs(2))
+                .unwrap();
+            assert_eq!(get(server.address, "/api/v1/session").0, 200);
+        }
+        let (status, body) = get(server.address, "/api/v1/runtime/capabilities");
+        assert_eq!(status, 429);
+        assert_eq!(body["error"]["code"], "runtime-admission-refused");
+        release.add_permits(4);
+        for request in requests {
+            assert_eq!(request.join().unwrap().0, 200);
+        }
+    }
+
+    #[test]
+    fn runtime_capability_deadline_releases_its_slot_over_http() {
+        let (arrived, _arrivals) = std::sync::mpsc::channel();
+        let release = Arc::new(Semaphore::new(0));
+        let server = boot_runtime(
+            None,
+            false,
+            observations::Broker::simulated(arrived, Arc::clone(&release)),
+        );
+        let fallback_release = Arc::clone(&release);
+        let fallback = std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(1500));
+            fallback_release.add_permits(1);
+        });
+        let (status, body) = get(server.address, "/api/v1/runtime/capabilities");
+        fallback.join().unwrap();
+        assert_eq!(status, 504);
+        assert_eq!(body["error"]["code"], "runtime-deadline-exceeded");
+        release.add_permits(1);
+        assert_eq!(get(server.address, "/api/v1/runtime/capabilities").0, 200);
+        assert_eq!(get(server.address, "/api/v1/session").0, 200);
     }
 
     fn enrichment(address: SocketAddr, selector: &str) -> (u16, serde_json::Value) {

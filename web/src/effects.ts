@@ -13,8 +13,10 @@ import type {
   WatchData,
 } from "./domain";
 import type { EntityRoute, Route } from "./routes";
+import type { RuntimeCapabilityState } from "./model";
 
 export interface InspectorApi {
+  runtimeCapabilities(signal?: AbortSignal): Promise<RuntimeCapabilityState>;
   session(signal?: AbortSignal): Promise<Resource<SessionData>>;
   volumes(signal?: AbortSignal): Promise<Resource<CollectionData<Volume>>>;
   sectors(

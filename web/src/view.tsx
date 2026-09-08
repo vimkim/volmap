@@ -696,6 +696,15 @@ export function Viewer({ state, dispatch, nowUnixSeconds }: ViewerProps) {
       </header>
       <main id="app">
         <aside>
+          <section aria-label="CUBRID page-buffer observation">
+            <h2>CUBRID page-buffer observation</h2>
+            <p>Observation source: {state.runtimeCapability ?? "checking capability"}</p>
+            {state.runtimeCapability === "disabled" ? (
+              <p>Not requested. Enable explicitly when starting a loopback viewer.</p>
+            ) : state.runtimeCapability === "unavailable" ? (
+              <p>No verified producer observation is available. Disk inspection is unaffected.</p>
+            ) : null}
+          </section>
           <h2>Snapshot hierarchy</h2>
           <div id="volumes">
             {state.volumes.map((volume) => (

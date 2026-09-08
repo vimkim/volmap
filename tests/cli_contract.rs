@@ -10,6 +10,44 @@ use volmap::format::{FormatProfile, IO_PAGE_SIZE, PageType};
 
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
 
+#[test]
+fn runtime_attachment_requires_explicit_pair_and_loopback() {
+    for arguments in [
+        vec!["serve", "--vinf", "/missing", "--runtime-page-buffer"],
+        vec![
+            "serve",
+            "--vinf",
+            "/missing",
+            "--runtime-socket",
+            "/private/inspector",
+        ],
+    ] {
+        let output = volmap(&arguments);
+        assert!(!output.status.success());
+        assert!(String::from_utf8_lossy(&output.stderr).contains("required"));
+    }
+    let (_directory, vinf) = fixture();
+    for listener in ["0.0.0.0:0", "192.0.2.10:0", "[::]:0"] {
+        let output = volmap(&[
+            "serve",
+            "--vinf",
+            vinf.to_str().unwrap(),
+            "--runtime-page-buffer",
+            "--runtime-socket",
+            "/private/inspector",
+            "--listen",
+            listener,
+            "--progress",
+            "never",
+        ]);
+        assert!(!output.status.success());
+        assert!(
+            String::from_utf8_lossy(&output.stderr)
+                .contains("runtime attachment requires a loopback")
+        );
+    }
+}
+
 struct TestDirectory(PathBuf);
 
 impl TestDirectory {

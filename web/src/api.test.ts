@@ -3,6 +3,33 @@ import { expect, test } from "vitest";
 import { createHttpApi, decodeResource, objectData } from "./api";
 import type { FileAssociation } from "./domain";
 
+test("runtime capabilities use their own validated envelope and no-store request", async () => {
+  const fetcher: typeof fetch = async (input, init) => {
+    expect(String(input)).toBe("/api/v1/runtime/capabilities");
+    expect(init?.cache).toBe("no-store");
+    expect(init?.credentials).toBe("same-origin");
+    return new Response(JSON.stringify({
+      schema: "volmap.runtime", schema_version: 1,
+      source: "cubrid-page-buffer-observation", state: "unavailable",
+      verification: "unverified", reason: "attachment-not-implemented",
+    }));
+  };
+  expect(await createHttpApi(fetcher).runtimeCapabilities()).toBe("unavailable");
+});
+
+test.each([
+  { schema: "volmap.inspection" }, { schema_version: 2 },
+  { source: "other-source" }, { state: "active" }, { verification: "verified" },
+  { reason: "/private/socket" },
+])("runtime metadata rejects unsupported or inconsistent envelopes: %j", async (override) => {
+  const fetcher: typeof fetch = async () => new Response(JSON.stringify({
+    schema: "volmap.runtime", schema_version: 1,
+    source: "cubrid-page-buffer-observation", state: "disabled",
+    verification: "unverified", reason: "not-requested", ...override,
+  }));
+  await expect(createHttpApi(fetcher).runtimeCapabilities()).rejects.toThrow("invalid runtime capability");
+});
+
 function pageDocument(fileAssociation: FileAssociation): object {
   return {
     schema: "volmap.inspection",

@@ -131,6 +131,12 @@ struct ServeCommand {
     resources: ResourceArgs,
     #[arg(long, default_value = "127.0.0.1:0")]
     listen: SocketAddr,
+    /// Request the optional, loopback-only CUBRID page-buffer observation source.
+    #[arg(long, requires = "runtime_socket")]
+    runtime_page_buffer: bool,
+    /// Explicit producer socket; no discovery or environment fallback.
+    #[arg(long, requires = "runtime_page_buffer")]
+    runtime_socket: Option<PathBuf>,
     /// Watch the input and publish a new generation when it changes. On by
     /// default, and accepted explicitly so a script can state the intent.
     #[arg(long, overrides_with = "no_follow")]
@@ -473,6 +479,7 @@ fn run(cli: Cli) -> Result<i32, CliError> {
                 view,
                 crate::web::ServeOptions {
                     listen: command.listen,
+                    runtime_socket: command.runtime_socket,
                     policy,
                     request,
                     follow,
