@@ -1,0 +1,47 @@
+{
+  "chromium-disabled-base": {
+    "UpdateLayoutTree": 82,
+    "Paint": 82,
+    "Layout": 2
+  },
+  "chromium-enabled-base": {
+    "Layout": 7,
+    "Paint": 605,
+    "UpdateLayoutTree": 87
+  },
+  "chromium-disabled-recolor-only": {
+    "Layout": 3,
+    "Paint": 84,
+    "UpdateLayoutTree": 82
+  },
+  "chromium-enabled-paused-keyboard": {
+    "Layout": 6,
+    "Paint": 92,
+    "UpdateLayoutTree": 87
+  },
+  "chromium-enabled-glyph-hidden": {
+    "Layout": 4,
+    "Paint": 88,
+    "UpdateLayoutTree": 84
+  },
+  "chromium-enabled-preview-containment": {
+    "Layout": 5,
+    "Paint": 603,
+    "UpdateLayoutTree": 85
+  },
+  "chromium-enabled-flow-glyph": {
+    "UpdateLayoutTree": 85,
+    "Paint": 601,
+    "Layout": 5
+  },
+  "chromium-enabled-preview-layout": {
+    "Layout": 4,
+    "Paint": 600,
+    "UpdateLayoutTree": 84
+  },
+  "chromium-enabled-nonresident-pseudo": {
+    "Paint": 1118,
+    "UpdateLayoutTree": 86,
+    "Layout": 6
+  }
+}

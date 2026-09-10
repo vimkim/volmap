@@ -97,3 +97,13 @@ The optional density port supports a fresh server alongside an existing preview;
 it does not change measurement or server-reuse rules. See [native repair evidence](../verification/06-native-repair/README.md).
 Further Chromium raster investigation and the existing manual/reference-host
 prerequisites remain open. No checklist item is closed.
+
+2026-09-10 — Follow-up on committed repair `978efae` still fails the original
+full workload: Chromium 26.76/41.48 MiB, Firefox 16.49/23.48 MiB; worst p95
+69.2/64.0 ms. Native reverse controls separate LRU recoloring from additional
+glyph paint and observation-update work during navigation. Tested paint/layout
+containment, normal-layout glyph placement and a nonresident pseudo-element did
+not establish a safe improvement, so no further production change was adopted.
+See [the raw profiles and rejected probes](../verification/06-raster-followup/README.md).
+The 32 MiB gate, both-browser workload and human/reference-host prerequisites
+remain unchanged; the earlier 32.95 MiB Chromium LRU result was not a stable near-pass.
