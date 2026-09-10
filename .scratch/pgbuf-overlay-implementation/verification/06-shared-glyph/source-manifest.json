@@ -1,0 +1,11 @@
+{
+  "baseCommit": "9ebced2a89d4ff23cc6e2a0265f137eb6dc11fae",
+  "files": {
+    "src/web/assets/app.css": "3a259dcada1ff41a528173e3999460510e10c9e284a61268855118d629008990",
+    "web/src/view.tsx": "61229a9dd01765f8250eb4ea49206e50b03a1a319cb6befbaf0bee20869f5d20",
+    "web/src/observations.css": "89e75b58a1d51066b7b9a2afa7de4bd9c42b8523e8bb678c124029a87b79118d",
+    "web/e2e/observations.spec.ts": "814c895513e5a789930ddfbf77ff3821cde9bde0a882bd710d150298fa10f45e",
+    "src/web/generated/frontend.css": "381f919cf14c0b515b4532a09db3ebdd069c5677f530012e3d246da21c37994b",
+    "src/web/generated/frontend.js": "dc6e7edc50f6c3f6bd4e9b7871cb4637a739eafce3a1666e76f1f5b16a626c75"
+  }
+}

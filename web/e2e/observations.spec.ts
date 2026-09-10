@@ -417,3 +417,76 @@ test("enabling Volume observations keeps the map in place and the legend availab
   await expect(legend).toContainText("LRU topology colors replace storage colors");
   expect(await map.evaluate((element) => element.getBoundingClientRect().top + window.scrollY)).toBe(top);
 });
+
+test("Volume nonresident markers share an image and retain a forced-color glyph", async ({ page, browserName }) => {
+  await page.clock.install();
+  await page.goto("http://127.0.0.1:41741/volume/0", { waitUntil: "commit" });
+  await page.getByRole("button", { name: "Enable observations", exact: true }).click();
+  const cell = page.locator('.preview-page[data-runtime-state="not-resident"]').first();
+  await expect(cell).toHaveAttribute("title", /Observed not resident/);
+  await page.getByRole("button", { name: "Pause", exact: true }).click();
+  const bounds = await cell.boundingBox();
+  await expect(cell).toHaveCSS("background-image", /data:image\/svg\+xml/);
+  await expect(cell.locator(".runtime-glyph")).toHaveCount(0);
+  await cell.locator("../..").screenshot({ path: `../.scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/normal-sector-${browserName}.png` });
+  await page.getByRole("combobox", { name: "Runtime color mode" }).selectOption("lru");
+  await expect(cell).toHaveCSS("background-image", /data:image\/svg\+xml/);
+  await expect(cell).toHaveCSS("background-color", "rgb(55, 65, 81)");
+  await page.emulateMedia({ forcedColors: "active" });
+  await expect(cell).toHaveCSS("background-image", "none");
+  expect(await cell.evaluate((element) => getComputedStyle(element, "::after").content)).toBe('"○"');
+  expect(await cell.boundingBox()).toEqual(bounds);
+  await cell.locator("../..").screenshot({ path: `../.scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/forced-sector-${browserName}.png` });
+  await expect(page.getByRole("region", { name: "Runtime overlay legend" })).toContainText("○ observed not resident");
+  const identity = await cell.getAttribute("data-observation-page");
+  await page.getByRole("button", { name: "Disable observations", exact: true }).click();
+  const cleared = page.locator(`[data-observation-page="${identity}"]`);
+  await expect(cleared).not.toHaveAttribute("data-runtime-state");
+  await expect(cleared).toHaveCSS("background-image", "none");
+  expect(await cleared.evaluate((element) => getComputedStyle(element, "::after").content)).toBe("none");
+});
+
+test("Volume nonresident circles preserve known and unknown occupancy backgrounds", async ({ page }) => {
+  await page.clock.install();
+  await page.route(/\/api\/v1\/sectors\/0\?/, async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    // Exercise both storage projections through the actual HTTP decoder.
+    for (const sector of body.data.items) {
+      for (const item of sector.pages) {
+        if (![11, 12].includes(item.page_id)) continue;
+        item.allocation = "allocated";
+        item.occupancy = item.page_id === 11
+          ? { state: "known", occupied_percent: 35, free_percent: 65 }
+          : { state: "unknown" };
+      }
+    }
+    await route.fulfill({ response, json: body });
+  });
+  await page.goto("http://127.0.0.1:41741/volume/0", { waitUntil: "commit" });
+  const cells = [11, 12].map((id) => page.locator(`[data-observation-page="0:${id}"]`));
+  const storage = [];
+  for (const cell of cells) {
+    await expect(cell).toHaveClass(/allocated occupancy-/);
+    storage.push(await cell.evaluate((element) => getComputedStyle(element).backgroundImage));
+  }
+  await page.getByRole("button", { name: "Enable observations", exact: true }).click();
+  for (const cell of cells) await expect(cell).toHaveAttribute("data-runtime-state", "not-resident");
+  await page.getByRole("button", { name: "Pause", exact: true }).click();
+  for (const [index, cell] of cells.entries()) {
+    await expect(cell).toHaveCSS("background-image", /data:image\/svg\+xml/);
+    expect(await cell.evaluate((element) => getComputedStyle(element).backgroundImage)).toContain(storage[index]);
+    await expect(cell).toHaveCSS("background-size", /5px 9px, auto/);
+  }
+  await page.getByRole("combobox", { name: "Runtime color mode" }).selectOption("lru");
+  for (const cell of cells) {
+    await expect(cell).toHaveCSS("background-image", /data:image\/svg\+xml/);
+    await expect(cell).not.toHaveCSS("background-image", /gradient/);
+    await expect(cell).toHaveCSS("background-color", "rgb(55, 65, 81)");
+  }
+  await page.getByRole("button", { name: "Disable observations", exact: true }).click();
+  for (const [index, cell] of cells.entries()) {
+    await expect(cell).toHaveCSS("background-image", storage[index]!);
+    await expect(cell).toHaveCSS("background-size", "auto");
+  }
+});

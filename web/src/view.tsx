@@ -218,7 +218,7 @@ const VolumeSectorPreview = memo(function VolumeSectorPreview({ sector, marks }:
         className={pageClass(page, "preview-page") + (runtime?.className ?? "")}
         key={page.page_id}
         style={pageStyle(page)}
-      >{runtime?.glyph ? <span className="runtime-glyph">{runtime.glyph}</span> : null}</i>;
+      >{runtime?.glyph && runtime.state !== "not-resident" ? <span className="runtime-glyph">{runtime.glyph}</span> : null}</i>;
     })}
   </span>;
 }, (before, after) => before.sector === after.sector && samePreviewMarks(before.marks, after.marks));

@@ -40,7 +40,12 @@
 .page.runtime-lru.zone-void { background: #39474a; }
 .page.runtime-lru.zone-invalid { background: repeating-linear-gradient(135deg, #343434 0 4px, #5a3434 4px 8px); }
 .page.runtime-lru.lru-private::before { border-style: dashed; }
+/* Compose the shared circle over storage fill; LRU replaces only that fill. */
+.page.preview-page.runtime-lru[data-runtime-state="not-resident"] { --occupancy-image: none; background-color: #374151; }
+.page.preview-page[data-runtime-state="not-resident"] { background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%225%22%20height%3D%229%22%20viewBox%3D%220%200%205%209%22%3E%3Cpath%20fill%3D%22%23071014%22%20d%3D%22M0%200h5v9H0z%22%2F%3E%3Ccircle%20cx%3D%222.5%22%20cy%3D%224.5%22%20r%3D%221.7%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%22.7%22%2F%3E%3C%2Fsvg%3E"), var(--occupancy-image, none); background-size: 5px 9px, auto; background-position: right 2px bottom 2px, 0 0; background-repeat: no-repeat, repeat; }
 @media (forced-colors: active) {
+  .page.preview-page[data-runtime-state="not-resident"] { background-image: none; }
+  .page.preview-page[data-runtime-state="not-resident"]::after { content: "○"; position: absolute; bottom: 2px; right: 2px; color: CanvasText; background: Canvas; font: 8px/1.1 ui-monospace, monospace; pointer-events: none; }
   .page.runtime-resident::before { border-color: Highlight; }
   .page.runtime-dirty::after { border-top-color: CanvasText; }
   .page.runtime-flushing::before { border-bottom: 4px double Highlight; box-shadow: none; }

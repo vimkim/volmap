@@ -107,3 +107,14 @@ not establish a safe improvement, so no further production change was adopted.
 See [the raw profiles and rejected probes](../verification/06-raster-followup/README.md).
 The 32 MiB gate, both-browser workload and human/reference-host prerequisites
 remain unchanged; the earlier 32.95 MiB Chromium LRU result was not a stable near-pass.
+
+2026-09-10 — Shared nonresident-circle repair passes the original local production
+density gate in both browsers: Chromium 14.24/30.96 MiB, Firefox 8.12/17.29 MiB;
+worst p95 66.4/93.0 ms. The complete 12,288-cell, 40-input workload and thresholds
+remain unchanged. Allocated known/unknown occupancy layers and forced-color marks
+are covered by new before/after regression tests. Both review axes confirmed the
+final correction, and `just verify` passes (73 frontend, 47 browser passes and
+the existing Firefox skip, plus Rust/release checks).
+See [the repair and retained evidence](../verification/06-shared-glyph/README.md).
+This local sampled pass is not qualified peak/reference-host or manual acceptance;
+those prerequisites remain open and no checklist item is closed.

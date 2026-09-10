@@ -263,18 +263,20 @@ h2 {
   background: var(--allocated);
 }
 .page.allocated.occupancy-known {
-  background: linear-gradient(
+  --occupancy-image: linear-gradient(
     to top,
     var(--allocated) 0 var(--occupied),
     var(--reserved) var(--occupied) 100%
   );
+  background: var(--occupancy-image);
 }
 .page.allocated.occupancy-unknown {
-  background: repeating-linear-gradient(
+  --occupancy-image: repeating-linear-gradient(
     135deg,
     var(--allocated) 0 4px,
     var(--reserved) 4px 8px
   );
+  background: var(--occupancy-image);
 }
 .page.system-metadata {
   background: var(--system);
