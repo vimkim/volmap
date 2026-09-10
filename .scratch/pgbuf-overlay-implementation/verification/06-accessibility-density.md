@@ -129,3 +129,12 @@ Raw archives preserve original logs, partial samples, failure contexts and trace
 views only remove trailing whitespace; matching `.log.gz` files preserve raw bytes.
 `06/source-patches.tar.gz` preserves measured development revisions against the
 starting baseline, including amendments that could otherwise be garbage-collected.
+
+## Follow-up diagnosis
+
+The original Chromium memory failure reproduced after the evidence commit.
+A smaller one-pair probe, phase-level Chromium heap/DOM counters, equivalent CSS
+selectors and diagnostic-only forced GC did not establish a passing memory gate
+or a specific production fix. See [the investigation and raw probes](06-memory-diagnosis/README.md).
+Temporary probe files were removed from the active suite; production code and
+the original acceptance results are unchanged.

@@ -1,0 +1,264 @@
+{
+  "phase-baseline": [
+    {
+      "enabled": false,
+      "peakSampledRssMiB": 698.37890625,
+      "phases": [
+        {
+          "phase": "loaded",
+          "rssMiB": 651.4921875,
+          "heapUsedMiB": 23.925090789794922,
+          "heapTotalMiB": 38.28515625,
+          "dom": {
+            "documents": 1,
+            "nodes": 26220,
+            "jsEventListeners": 370
+          }
+        },
+        {
+          "phase": "configured",
+          "rssMiB": 651.4921875,
+          "heapUsedMiB": 23.925090789794922,
+          "heapTotalMiB": 38.28515625,
+          "dom": {
+            "documents": 1,
+            "nodes": 26220,
+            "jsEventListeners": 370
+          }
+        },
+        {
+          "phase": "interacted",
+          "rssMiB": 698.37890625,
+          "heapUsedMiB": 14.83258056640625,
+          "heapTotalMiB": 37.859375,
+          "dom": {
+            "documents": 1,
+            "nodes": 26224,
+            "jsEventListeners": 381
+          }
+        }
+      ]
+    },
+    {
+      "enabled": true,
+      "peakSampledRssMiB": 760.8828125,
+      "phases": [
+        {
+          "phase": "loaded",
+          "rssMiB": 676.9453125,
+          "heapUsedMiB": 25.96086883544922,
+          "heapTotalMiB": 44.31640625,
+          "dom": {
+            "documents": 1,
+            "nodes": 26225,
+            "jsEventListeners": 424
+          }
+        },
+        {
+          "phase": "configured",
+          "rssMiB": 735.6328125,
+          "heapUsedMiB": 26.706363677978516,
+          "heapTotalMiB": 64.109375,
+          "dom": {
+            "documents": 1,
+            "nodes": 26860,
+            "jsEventListeners": 575
+          }
+        },
+        {
+          "phase": "interacted",
+          "rssMiB": 760.14453125,
+          "heapUsedMiB": 38.66629409790039,
+          "heapTotalMiB": 64.7734375,
+          "dom": {
+            "documents": 1,
+            "nodes": 28010,
+            "jsEventListeners": 690
+          }
+        }
+      ]
+    }
+  ],
+  "css-selectors": [
+    {
+      "enabled": false,
+      "peakSampledRssMiB": 712.6953125,
+      "phases": [
+        {
+          "phase": "loaded",
+          "rssMiB": 676.03125,
+          "heapUsedMiB": 25.958213806152344,
+          "heapTotalMiB": 44.31640625,
+          "dom": {
+            "documents": 1,
+            "nodes": 26223,
+            "jsEventListeners": 429
+          }
+        },
+        {
+          "phase": "configured",
+          "rssMiB": 676.03125,
+          "heapUsedMiB": 25.958213806152344,
+          "heapTotalMiB": 44.31640625,
+          "dom": {
+            "documents": 1,
+            "nodes": 26223,
+            "jsEventListeners": 429
+          }
+        },
+        {
+          "phase": "interacted",
+          "rssMiB": 712.6953125,
+          "heapUsedMiB": 16.964473724365234,
+          "heapTotalMiB": 46.359375,
+          "dom": {
+            "documents": 1,
+            "nodes": 26227,
+            "jsEventListeners": 435
+          }
+        }
+      ]
+    },
+    {
+      "enabled": true,
+      "peakSampledRssMiB": 753.0703125,
+      "phases": [
+        {
+          "phase": "loaded",
+          "rssMiB": 673.46484375,
+          "heapUsedMiB": 25.945770263671875,
+          "heapTotalMiB": 43.56640625,
+          "dom": {
+            "documents": 1,
+            "nodes": 26225,
+            "jsEventListeners": 430
+          }
+        },
+        {
+          "phase": "configured",
+          "rssMiB": 726.109375,
+          "heapUsedMiB": 26.620304107666016,
+          "heapTotalMiB": 56.109375,
+          "dom": {
+            "documents": 1,
+            "nodes": 26858,
+            "jsEventListeners": 575
+          }
+        },
+        {
+          "phase": "interacted",
+          "rssMiB": 753.06640625,
+          "heapUsedMiB": 35.20146560668945,
+          "heapTotalMiB": 56.109375,
+          "dom": {
+            "documents": 1,
+            "nodes": 28008,
+            "jsEventListeners": 690
+          }
+        }
+      ]
+    }
+  ],
+  "forced-gc": [
+    {
+      "enabled": false,
+      "peakSampledRssMiB": 712.671875,
+      "phases": [
+        {
+          "phase": "loaded",
+          "rssMiB": 678.3828125,
+          "heapUsedMiB": 25.947906494140625,
+          "heapTotalMiB": 44.31640625,
+          "dom": {
+            "documents": 1,
+            "nodes": 26223,
+            "jsEventListeners": 430
+          }
+        },
+        {
+          "phase": "configured",
+          "rssMiB": 677.4453125,
+          "heapUsedMiB": 25.947906494140625,
+          "heapTotalMiB": 44.31640625,
+          "dom": {
+            "documents": 1,
+            "nodes": 26223,
+            "jsEventListeners": 430
+          }
+        },
+        {
+          "phase": "interacted",
+          "rssMiB": 712.671875,
+          "heapUsedMiB": 16.93170166015625,
+          "heapTotalMiB": 46.359375,
+          "dom": {
+            "documents": 1,
+            "nodes": 26227,
+            "jsEventListeners": 441
+          }
+        },
+        {
+          "phase": "forced-gc-diagnostic-only",
+          "rssMiB": 656.234375,
+          "heapUsedMiB": 13.09615707397461,
+          "heapTotalMiB": 14.109375,
+          "dom": {
+            "documents": 1,
+            "nodes": 26224,
+            "jsEventListeners": 371
+          }
+        }
+      ]
+    },
+    {
+      "enabled": true,
+      "peakSampledRssMiB": 758.09375,
+      "phases": [
+        {
+          "phase": "loaded",
+          "rssMiB": 674.8671875,
+          "heapUsedMiB": 25.958045959472656,
+          "heapTotalMiB": 43.81640625,
+          "dom": {
+            "documents": 1,
+            "nodes": 26225,
+            "jsEventListeners": 424
+          }
+        },
+        {
+          "phase": "configured",
+          "rssMiB": 727.36328125,
+          "heapUsedMiB": 26.661483764648438,
+          "heapTotalMiB": 58.359375,
+          "dom": {
+            "documents": 1,
+            "nodes": 26860,
+            "jsEventListeners": 575
+          }
+        },
+        {
+          "phase": "interacted",
+          "rssMiB": 758.6953125,
+          "heapUsedMiB": 35.24658203125,
+          "heapTotalMiB": 58.359375,
+          "dom": {
+            "documents": 1,
+            "nodes": 28010,
+            "jsEventListeners": 690
+          }
+        },
+        {
+          "phase": "forced-gc-diagnostic-only",
+          "rssMiB": 691.12890625,
+          "heapUsedMiB": 21.331737518310547,
+          "heapTotalMiB": 22.609375,
+          "dom": {
+            "documents": 1,
+            "nodes": 26850,
+            "jsEventListeners": 377
+          }
+        }
+      ]
+    }
+  ]
+}
