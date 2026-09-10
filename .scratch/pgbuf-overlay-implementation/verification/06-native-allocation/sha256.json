@@ -1,0 +1,10 @@
+{
+  "README.md": "c03f71508f8e528796135cb22f73143ffe9681af7af3a81c740965dca8d9ed72",
+  "baseline.tar.gz": "04be9a758462f622945dca0216ec285914293665e1c7daecd77daffef3344349",
+  "full-opacity.tar.gz": "f23c6e3486bd27f8cf26f3a8a2c58b6f7f08fcc6fed2358286f5ea4a0a55e305",
+  "manifest.json": "ca33cb230611923144ade090d62db68b0bcc7f58bdafbb8cc6e35c3be1585e95",
+  "native-profiles.tar.gz": "f2a6054aaa35dc191a3938cd32a1d641da62f203a646235e6e59460635e6a1d2",
+  "native-summary.json": "b079296e11ef79c67d2ed3584fb073a3ce3fd62251ae6854b2dec72348ab402c",
+  "one-input.tar.gz": "b3c10d970cd2b82febee9c635854e4f39d42e9621193422d42776cccca7470e1",
+  "summarize.py": "65967bacc540c8605251982dd6c02e86974cfca2016fba0470bdc389c0cd39a7"
+}

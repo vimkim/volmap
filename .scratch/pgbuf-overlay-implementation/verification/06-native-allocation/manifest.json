@@ -1,0 +1,20 @@
+{
+  "sourceCommit": "2a2c0e3543f15fa3f06dcbaee2a8e015632b36e4",
+  "productionConsumerCommit": "0a2f5ea",
+  "productionChanges": false,
+  "acceptance": "non-passing",
+  "artifacts": {
+    "baseline": "unchanged both-browser full density, exit 1",
+    "one-input": "diagnostic reduction only, both browser cases fail",
+    "native-profiles": "instrumented attribution, not acceptance",
+    "full-opacity": "diagnostic CSS override; Firefox passes both pairs, Chromium fails both"
+  },
+  "files": {
+    "web/src/view.tsx": "2721bb1e5d6de9c38e75e13cb608d0f79d466d16f71cb234f64e79d06f6f36f8",
+    "web/src/observations.css": "f24db5cb81301695bcd4594e10b440047724893e0207fe204df7bf285addc0a6",
+    "src/web/generated/frontend.js": "955e67005f76193c9918928a8eccba4f789b955f0bcbb900ddf7261bce0d7fef",
+    "src/web/generated/frontend.css": "410a6f4781d9a9b3f08bdef05942e26110495e169dbcd4578122ed82377f7944",
+    "web/e2e/overlay-density.spec.ts": "888aa108c12e66e4545753ed182060b7d7e4270cafc7bba70a457d580be66cab",
+    "fixtures/pgbuf-inspector/v1/corpus/exchanges/complete/stream.jsonl": "39e8c6b0f102be1abe919059269d097c6a6a19e9ec82a14fedb265b8caf0a96f"
+  }
+}

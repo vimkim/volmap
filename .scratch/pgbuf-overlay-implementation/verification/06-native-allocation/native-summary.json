@@ -1,0 +1,1707 @@
+{
+  "chromium-disabled": {
+    "excluded": "Unmarked initial trace; trace-local dump IDs differ from returned CDP GUIDs."
+  },
+  "chromium-disabled-recolor-only": {
+    "controlMode": "native",
+    "phases": {
+      "loaded": {
+        "Browser/malloc": 8121152,
+        "Browser/shared_memory": 6582272,
+        "GPU Process/gpu/shared_images": 31457280,
+        "GPU Process/malloc": 14123120,
+        "GPU Process/shared_memory": 36446208,
+        "Service: network.mojom.NetworkService/malloc": 3192864,
+        "Service: network.mojom.NetworkService/shared_memory": 4853760,
+        "Service: tracing.mojom.TracingService/malloc": 1651040,
+        "Service: tracing.mojom.TracingService/shared_memory": 21028864,
+        "Renderer/blink_gc": 21102672,
+        "Renderer/cc/tile_memory": 31457280,
+        "Renderer/malloc": 30671792,
+        "Renderer/partition_alloc": 12587008,
+        "Renderer/shared_memory": 38305792,
+        "Renderer/v8": 35167588
+      },
+      "enabled": {
+        "Browser/malloc": 9253056,
+        "Browser/shared_memory": 6582272,
+        "GPU Process/gpu/shared_images": 39321600,
+        "GPU Process/malloc": 14638176,
+        "GPU Process/shared_memory": 44310528,
+        "Service: network.mojom.NetworkService/malloc": 3334976,
+        "Service: network.mojom.NetworkService/shared_memory": 4853760,
+        "Service: tracing.mojom.TracingService/malloc": 1819616,
+        "Service: tracing.mojom.TracingService/shared_memory": 21757952,
+        "Renderer/blink_gc": 22806688,
+        "Renderer/cc/tile_memory": 39321600,
+        "Renderer/malloc": 32275104,
+        "Renderer/partition_alloc": 12996608,
+        "Renderer/shared_memory": 46170112,
+        "Renderer/v8": 35167588
+      },
+      "lru": {
+        "Browser/malloc": 9513120,
+        "Browser/shared_memory": 6582272,
+        "GPU Process/gpu/shared_images": 39321600,
+        "GPU Process/malloc": 14590176,
+        "GPU Process/shared_memory": 44310528,
+        "Service: network.mojom.NetworkService/malloc": 3360000,
+        "Service: network.mojom.NetworkService/shared_memory": 4853760,
+        "Service: tracing.mojom.TracingService/malloc": 1811184,
+        "Service: tracing.mojom.TracingService/shared_memory": 21757952,
+        "Renderer/blink_gc": 22806688,
+        "Renderer/cc/tile_memory": 39321600,
+        "Renderer/malloc": 32298224,
+        "Renderer/partition_alloc": 12996608,
+        "Renderer/shared_memory": 46170112,
+        "Renderer/v8": 35167588
+      },
+      "keyboard": {
+        "Browser/malloc": 9738672,
+        "Browser/shared_memory": 6582272,
+        "GPU Process/gpu/shared_images": 43253760,
+        "GPU Process/malloc": 14846624,
+        "GPU Process/shared_memory": 48242688,
+        "Service: network.mojom.NetworkService/malloc": 3364192,
+        "Service: network.mojom.NetworkService/shared_memory": 4853760,
+        "Service: tracing.mojom.TracingService/malloc": 2054128,
+        "Service: tracing.mojom.TracingService/shared_memory": 21757952,
+        "Renderer/blink_gc": 23855264,
+        "Renderer/cc/tile_memory": 43253760,
+        "Renderer/malloc": 34152112,
+        "Renderer/partition_alloc": 26591232,
+        "Renderer/shared_memory": 50102272,
+        "Renderer/v8": 35696988
+      }
+    },
+    "dom": {
+      "loaded": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 0,
+        "mode": null,
+        "mapTop": 195.984375,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1026
+        },
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: unavailableNo verified producer observation is available. Disk inspection is unaffected."
+      },
+      "enabled": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 0,
+        "mode": "lru",
+        "mapTop": 195.984375,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1026
+        },
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: unavailableNo verified producer observation is available. Disk inspection is unaffected."
+      },
+      "lru": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 0,
+        "mode": "lru",
+        "mapTop": 195.984375,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1026
+        },
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: unavailableNo verified producer observation is available. Disk inspection is unaffected."
+      },
+      "keyboard": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 0,
+        "mode": "lru",
+        "mapTop": -488.015625,
+        "scrollY": 684,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1026
+        },
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: unavailableNo verified producer observation is available. Disk inspection is unaffected."
+      }
+    }
+  },
+  "chromium-disabled-shift-only": {
+    "controlMode": "native",
+    "phases": {
+      "loaded": {
+        "Browser/malloc": 8163840,
+        "Browser/shared_memory": 7753728,
+        "GPU Process/gpu/shared_images": 31457280,
+        "GPU Process/malloc": 14093952,
+        "GPU Process/shared_memory": 36446208,
+        "Service: network.mojom.NetworkService/malloc": 3186592,
+        "Service: network.mojom.NetworkService/shared_memory": 4853760,
+        "Service: tracing.mojom.TracingService/malloc": 1627584,
+        "Service: tracing.mojom.TracingService/shared_memory": 21757952,
+        "Renderer/blink_gc": 20971600,
+        "Renderer/cc/tile_memory": 31457280,
+        "Renderer/malloc": 30735120,
+        "Renderer/partition_alloc": 13287424,
+        "Renderer/shared_memory": 39477248,
+        "Renderer/v8": 34905444
+      },
+      "enabled": {
+        "Browser/malloc": 9242032,
+        "Browser/shared_memory": 7753728,
+        "GPU Process/gpu/shared_images": 42205184,
+        "GPU Process/malloc": 14693568,
+        "GPU Process/shared_memory": 47194112,
+        "Service: network.mojom.NetworkService/malloc": 3319104,
+        "Service: network.mojom.NetworkService/shared_memory": 4853760,
+        "Service: tracing.mojom.TracingService/malloc": 1720768,
+        "Service: tracing.mojom.TracingService/shared_memory": 21757952,
+        "Renderer/blink_gc": 21168288,
+        "Renderer/cc/tile_memory": 42205184,
+        "Renderer/malloc": 32261392,
+        "Renderer/partition_alloc": 14016512,
+        "Renderer/shared_memory": 50225152,
+        "Renderer/v8": 34905444
+      },
+      "lru": {
+        "Browser/malloc": 9615872,
+        "Browser/shared_memory": 7753728,
+        "GPU Process/gpu/shared_images": 42205184,
+        "GPU Process/malloc": 14642992,
+        "GPU Process/shared_memory": 47194112,
+        "Service: network.mojom.NetworkService/malloc": 3352816,
+        "Service: network.mojom.NetworkService/shared_memory": 4853760,
+        "Service: tracing.mojom.TracingService/malloc": 1758400,
+        "Service: tracing.mojom.TracingService/shared_memory": 21757952,
+        "Renderer/blink_gc": 21299360,
+        "Renderer/cc/tile_memory": 42205184,
+        "Renderer/malloc": 32277712,
+        "Renderer/partition_alloc": 14016512,
+        "Renderer/shared_memory": 50225152,
+        "Renderer/v8": 35167588
+      },
+      "keyboard": {
+        "Browser/malloc": 9809616,
+        "Browser/shared_memory": 7753728,
+        "GPU Process/gpu/shared_images": 45350912,
+        "GPU Process/malloc": 16152048,
+        "GPU Process/shared_memory": 50339840,
+        "Service: network.mojom.NetworkService/malloc": 3369344,
+        "Service: network.mojom.NetworkService/shared_memory": 4853760,
+        "Service: tracing.mojom.TracingService/malloc": 1921616,
+        "Service: tracing.mojom.TracingService/shared_memory": 21757952,
+        "Renderer/blink_gc": 22216864,
+        "Renderer/cc/tile_memory": 45350912,
+        "Renderer/malloc": 34739680,
+        "Renderer/partition_alloc": 26365952,
+        "Renderer/shared_memory": 53370880,
+        "Renderer/v8": 35696988
+      }
+    },
+    "dom": {
+      "loaded": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 0,
+        "mode": null,
+        "mapTop": 195.984375,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1026
+        },
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: unavailableNo verified producer observation is available. Disk inspection is unaffected."
+      },
+      "enabled": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 0,
+        "mode": null,
+        "mapTop": 321.171875,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1026
+        },
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: unavailableNo verified producer observation is available. Disk inspection is unaffected."
+      },
+      "lru": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 0,
+        "mode": null,
+        "mapTop": 321.171875,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1026
+        },
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: unavailableNo verified producer observation is available. Disk inspection is unaffected."
+      },
+      "keyboard": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 0,
+        "mode": null,
+        "mapTop": -488.828125,
+        "scrollY": 810,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1026
+        },
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: unavailableNo verified producer observation is available. Disk inspection is unaffected."
+      }
+    }
+  },
+  "chromium-enabled": {
+    "excluded": "Unmarked initial trace; trace-local dump IDs differ from returned CDP GUIDs."
+  },
+  "chromium-enabled-base": {
+    "controlMode": "physical",
+    "phases": {
+      "loaded": {
+        "Browser/malloc": 8128528,
+        "Browser/shared_memory": 7753728,
+        "GPU Process/gpu/shared_images": 31457280,
+        "GPU Process/malloc": 14100416,
+        "GPU Process/shared_memory": 36446208,
+        "Service: network.mojom.NetworkService/malloc": 3201840,
+        "Service: network.mojom.NetworkService/shared_memory": 4853760,
+        "Service: tracing.mojom.TracingService/malloc": 1624384,
+        "Service: tracing.mojom.TracingService/shared_memory": 21757952,
+        "Renderer/blink_gc": 21233744,
+        "Renderer/cc/tile_memory": 31457280,
+        "Renderer/malloc": 30853248,
+        "Renderer/partition_alloc": 12591104,
+        "Renderer/shared_memory": 39477248,
+        "Renderer/v8": 34381156
+      },
+      "enabled": {
+        "Browser/malloc": 9489200,
+        "Browser/shared_memory": 8097792,
+        "GPU Process/gpu/shared_images": 44351488,
+        "GPU Process/malloc": 14715248,
+        "GPU Process/shared_memory": 49340416,
+        "Service: network.mojom.NetworkService/malloc": 3397344,
+        "Service: network.mojom.NetworkService/shared_memory": 4853760,
+        "Service: tracing.mojom.TracingService/malloc": 1720800,
+        "Service: tracing.mojom.TracingService/shared_memory": 21757952,
+        "Renderer/blink_gc": 24409504,
+        "Renderer/cc/tile_memory": 44351488,
+        "Renderer/malloc": 35032928,
+        "Renderer/partition_alloc": 15093760,
+        "Renderer/shared_memory": 52715520,
+        "Renderer/v8": 37814588
+      },
+      "lru": {
+        "Browser/malloc": 9848576,
+        "Browser/shared_memory": 8097792,
+        "GPU Process/gpu/shared_images": 44351488,
+        "GPU Process/malloc": 14835488,
+        "GPU Process/shared_memory": 49340416,
+        "Service: network.mojom.NetworkService/malloc": 3361504,
+        "Service: network.mojom.NetworkService/shared_memory": 4853760,
+        "Service: tracing.mojom.TracingService/malloc": 1872448,
+        "Service: tracing.mojom.TracingService/shared_memory": 21757952,
+        "Renderer/blink_gc": 25565984,
+        "Renderer/cc/tile_memory": 44351488,
+        "Renderer/malloc": 37456336,
+        "Renderer/partition_alloc": 15712256,
+        "Renderer/shared_memory": 52715520,
+        "Renderer/v8": 39809764
+      },
+      "keyboard": {
+        "Browser/malloc": 10099456,
+        "Browser/shared_memory": 8097792,
+        "GPU Process/gpu/shared_images": 51167232,
+        "GPU Process/malloc": 15063152,
+        "GPU Process/shared_memory": 56156160,
+        "Service: network.mojom.NetworkService/malloc": 3444736,
+        "Service: network.mojom.NetworkService/shared_memory": 4853760,
+        "Service: tracing.mojom.TracingService/malloc": 1907440,
+        "Service: tracing.mojom.TracingService/shared_memory": 21757952,
+        "Renderer/blink_gc": 35265824,
+        "Renderer/cc/tile_memory": 51167232,
+        "Renderer/malloc": 39181904,
+        "Renderer/partition_alloc": 31277056,
+        "Renderer/shared_memory": 59531264,
+        "Renderer/v8": 39107844
+      }
+    },
+    "dom": {
+      "loaded": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 0,
+        "mode": null,
+        "mapTop": 195.984375,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1026
+        },
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: unavailableNo verified producer observation is available. Disk inspection is unaffected."
+      },
+      "enabled": {
+        "cells": 12288,
+        "residents": 1,
+        "glyphs": 512,
+        "mode": "state",
+        "mapTop": 321.171875,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1068
+        },
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2048 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.private list 1: 1 observed residentConservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.1 observed resident \u00b7 511 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 17 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      },
+      "lru": {
+        "cells": 12288,
+        "residents": 1,
+        "glyphs": 512,
+        "mode": "lru",
+        "mapTop": 321.171875,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1068
+        },
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2048 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.private list 1: 1 observed residentConservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.1 observed resident \u00b7 511 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 17 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      },
+      "keyboard": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 512,
+        "mode": "lru",
+        "mapTop": -488.828125,
+        "scrollY": 810,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1068
+        },
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2560 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.No exact list membership observed in this batch.Conservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.0 observed resident \u00b7 512 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 18 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      }
+    }
+  },
+  "chromium-enabled-legend-absent": {
+    "controlMode": "native",
+    "phases": {
+      "loaded": {
+        "Browser/malloc": 7989008,
+        "Browser/shared_memory": 7753728,
+        "GPU Process/gpu/shared_images": 31457280,
+        "GPU Process/malloc": 14120320,
+        "GPU Process/shared_memory": 36446208,
+        "Service: network.mojom.NetworkService/malloc": 2452752,
+        "Service: network.mojom.NetworkService/shared_memory": 4853760,
+        "Service: tracing.mojom.TracingService/malloc": 1657536,
+        "Service: tracing.mojom.TracingService/shared_memory": 21757952,
+        "Renderer/blink_gc": 20971600,
+        "Renderer/cc/tile_memory": 31457280,
+        "Renderer/malloc": 30605584,
+        "Renderer/partition_alloc": 12587008,
+        "Renderer/shared_memory": 39477248,
+        "Renderer/v8": 34737508
+      },
+      "enabled": {
+        "Browser/malloc": 9492320,
+        "Browser/shared_memory": 8097792,
+        "GPU Process/gpu/shared_images": 35700736,
+        "GPU Process/malloc": 14630192,
+        "GPU Process/shared_memory": 40689664,
+        "Service: network.mojom.NetworkService/malloc": 2625184,
+        "Service: network.mojom.NetworkService/shared_memory": 4853760,
+        "Service: tracing.mojom.TracingService/malloc": 1723312,
+        "Service: tracing.mojom.TracingService/shared_memory": 21757952,
+        "Renderer/blink_gc": 23759392,
+        "Renderer/cc/tile_memory": 35700736,
+        "Renderer/malloc": 34226400,
+        "Renderer/partition_alloc": 14499840,
+        "Renderer/shared_memory": 44064768,
+        "Renderer/v8": 37384508
+      },
+      "lru": {
+        "Browser/malloc": 9914592,
+        "Browser/shared_memory": 8097792,
+        "GPU Process/gpu/shared_images": 41992192,
+        "GPU Process/malloc": 14690192,
+        "GPU Process/shared_memory": 46981120,
+        "Service: network.mojom.NetworkService/malloc": 2669008,
+        "Service: network.mojom.NetworkService/shared_memory": 4853760,
+        "Service: tracing.mojom.TracingService/malloc": 1860640,
+        "Service: tracing.mojom.TracingService/shared_memory": 21757952,
+        "Renderer/blink_gc": 24779552,
+        "Renderer/cc/tile_memory": 41992192,
+        "Renderer/malloc": 35709248,
+        "Renderer/partition_alloc": 15691776,
+        "Renderer/shared_memory": 50356224,
+        "Renderer/v8": 38433084
+      },
+      "keyboard": {
+        "Browser/malloc": 10051056,
+        "Browser/shared_memory": 8097792,
+        "GPU Process/gpu/shared_images": 50118656,
+        "GPU Process/malloc": 14987584,
+        "GPU Process/shared_memory": 55107584,
+        "Service: network.mojom.NetworkService/malloc": 2684880,
+        "Service: network.mojom.NetworkService/shared_memory": 4853760,
+        "Service: tracing.mojom.TracingService/malloc": 1938928,
+        "Service: tracing.mojom.TracingService/shared_memory": 21757952,
+        "Renderer/blink_gc": 34217248,
+        "Renderer/cc/tile_memory": 50118656,
+        "Renderer/malloc": 38795872,
+        "Renderer/partition_alloc": 31510528,
+        "Renderer/shared_memory": 58482688,
+        "Renderer/v8": 37881108
+      }
+    },
+    "dom": {
+      "loaded": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 0,
+        "mode": null,
+        "mapTop": 195.984375,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1026
+        },
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: unavailableNo verified producer observation is available. Disk inspection is unaffected."
+      },
+      "enabled": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 512,
+        "mode": "state",
+        "mapTop": 195.984375,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1068
+        },
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2048 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.No exact list membership observed in this batch.Conservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.0 observed resident \u00b7 512 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 33 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      },
+      "lru": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 512,
+        "mode": "lru",
+        "mapTop": 195.984375,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1068
+        },
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2048 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.No exact list membership observed in this batch.Conservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.0 observed resident \u00b7 512 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 33 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      },
+      "keyboard": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 512,
+        "mode": "lru",
+        "mapTop": -488.015625,
+        "scrollY": 684,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1068
+        },
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2560 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.No exact list membership observed in this batch.Conservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.0 observed resident \u00b7 512 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 34 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      }
+    }
+  },
+  "chromium-enabled-opaque-disabled": {
+    "controlMode": "native",
+    "phases": {
+      "loaded": {
+        "Browser/malloc": 8042752,
+        "Browser/shared_memory": 7753728,
+        "GPU Process/gpu/shared_images": 31457280,
+        "GPU Process/malloc": 14185824,
+        "GPU Process/shared_memory": 36446208,
+        "Service: network.mojom.NetworkService/malloc": 2484560,
+        "Service: network.mojom.NetworkService/shared_memory": 4853760,
+        "Service: tracing.mojom.TracingService/malloc": 1697120,
+        "Service: tracing.mojom.TracingService/shared_memory": 21757952,
+        "Renderer/blink_gc": 21102672,
+        "Renderer/cc/tile_memory": 31457280,
+        "Renderer/malloc": 30765808,
+        "Renderer/partition_alloc": 12587008,
+        "Renderer/shared_memory": 39477248,
+        "Renderer/v8": 33951076
+      },
+      "enabled": {
+        "Browser/malloc": 9489008,
+        "Browser/shared_memory": 8097792,
+        "GPU Process/gpu/shared_images": 44302336,
+        "GPU Process/malloc": 14706240,
+        "GPU Process/shared_memory": 49291264,
+        "Service: network.mojom.NetworkService/malloc": 2647216,
+        "Service: network.mojom.NetworkService/shared_memory": 4853760,
+        "Service: tracing.mojom.TracingService/malloc": 1734448,
+        "Service: tracing.mojom.TracingService/shared_memory": 21757952,
+        "Renderer/blink_gc": 23882784,
+        "Renderer/cc/tile_memory": 44302336,
+        "Renderer/malloc": 35378336,
+        "Renderer/partition_alloc": 14372864,
+        "Renderer/shared_memory": 52666368,
+        "Renderer/v8": 36860220
+      },
+      "lru": {
+        "Browser/malloc": 9803552,
+        "Browser/shared_memory": 8097792,
+        "GPU Process/gpu/shared_images": 44302336,
+        "GPU Process/malloc": 14826048,
+        "GPU Process/shared_memory": 49291264,
+        "Service: network.mojom.NetworkService/malloc": 2686528,
+        "Service: network.mojom.NetworkService/shared_memory": 4853760,
+        "Service: tracing.mojom.TracingService/malloc": 1851728,
+        "Service: tracing.mojom.TracingService/shared_memory": 21757952,
+        "Renderer/blink_gc": 25172768,
+        "Renderer/cc/tile_memory": 44302336,
+        "Renderer/malloc": 36686960,
+        "Renderer/partition_alloc": 14680064,
+        "Renderer/shared_memory": 52666368,
+        "Renderer/v8": 38636276
+      },
+      "keyboard": {
+        "Browser/malloc": 9934192,
+        "Browser/shared_memory": 8097792,
+        "GPU Process/gpu/shared_images": 53215232,
+        "GPU Process/malloc": 15101312,
+        "GPU Process/shared_memory": 58204160,
+        "Service: network.mojom.NetworkService/malloc": 2705200,
+        "Service: network.mojom.NetworkService/shared_memory": 4853760,
+        "Service: tracing.mojom.TracingService/malloc": 1946240,
+        "Service: tracing.mojom.TracingService/shared_memory": 21757952,
+        "Renderer/blink_gc": 34610464,
+        "Renderer/cc/tile_memory": 53215232,
+        "Renderer/malloc": 40888144,
+        "Renderer/partition_alloc": 30543872,
+        "Renderer/shared_memory": 61579264,
+        "Renderer/v8": 38667540
+      }
+    },
+    "dom": {
+      "loaded": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 0,
+        "mode": null,
+        "mapTop": 195.984375,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1026
+        },
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: unavailableNo verified producer observation is available. Disk inspection is unaffected."
+      },
+      "enabled": {
+        "cells": 12288,
+        "residents": 1,
+        "glyphs": 512,
+        "mode": "state",
+        "mapTop": 321.171875,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1068
+        },
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2048 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.private list 1: 1 observed residentConservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.1 observed resident \u00b7 511 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 30 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      },
+      "lru": {
+        "cells": 12288,
+        "residents": 1,
+        "glyphs": 512,
+        "mode": "lru",
+        "mapTop": 321.171875,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1068
+        },
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2048 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.private list 1: 1 observed residentConservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.1 observed resident \u00b7 511 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 30 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      },
+      "keyboard": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 512,
+        "mode": "lru",
+        "mapTop": -488.828125,
+        "scrollY": 810,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1068
+        },
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2560 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.No exact list membership observed in this batch.Conservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.0 observed resident \u00b7 512 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 31 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      }
+    }
+  },
+  "firefox-disabled": {
+    "controlMode": "physical",
+    "phases": {
+      "loaded": {
+        "gfx-total": 108667616,
+        "window-dom": 16438080,
+        "window-layout": 35334608,
+        "window-js": 26526456,
+        "swgl": 103866400,
+        "frame-allocator": 393248,
+        "render-tasks": 384
+      },
+      "enabled": {
+        "gfx-total": 108819152,
+        "window-dom": 16438080,
+        "window-layout": 35334608,
+        "window-js": 26532192,
+        "swgl": 103866400,
+        "frame-allocator": 524320,
+        "render-tasks": 21008
+      },
+      "lru": {
+        "gfx-total": 107771504,
+        "window-dom": 16438080,
+        "window-layout": 35334560,
+        "window-js": 26539160,
+        "swgl": 102817824,
+        "frame-allocator": 524320,
+        "render-tasks": 21008
+      },
+      "keyboard": {
+        "gfx-total": 119833240,
+        "window-dom": 16451488,
+        "window-layout": 36497008,
+        "window-js": 26707184,
+        "swgl": 111697952,
+        "frame-allocator": 2979232,
+        "render-tasks": 755096
+      }
+    },
+    "dom": {
+      "loaded": {
+        "cells": 12288,
+        "mode": null,
+        "mapTop": 196,
+        "scrollY": 0,
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: active"
+      },
+      "enabled": {
+        "cells": 12288,
+        "mode": null,
+        "mapTop": 196,
+        "scrollY": 0,
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: active"
+      },
+      "lru": {
+        "cells": 12288,
+        "mode": null,
+        "mapTop": 196,
+        "scrollY": 0,
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: active"
+      },
+      "keyboard": {
+        "cells": 12288,
+        "mode": null,
+        "mapTop": -488,
+        "scrollY": 684,
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: active"
+      }
+    }
+  },
+  "firefox-disabled-opacity-only": {
+    "controlMode": "native",
+    "phases": {
+      "loaded": {
+        "window-dom": 16439728,
+        "window-layout": 34860616,
+        "window-js": 26371992,
+        "gfx-total": 108670176,
+        "swgl": 103866400,
+        "frame-allocator": 393248,
+        "render-tasks": 384
+      },
+      "enabled": {
+        "window-dom": 16439792,
+        "window-layout": 35352216,
+        "window-js": 26384096,
+        "gfx-total": 124554480,
+        "swgl": 119599136,
+        "frame-allocator": 524320,
+        "render-tasks": 21008
+      },
+      "lru": {
+        "window-dom": 16439792,
+        "window-layout": 35352216,
+        "window-js": 26386856,
+        "gfx-total": 124554480,
+        "swgl": 119599136,
+        "frame-allocator": 524320,
+        "render-tasks": 21008
+      },
+      "keyboard": {
+        "window-dom": 16453040,
+        "window-layout": 36846344,
+        "window-js": 26675296,
+        "gfx-total": 136206616,
+        "swgl": 128069664,
+        "frame-allocator": 2979232,
+        "render-tasks": 755096
+      }
+    },
+    "dom": {
+      "loaded": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 0,
+        "mode": null,
+        "mapTop": 196,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1026
+        },
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: unavailableNo verified producer observation is available. Disk inspection is unaffected."
+      },
+      "enabled": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 0,
+        "mode": null,
+        "mapTop": 196,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1026
+        },
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: unavailableNo verified producer observation is available. Disk inspection is unaffected."
+      },
+      "lru": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 0,
+        "mode": null,
+        "mapTop": 196,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1026
+        },
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: unavailableNo verified producer observation is available. Disk inspection is unaffected."
+      },
+      "keyboard": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 0,
+        "mode": null,
+        "mapTop": -488,
+        "scrollY": 684,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1026
+        },
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: unavailableNo verified producer observation is available. Disk inspection is unaffected."
+      }
+    }
+  },
+  "firefox-disabled-repaint-only": {
+    "controlMode": "physical",
+    "phases": {
+      "loaded": {
+        "gfx-total": 107774560,
+        "window-dom": 16443344,
+        "window-layout": 35039592,
+        "window-js": 26627456,
+        "swgl": 102817824,
+        "frame-allocator": 524320,
+        "render-tasks": 21008
+      },
+      "enabled": {
+        "gfx-total": 107304912,
+        "window-dom": 16443664,
+        "window-layout": 34691512,
+        "window-js": 26634208,
+        "swgl": 101769248,
+        "frame-allocator": 944864,
+        "render-tasks": 186864
+      },
+      "lru": {
+        "gfx-total": 107172800,
+        "window-dom": 16443664,
+        "window-layout": 35048792,
+        "window-js": 26641776,
+        "swgl": 102031392,
+        "frame-allocator": 655392,
+        "render-tasks": 77920
+      },
+      "keyboard": {
+        "gfx-total": 119426360,
+        "window-dom": 16456224,
+        "window-layout": 36534664,
+        "window-js": 26783960,
+        "swgl": 111288352,
+        "frame-allocator": 2979232,
+        "render-tasks": 755096
+      }
+    },
+    "dom": {
+      "loaded": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 0,
+        "mode": null,
+        "mapTop": 196,
+        "scrollY": 0,
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: unavailableNo verified producer observation is available. Disk inspection is unaffected."
+      },
+      "enabled": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 0,
+        "mode": null,
+        "mapTop": 196,
+        "scrollY": 0,
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: unavailableNo verified producer observation is available. Disk inspection is unaffected."
+      },
+      "lru": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 0,
+        "mode": null,
+        "mapTop": 196,
+        "scrollY": 0,
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: unavailableNo verified producer observation is available. Disk inspection is unaffected."
+      },
+      "keyboard": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 0,
+        "mode": null,
+        "mapTop": -488,
+        "scrollY": 684,
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: unavailableNo verified producer observation is available. Disk inspection is unaffected."
+      }
+    }
+  },
+  "firefox-enabled": {
+    "controlMode": "physical",
+    "phases": {
+      "loaded": {
+        "gfx-total": 108821872,
+        "window-dom": 16439728,
+        "window-layout": 35276688,
+        "window-js": 26537800,
+        "swgl": 103866400,
+        "frame-allocator": 524320,
+        "render-tasks": 21008
+      },
+      "enabled": {
+        "gfx-total": 125127872,
+        "window-dom": 17085792,
+        "window-layout": 38383384,
+        "window-js": 28063296,
+        "swgl": 119943200,
+        "frame-allocator": 524320,
+        "render-tasks": 21008
+      },
+      "lru": {
+        "gfx-total": 131655048,
+        "window-dom": 17085984,
+        "window-layout": 37429608,
+        "window-js": 29207344,
+        "swgl": 119943200,
+        "frame-allocator": 5732192,
+        "render-tasks": 1344088
+      },
+      "keyboard": {
+        "gfx-total": 133241576,
+        "window-dom": 17655728,
+        "window-layout": 37796664,
+        "window-js": 30971392,
+        "swgl": 128069664,
+        "frame-allocator": 524320,
+        "render-tasks": 26136
+      }
+    },
+    "dom": {
+      "loaded": {
+        "cells": 12288,
+        "mode": null,
+        "mapTop": 196,
+        "scrollY": 0,
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: unavailableNo verified producer observation is available. Disk inspection is unaffected."
+      },
+      "enabled": {
+        "cells": 12288,
+        "mode": "state",
+        "mapTop": 321.20001220703125,
+        "scrollY": 0,
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2048 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.private list 1: 1 observed residentConservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.1 observed resident \u00b7 511 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 6 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      },
+      "lru": {
+        "cells": 12288,
+        "mode": "lru",
+        "mapTop": 321.20001220703125,
+        "scrollY": 0,
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2048 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.private list 1: 1 observed residentConservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.1 observed resident \u00b7 511 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 6 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      },
+      "keyboard": {
+        "cells": 12288,
+        "mode": "lru",
+        "mapTop": -487.79998779296875,
+        "scrollY": 809,
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2560 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.No exact list membership observed in this batch.Conservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.0 observed resident \u00b7 512 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 7 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      }
+    }
+  },
+  "firefox-enabled-base": {
+    "controlMode": "native",
+    "phases": {
+      "loaded": {
+        "gfx-total": 108821872,
+        "window-dom": 16442608,
+        "window-layout": 35324432,
+        "window-js": 26397128,
+        "swgl": 103866400,
+        "frame-allocator": 524320,
+        "render-tasks": 21008
+      },
+      "enabled": {
+        "gfx-total": 125127872,
+        "window-dom": 17218944,
+        "window-layout": 38452664,
+        "window-js": 27898592,
+        "swgl": 119943200,
+        "frame-allocator": 524320,
+        "render-tasks": 21008
+      },
+      "lru": {
+        "gfx-total": 131655048,
+        "window-dom": 17218976,
+        "window-layout": 37500552,
+        "window-js": 28322128,
+        "swgl": 119943200,
+        "frame-allocator": 5732192,
+        "render-tasks": 1344088
+      },
+      "keyboard": {
+        "gfx-total": 133274344,
+        "window-dom": 17264656,
+        "window-layout": 37841232,
+        "window-js": 29415024,
+        "swgl": 128102432,
+        "frame-allocator": 524320,
+        "render-tasks": 26136
+      }
+    },
+    "dom": {
+      "loaded": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 0,
+        "mode": null,
+        "mapTop": 196,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1026
+        },
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: unavailableNo verified producer observation is available. Disk inspection is unaffected."
+      },
+      "enabled": {
+        "cells": 12288,
+        "residents": 1,
+        "glyphs": 512,
+        "mode": "state",
+        "mapTop": 321.20001220703125,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1068
+        },
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2048 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.private list 1: 1 observed residentConservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.1 observed resident \u00b7 511 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 22 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      },
+      "lru": {
+        "cells": 12288,
+        "residents": 1,
+        "glyphs": 512,
+        "mode": "lru",
+        "mapTop": 321.20001220703125,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1068
+        },
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2048 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.private list 1: 1 observed residentConservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.1 observed resident \u00b7 511 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 22 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      },
+      "keyboard": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 512,
+        "mode": "lru",
+        "mapTop": -487.79998779296875,
+        "scrollY": 809,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1068
+        },
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2560 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.No exact list membership observed in this batch.Conservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.0 observed resident \u00b7 512 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 23 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      }
+    }
+  },
+  "firefox-enabled-glyph-hidden": {
+    "controlMode": "physical",
+    "phases": {
+      "loaded": {
+        "gfx-total": 108821840,
+        "window-dom": 16462832,
+        "window-layout": 35297320,
+        "window-js": 26540848,
+        "swgl": 103866400,
+        "frame-allocator": 524320,
+        "render-tasks": 21008
+      },
+      "enabled": {
+        "gfx-total": 124980064,
+        "window-dom": 17108896,
+        "window-layout": 37885168,
+        "window-js": 28529888,
+        "swgl": 119910432,
+        "frame-allocator": 524320,
+        "render-tasks": 21008
+      },
+      "lru": {
+        "gfx-total": 131375912,
+        "window-dom": 17109088,
+        "window-layout": 36619328,
+        "window-js": 28970640,
+        "swgl": 119910432,
+        "frame-allocator": 5601120,
+        "render-tasks": 1344088
+      },
+      "keyboard": {
+        "gfx-total": 135985352,
+        "window-dom": 17679520,
+        "window-layout": 36982280,
+        "window-js": 30724584,
+        "swgl": 128053280,
+        "frame-allocator": 2768928,
+        "render-tasks": 663016
+      }
+    },
+    "dom": {
+      "loaded": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 0,
+        "mode": null,
+        "mapTop": 196,
+        "scrollY": 0,
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: unavailableNo verified producer observation is available. Disk inspection is unaffected."
+      },
+      "enabled": {
+        "cells": 12288,
+        "residents": 1,
+        "glyphs": 512,
+        "mode": "state",
+        "mapTop": 321.20001220703125,
+        "scrollY": 0,
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2048 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.private list 1: 1 observed residentConservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.1 observed resident \u00b7 511 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 15 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      },
+      "lru": {
+        "cells": 12288,
+        "residents": 1,
+        "glyphs": 512,
+        "mode": "lru",
+        "mapTop": 321.20001220703125,
+        "scrollY": 0,
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2048 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.private list 1: 1 observed residentConservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.1 observed resident \u00b7 511 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 15 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      },
+      "keyboard": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 512,
+        "mode": "lru",
+        "mapTop": -487.79998779296875,
+        "scrollY": 809,
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2560 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.No exact list membership observed in this batch.Conservative age: 3 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.0 observed resident \u00b7 512 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 16 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      }
+    }
+  },
+  "firefox-enabled-legend-absent": {
+    "controlMode": "physical",
+    "phases": {
+      "loaded": {
+        "gfx-total": 108667472,
+        "window-dom": 16461184,
+        "window-layout": 34789544,
+        "window-js": 26526480,
+        "swgl": 103866400,
+        "frame-allocator": 393248,
+        "render-tasks": 384
+      },
+      "enabled": {
+        "gfx-total": 129623296,
+        "window-dom": 17104688,
+        "window-layout": 36142880,
+        "window-js": 28222632,
+        "swgl": 119631904,
+        "frame-allocator": 4408736,
+        "render-tasks": 893328
+      },
+      "lru": {
+        "gfx-total": 125263904,
+        "window-dom": 17104624,
+        "window-layout": 37490512,
+        "window-js": 28655800,
+        "swgl": 120041504,
+        "frame-allocator": 524320,
+        "render-tasks": 21008
+      },
+      "keyboard": {
+        "gfx-total": 138060168,
+        "window-dom": 17280752,
+        "window-layout": 38805744,
+        "window-js": 29851312,
+        "swgl": 128348192,
+        "frame-allocator": 4289984,
+        "render-tasks": 755096
+      }
+    },
+    "dom": {
+      "loaded": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 0,
+        "mode": null,
+        "mapTop": 196,
+        "scrollY": 0,
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: active"
+      },
+      "enabled": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 512,
+        "mode": "state",
+        "mapTop": 196,
+        "scrollY": 0,
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2048 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.No exact list membership observed in this batch.Conservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.0 observed resident \u00b7 512 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 10 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      },
+      "lru": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 512,
+        "mode": "lru",
+        "mapTop": 196,
+        "scrollY": 0,
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2048 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.No exact list membership observed in this batch.Conservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.0 observed resident \u00b7 512 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 10 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      },
+      "keyboard": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 512,
+        "mode": "lru",
+        "mapTop": -488,
+        "scrollY": 684,
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2560 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.No exact list membership observed in this batch.Conservative age: 2 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.0 observed resident \u00b7 512 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 11 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      }
+    }
+  },
+  "firefox-enabled-legend-hidden": {
+    "controlMode": "physical",
+    "phases": {
+      "loaded": {
+        "gfx-total": 107622544,
+        "window-dom": 16462144,
+        "window-layout": 34629192,
+        "window-js": 26624520,
+        "swgl": 102817824,
+        "frame-allocator": 393248,
+        "render-tasks": 384
+      },
+      "enabled": {
+        "gfx-total": 129475288,
+        "window-dom": 17107184,
+        "window-layout": 36701312,
+        "window-js": 28254456,
+        "swgl": 119943200,
+        "frame-allocator": 4155776,
+        "render-tasks": 752568
+      },
+      "lru": {
+        "gfx-total": 125099504,
+        "window-dom": 17107376,
+        "window-layout": 37868224,
+        "window-js": 28688968,
+        "swgl": 119943200,
+        "frame-allocator": 524320,
+        "render-tasks": 21008
+      },
+      "keyboard": {
+        "gfx-total": 136522840,
+        "window-dom": 17309264,
+        "window-layout": 38735384,
+        "window-js": 30246920,
+        "swgl": 128069664,
+        "frame-allocator": 3178656,
+        "render-tasks": 682136
+      }
+    },
+    "dom": {
+      "loaded": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 0,
+        "mode": null,
+        "mapTop": 196,
+        "scrollY": 0,
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: unavailableNo verified producer observation is available. Disk inspection is unaffected."
+      },
+      "enabled": {
+        "cells": 12288,
+        "residents": 1,
+        "glyphs": 512,
+        "mode": "state",
+        "mapTop": 321.20001220703125,
+        "scrollY": 0,
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2048 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.private list 1: 1 observed residentConservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.1 observed resident \u00b7 511 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 8 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      },
+      "lru": {
+        "cells": 12288,
+        "residents": 1,
+        "glyphs": 512,
+        "mode": "lru",
+        "mapTop": 321.20001220703125,
+        "scrollY": 0,
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2048 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.private list 1: 1 observed residentConservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.1 observed resident \u00b7 511 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 8 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      },
+      "keyboard": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 512,
+        "mode": "lru",
+        "mapTop": -487.79998779296875,
+        "scrollY": 809,
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2560 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.No exact list membership observed in this batch.Conservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.0 observed resident \u00b7 512 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 9 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      }
+    }
+  },
+  "firefox-enabled-opaque-disabled": {
+    "controlMode": "native",
+    "phases": {
+      "loaded": {
+        "window-dom": 16461872,
+        "gfx-total": 108667472,
+        "window-layout": 34853928,
+        "window-js": 26464064,
+        "swgl": 103866400,
+        "frame-allocator": 393248,
+        "render-tasks": 384
+      },
+      "enabled": {
+        "window-dom": 17238208,
+        "gfx-total": 113011640,
+        "window-layout": 37061640,
+        "window-js": 28373512,
+        "swgl": 103161888,
+        "frame-allocator": 4434368,
+        "render-tasks": 771752
+      },
+      "lru": {
+        "window-dom": 17238240,
+        "gfx-total": 114870920,
+        "window-layout": 36729800,
+        "window-js": 28807432,
+        "swgl": 103161888,
+        "frame-allocator": 5732192,
+        "render-tasks": 1344088
+      },
+      "keyboard": {
+        "window-dom": 17808672,
+        "gfx-total": 116486168,
+        "window-layout": 37241184,
+        "window-js": 30567720,
+        "swgl": 111321120,
+        "frame-allocator": 524320,
+        "render-tasks": 26136
+      }
+    },
+    "dom": {
+      "loaded": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 0,
+        "mode": null,
+        "mapTop": 196,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1026
+        },
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: active"
+      },
+      "enabled": {
+        "cells": 12288,
+        "residents": 1,
+        "glyphs": 512,
+        "mode": "state",
+        "mapTop": 321.20001220703125,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1068
+        },
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2048 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.private list 1: 1 observed residentConservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.1 observed resident \u00b7 511 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 28 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      },
+      "lru": {
+        "cells": 12288,
+        "residents": 1,
+        "glyphs": 512,
+        "mode": "lru",
+        "mapTop": 321.20001220703125,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1068
+        },
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2048 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.private list 1: 1 observed residentConservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.1 observed resident \u00b7 511 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 28 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      },
+      "keyboard": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 512,
+        "mode": "lru",
+        "mapTop": -487.79998779296875,
+        "scrollY": 809,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1068
+        },
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2560 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.No exact list membership observed in this batch.Conservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.0 observed resident \u00b7 512 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 29 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      }
+    }
+  },
+  "firefox-enabled-sidebar-and-glyphs-hidden": {
+    "controlMode": "native",
+    "phases": {
+      "loaded": {
+        "gfx-total": 89784032,
+        "window-dom": 16442832,
+        "window-layout": 34809672,
+        "window-js": 26640424,
+        "swgl": 84992032,
+        "frame-allocator": 393248,
+        "render-tasks": 384
+      },
+      "enabled": {
+        "gfx-total": 96126432,
+        "window-dom": 17083904,
+        "window-layout": 36898160,
+        "window-js": 28405160,
+        "swgl": 84353056,
+        "frame-allocator": 5883104,
+        "render-tasks": 1495088
+      },
+      "lru": {
+        "gfx-total": 96092448,
+        "window-dom": 17083936,
+        "window-layout": 36554800,
+        "window-js": 28842008,
+        "swgl": 84353056,
+        "frame-allocator": 5868512,
+        "render-tasks": 1479760
+      },
+      "keyboard": {
+        "gfx-total": 98459832,
+        "window-dom": 17264784,
+        "window-layout": 37838392,
+        "window-js": 30047096,
+        "swgl": 88825888,
+        "frame-allocator": 4314144,
+        "render-tasks": 935320
+      }
+    },
+    "dom": {
+      "loaded": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 0,
+        "mode": null,
+        "mapTop": 196,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1026
+        },
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: unavailableNo verified producer observation is available. Disk inspection is unaffected."
+      },
+      "enabled": {
+        "cells": 12288,
+        "residents": 1,
+        "glyphs": 512,
+        "mode": "state",
+        "mapTop": 321.20001220703125,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1068
+        },
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2048 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.private list 1: 1 observed residentConservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.1 observed resident \u00b7 511 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 26 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      },
+      "lru": {
+        "cells": 12288,
+        "residents": 1,
+        "glyphs": 512,
+        "mode": "lru",
+        "mapTop": 321.20001220703125,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1068
+        },
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2048 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.private list 1: 1 observed residentConservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.1 observed resident \u00b7 511 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 26 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      },
+      "keyboard": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 512,
+        "mode": "lru",
+        "mapTop": -487.79998779296875,
+        "scrollY": 809,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1068
+        },
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2560 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.No exact list membership observed in this batch.Conservative age: 2 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.0 observed resident \u00b7 512 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 27 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      }
+    }
+  },
+  "firefox-enabled-sidebar-hidden": {
+    "controlMode": "native",
+    "phases": {
+      "loaded": {
+        "gfx-total": 89783776,
+        "window-dom": 16460336,
+        "window-layout": 34833912,
+        "window-js": 26389496,
+        "swgl": 84992032,
+        "frame-allocator": 393248,
+        "render-tasks": 384
+      },
+      "enabled": {
+        "gfx-total": 98863120,
+        "window-dom": 17233856,
+        "window-layout": 36969952,
+        "window-js": 27804552,
+        "swgl": 84484128,
+        "frame-allocator": 8373504,
+        "render-tasks": 1495088
+      },
+      "lru": {
+        "gfx-total": 98562192,
+        "window-dom": 17233888,
+        "window-layout": 36629504,
+        "window-js": 28234248,
+        "swgl": 84484128,
+        "frame-allocator": 8096768,
+        "render-tasks": 1479760
+      },
+      "keyboard": {
+        "gfx-total": 98866152,
+        "window-dom": 17278832,
+        "window-layout": 38170504,
+        "window-js": 29315728,
+        "swgl": 88989728,
+        "frame-allocator": 4445216,
+        "render-tasks": 935320
+      }
+    },
+    "dom": {
+      "loaded": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 0,
+        "mode": null,
+        "mapTop": 196,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1026
+        },
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: active"
+      },
+      "enabled": {
+        "cells": 12288,
+        "residents": 1,
+        "glyphs": 512,
+        "mode": "state",
+        "mapTop": 321.20001220703125,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1068
+        },
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2048 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.private list 1: 1 observed residentConservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.1 observed resident \u00b7 511 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 24 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      },
+      "lru": {
+        "cells": 12288,
+        "residents": 1,
+        "glyphs": 512,
+        "mode": "lru",
+        "mapTop": 321.20001220703125,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1068
+        },
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2048 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.private list 1: 1 observed residentConservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.1 observed resident \u00b7 511 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 24 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      },
+      "keyboard": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 512,
+        "mode": "lru",
+        "mapTop": -487.79998779296875,
+        "scrollY": 809,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1068
+        },
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2560 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.No exact list membership observed in this batch.Conservative age: 2 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.0 observed resident \u00b7 512 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 25 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      }
+    }
+  },
+  "firefox-enabled-sidebar-no-scroll": {
+    "controlMode": "physical",
+    "phases": {
+      "loaded": {
+        "gfx-total": 107618896,
+        "window-dom": 16437904,
+        "window-layout": 34818984,
+        "window-js": 26518368,
+        "swgl": 102817824,
+        "frame-allocator": 393248,
+        "render-tasks": 384
+      },
+      "enabled": {
+        "gfx-total": 129793560,
+        "window-dom": 17083968,
+        "window-layout": 37011552,
+        "window-js": 27957088,
+        "swgl": 119943200,
+        "frame-allocator": 4434368,
+        "render-tasks": 771752
+      },
+      "lru": {
+        "gfx-total": 125144536,
+        "window-dom": 17084160,
+        "window-layout": 36676384,
+        "window-js": 28993920,
+        "swgl": 119943200,
+        "frame-allocator": 524320,
+        "render-tasks": 42632
+      },
+      "keyboard": {
+        "gfx-total": 135447536,
+        "window-dom": 17654592,
+        "window-layout": 38188728,
+        "window-js": 30752776,
+        "swgl": 128102432,
+        "frame-allocator": 2311168,
+        "render-tasks": 418736
+      }
+    },
+    "dom": {
+      "loaded": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 0,
+        "mode": null,
+        "mapTop": 196,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1026
+        },
+        "source": "CUBRID page-buffer observationEnable observationsObservation source: active"
+      },
+      "enabled": {
+        "cells": 12288,
+        "residents": 1,
+        "glyphs": 512,
+        "mode": "state",
+        "mapTop": 321.20001220703125,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1068
+        },
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2048 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.private list 1: 1 observed residentConservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.1 observed resident \u00b7 511 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 20 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      },
+      "lru": {
+        "cells": 12288,
+        "residents": 1,
+        "glyphs": 512,
+        "mode": "lru",
+        "mapTop": 321.20001220703125,
+        "scrollY": 0,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1068
+        },
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2048 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.private list 1: 1 observed residentConservative age: 1 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.1 observed resident \u00b7 511 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 20 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      },
+      "keyboard": {
+        "cells": 12288,
+        "residents": 0,
+        "glyphs": 512,
+        "mode": "lru",
+        "mapTop": -487.79998779296875,
+        "scrollY": 809,
+        "sidebar": {
+          "height": 1026,
+          "scrollHeight": 1068
+        },
+        "source": "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsVisible-page observations availableObservation source: active",
+        "detail": "Visible-page buffer observationsVisible-page observations available512 admitted / 2560 visible pages. Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch.Shared lists: 2 \u00b7 Private lists: 3. Indices are incarnation-local.Observed per-list counts in this batch onlyComplete producer scan; summary limited to evaluated requested pages. Not pool totals, native counters or quotas. Captures are never combined.No exact list membership observed in this batch.Conservative age: 2 s \u00b7 fresh (2000 ms interval)Evaluated 512 / requested 512; producer scan complete.0 observed resident \u00b7 512 observed not resident \u00b7 0 unknown.Available page observations and capture limitationsVerified \u00b7 database 5d3cdfb91458 \u00b7 Protocol 1.0 \u00b7 0123456789ab \u00b7 scan 21 \u00b7 1000\u2013900 \u00b5s (source wall time)Capture interval, not a page timestamp.Latch and LRU tuples are individually coherent; records and scans are not atomic.Observed residency is not current residency.No page-image correspondence, commit visibility, durability or event causality is established."
+      }
+    }
+  }
+}

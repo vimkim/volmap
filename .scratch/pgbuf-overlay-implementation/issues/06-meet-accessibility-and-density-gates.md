@@ -69,3 +69,19 @@ closed. See [the repair evidence](../verification/06-memory-fix/README.md) for
 retained/rejected experiments, source-mapped profiles, raw results and remaining
 native-memory investigation. Manual and reference-host prerequisites remain
 outstanding but do not block further memory repair.
+
+2026-09-10 — Native-allocation diagnosis on repaired consumer `0a2f5ea` isolates
+browser-specific causes before further production changes. Firefox's pending
+refresh-button opacity triggers about 16 MiB of software WebRender storage;
+removing only that opacity prevents the allocation, and applying opacity to an
+existing button with observations disabled recreates it. The full opacity-only
+CSS diagnostic passes Firefox at 11.52/12.33 MiB, but Chromium still fails at
+45.54/38.44 MiB. This diagnostic removes a visual disabled cue and is not a
+finished accessible repair or acceptance evidence.
+
+Chromium reverse controls independently show +10.25 MiB tile storage from moving
+the map by the legend's height and +7.50 MiB from applying its LRU colors, without
+observations or corresponding V8 growth. Native allocations and ownership aliases
+are not substituted for the unchanged summed-RSS gate. See [native causes, raw
+profiles and next repair targets](../verification/06-native-allocation/README.md).
+No production files, thresholds, browser scope or checklist state changed.
