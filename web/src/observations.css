@@ -49,3 +49,5 @@
   .runtime-glyph, .page.runtime-resident::before, .page.runtime-dirty::after { animation: none; transition: none; }
 }
 #legend[hidden] { display: none; }
+
+.sector-focus-row { display: contents; }

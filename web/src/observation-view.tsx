@@ -1,4 +1,4 @@
-import { useEffect, type Dispatch, type ReactNode } from "react";
+import { useEffect, useState, type Dispatch, type ReactNode } from "react";
 import type { Action, UiState } from "./model";
 import { observationInterval, observationIsFresh, type ObservationRow } from "./observations";
 
@@ -52,9 +52,10 @@ export function observationLabel(row: ObservationRow | undefined): string {
 export function ObservationMetadata({ state, children, detail, summary = "Capture identity and limitations" }: {
   readonly state: UiState;
   readonly children?: ReactNode;
-  readonly detail?: ReactNode;
+  readonly detail?: () => ReactNode;
   readonly summary?: string;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const observation = state.observation;
   const batch = observation.batch;
   if (batch === null) return null;
@@ -62,10 +63,10 @@ export function ObservationMetadata({ state, children, detail, summary = "Captur
     <ObservationAge state={state} />
     <p>Evaluated {batch.evaluated} / requested {batch.requested}; producer scan {batch.complete === null ? "unavailable" : batch.complete ? "complete" : "partial"}.</p>
     {children}
-    <details><summary>{summary}</summary>
+    <details onToggle={(event) => setExpanded(event.currentTarget.open)}><summary>{summary}</summary>
       <p>{batch.captureLabel}</p>
       {batch.limitations.map((limitation) => <p key={limitation}>{limitation}</p>)}
-      {detail}
+      {expanded ? detail?.() : null}
     </details>
   </>;
 }
@@ -80,7 +81,7 @@ export function VisibleObservations({ state }: { readonly state: UiState }) {
     <p>{batch?.requested ?? 0} admitted / {observation.viewportCount} visible pages.
       {observation.viewportCount > 512 ? " Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch." : ""}</p>
     <LruSummary state={state} />
-    {batch !== null ? <ObservationMetadata state={state} summary="Available page observations and capture limitations" detail={
+    {batch !== null ? <ObservationMetadata state={state} summary="Available page observations and capture limitations" detail={() =>
         <table><thead><tr><th>VPID</th><th>Observation</th><th>Dirty</th><th>Flushing</th><th>LRU zone</th><th>List kind</th></tr></thead>
           <tbody>{batch.rows.map((row) => <tr key={`${row.volid}:${row.pageid}`}><td>{row.volid}:{row.pageid}</td><td>{observationLabel(row)}</td><td>{row.evidence.dirty ?? "unknown"}</td><td>{row.evidence.flushing ?? "unknown"}</td><td>{row.evidence.lru_zone ?? "unknown"}</td><td>{row.evidence.lru_list_kind ?? "unknown"}</td></tr>)}</tbody>
         </table>
@@ -95,16 +96,32 @@ export function observationRows(state: UiState): ReadonlyMap<string, Observation
   return new Map(state.observation.batch?.rows.map((row) => [`${row.volid}:${row.pageid}`, row]) ?? []);
 }
 
+// These projections contain no capture evidence. Reuse them across the many
+// cells outside a bounded batch instead of allocating per-cell mark objects.
+const noRuntimeMark = { className: "", label: "", glyph: "", state: undefined } as const;
+const unevaluatedMark = { className: "", label: "? Not evaluated", glyph: "", state: "unknown" } as const;
+const unevaluatedLruMark = { ...unevaluatedMark, className: " runtime-lru zone-unknown" } as const;
+const nonresidentMark = { className: "", label: "○ Observed not resident", glyph: "○", state: "not-resident" } as const;
+const nonresidentLruMark = { ...nonresidentMark, className: " runtime-lru zone-unknown" } as const;
+
 export function runtimePage(state: UiState, row: ObservationRow | undefined) {
   const observation = state.observation;
-  if (!observation.enabled) return { className: "", label: "", glyph: "", state: undefined };
+  if (!observation.enabled) return noRuntimeMark;
   const available = state.runtimeCapability === "active" || state.runtimeCapability === "stale";
+  if (available && observation.batch === null && observation.message !== "Observation expired") {
+    // A revoked viewport batch means these pages are not evaluated; it does
+    // not make the verified source unavailable. Keep unknown cells stable
+    // while the next bounded scope is requested.
+    return observation.colorMode === "lru" ? unevaluatedLruMark : unevaluatedMark;
+  }
   if (!available || observation.batch === null) {
     const expired = observation.message === "Observation expired";
     return { className: "", label: expired ? "Observation expired" : `No usable observation · source ${state.runtimeCapability ?? "connecting"}`, glyph: "", state: expired ? "expired" : "unavailable" };
   }
+  if (row === undefined) return observation.colorMode === "lru" ? unevaluatedLruMark : unevaluatedMark;
+  if (row.state === "not-resident") return observation.colorMode === "lru" ? nonresidentLruMark : nonresidentMark;
   const label = observationLabel(row);
-  if (row?.state !== "resident") return { className: observation.colorMode === "lru" ? " runtime-lru zone-unknown" : "", label, glyph: row?.state === "not-resident" ? "○" : row?.reason === "duplicate-vpid" ? "≠" : "?", state: row?.state ?? "unknown" };
+  if (row?.state !== "resident") return { className: observation.colorMode === "lru" ? " runtime-lru zone-unknown" : "", label, glyph: row.reason === "duplicate-vpid" ? "≠" : "?", state: row?.state ?? "unknown" };
   const evidence = row.evidence;
   const dirty = evidence.dirty === "true";
   const flushing = evidence.flushing === "true";
@@ -125,7 +142,7 @@ export function ObservationLegend({ state }: { readonly state: UiState }) {
   if (!state.observation.enabled) return null;
   return <section className="runtime-legend" aria-label="Runtime overlay legend">
     <p>{state.observation.colorMode === "lru" ? "LRU topology colors replace storage colors: 1 lru1 · 2 lru2 · 3 lru3 · V void · ! invalid · ? unknown. Private membership has a dashed edge." : "Storage colors retained. ◉ cyan inset: observed resident · D amber corner: dirty · F static magenta edge: flushing."}</p>
-    <p>○ observed not resident · ? unknown / not evaluated · ≠ duplicate ambiguity. No usable source or expired evidence: storage colors only, no runtime marks. Sampled states, not events or durability evidence.</p>
+    <p>○ observed not resident · ? unknown / not evaluated · ≠ duplicate ambiguity. Pages outside this batch have no runtime glyph. No usable source or expired evidence: storage colors only, no runtime marks. Sampled states, not events or durability evidence.</p>
     <ObservationAge state={state} />
     <p>Source: {state.runtimeCapability ?? "connecting"} · {state.follow.paused ? "Paused adoption" : "Adopting observations"} · {state.observation.message}</p>
   </section>;

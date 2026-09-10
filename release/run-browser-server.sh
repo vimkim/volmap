@@ -27,9 +27,17 @@ trap cleanup EXIT INT TERM
 rustc --edition=2024 -Dwarnings tools/create-smoke-fixture.rs \
   -o "$server_root/create-smoke-fixture"
 mkdir "$server_root/snapshot"
-"$server_root/create-smoke-fixture" "$server_root/snapshot"
+fixture_arguments=()
+if [[ ${VOLMAP_BROWSER_DENSE:-0} == 1 ]]; then fixture_arguments=(--dense); fi
+"$server_root/create-smoke-fixture" "$server_root/snapshot" "${fixture_arguments[@]}"
 
-cargo build --locked
+build_arguments=()
+profile=debug
+if [[ ${VOLMAP_BROWSER_RELEASE:-0} == 1 ]]; then
+  build_arguments=(--release)
+  profile=release
+fi
+cargo build --locked "${build_arguments[@]}"
 runtime_arguments=()
 if [[ ${VOLMAP_BROWSER_RUNTIME:-0} == 1 ]]; then
   runtime_arguments=(--runtime-page-buffer --runtime-socket "$server_root/no-producer.sock")
@@ -48,7 +56,7 @@ if [[ ${VOLMAP_BROWSER_PRODUCER:-0} == 1 ]]; then
   runtime_arguments=(--runtime-page-buffer --runtime-socket "$server_root/producer.sock")
   follow_arguments=()
 fi
-"target/$TARGET/debug/volmap" serve \
+"target/$TARGET/$profile/volmap" serve \
   --vinf "$server_root/snapshot/fixture_vinf" \
   --volume-root "$server_root/snapshot" \
   --listen "127.0.0.1:$PORT" \

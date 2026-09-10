@@ -4,6 +4,7 @@ const serverUrl = "http://127.0.0.1:41739";
 
 export default defineConfig({
   testDir: "./e2e",
+  testIgnore: "**/overlay-density.spec.ts",
   fullyParallel: false,
   // Fault scenarios share one process-wide producer incarnation.
   workers: 1,

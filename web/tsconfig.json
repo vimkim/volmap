@@ -18,5 +18,5 @@
     "target": "ES2024",
     "types": ["node"]
   },
-  "include": ["e2e", "src", "playwright.config.ts", "vite.config.ts"]
+  "include": ["e2e", "src", "playwright*.config.ts", "vite.config.ts"]
 }

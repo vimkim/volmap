@@ -8,7 +8,6 @@ use std::path::Path;
 
 const IO_PAGE_SIZE: usize = 16_384;
 const DB_PAGE_SIZE: usize = 16_344;
-const PHYSICAL_PAGES: u64 = 64 * 64;
 const PAGE_UNKNOWN: u8 = 0;
 const PAGE_HEAP: u8 = 2;
 const PAGE_VOLUME_HEADER: u8 = 3;
@@ -28,7 +27,7 @@ fn envelope_page(page_id: i32, page_type: u8) -> [u8; IO_PAGE_SIZE] {
     page
 }
 
-fn volume_header_page() -> [u8; IO_PAGE_SIZE] {
+fn volume_header_page(sectors: i32) -> [u8; IO_PAGE_SIZE] {
     let mut page = envelope_page(0, PAGE_VOLUME_HEADER);
     let user = &mut page[32..IO_PAGE_SIZE - 8];
     user[..25].copy_from_slice(b"CUBRID/Volume\0\0\0\0\0\0\0\0\0\0\0\0");
@@ -37,8 +36,8 @@ fn volume_header_page() -> [u8; IO_PAGE_SIZE] {
     user[32..36].copy_from_slice(&0_i32.to_le_bytes());
     user[36..40].copy_from_slice(&0_i32.to_le_bytes());
     user[40..44].copy_from_slice(&64_i32.to_le_bytes());
-    user[44..48].copy_from_slice(&64_i32.to_le_bytes());
-    user[48..52].copy_from_slice(&64_i32.to_le_bytes());
+    user[44..48].copy_from_slice(&sectors.to_le_bytes());
+    user[48..52].copy_from_slice(&sectors.to_le_bytes());
     user[52..56].copy_from_slice(&(-1_i32).to_le_bytes());
     user[56..60].copy_from_slice(&1_i32.to_le_bytes());
     user[60..64].copy_from_slice(&1_i32.to_le_bytes());
@@ -90,7 +89,7 @@ fn oos_chunk_page(page_id: i32, index: i32, next_page: Option<i32>) -> [u8; IO_P
     page
 }
 
-fn run(output: &Path) -> Result<(), String> {
+fn run(output: &Path, sectors: i32) -> Result<(), String> {
     if !output.is_dir() {
         return Err("output must be an existing directory".to_owned());
     }
@@ -103,10 +102,10 @@ fn run(output: &Path) -> Result<(), String> {
         .open(&volume_path)
         .map_err(|error| format!("create volume: {error}"))?;
     volume
-        .set_len(PHYSICAL_PAGES * IO_PAGE_SIZE as u64)
+        .set_len(u64::try_from(sectors).unwrap() * 64 * IO_PAGE_SIZE as u64)
         .map_err(|error| format!("size volume: {error}"))?;
     volume
-        .write_all_at(&volume_header_page(), 0)
+        .write_all_at(&volume_header_page(sectors), 0)
         .map_err(|error| format!("write volume header: {error}"))?;
     let mut bitmap = envelope_page(1, PAGE_VOLUME_BITMAP);
     bitmap[32..40].copy_from_slice(&1_u64.to_le_bytes());
@@ -152,11 +151,12 @@ fn run(output: &Path) -> Result<(), String> {
 
 fn main() {
     let arguments = env::args_os().collect::<Vec<_>>();
-    let [_, output] = arguments.as_slice() else {
-        eprintln!("usage: create-smoke-fixture OUTPUT_DIRECTORY");
+    let dense = arguments.get(2).is_some_and(|value| value == "--dense");
+    if arguments.len() != 2 && !(arguments.len() == 3 && dense) {
+        eprintln!("usage: create-smoke-fixture OUTPUT_DIRECTORY [--dense]");
         std::process::exit(2);
-    };
-    if let Err(error) = run(Path::new(output)) {
+    }
+    if let Err(error) = run(Path::new(&arguments[1]), if dense { 192 } else { 64 }) {
         eprintln!("smoke fixture creation failed: {error}");
         std::process::exit(2);
     }

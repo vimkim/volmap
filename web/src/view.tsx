@@ -1,5 +1,6 @@
+import { observationInterval, observationIsFresh } from "./observations";
 import { compactObservationLabel, ObservationLegend, LruSummary, ObservationMetadata, VisibleObservations, observationRows, runtimePage, sectorObservationLabel, useObservationViewport } from "./observation-view";
-import { useEffect, useRef, type CSSProperties, type Dispatch, type KeyboardEvent } from "react";
+import { memo, useEffect, useRef, type CSSProperties, type Dispatch, type KeyboardEvent } from "react";
 
 import type {
   AttributeName,
@@ -77,7 +78,6 @@ function sectorAttributionDetail(sector: Sector): string {
 function VolumeMap({ state, dispatch }: Pick<ViewerProps, "state" | "dispatch">) {
   if (state.view?.kind !== "volume") return null;
   const { view } = state;
-  const rows = observationRows(state);
   return (
     <section className="volume-view">
       <div className="workspace-title">
@@ -88,7 +88,7 @@ function VolumeMap({ state, dispatch }: Pick<ViewerProps, "state" | "dispatch">)
             {state.snapshot?.revision ?? "unknown"}
           </p>
         </div>
-        <div id="legend" aria-label="Page allocation and occupancy legend" hidden={state.observation.enabled && state.observation.colorMode === "lru" && state.observation.batch !== null && ["active", "stale"].includes(state.runtimeCapability ?? "")}>
+        <div id="legend" aria-label="Page allocation and occupancy legend" hidden={state.observation.enabled && state.observation.colorMode === "lru" && state.observation.message !== "Observation expired" && ["active", "stale"].includes(state.runtimeCapability ?? "")}>
           <span><i className="swatch unreserved" />Unreserved</span>
           <span><i className="swatch reserved-unallocated" />Reserved, unallocated</span>
           <span><i className="swatch allocated" />Occupied</span>
@@ -98,17 +98,62 @@ function VolumeMap({ state, dispatch }: Pick<ViewerProps, "state" | "dispatch">)
         </div>
       </div>
       <ObservationLegend state={state} />
+      <VolumeSectorMap state={state} dispatch={dispatch} />
+      <p id="mapStatus" role="status">
+        {state.collectionMessage || (view.nextCursor.state === "end"
+          ? `All ${view.sectors.length} sectors shown · ${view.sectors.length * 64} pages`
+          : `Showing ${view.sectors.length} of ${view.volume.total_sectors} sectors · scroll to continue`)}
+      </p>
+      {view.nextCursor.state === "present" ? (
+        <LoadMoreSectors dispatch={dispatch} />
+      ) : null}
+    </section>
+  );
+}
+
+// Poll bookkeeping and age ticks do not rebuild thousands of unchanged cells.
+// Batch, source, mode, expiry and freshness changes still update every mark.
+const VolumeSectorMap = memo(function VolumeSectorMap({ state, dispatch }: Pick<ViewerProps, "state" | "dispatch">) {
+  if (state.view?.kind !== "volume") return null;
+  const view = state.view;
+  const rows = observationRows(state);
+  return (
       <div id="volumeMap" aria-label="Full volume sector map">
-        {view.sectors.map((sector) => {
-          const table = sectorAttributionLabel(sector);
-          const fileType = sectorFileTypeLabel(sector);
-          return (
+        {view.sectors.map((sector) => <VolumeSectorCard
+          key={sector.sector_id} sector={sector} dispatch={dispatch}
+          observationLabel={sectorObservationLabel(state, rows, sector.pages)}
+          marks={sector.pages.map((page) => runtimePage(state, rows.get(`${page.vol_id}:${page.page_id}`)))}
+        />)}
+      </div>
+  );
+}, (before, after) => {
+  const a = before.state;
+  const b = after.state;
+  return before.dispatch === after.dispatch && a.view === b.view &&
+    a.runtimeCapability === b.runtimeCapability &&
+    a.observation.enabled === b.observation.enabled &&
+    a.observation.batch === b.observation.batch &&
+    a.observation.colorMode === b.observation.colorMode &&
+    (a.observation.message === "Observation expired") === (b.observation.message === "Observation expired") &&
+    observationIsFresh(a.observation.age, observationInterval(a)) === observationIsFresh(b.observation.age, observationInterval(b));
+});
+
+// Retain unchanged sector DOM when a bounded batch rotates elsewhere.
+const VolumeSectorCard = memo(function VolumeSectorCard({ sector, marks, observationLabel, dispatch }: {
+  readonly sector: Sector;
+  readonly marks: readonly ReturnType<typeof runtimePage>[];
+  readonly observationLabel: string;
+  readonly dispatch: Dispatch<Action>;
+}) {
+  const table = sectorAttributionLabel(sector);
+  const fileType = sectorFileTypeLabel(sector);
+  return (
             <button
               className="sector-card"
               id={`sector-${sector.sector_id}`}
               key={sector.sector_id}
               type="button"
-              aria-label={`Sector ${sector.sector_id}, ${sector.reserved ? "reserved" : "unreserved"}${table ? `, ${table}` : ""}${fileType ? `, file type ${fileType}` : ""}, 64 pages${sectorObservationLabel(state, rows, sector.pages)}`}
+              aria-label={`Sector ${sector.sector_id}, ${sector.reserved ? "reserved" : "unreserved"}${table ? `, ${table}` : ""}${fileType ? `, file type ${fileType}` : ""}, 64 pages${observationLabel}`}
               onClick={() =>
                 dispatch({
                   kind: "navigate",
@@ -125,8 +170,8 @@ function VolumeMap({ state, dispatch }: Pick<ViewerProps, "state" | "dispatch">)
                 {fileType ? <small className="sector-file-type">{fileType}</small> : null}
               </span>
               <span className="sector-preview-pages">
-                {sector.pages.map((page) => {
-                  const runtime = runtimePage(state, rows.get(`${page.vol_id}:${page.page_id}`));
+                {sector.pages.map((page, index) => {
+                  const runtime = marks[index]!;
                   return <i
                     aria-hidden="true"
                     data-observation-page={`${page.vol_id}:${page.page_id}`}
@@ -139,20 +184,13 @@ function VolumeMap({ state, dispatch }: Pick<ViewerProps, "state" | "dispatch">)
                 })}
               </span>
             </button>
-          );
-        })}
-      </div>
-      <p id="mapStatus" role="status">
-        {state.collectionMessage || (view.nextCursor.state === "end"
-          ? `All ${view.sectors.length} sectors shown · ${view.sectors.length * 64} pages`
-          : `Showing ${view.sectors.length} of ${view.volume.total_sectors} sectors · scroll to continue`)}
-      </p>
-      {view.nextCursor.state === "present" ? (
-        <LoadMoreSectors dispatch={dispatch} />
-      ) : null}
-    </section>
   );
-}
+}, (before, after) => before.sector === after.sector && before.dispatch === after.dispatch &&
+  before.observationLabel === after.observationLabel && before.marks.length === after.marks.length &&
+  before.marks.every((mark, index) => {
+    const next = after.marks[index]!;
+    return mark.className === next.className && mark.label === next.label && mark.glyph === next.glyph && mark.state === next.state;
+  }));
 
 function LoadMoreSectors({ dispatch }: Pick<ViewerProps, "dispatch">) {
   const sentinel = useRef<HTMLDivElement>(null);
@@ -602,7 +640,7 @@ function movePageFocus(event: KeyboardEvent<HTMLButtonElement>, index: number): 
             : 0;
   if (offset === 0) return;
   const next = index + offset;
-  const target = event.currentTarget.parentElement?.children.item(next);
+  const target = event.currentTarget.closest('[role="grid"]')?.querySelectorAll('[role="gridcell"]').item(next);
   if (next >= 0 && next < 64 && target instanceof HTMLElement) {
     event.preventDefault();
     target.focus();
@@ -626,7 +664,9 @@ function SectorWorkspace({ state, dispatch }: Pick<ViewerProps, "state" | "dispa
       <ObservationLegend state={state} />
       <section className="sector-focus">
         <div className="sector-focus-grid" role="grid" aria-label={`Sector ${sector.sector_id}, 64 physical pages`}>
-          {sector.pages.map((page, index) => {
+          {Array.from({ length: 8 }, (_, row) => <div role="row" className="sector-focus-row" key={row}>
+          {sector.pages.slice(row * 8, row * 8 + 8).map((page, column) => {
+            const index = row * 8 + column;
             const runtime = runtimePage(state, rows.get(`${page.vol_id}:${page.page_id}`));
             return <button
               data-observation-page={`${page.vol_id}:${page.page_id}`}
@@ -656,6 +696,7 @@ function SectorWorkspace({ state, dispatch }: Pick<ViewerProps, "state" | "dispa
               <span className="runtime-glyph" aria-hidden="true">{runtime.glyph}</span>
             </button>;
           })}
+          </div>)}
         </div>
       </section>
     </>
@@ -706,6 +747,19 @@ function Breadcrumb({ state, dispatch }: Pick<ViewerProps, "state" | "dispatch">
 
 export function Viewer({ state, dispatch, nowUnixSeconds }: ViewerProps) {
   useObservationViewport(state, dispatch);
+  const routeIdentity = JSON.stringify(state.route);
+  const focusedRoute = useRef(routeIdentity);
+  const previousView = useRef(state.view);
+  useEffect(() => {
+    const viewChanged = previousView.current !== state.view;
+    previousView.current = state.view;
+    if (!viewChanged || state.view === null || focusedRoute.current === routeIdentity) return;
+    const heading = document.querySelector<HTMLElement>("#workspaceContent h1");
+    if (heading === null) return;
+    focusedRoute.current = routeIdentity;
+    heading.tabIndex = -1;
+    heading.focus();
+  }, [routeIdentity, state.view]);
   const follow =
     state.snapshot === null ? "" : followLabel(state.snapshot, state.follow, nowUnixSeconds);
   return (
@@ -720,7 +774,7 @@ export function Viewer({ state, dispatch, nowUnixSeconds }: ViewerProps) {
         <span className="spacer" />
         {state.follow.enabled ? (
           <span id="followControl" className="follow-control">
-            <span id="followStatus" role="status" aria-live="polite">{follow}</span>
+            <span id="followStatus">{follow}</span>
             <button
               id="followToggle"
               type="button"
