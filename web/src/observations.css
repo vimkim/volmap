@@ -1,0 +1,19 @@
+.observation-controls { padding: 14px; }
+.observation-controls h2 { padding: 0 0 8px; border: 0; }
+.observation-controls button { width: 100%; margin-top: 8px; padding: 8px; font-size: 12px; }
+.observation-controls button:disabled { opacity: 0.55; cursor: not-allowed; }
+.observation-controls p { margin-top: 8px; font-size: 12px; line-height: 1.4; }
+.with-observation > .panel { align-self: start; }
+.observation-detail { overflow-wrap: anywhere; }
+.observation-detail > p { margin-block: 8px; }
+.observation-mark { display: inline-block; padding: 5px 9px; border: 2px dashed var(--muted); font-weight: 700; }
+.observation-resident { border: 2px solid #0c9db4; }
+.observation-not-resident { border-style: dotted; }
+.observation-detail dl { grid-template-columns: minmax(9rem, 1fr) minmax(0, 1fr); margin-block: 14px; }
+.observation-detail details { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; font-size: 12px; }
+.observation-detail summary { cursor: pointer; font-weight: 600; }
+.observation-detail details p { margin-top: 8px; }
+@media (forced-colors: active) {
+  .observation-resident { border-color: Highlight; }
+  .observation-controls button:disabled { opacity: 1; color: GrayText; }
+}

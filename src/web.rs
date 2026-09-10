@@ -51,6 +51,7 @@ const MAX_CONCURRENT_WATCHERS: usize = 64;
 const WATCH_PATH: &str = "/api/v1/live/watch";
 const CAPABILITIES_PATH: &str = "/api/v1/runtime/capabilities";
 const MAX_CONCURRENT_CAPABILITIES: usize = 4;
+const OBSERVATIONS_PATH: &str = "/api/v1/runtime/page-buffer/observe";
 const DEFAULT_COLLECTION_LIMIT: usize = 100;
 const MAX_COLLECTION_LIMIT: usize = 512;
 const DEFAULT_SECTOR_COLLECTION_LIMIT: usize = 24;
@@ -72,6 +73,7 @@ pub struct ServeOptions {
 struct WebState {
     runtime: Arc<observations::Broker>,
     capabilities: Arc<Semaphore>,
+    observations: Arc<Semaphore>,
     source: Arc<LiveSource>,
     enrichment: Arc<Mutex<()>>,
     policy: ResourcePolicy,
@@ -132,6 +134,7 @@ async fn serve_async(view: GraphView, options: ServeOptions) -> Result<(), Serve
     let state = WebState {
         runtime: Arc::new(observations::Broker::new(options.runtime_socket)),
         capabilities: Arc::new(Semaphore::new(MAX_CONCURRENT_CAPABILITIES)),
+        observations: Arc::new(Semaphore::new(8)),
         source: Arc::clone(&source),
         enrichment: Arc::new(Mutex::new(())),
         policy: options.policy,
@@ -241,6 +244,7 @@ fn build_router(state: WebState) -> Router {
         .route("/oos/{vol}/{page}/{slot}", get(assets::index))
         .route("/api/v1/session", get(session))
         .route(CAPABILITIES_PATH, get(runtime_capabilities))
+        .route(OBSERVATIONS_PATH, post(runtime_observations))
         .route("/api/v1/licenses", get(licenses))
         .route("/api/v1/live/watch", get(watch))
         .route("/api/v1/overview", get(overview))
@@ -277,6 +281,77 @@ async fn shutdown_signal() {
     let _ = tokio::signal::ctrl_c().await;
 }
 
+#[derive(Deserialize)]
+struct ObservationRequest {
+    pages: Vec<ObservationPage>,
+    epoch: String,
+    generation: String,
+    #[serde(default)]
+    retry: bool,
+}
+
+#[derive(Deserialize)]
+struct ObservationPage {
+    volid: i16,
+    pageid: i32,
+}
+
+async fn runtime_observations(
+    State(state): State<WebState>,
+    request: Result<Json<ObservationRequest>, JsonRejection>,
+) -> Response {
+    let Ok(Json(request)) = request else {
+        return error_response(StatusCode::BAD_REQUEST, "invalid-observation-request");
+    };
+    if request.pages.len() > 512 || request.epoch.len() > 20 || request.generation.len() > 20 {
+        return error_response(StatusCode::BAD_REQUEST, "invalid-observation-scope");
+    }
+    let Ok(epoch) = request.epoch.parse::<u64>() else {
+        return error_response(StatusCode::BAD_REQUEST, "invalid-observation-scope");
+    };
+    let Ok(reading) = state.source.current() else {
+        return error_response(StatusCode::SERVICE_UNAVAILABLE, "runtime-unavailable");
+    };
+    if request.generation != reading.generation.to_string() {
+        return error_response(StatusCode::CONFLICT, "runtime-generation-changed");
+    }
+    let pages = request
+        .pages
+        .iter()
+        .map(|page| {
+            Some(Vpid::new(
+                VolId::new(page.volid).ok()?,
+                PageId::new(page.pageid).ok()?,
+            ))
+        })
+        .collect::<Option<Vec<_>>>();
+    let Some(pages) = pages else {
+        return error_response(StatusCode::BAD_REQUEST, "invalid-observation-scope");
+    };
+    let Ok(scope) = observations::ValidatedScope::new(&pages, epoch) else {
+        return error_response(StatusCode::BAD_REQUEST, "invalid-observation-scope");
+    };
+    let identity = reading.view.runtime_identity();
+    match state
+        .runtime
+        .observe(scope, identity, &request.generation, request.retry)
+        .await
+    {
+        Ok(body) => (
+            [(CONTENT_TYPE, "application/json")],
+            axum::body::Bytes::from_owner(body),
+        )
+            .into_response(),
+        Err("runtime-deadline-exceeded") => {
+            error_response(StatusCode::GATEWAY_TIMEOUT, "runtime-deadline-exceeded")
+        }
+        Err("runtime-admission-refused" | "runtime-memory-admission") => {
+            error_response(StatusCode::TOO_MANY_REQUESTS, "runtime-admission-refused")
+        }
+        Err(_) => error_response(StatusCode::SERVICE_UNAVAILABLE, "runtime-unavailable"),
+    }
+}
+
 async fn runtime_capabilities(State(state): State<WebState>) -> Response {
     match state.runtime.capabilities().await {
         Ok(capability) => Json(capability).into_response(),
@@ -285,8 +360,11 @@ async fn runtime_capabilities(State(state): State<WebState>) -> Response {
 }
 
 async fn request_guard(State(state): State<WebState>, request: Request, next: Next) -> Response {
-    let runtime_request = request.uri().path() == CAPABILITIES_PATH;
-    let pool = if runtime_request {
+    let runtime_request = matches!(request.uri().path(), CAPABILITIES_PATH | OBSERVATIONS_PATH);
+    let observation_request = request.uri().path() == OBSERVATIONS_PATH;
+    let pool = if request.uri().path() == OBSERVATIONS_PATH {
+        state.observations.clone()
+    } else if runtime_request {
         state.capabilities.clone()
     } else if request.uri().path() == WATCH_PATH {
         state.watchers.clone()
@@ -296,7 +374,15 @@ async fn request_guard(State(state): State<WebState>, request: Request, next: Ne
     let mut response = match guard(&state, &request) {
         Ok(()) => match pool.try_acquire_owned() {
             Ok(permit) => {
-                let response = next.run(request).await;
+                let response = if observation_request {
+                    tokio::time::timeout(std::time::Duration::from_millis(2500), next.run(request))
+                        .await
+                        .unwrap_or_else(|_| {
+                            error_response(StatusCode::GATEWAY_TIMEOUT, "runtime-deadline-exceeded")
+                        })
+                } else {
+                    next.run(request).await
+                };
                 drop(permit);
                 response
             }
@@ -357,8 +443,9 @@ fn guard(state: &WebState, request: &Request) -> Result<(), GuardError> {
             code: "invalid-host",
         });
     }
-    let enrichment_post = request.uri().path().ends_with("/enrichments");
-    let method_allowed = if enrichment_post {
+    let accepts_post =
+        request.uri().path().ends_with("/enrichments") || request.uri().path() == OBSERVATIONS_PATH;
+    let method_allowed = if accepts_post {
         request.method() == axum::http::Method::POST
     } else {
         matches!(
@@ -1636,6 +1723,7 @@ mod tests {
             source: LiveSource::new(view, FollowConfig::default(), false),
             runtime: Arc::new(observations::Broker::new(None)),
             capabilities: Arc::new(Semaphore::new(MAX_CONCURRENT_CAPABILITIES)),
+            observations: Arc::new(Semaphore::new(8)),
             enrichment: Arc::new(Mutex::new(())),
             policy,
             cursor_key: Arc::new([7_u8; 32]),
@@ -2012,6 +2100,7 @@ mod tests {
             source: LiveSource::new(view.clone(), FollowConfig::default(), false),
             runtime: Arc::new(observations::Broker::new(None)),
             capabilities: Arc::new(Semaphore::new(MAX_CONCURRENT_CAPABILITIES)),
+            observations: Arc::new(Semaphore::new(8)),
             enrichment: Arc::new(Mutex::new(())),
             policy,
             cursor_key: Arc::new([7_u8; 32]),
@@ -2750,6 +2839,7 @@ mod tests {
                     source: Arc::clone(&source),
                     runtime: Arc::new(broker),
                     capabilities: Arc::new(Semaphore::new(MAX_CONCURRENT_CAPABILITIES)),
+                    observations: Arc::new(Semaphore::new(8)),
                     enrichment: Arc::new(Mutex::new(())),
                     policy,
                     cursor_key: Arc::new([7_u8; 32]),
@@ -2833,6 +2923,173 @@ mod tests {
     }
 
     #[test]
+    fn observation_http_bounds_ordered_scopes_and_request_bytes() {
+        let server = boot_runtime(
+            None,
+            false,
+            observations::Broker::new(Some("/missing/producer.sock".into())),
+        );
+        let generation = server.source.current().unwrap().generation.to_string();
+        let post = |body: &str| {
+            exchange_raw(
+                server.address,
+                &format!(
+                    "POST /api/v1/runtime/page-buffer/observe HTTP/1.1\r\nHost: {}\r\nOrigin: http://{}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    server.address,
+                    server.address,
+                    body.len()
+                ),
+            )
+        };
+        for count in [0, 1, 511, 512, 513] {
+            let pages = vec![serde_json::json!({"volid":0,"pageid":7}); count];
+            let body =
+                serde_json::json!({"pages":pages,"epoch":"7","generation":generation}).to_string();
+            let (status, response) = post(&body);
+            assert_eq!(status, if count <= 512 { 200 } else { 400 }, "{response}");
+            assert!(response.len() <= 1024 * 1024);
+            if count <= 512 {
+                let value: serde_json::Value = serde_json::from_str(&response).unwrap();
+                assert_eq!(value["pages"], serde_json::json!(pages));
+                assert_eq!(value["requested_count"], count);
+                assert_eq!(value["evaluated_count"], 0);
+            }
+        }
+        for bytes in [65_535, 65_536, 65_537] {
+            let mut body =
+                serde_json::json!({"pages":[],"epoch":"8","generation":generation}).to_string();
+            body.extend(std::iter::repeat_n(' ', bytes - body.len()));
+            assert_eq!(post(&body).0, if bytes <= 65_536 { 200 } else { 400 });
+        }
+    }
+
+    #[test]
+    fn held_http_response_bodies_keep_admission_until_released() {
+        let (_directory, mut state) = state();
+        state.runtime = Arc::new(observations::Broker::new(Some(
+            "/missing/producer.sock".into(),
+        )));
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(async {
+                let request = || {
+                    Ok(Json(ObservationRequest {
+                        pages: vec![ObservationPage {
+                            volid: 0,
+                            pageid: 7,
+                        }],
+                        epoch: "1".into(),
+                        generation: state.source.current().unwrap().generation.to_string(),
+                        retry: false,
+                    }))
+                };
+                let mut responses = Vec::new();
+                for _ in 0..8 {
+                    let response = runtime_observations(State(state.clone()), request()).await;
+                    assert_eq!(response.status(), StatusCode::OK);
+                    responses.push(response);
+                }
+                let response = runtime_observations(State(state.clone()), request()).await;
+                assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+                responses.pop();
+                assert_eq!(
+                    runtime_observations(State(state.clone()), request())
+                        .await
+                        .status(),
+                    StatusCode::OK
+                );
+            });
+    }
+
+    #[test]
+    fn observation_http_deadline_includes_stalled_request_body() {
+        use std::io::{Read as _, Write as _};
+        let server = boot_runtime(None, false, observations::Broker::new(None));
+        let mut stream = std::net::TcpStream::connect(server.address).unwrap();
+        stream
+            .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+            .unwrap();
+        let started = std::time::Instant::now();
+        write!(stream, "POST /api/v1/runtime/page-buffer/observe HTTP/1.1\r\nHost: {}\r\nOrigin: http://{}\r\nContent-Type: application/json\r\nContent-Length: 100\r\nConnection: close\r\n\r\n{{", server.address, server.address).unwrap();
+        let mut response = String::new();
+        stream.read_to_string(&mut response).unwrap();
+        assert!(response.starts_with("HTTP/1.1 504"), "{response}");
+        assert!(response.contains("runtime-deadline-exceeded"));
+        assert!(response.contains("no-store"));
+        assert!(started.elapsed() < std::time::Duration::from_secs(4));
+        assert_eq!(get(server.address, "/api/v1/session").0, 200);
+    }
+
+    #[test]
+    fn selected_page_observation_crosses_real_socket_and_http_with_bound_identity() {
+        use std::io::{BufRead as _, Write as _};
+        use std::os::unix::{fs::PermissionsExt as _, net::UnixListener};
+        let directory = FixtureDirectory::new();
+        std::fs::set_permissions(directory.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
+        let path = directory.path().join("producer.sock");
+        let listener = UnixListener::bind(&path).unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+        let server = boot_runtime(None, false, observations::Broker::new(Some(path)));
+        let identity = server
+            .source
+            .current()
+            .unwrap()
+            .view
+            .runtime_identity()
+            .unwrap();
+        let producer = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut reader = std::io::BufReader::new(stream.try_clone().unwrap());
+            let mut request = String::new();
+            reader.read_line(&mut request).unwrap();
+            let hello = serde_json::json!({"type":"server_hello", "protocol_major":1,"protocol_minor":0,
+                "incarnation":"0123456789abcdef0123456789abcdef", "database_creation":identity.database_creation.to_string(),
+                "volumes":identity.volumes.iter().map(|volume| serde_json::json!({"volid":volume.volid,
+                    "volume_creation":volume.volume_creation.to_string(), "device":volume.device.to_string(), "inode":volume.inode.to_string()})).collect::<Vec<_>>(),
+                "shared_lru_count":2,"private_lru_count":3});
+            writeln!(stream, "{hello}").unwrap();
+            request.clear();
+            reader.read_line(&mut request).unwrap();
+            let transcript = include_str!(
+                "../fixtures/pgbuf-inspector/v1/corpus/exchanges/complete/stream.jsonl"
+            );
+            for line in transcript.lines().skip(3) {
+                writeln!(stream, "{line}").unwrap();
+            }
+        });
+        let before = get(server.address, "/api/v1/session");
+        let body = serde_json::json!({"pages":[{"volid":0,"pageid":7},{"volid":0,"pageid":8}],"epoch":"17","generation":server.source.current().unwrap().generation.to_string(),"retry":false}).to_string();
+        let (status, headers, body) = exchange_with_headers(
+            server.address,
+            &format!(
+                "POST /api/v1/runtime/page-buffer/observe HTTP/1.1\r\nHost: {}\r\nOrigin: http://{}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                server.address,
+                server.address,
+                body.len()
+            ),
+        );
+        assert_eq!(status, 200, "{body}");
+        assert!(
+            headers
+                .to_ascii_lowercase()
+                .contains("cache-control: no-store")
+        );
+        assert!(!body.contains("producer.sock"));
+        assert!(!body.contains("inode"));
+        let result: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(result["epoch"], "17");
+        assert_eq!(result["capability"]["verification"], "verified");
+        assert_eq!(result["observations"][0]["state"], "resident");
+        assert_eq!(result["observations"][1]["state"], "not-resident");
+        assert_eq!(result["requested_count"], 2);
+        assert_eq!(result["evaluated_count"], 2);
+        assert_eq!(get(server.address, "/api/v1/session"), before);
+        producer.join().unwrap();
+    }
+
+    #[test]
     fn runtime_capabilities_are_independent_of_disk_inspection_over_http() {
         let server = boot(None);
         let before = get(server.address, "/api/v1/session");
@@ -2876,7 +3133,7 @@ mod tests {
             serde_json::json!({
                 "schema": "volmap.runtime", "schema_version": 1,
                 "source": "cubrid-page-buffer-observation", "state": "unavailable",
-                "verification": "unverified", "reason": "attachment-not-implemented"
+                "verification": "unverified", "reason": "no-usable-observation"
             })
         );
         assert!(!body.contains("private"));

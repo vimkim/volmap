@@ -1,3 +1,4 @@
+import { decodeObservation, decodeCapability } from "./observations";
 export type JsonObject = Record<string, unknown>;
 
 export interface Snapshot {
@@ -550,18 +551,8 @@ export function createHttpApi(fetcher: typeof fetch = globalThis.fetch.bind(glob
   }
 
   return {
-    runtimeCapabilities: async (signal) => {
-      const value = objectData(await json("/api/v1/runtime/capabilities", { signal }), "runtime capability");
-      // This delivery cannot verify a producer. Future attachment support must
-      // extend this contract explicitly rather than trusting arbitrary states.
-      if (value.schema !== "volmap.runtime" || value.schema_version !== 1 ||
-          value.source !== "cubrid-page-buffer-observation" || value.verification !== "unverified" ||
-          !((value.state === "disabled" && value.reason === "not-requested") ||
-            (value.state === "unavailable" && value.reason === "attachment-not-implemented"))) {
-        throw new Error("invalid runtime capability");
-      }
-      return value.state;
-    },
+    observePageBuffer: async (request, signal) => decodeObservation(await json("/api/v1/runtime/page-buffer/observe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request), signal })),
+    runtimeCapabilities: async (signal) => decodeCapability(await json("/api/v1/runtime/capabilities", { signal })),
     session: (signal) => resource("/api/v1/session", sessionData, { signal }),
     volumes: (signal) => resource("/api/v1/volumes", collection(volume), { signal }),
     sectors: (vol, cursor, signal) =>

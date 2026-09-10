@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 
 import "../../src/web/assets/app.css";
 import "../../src/web/assets/distribution.css";
+import "./observations.css";
 
 import { createHttpApi } from "./api";
 import { initialState, reduce } from "./model";

@@ -11,7 +11,7 @@ test("runtime capabilities use their own validated envelope and no-store request
     return new Response(JSON.stringify({
       schema: "volmap.runtime", schema_version: 1,
       source: "cubrid-page-buffer-observation", state: "unavailable",
-      verification: "unverified", reason: "attachment-not-implemented",
+      verification: "unverified", reason: "no-usable-observation",
     }));
   };
   expect(await createHttpApi(fetcher).runtimeCapabilities()).toBe("unavailable");

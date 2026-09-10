@@ -1,3 +1,4 @@
+import { observationIsFresh } from "./observations";
 import { useEffect, useRef, type CSSProperties, type Dispatch, type KeyboardEvent } from "react";
 
 import type {
@@ -220,6 +221,32 @@ function fileRows(association: Page["file_association"]): readonly (readonly [st
   return rows;
 }
 
+function ObservationDetail({ state }: Pick<ViewerProps, "state">) {
+  const observation = state.observation;
+  if (!observation.enabled) return null;
+  const batch = observation.batch;
+  const label = batch?.state === "resident" ? "◉ Observed resident"
+    : batch?.state === "not-resident" ? "○ Observed not resident"
+    : batch === null ? observation.message : `? ${batch.state}`;
+  return (
+    <section className="panel observation-detail" aria-label="Selected-page buffer observation">
+      <h2>Buffer observation</h2>
+      <p className={`observation-mark observation-${batch?.state ?? "unknown"}`}>{label}</p>
+      {batch !== null ? <>
+        <p>VPID {batch.pages[0]?.volid}:{batch.pages[0]?.pageid} · {batch.reason}</p>
+        <p>{observation.age === null ? "Age uncertain" : `Conservative age: ${Math.ceil(observation.age / 1000)} s · ${observationIsFresh(observation.age) ? "fresh (500 ms interval)" : "stale"}`}{state.follow.paused ? " · paused" : ""}</p>
+        <p>Evaluated {batch.evaluated} / requested {batch.requested}; producer scan {batch.complete === null ? "unavailable" : batch.complete ? "complete" : "partial"}.</p>
+        <FieldList fields={Object.entries(batch.evidence).map(([name, value]) => [name.replaceAll("_", " "), value])} />
+        <details>
+          <summary>Capture identity and limitations</summary>
+          <p>{batch.captureLabel}</p>
+          {batch.limitations.map((limitation) => <p key={limitation}>{limitation}</p>)}
+        </details>
+      </> : <p>Refresh to request a separate runtime observation. Disk facts remain independently observed.</p>}
+    </section>
+  );
+}
+
 function PageWorkspace({ state, dispatch }: Pick<ViewerProps, "state" | "dispatch">) {
   if (
     state.view?.kind !== "page" &&
@@ -261,7 +288,7 @@ function PageWorkspace({ state, dispatch }: Pick<ViewerProps, "state" | "dispatc
           {table ? <p className="muted">{table}</p> : null}
         </div>
       </div>
-      <div className="page-workspace">
+      <div className={`page-workspace${state.observation.enabled ? " with-observation" : ""}`}>
         <section className="panel">
           <h2>Page facts</h2>
           <FieldList
@@ -285,6 +312,7 @@ function PageWorkspace({ state, dispatch }: Pick<ViewerProps, "state" | "dispatc
             <p className="status-note" role="status">Enriching the selected page at a new immutable revision…</p>
           ) : null}
         </section>
+        <ObservationDetail state={state} />
         <section className="panel page-distribution">
           {resource.distribution.state === "available" ? (
             <SlottedDistribution
@@ -696,8 +724,17 @@ export function Viewer({ state, dispatch, nowUnixSeconds }: ViewerProps) {
       </header>
       <main id="app">
         <aside>
-          <section aria-label="CUBRID page-buffer observation">
+          <section className="observation-controls" aria-label="CUBRID page-buffer observation">
             <h2>CUBRID page-buffer observation</h2>
+            <button type="button" aria-pressed={state.observation.enabled} onClick={() => dispatch({ kind: "toggle-observation" })}>
+              {state.observation.enabled ? "Disable observations" : "Enable observations"}
+            </button>
+            {state.observation.enabled ? <>
+              <button type="button" disabled={state.follow.paused || !state.visible || state.observation.loading || !("page" in state.route)}
+                onClick={() => dispatch({ kind: "refresh-observation" })}>Refresh selected-page observation</button>
+              <p>{state.observation.loading ? "Observing selected page…" : state.observation.message}</p>
+
+            </> : null}
             <p>Observation source: {state.runtimeCapability ?? "checking capability"}</p>
             {state.runtimeCapability === "disabled" ? (
               <p>Not requested. Enable explicitly when starting a loopback viewer.</p>

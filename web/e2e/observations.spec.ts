@@ -1,0 +1,32 @@
+import { expect, test } from "@playwright/test";
+
+test("selected-page observation uses the real producer, HTTP boundary and non-color detail", async ({ page, browserName }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("http://127.0.0.1:41741/page/0/10");
+  await expect(page.getByRole("heading", { name: "Page facts" })).toBeVisible();
+  const source = page.getByRole("region", { name: "CUBRID page-buffer observation" });
+  await source.getByRole("button", { name: "Enable observations" }).click();
+  const response = page.waitForResponse((response) => response.url().endsWith("/runtime/page-buffer/observe"));
+  await source.getByRole("button", { name: "Refresh selected-page observation" }).click();
+  const observed = await response;
+  expect(observed.status()).toBe(200);
+  expect(observed.headers()["cache-control"]).toBe("no-store");
+  const detail = page.getByRole("region", { name: "Selected-page buffer observation" });
+  await expect(detail).toContainText("◉ Observed resident");
+  await expect(detail).toContainText("VPID 0:10");
+  await expect(source).toContainText("Observation source: active");
+  await expect(detail).toContainText("latch mode");
+  await expect(detail).toContainText("oldest unflush lsa");
+  await detail.getByText("Capture identity and limitations", { exact: true }).click();
+  await expect(detail).toContainText("records and scans are not atomic");
+  await expect(page.getByRole("heading", { name: "Page facts" })).toBeVisible();
+  await page.getByRole("button", { name: "Pause", exact: true }).click();
+  await expect(source.getByRole("button", { name: "Refresh selected-page observation" })).toBeDisabled();
+  await expect(detail).toContainText("paused");
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({ path: `../.scratch/pgbuf-overlay-implementation/verification/selected-observation-${browserName}.png`, fullPage: true });
+  await source.getByRole("button", { name: "Disable observations" }).click();
+  await expect(detail).toHaveCount(0);
+  expect(errors).toEqual([]);
+});

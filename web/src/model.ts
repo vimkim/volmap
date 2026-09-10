@@ -1,3 +1,4 @@
+import { initialObservation, observationAction, invalidateObservation, type ObservationUi, type ObservationAction, type ObservationEffect } from "./observations";
 import type { JsonObject, Resource, Snapshot } from "./api";
 import type {
   CollectionData,
@@ -14,6 +15,7 @@ export type HistoryMode = "none" | "push" | "replace" | "restore";
 export type RuntimeCapabilityState = "disabled" | "connecting" | "active" | "stale" | "unavailable" | "refused" | "incompatible";
 
 export type Effect =
+  | ObservationEffect
   | Readonly<{ id: number; kind: "read-runtime-capability" }>
   | ReadRouteEffect
   | ReadSectorBatchEffect
@@ -97,6 +99,7 @@ export interface LicenseUiState {
 }
 
 export interface UiState {
+  readonly observation: ObservationUi;
   readonly runtimeCapability: RuntimeCapabilityState | null;
   readonly runtimeCapabilityRequested: boolean;
   readonly route: Route;
@@ -126,6 +129,7 @@ export interface UiError {
 }
 
 export type Action =
+  | ObservationAction
   | Readonly<{ kind: "runtime-capability-loaded"; state: RuntimeCapabilityState }>
   | Readonly<{
       kind: "navigate";
@@ -234,6 +238,7 @@ export function initialState(route: Route): UiState {
   return {
     route,
     runtimeCapability: null,
+    observation: initialObservation(),
     runtimeCapabilityRequested: false,
     scope,
     nextEpoch: 2,
@@ -303,6 +308,11 @@ function loadRoute(
 }
 
 export function reduce(state: UiState, action: Action): UiState {
+  if (action.kind === "toggle-observation" || action.kind === "refresh-observation" || action.kind === "observation-loaded" || action.kind === "observation-ticked") return observationAction(state, action);
+  return invalidateObservation(state, reduceInspection(state, action));
+}
+
+function reduceInspection(state: UiState, action: Exclude<Action, ObservationAction>): UiState {
   if (action.kind === "effects-started") {
     const started = new Set(action.ids);
     return { ...state, effects: state.effects.filter((effect) => !started.has(effect.id)) };

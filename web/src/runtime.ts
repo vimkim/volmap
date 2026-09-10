@@ -50,7 +50,7 @@ export interface RuntimePorts {
   readonly api: InspectorApi;
   readonly history: HistoryPort;
   readonly schedule: (milliseconds: number, action: () => void) => void;
-  readonly requestSignal?: (group: "route" | "collection" | "enrichment" | "watch" | "license" | "runtime-capability") =>
+  readonly requestSignal?: (group: "route" | "collection" | "enrichment" | "watch" | "license" | "runtime-capability" | "observation") =>
     | AbortSignal
     | undefined;
 }
@@ -95,7 +95,10 @@ export function subscribeBrowserEvents(
   };
   const visibility = () =>
     dispatch({ kind: "visibility-changed", visible: documentSource.visibilityState === "visible" });
-  const tick = () => dispatch({ kind: "clock-ticked", nowUnixSeconds: Math.floor(Date.now() / 1000) });
+  const tick = () => {
+    dispatch({ kind: "clock-ticked", nowUnixSeconds: Math.floor(Date.now() / 1000) });
+    dispatch({ kind: "observation-ticked", now: performance.now(), wallNow: Date.now() });
+  };
   browser.addEventListener("popstate", navigate);
   documentSource.addEventListener("visibilitychange", visibility);
   tick();
@@ -129,6 +132,16 @@ export async function executeEffect(
 ): Promise<void> {
   try {
     switch (effect.kind) {
+      case "read-observation": {
+        const start = performance.now();
+        const wallStart = Date.now();
+        const batch = await ports.api.observePageBuffer(effect.request, ports.requestSignal?.("observation"));
+        const received = performance.now();
+        const wallReceived = Date.now();
+        dispatch({ kind: "observation-loaded", scope: effect.scope, request: effect.request, batch, received, wallReceived,
+          roundTrip: wallReceived < wallStart ? Number.NaN : Math.max(received - start, wallReceived - wallStart) });
+        return;
+      }
       case "read-runtime-capability": {
         const state = await ports.api.runtimeCapabilities(ports.requestSignal?.("runtime-capability"));
         dispatch({ kind: "runtime-capability-loaded", state });
@@ -204,6 +217,10 @@ export async function executeEffect(
       }
     }
   } catch (error) {
+    if (effect.kind === "read-observation") {
+      dispatch({ kind: "observation-loaded", scope: effect.scope, request: effect.request, batch: null, received: performance.now(), wallReceived: Date.now(), roundTrip: 0 });
+      return;
+    }
     if (effect.kind === "read-runtime-capability") {
       // Never surface network/decoder text through inspection errors or UI.
       dispatch({ kind: "runtime-capability-loaded", state: "unavailable" });

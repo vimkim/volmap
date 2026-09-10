@@ -211,6 +211,20 @@ pub struct CoverageRecord {
     pub stop_reason: Option<&'static str>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct RuntimeIdentity {
+    pub database_creation: u64,
+    pub volumes: Vec<RuntimeVolumeIdentity>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct RuntimeVolumeIdentity {
+    pub volid: u16,
+    pub volume_creation: u64,
+    pub device: u64,
+    pub inode: u64,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct VolumeView {
     pub vol_id: VolId,
@@ -1116,6 +1130,8 @@ fn resource_limit_diagnostic(
 #[derive(Clone, Debug)]
 struct VolumeRecord {
     view: VolumeView,
+    database_creation: i64,
+    volume_creation: i64,
     database_codeset: u8,
     next_vol_id: Option<VolId>,
     reserved_masks: Vec<u64>,
@@ -1872,6 +1888,8 @@ impl Inspection {
             };
             volumes.push(VolumeRecord {
                 view,
+                database_creation: header.database_creation(),
+                volume_creation: header.volume_creation(),
                 database_codeset: header.database_charset(),
                 next_vol_id: header.next_vol_id(),
                 reserved_masks,
@@ -2526,6 +2544,53 @@ impl GraphView {
     #[must_use]
     pub fn source_fingerprint(&self) -> crate::source::InputFingerprint {
         self.data.sources.fingerprint()
+    }
+
+    /// Private attachment identity from already decoded headers and open-file
+    /// stamps. A partial volume inventory cannot authorize runtime evidence.
+    pub(crate) fn runtime_identity(&self) -> Option<RuntimeIdentity> {
+        let mut volumes = Vec::new();
+        let mut database_creation = None;
+        for (record, source) in self.data.volumes.iter().zip(self.data.sources.volumes()) {
+            if record.view.volume_type == VolumeType::Temporary {
+                continue;
+            }
+            if volumes.len() == 2048 {
+                return None;
+            }
+            let creation = u64::try_from(record.database_creation).ok()?;
+            if database_creation.is_some_and(|previous| previous != creation) {
+                return None;
+            }
+            database_creation = Some(creation);
+            let stamp = source.stamp();
+            volumes.push(RuntimeVolumeIdentity {
+                volid: u16::try_from(record.view.vol_id.get()).ok()?,
+                volume_creation: u64::try_from(record.volume_creation).ok()?,
+                device: stamp.device,
+                inode: stamp.inode,
+            });
+        }
+        volumes.sort_unstable_by_key(|volume| volume.volid);
+        if volumes.first()?.volid != 0 {
+            return None;
+        }
+        // next-volume links must be represented, including the final link.
+        for record in &self.data.volumes {
+            if record.view.volume_type != VolumeType::Temporary
+                && record.next_vol_id.is_some_and(|next| {
+                    !volumes
+                        .iter()
+                        .any(|volume| i32::from(volume.volid) == i32::from(next.get()))
+                })
+            {
+                return None;
+            }
+        }
+        Some(RuntimeIdentity {
+            database_creation: database_creation?,
+            volumes,
+        })
     }
 
     #[must_use]

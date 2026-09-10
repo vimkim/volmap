@@ -27,6 +27,12 @@ export default defineConfig({
     reuseExistingServer: false,
     timeout: 120_000,
     url: "http://127.0.0.1:41740",
+  }, {
+    command: "VOLMAP_BROWSER_PORT=41741 VOLMAP_BROWSER_PRODUCER=1 ../release/run-browser-server.sh",
+    cwd: ".",
+    reuseExistingServer: false,
+    timeout: 120_000,
+    url: "http://127.0.0.1:41741",
   }],
   projects: [
     { name: "chromium", use: { browserName: "chromium" } },
