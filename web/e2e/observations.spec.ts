@@ -204,11 +204,19 @@ for (const scale of ["volume/0", "sector/0/0"]) {
     await page.getByRole("button", { name: "Pause", exact: true }).click();
     await expect(cell).toHaveClass(/runtime-resident/);
     await expect(cell).toHaveAttribute("title", /Observed resident/);
+    const unadmitted = scale.startsWith("volume") ? page.locator("[data-observation-page]:not([data-runtime-state])").first() : null;
+    const unadmittedStorage = await unadmitted?.evaluate((element) => getComputedStyle(element).backgroundColor);
     await mode.focus();
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("Tab");
     await expect(mode).toHaveValue("lru");
     await expect(cell).toHaveClass(/runtime-lru/);
+    if (unadmitted) {
+      await expect(unadmitted).toHaveCSS("background-color", "rgb(55, 65, 81)");
+      await expect(unadmitted).toHaveAttribute("title", /^Page \d+:/);
+      await expect(unadmitted.locator("../..")).toHaveAccessibleName(/Not evaluated/);
+      await expect(coverage).toContainText("not evaluated in this batch");
+    }
     await coverage.getByText("Available page observations and capture limitations", { exact: true }).click();
     const observedRow = coverage.getByRole("row").filter({ has: page.getByRole("cell", { name: "0:10", exact: true }) });
     await expect(observedRow.getByRole("cell", { name: "lru2", exact: true })).toBeVisible();
@@ -219,6 +227,7 @@ for (const scale of ["volume/0", "sector/0/0"]) {
     await expect(coverage).toContainText("Observed per-list counts in this batch only");
     await mode.selectOption("state");
     await expect(cell).not.toHaveClass(/runtime-lru/);
+    if (unadmitted && unadmittedStorage) await expect(unadmitted).toHaveCSS("background-color", unadmittedStorage);
   });
 }
 
@@ -355,3 +364,37 @@ for (const scale of ["volume/0", "sector/0/0"]) {
     await expect(page.getByRole("heading", { level: 1 })).toContainText(scale.startsWith("volume") ? "Volume 0" : "Sector 0");
   });
 }
+
+test("cached unavailable metadata does not turn a pending first capture into page failures", async ({ page }) => {
+  await page.route("**/runtime/capabilities", (route) => route.fulfill({
+    status: 200, headers: { "cache-control": "no-store" },
+    json: { schema: "volmap.runtime", schema_version: 1, source: "cubrid-page-buffer-observation",
+      state: "unavailable", verification: "unverified", reason: "observation-expired",
+      incarnation_binding: null, capture_identity: null, revision: "0" },
+  }));
+  let releaseCapture!: () => void;
+  const captureGate = new Promise<void>((resolve) => { releaseCapture = resolve; });
+  await page.route("**/runtime/page-buffer/observe", async (route) => {
+    await captureGate;
+    await route.fulfill({ status: 503, json: { code: "runtime-unavailable" } });
+  });
+  await page.goto("http://127.0.0.1:41741/volume/0", { waitUntil: "commit" });
+  const source = page.getByRole("region", { name: "CUBRID page-buffer observation" });
+  await expect(source).toContainText("Observation source: unavailable");
+  const pending = page.waitForRequest("**/runtime/page-buffer/observe");
+  await source.getByRole("button", { name: "Enable observations" }).click();
+  await pending;
+  try {
+    await expect(source).toContainText("Observing visible pages");
+    await expect(page.locator('.preview-page[data-runtime-state="unavailable"]')).toHaveCount(0);
+    await expect(page.locator(".sector-card").first()).toHaveAccessibleName(/source unavailable/);
+  } finally {
+    releaseCapture();
+  }
+  await expect(source).toContainText("Observation unavailable");
+  await expect(page.locator('.preview-page[data-runtime-state="unavailable"]').first()).toHaveAttribute("title", /No usable observation/);
+  await page.unroute("**/runtime/page-buffer/observe");
+  await source.getByRole("button", { name: "Refresh visible-page observations" }).click();
+  await expect(source).toContainText("Observation source: active");
+  await expect(page.locator('.preview-page[data-runtime-state="resident"]').first()).toHaveAttribute("title", /Observed resident/);
+});

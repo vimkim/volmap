@@ -167,11 +167,11 @@ export function LruSummary({ state }: { readonly state: UiState }) {
   </div>;
 }
 
-export function sectorObservationLabel(state: UiState, rows: ReadonlyMap<string, ObservationRow>, pages: readonly { vol_id: number; page_id: number }[]): string {
-  if (!state.observation.enabled) return "";
+export function sectorObservationLabel(enabled: boolean, marks: readonly (ReturnType<typeof runtimePage> | null)[], fallback: ReturnType<typeof runtimePage>): string {
+  if (!enabled) return "";
   const counts = new Map<string, number>();
-  for (const page of pages) {
-    const runtime = runtimePage(state, rows.get(`${page.vol_id}:${page.page_id}`));
+  for (const mark of marks) {
+    const runtime = mark ?? fallback;
     // Keep the sector button concise; exact per-page observations remain in
     // the named disclosure table and the keyboard-accessible Sector grid.
     const label = runtime.state === "resident" ? "observed resident" : runtime.label;

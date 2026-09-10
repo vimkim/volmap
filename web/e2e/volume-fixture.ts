@@ -7,7 +7,7 @@ export async function loadVolumeCells(page: Page, expected: number): Promise<voi
   for (;;) {
     const before = await cells.count();
     if (before >= expected) break;
-    await page.getByRole("button", { name: "Load more sectors" }).evaluateAll((buttons) => {
+    await page.locator("#mapSentinel .load-more").evaluateAll((buttons) => {
       buttons.forEach((button) => (button as HTMLButtonElement).click());
     });
     await expect.poll(() => cells.count()).toBeGreaterThan(before);

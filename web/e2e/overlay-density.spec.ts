@@ -88,9 +88,9 @@ test("12288 rendered page cells: per-browser visible latency and paired RSS", as
         }));
         expect(rendered.count).toBe(12288);
         if (enabled) {
-          await page.getByRole("button", { name: "Enable observations" }).click();
-          await expect(page.getByRole("region", { name: "Visible-page buffer observations" })).toContainText("Evaluated 512 / requested 512");
-          await page.getByRole("combobox", { name: "Runtime color mode" }).selectOption(mode);
+          await page.locator(".observation-controls > button[aria-pressed]").click();
+          await expect(page.locator(".observation-detail[aria-label=\"Visible-page buffer observations\"]")).toContainText("Evaluated 512 / requested 512");
+          await page.locator(".runtime-mode select").selectOption(mode);
         }
         // Same keyboard focus changes, viewport and DOM workload in both arms.
         // The second animation frame gives a conservative post-paint bound.
@@ -110,7 +110,7 @@ test("12288 rendered page cells: per-browser visible latency and paired RSS", as
             }));
           }, true);
         });
-        await page.getByRole("button", { name: /^Sector 0,/ }).focus();
+        await page.locator("#sector-0").focus();
         for (let index = 0; index < 40; index += 1) {
           await page.keyboard.press("Tab");
           await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));

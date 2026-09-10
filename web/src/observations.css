@@ -33,6 +33,7 @@
 .focus-page .runtime-glyph { font-size: 11px; bottom: 4px; right: 4px; }
 .focus-page .runtime-cell-label { display: block; padding: 22px 6px; font-size: 9px; line-height: 1.2; overflow-wrap: anywhere; }
 .page.runtime-lru { background: #374151; }
+#volumeMap[data-runtime-mode="lru"] .preview-page:not([data-runtime-state]) { background: #374151; }
 .page.runtime-lru.zone-lru1 { background: #174f68; }
 .page.runtime-lru.zone-lru2 { background: #593c75; }
 .page.runtime-lru.zone-lru3 { background: #714823; }
