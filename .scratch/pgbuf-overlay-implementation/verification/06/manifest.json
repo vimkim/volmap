@@ -1,4 +1,10 @@
 {
+  "latest_checkpoint": {
+    "consumer_commit": "4f129d82274a71a19370d944939eb50069ada51d",
+    "manifest": "../06-shared-glyph/acceptance-manifest.json",
+    "status": "local density passes both browsers; overall acceptance non-passing"
+  },
+  "record_scope": "Original 8810d04 baseline retained below; use latest_checkpoint for the current repair",
   "ticket": "06",
   "acceptance": "non-passing",
   "consumer_commit": "8810d047256d70d17a8ceb204f1e3cd756062105",

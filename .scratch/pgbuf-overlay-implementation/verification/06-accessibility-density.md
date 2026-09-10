@@ -1,5 +1,16 @@
 # Ticket 06 — Accessibility and density evidence
 
+**Current checkpoint:** [shared-circle repair and exact-commit evidence](06-shared-glyph/README.md)
+on `4f129d8` passes the original local density gate in both Chromium and Firefox
+and passes `just verify` (73 frontend unit tests, 47 browser passes, existing
+Firefox skip, Rust/release checks). The [current manifest](06-shared-glyph/acceptance-manifest.json)
+records source, environment, counts and raw results. Required named manual
+screen-reader and visual reviews remain missing; overall acceptance is non-passing.
+The sections below retain the earlier baseline and failure history. Earlier
+requests for formal host-designation or external measurement certification were
+agent-added interpretations, corrected in the current checkpoint. The RSS
+sampling limitation and ticket 08's dedicated-host release matrix remain explicit.
+
 Status: **non-passing / acceptance remains open**. Date: 2026-09-10.
 Starting consumer commit: `83058e452fac33531a6a690b04491755d54b5ccd`.
 

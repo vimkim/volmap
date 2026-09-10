@@ -2,14 +2,14 @@
 
 **What to build:** Keyboard and assistive-technology users can operate the complete live overlay without disrupted focus or noisy updates, and operators can navigate a genuinely dense view responsively in both supported browsers. This is an end-to-end product acceptance slice, including bounded improvements needed to pass its gates.
 
-**Blocked by:** 03 — Handle pause, resume, failures, and producer restarts; 05 — Render the heatmap and LRU topology; named manual screen-reader/visual reviews and reference-host/peak-memory qualification.
+**Blocked by:** Named manual screen-reader and visual reviews. Automated prerequisites 03/05 and ticket 06's local density gate are verified; ticket 08 owns the dedicated-host release performance matrix.
 
 **Status:** ready-for-human
 
 - [x] Exercise integrated lifecycle and visible-scope rendering at Volume and Sector scales, including state-mark/LRU modes, exact-index detail and fresh/stale/paused/expired/absent/refused states. Assert semantic roles, accessible names, non-color limitations and stable focus through refresh and navigation.
 - [ ] Prove keyboard operation, high-contrast readability, reduced-motion behavior and quiet age/poll updates. Record manual screen-reader and visual reviews with reviewer and assistive technology; screenshots alone cannot establish accessibility.
-- [ ] Render 10,000 actual page cells in the measured density case, recording rendered count, viewport, browser versions, reference host and raw interaction samples. A 10,000-entry off-screen model is not sufficient evidence.
-- [ ] Measure p95 input-to-visible update at no more than 100 ms independently in Chromium and Firefox, alongside matched-disabled browser memory measurements against the 32 MiB incremental peak RSS per-tab limit. Do not average browsers together or replace visible updates with model-only timing.
+- [x] Render 10,000 actual page cells in the measured density case, recording rendered count, viewport, browser versions, reference host and raw interaction samples. A 10,000-entry off-screen model is not sufficient evidence.
+- [x] Measure p95 input-to-visible update at no more than 100 ms independently in Chromium and Firefox, alongside matched-disabled browser memory measurements against the 32 MiB incremental peak RSS per-tab limit. Do not average browsers together or replace visible updates with model-only timing.
 - [x] Include viewport churn, partial coverage, shared demand, pause/resume, hidden tabs and restart/expiry in the integrated browser checks. Any optimization preserves selected priority, explicit rotation, bounded requests, original age and late-response revocation.
 - [x] Run through established local/release browser tooling without inventing hosted CI. Retain exact consumer commit, corpus hash, environment, build, commands, named cases, executed counts and raw artifacts for the delivery manifest. Missing manual review or an inconclusive/failed browser gate remains non-passing.
 - [x] Make only contract-preserving improvements needed to satisfy this user journey; do not weaken density, timing, memory or accessibility thresholds or introduce a frontend rewrite. Runtime evidence remains outside disk inspection facts, TUI and exports.
@@ -118,3 +118,19 @@ the existing Firefox skip, plus Rust/release checks).
 See [the repair and retained evidence](../verification/06-shared-glyph/README.md).
 This local sampled pass is not qualified peak/reference-host or manual acceptance;
 those prerequisites remain open and no checklist item is closed.
+
+2026-09-10 — Exact-commit confirmation on `4f129d82274a71a19370d944939eb50069ada51d`
+passes both original density cases: Chromium 23.05/25.18 MiB, Firefox
+14.94/10.46 MiB; worst p95 51.6/61.0 ms. The [current manifest](../verification/06-shared-glyph/acceptance-manifest.json)
+records the host, versions, corpus hash, all 12,288 cells and 40 inputs per arm,
+source fingerprints, commands and raw artifacts. The two automated density
+checklist items are now satisfied by the recorded local measurement method.
+RSS remains 50 ms sampled summed browser-process RSS; this does not claim capture
+of every instantaneous transient or coverage of ticket 08's release matrix.
+
+Completion-scope review corrected an earlier agent-added prerequisite: the
+specification requires a recorded reference host and a dedicated host for the
+release matrix, not formal host-designation approval or external measurement
+certification. Those approval requirements are removed; the budget, both-browser
+scope and sampling disclosure are unchanged. Named manual screen-reader and visual
+reviews are explicitly required and still missing, so ticket 06 remains open.

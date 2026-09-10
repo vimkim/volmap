@@ -1,0 +1,152 @@
+{
+  "ticket": "06",
+  "consumer_commit": "4f129d82274a71a19370d944939eb50069ada51d",
+  "acceptance": "non-passing: required named manual screen-reader and visual reviews are missing",
+  "build": "release",
+  "commands": {
+    "density": "VOLMAP_DENSITY_PORT=41744 just vite::frontend-density",
+    "verification": "just verify"
+  },
+  "density_exit_code": 0,
+  "density_tests": {
+    "executed": 2,
+    "passed": 2,
+    "failed": 0,
+    "skipped": 0
+  },
+  "browser_cases": [
+    {
+      "browser": "chromium",
+      "versions": [
+        "151.0.7922.34"
+      ],
+      "corpus_sha256": "39e8c6b0f102be1abe919059269d097c6a6a19e9ec82a14fedb265b8caf0a96f",
+      "host": {
+        "name": "dev2",
+        "kernel": "5.14.0-570.30.1.el9_6.x86_64",
+        "cpu": "Intel(R) Xeon(R) Gold 5218R CPU @ 2.10GHz",
+        "logicalCpus": 80,
+        "memoryBytes": 134261731328
+      },
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "actual_laid_out_cells": 12288,
+      "initial_cells_in_viewport": 1984,
+      "executed_arms": 4,
+      "executed_inputs": 160,
+      "state_lru_incremental_peak_rss_bytes": [
+        24170496,
+        26402816
+      ],
+      "p95_ms": 51.599999994039536,
+      "state_lru_p95_ms": {
+        "state": 51.599999994039536,
+        "lru": 49.899999998509884
+      },
+      "timing_status": "local-pass",
+      "memory_status": "local-sampled-pass",
+      "raw_archive": "committed-density.tar.gz",
+      "raw_member": "web/test-results/overlay-density-12288-rend-3d09e-ible-latency-and-paired-RSS-chromium/density-chromium.json"
+    },
+    {
+      "browser": "firefox",
+      "versions": [
+        "153.0"
+      ],
+      "corpus_sha256": "39e8c6b0f102be1abe919059269d097c6a6a19e9ec82a14fedb265b8caf0a96f",
+      "host": {
+        "name": "dev2",
+        "kernel": "5.14.0-570.30.1.el9_6.x86_64",
+        "cpu": "Intel(R) Xeon(R) Gold 5218R CPU @ 2.10GHz",
+        "logicalCpus": 80,
+        "memoryBytes": 134261731328
+      },
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "actual_laid_out_cells": 12288,
+      "initial_cells_in_viewport": 1984,
+      "executed_arms": 4,
+      "executed_inputs": 160,
+      "state_lru_incremental_peak_rss_bytes": [
+        15667200,
+        10964992
+      ],
+      "p95_ms": 61,
+      "state_lru_p95_ms": {
+        "state": 61,
+        "lru": 53
+      },
+      "timing_status": "local-pass",
+      "memory_status": "local-sampled-pass",
+      "raw_archive": "committed-density.tar.gz",
+      "raw_member": "web/test-results/overlay-density-12288-rend-3d09e-ible-latency-and-paired-RSS-firefox/density-firefox.json"
+    }
+  ],
+  "verification": {
+    "exit_code": 0,
+    "frontend_passed": 73,
+    "browser_passed": 47,
+    "browser_existing_skipped": 1,
+    "rust_release_checks": "passed",
+    "raw_archive": "verify.tar.gz",
+    "source_match": "Six hashes in source-manifest.json match committed production/test sources",
+    "rust_passed": 306,
+    "rust_existing_ignored": 3
+  },
+  "manual_screen_reader": {
+    "status": "missing",
+    "reviewer": null,
+    "assistive_technology": null
+  },
+  "manual_visual_review": {
+    "status": "missing",
+    "reviewer": null
+  },
+  "review": {
+    "standards": "no remaining confirmed findings after occupancy correction",
+    "spec": "no remaining confirmed implementation findings after occupancy correction"
+  },
+  "source_sha256": {
+    "src/web/assets/app.css": "3a259dcada1ff41a528173e3999460510e10c9e284a61268855118d629008990",
+    "web/src/view.tsx": "61229a9dd01765f8250eb4ea49206e50b03a1a319cb6befbaf0bee20869f5d20",
+    "web/src/observations.css": "89e75b58a1d51066b7b9a2afa7de4bd9c42b8523e8bb678c124029a87b79118d",
+    "web/e2e/observations.spec.ts": "814c895513e5a789930ddfbf77ff3821cde9bde0a882bd710d150298fa10f45e",
+    "src/web/generated/frontend.css": "381f919cf14c0b515b4532a09db3ebdd069c5677f530012e3d246da21c37994b",
+    "src/web/generated/frontend.js": "dc6e7edc50f6c3f6bd4e9b7871cb4637a739eafce3a1666e76f1f5b16a626c75"
+  },
+  "reference_host": {
+    "recorded_in": "browser_cases.host",
+    "name": "dev2",
+    "designation_approval": "not required by specification",
+    "dedicated_release_matrix": "ticket 08; not established by this density case"
+  },
+  "memory_method": {
+    "status": "local sampled gate passed",
+    "method": "50 ms sampled summed browser-process-tree RSS",
+    "limitation": "Sampling may miss transient peaks; no claim of instantaneous peak capture or release-matrix coverage"
+  },
+  "owner": "Volmap",
+  "testcase_revision": "4f129d82274a71a19370d944939eb50069ada51d",
+  "density_test": {
+    "file": "web/e2e/overlay-density.spec.ts",
+    "case": "12288 rendered page cells: per-browser visible latency and paired RSS"
+  },
+  "producer": {
+    "kind": "synthetic protocol fixture",
+    "file": "web/e2e/producer-fixture.py",
+    "source_commit": "4f129d82274a71a19370d944939eb50069ada51d",
+    "source_sha256": "575efddca7d90cafe477f7f3b8b6b64e751bd6d0350d677aac3fdabeca9c58f3",
+    "real_engine_validation": "ticket 07; not claimed here"
+  },
+  "artifact_sha256": {
+    "committed-density.tar.gz": "46706048f08561e7766cc4fcd7d260c56df9ab294d072af1fbfc1bf7a4562024",
+    "verify.tar.gz": "0f9de4da3072ac090536b43ad3fbc0c2b7a6b2d412c1d94a844cc9285e7cbdce",
+    "production-density.tar.gz": "4050e10f6698acfb9b0268a0e38ad65a942245d8aded418ce1ce743e0cbac54c",
+    "final-regression-green.tar.gz": "a8ea6a682d29e957333ffe9f6cf2b3ebdf93e22c667361094b5d4f6e57bfb3ca"
+  },
+  "manual_review_record": "manual-review.md"
+}

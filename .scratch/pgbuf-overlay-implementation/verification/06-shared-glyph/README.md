@@ -92,13 +92,13 @@ fully visible cells, 1920×1080 viewport, and all 40 real Tab inputs. Both order
 alternated state/LRU pairs, 50 ms summed-RSS sampling, the 32 MiB ceiling and
 100 ms timing limit remain unchanged. No forced GC or inflated disabled workload
 is introduced. This is checkout `9ebced2` plus the recorded repair source;
-an exact-commit rerun must follow the source commit.
+the exact-commit confirmation follows below.
 
-This is a passing **local sampled diagnostic**, not proof of a designated
-reference host, qualified peak measurement, or named manual screen-reader and
-visual reviews. Those requirements remain outstanding. No failed historical
-result is replaced by this pass, and one run does not establish statistical
-repeatability across hosts or browser versions.
+This is a passing **local sampled diagnostic**, not proof of every instantaneous
+transient or ticket 08's dedicated-host release matrix. Named manual screen-reader
+and visual reviews remain outstanding. No failed historical result is replaced
+by this pass, and one run does not establish statistical repeatability across
+hosts or browser versions.
 
 `just verify` passes on the final source: Rust, Clippy, static-musl release and
 generated-asset checks, 73 frontend unit tests and 47 browser passes with the
@@ -108,3 +108,39 @@ archiving new captures. `source-manifest.json` identifies all six changed source
 test and generated files; `repair.patch.gz` retains their exact delta against
 `9ebced2`. Both standards and spec reviewers confirmed the occupancy corrections
 and reported no remaining confirmed implementation findings.
+
+## Exact-commit confirmation and remaining acceptance
+
+The same original density command passes again on committed source
+`4f129d82274a71a19370d944939eb50069ada51d`:
+
+| Browser | State increment | LRU increment | Worst enabled p95 |
+| --- | ---: | ---: | ---: |
+| Chromium | 23.05 MiB | 25.18 MiB | 51.6 ms |
+| Firefox | 14.94 MiB | 10.46 MiB | 61.0 ms |
+
+`committed-density.tar.gz` retains original reports and the exit-0 log.
+`acceptance-manifest.json` maps current source fingerprints, corpus, browser
+versions, recorded host, commands, counts, outcomes and raw evidence. Both
+corrected production runs pass both browsers and retain the full original
+12,288-cell / 40-input workload. Production and test sources are unchanged from
+the passing verification run; unrelated user Markdown changes remain separate.
+
+Completion-scope review found no minimum resident/dirty/populated-LRU count in
+the dense performance case. Semantic coverage is a separate requirement exercised
+by the integrated browser suite; zero-resident native probes limit allocation
+claims but do not waive any semantic case or prove resident-heavy performance.
+
+The same audit corrected earlier agent-added approval prerequisites. Spec Testing
+§9 requires a recorded reference host; §12 requires a recorded dedicated host
+for the accepted release performance matrix, owned by ticket 08. Neither requires
+formal host-designation approval or external measurement certification. Those
+extra approval conditions are not retained. RSS sampling limitations remain
+disclosed, the 32 MiB gate is unchanged, and release-matrix coverage is not claimed.
+Ticket 06's automated local gates pass; its explicitly required named manual
+screen-reader and visual reviews remain missing. **Overall acceptance is still
+non-passing.**
+
+Use [the manual review record](manual-review.md) for the remaining reviewer
+identity, assistive technology, executed cases and outcomes. It includes the
+existing synthetic preview command; no actual review result has been prefilled.
