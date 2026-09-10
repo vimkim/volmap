@@ -1,0 +1,9 @@
+cargo +1.97.1 build --release --locked --target x86_64-unknown-linux-musl
+   Compiling volmap v0.0.0 (/home/vimkim/temp/volmap)
+    Finished `release` profile [optimized] target(s) in 51.17s
+file target/x86_64-unknown-linux-musl/release/volmap
+target/x86_64-unknown-linux-musl/release/volmap: ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), static-pie linked, BuildID[sha1]=9762df2a75ac70863aa0bf5d9c6ff2e031049f7a, stripped
+! readelf -l target/x86_64-unknown-linux-musl/release/volmap | rg -q 'INTERP'
+! readelf -d target/x86_64-unknown-linux-musl/release/volmap | rg -q 'NEEDED'
+! readelf -V target/x86_64-unknown-linux-musl/release/volmap | rg -q 'GLIBC_'
+ldd target/x86_64-unknown-linux-musl/release/volmap 2>&1 | rg -q 'statically linked|not a dynamic executable'

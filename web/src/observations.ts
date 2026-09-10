@@ -37,6 +37,7 @@ function validObservationState(value: { state: string; reason: string }): value 
 }
 
 export interface ObservationBatch {
+  readonly topology?: { readonly shared: number; readonly private: number };
   readonly rows: readonly ObservationRow[];
   readonly capability: RuntimeCapabilityState;
   readonly pages: ObservationRequest["pages"];
@@ -56,6 +57,7 @@ export interface ObservationBatch {
 }
 
 export interface ObservationUi {
+  readonly colorMode: "state" | "lru";
   readonly viewport: ObservationRequest["pages"];
   readonly viewportCount: number;
   readonly rotation: number;
@@ -74,6 +76,7 @@ export interface ObservationUi {
 }
 
 export type ObservationAction =
+  | Readonly<{ kind: "observation-color-mode"; mode: "state" | "lru" }>
   | Readonly<{ kind: "observation-viewport"; scope: string; pages: ObservationRequest["pages"] }>
   | Readonly<{ kind: "observation-due"; epoch: number }>
   | Readonly<{ kind: "toggle-observation" }>
@@ -97,11 +100,12 @@ export interface ObservationEffect {
 }
 
 export function initialObservation(): ObservationUi {
-  return { viewport: [], viewportCount: 0, rotation: 0, enabled: false, epoch: 0, loading: false, batch: null, received: 0, wallReceived: 0, age: null, message: "Not observed", failures: 0, stopped: false, resumeRequired: false, newerAvailable: false };
+  return { colorMode: "state", viewport: [], viewportCount: 0, rotation: 0, enabled: false, epoch: 0, loading: false, batch: null, received: 0, wallReceived: 0, age: null, message: "Not observed", failures: 0, stopped: false, resumeRequired: false, newerAvailable: false };
 }
 
 export function observationAction(state: UiState, action: ObservationAction): UiState {
   const previous = state.observation;
+  if (action.kind === "observation-color-mode") return { ...state, observation: { ...previous, colorMode: action.mode } };
   if (action.kind === "observation-viewport") {
     if (action.scope !== state.scope || samePages(previous.viewport, action.pages)) return state;
     return scheduleObservation({ ...state, observation: { ...previous, viewport: action.pages,
@@ -280,7 +284,8 @@ export function decodeObservation(value: unknown): ObservationBatch {
   const capabilityState = decodeCapability(capability);
   const capture = data.capture === null ? null : objectData(data.capture);
   if ((capture !== null) !== ["active", "stale"].includes(capabilityState)) throw new Error("inconsistent capture");
-  const rows = data.observations.map((value, index) => decodeRow(value, pages[index]!, capture !== null, data.producer_complete));
+  const topology = capture === null || (capture.shared_lru_count === undefined && capture.private_lru_count === undefined) ? undefined : { shared: count(capture.shared_lru_count, 2147483647), private: count(capture.private_lru_count, 2147483647) };
+  const rows = data.observations.map((value, index) => decodeRow(value, pages[index]!, capture !== null, data.producer_complete, topology));
   const requested = count(data.requested_count);
   const evaluated = count(data.evaluated_count);
   const evaluatedRows = rows.filter((row) => row.reason !== "unevaluated" && row.state !== "unavailable" && row.state !== "expired").length;
@@ -293,6 +298,7 @@ export function decodeObservation(value: unknown): ObservationBatch {
     incarnation: capture === null ? null : text(capture.incarnation_binding),
     captureIdentity: capture === null ? undefined : text(capture.identity),
     captureLabel: capture === null ? "No capture" : `Verified · database ${text(capture.database_fingerprint).slice(0, 12)} · Protocol ${count(capture.protocol_major)}.${count(capture.protocol_minor, 2147483647)} · ${text(capture.incarnation)} · scan ${text(capture.sequence)} · ${text(capture.start_time_us)}–${text(capture.end_time_us)} µs (source wall time)`,
+    topology,
     rows, evidence: row?.evidence ?? {}, requested, evaluated, complete: data.producer_complete,
     limitations: data.limitations.map(text) };
 }
@@ -310,7 +316,7 @@ export function observationInterval(state: UiState): number {
   return "page" in state.route ? 500 : 2000;
 }
 
-function decodeRow(value: unknown, page: ObservationRequest["pages"][number], captured: boolean, complete: unknown): ObservationRow {
+function decodeRow(value: unknown, page: ObservationRequest["pages"][number], captured: boolean, complete: unknown, topology: ObservationBatch["topology"]): ObservationRow {
   const row = objectData(value);
   const classification = { state: text(row.state), reason: text(row.reason) };
   if (!validObservationState(classification)) throw new Error("invalid observation classification");
@@ -324,6 +330,7 @@ function decodeRow(value: unknown, page: ObservationRequest["pages"][number], ca
   const evidence: Record<string, string> = {};
   if (row.evidence !== null) {
     const fields = objectData(row.evidence);
+    validateLru(fields, topology);
     for (const field of ["page_kind", "latch_mode", "waiter_present", "fix_count", "dirty", "flushing", "async_flush_requested", "to_vacuum", "lru_zone", "lru_list_kind", "lru_list_index", "page_lsa", "oldest_unflush_lsa"]) {
       const item = fields[field];
       if (item === undefined) evidence[field] = "unknown";
@@ -334,4 +341,20 @@ function decodeRow(value: unknown, page: ObservationRequest["pages"][number], ca
     }
   }
   return { ...page, ...classification, evidence };
+}
+
+// Validate the normalized tuple as a unit before any color or list count can
+// acquire authority. Missing optional members stay unknown, never zero/none.
+function validateLru(fields: Record<string, unknown>, topology: ObservationBatch["topology"]): void {
+  const zone = fields.lru_zone;
+  const kind = fields.lru_list_kind;
+  const index = fields.lru_list_index;
+  if (zone !== undefined && !["lru1", "lru2", "lru3", "void", "invalid"].includes(String(zone)) ||
+      kind !== undefined && !["shared", "private", "none", "invalid"].includes(String(kind))) throw new Error("invalid LRU semantics");
+  if (index !== undefined && index !== null) count(index, 2147483647);
+  if (index !== undefined && (kind === "shared" || kind === "private") &&
+      (index === null || topology === undefined || Number(index) >= topology[kind])) throw new Error("invalid LRU index");
+  if ((kind === "none" || kind === "invalid") && index !== undefined && index !== null ||
+      ["lru1", "lru2", "lru3"].includes(String(zone)) && kind === "none" ||
+      (zone === "void" || zone === "invalid") && ["shared", "private", "invalid"].includes(String(kind))) throw new Error("incoherent LRU tuple");
 }

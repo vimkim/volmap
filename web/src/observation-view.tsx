@@ -45,6 +45,7 @@ export function useObservationViewport(state: UiState, dispatch: Dispatch<Action
 export function observationLabel(row: ObservationRow | undefined): string {
   if (row?.state === "resident") return "◉ Observed resident";
   if (row?.state === "not-resident") return "○ Observed not resident";
+  if (row?.reason === "duplicate-vpid") return "≠ Duplicate ambiguity · duplicate-vpid";
   return row === undefined ? "? Not evaluated" : `? ${row.state} · ${row.reason}`;
 }
 
@@ -57,9 +58,8 @@ export function ObservationMetadata({ state, children, detail, summary = "Captur
   const observation = state.observation;
   const batch = observation.batch;
   if (batch === null) return null;
-  const interval = observationInterval(state);
   return <>
-    <p>{observation.age === null ? "Age uncertain" : `Conservative age: ${Math.ceil(observation.age / 1000)} s · ${observationIsFresh(observation.age, interval) ? `fresh (${interval} ms interval)` : `stale (${interval} ms interval)`}`}{state.follow.paused ? " · paused" : ""}</p>
+    <ObservationAge state={state} />
     <p>Evaluated {batch.evaluated} / requested {batch.requested}; producer scan {batch.complete === null ? "unavailable" : batch.complete ? "complete" : "partial"}.</p>
     {children}
     <details><summary>{summary}</summary>
@@ -79,12 +79,99 @@ export function VisibleObservations({ state }: { readonly state: UiState }) {
     <p>{observation.message}</p>
     <p>{batch?.requested ?? 0} admitted / {observation.viewportCount} visible pages.
       {observation.viewportCount > 512 ? " Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch." : ""}</p>
+    <LruSummary state={state} />
     {batch !== null ? <ObservationMetadata state={state} summary="Available page observations and capture limitations" detail={
-        <table><thead><tr><th>VPID</th><th>Observation</th><th>Dirty</th><th>Flushing</th></tr></thead>
-          <tbody>{batch.rows.map((row) => <tr key={`${row.volid}:${row.pageid}`}><td>{row.volid}:{row.pageid}</td><td>{observationLabel(row)}</td><td>{row.evidence.dirty ?? "unknown"}</td><td>{row.evidence.flushing ?? "unknown"}</td></tr>)}</tbody>
+        <table><thead><tr><th>VPID</th><th>Observation</th><th>Dirty</th><th>Flushing</th><th>LRU zone</th><th>List kind</th></tr></thead>
+          <tbody>{batch.rows.map((row) => <tr key={`${row.volid}:${row.pageid}`}><td>{row.volid}:{row.pageid}</td><td>{observationLabel(row)}</td><td>{row.evidence.dirty ?? "unknown"}</td><td>{row.evidence.flushing ?? "unknown"}</td><td>{row.evidence.lru_zone ?? "unknown"}</td><td>{row.evidence.lru_list_kind ?? "unknown"}</td></tr>)}</tbody>
         </table>
     }>
       <p>{batch.rows.filter((row) => row.state === "resident").length} observed resident · {batch.rows.filter((row) => row.state === "not-resident").length} observed not resident · {batch.rows.filter((row) => row.state === "unknown").length} unknown.</p>
     </ObservationMetadata> : <p>No usable batch. Disk facts remain independently observed.</p>}
   </section>;
+}
+
+// One current batch only. Never union scopes or captures into pool counters.
+export function observationRows(state: UiState): ReadonlyMap<string, ObservationRow> {
+  return new Map(state.observation.batch?.rows.map((row) => [`${row.volid}:${row.pageid}`, row]) ?? []);
+}
+
+export function runtimePage(state: UiState, row: ObservationRow | undefined) {
+  const observation = state.observation;
+  if (!observation.enabled) return { className: "", label: "", glyph: "", state: undefined };
+  const available = state.runtimeCapability === "active" || state.runtimeCapability === "stale";
+  if (!available || observation.batch === null) {
+    const expired = observation.message === "Observation expired";
+    return { className: "", label: expired ? "Observation expired" : `No usable observation · source ${state.runtimeCapability ?? "connecting"}`, glyph: "", state: expired ? "expired" : "unavailable" };
+  }
+  const label = observationLabel(row);
+  if (row?.state !== "resident") return { className: observation.colorMode === "lru" ? " runtime-lru zone-unknown" : "", label, glyph: row?.state === "not-resident" ? "○" : row?.reason === "duplicate-vpid" ? "≠" : "?", state: row?.state ?? "unknown" };
+  const evidence = row.evidence;
+  const dirty = evidence.dirty === "true";
+  const flushing = evidence.flushing === "true";
+  const zone = evidence.lru_zone;
+  const kind = evidence.lru_list_kind;
+  const topology = observation.colorMode === "lru";
+  const knownZone = ["lru1", "lru2", "lru3", "void", "invalid"].includes(zone ?? "");
+  const stale = !observationIsFresh(observation.age, observationInterval(state));
+  return {
+    className: ` runtime-resident${dirty ? " runtime-dirty" : ""}${flushing ? " runtime-flushing" : ""}${stale ? " runtime-stale" : ""}${topology ? ` runtime-lru zone-${knownZone ? zone : "unknown"}${kind === "private" ? " lru-private" : ""}` : ""}`,
+    label: `${label} · dirty ${evidence.dirty} · flushing ${evidence.flushing}${topology ? ` · ${zone} · ${kind} membership` : ""}${stale ? " · stale" : ""}`,
+    glyph: `${topology ? ({ lru1: "1", lru2: "2", lru3: "3", void: "V", invalid: "!" }[zone ?? ""] ?? "?") : "◉"}${dirty ? "D" : ""}${flushing ? "F" : ""}`,
+    state: "resident",
+  };
+}
+
+export function ObservationLegend({ state }: { readonly state: UiState }) {
+  if (!state.observation.enabled) return null;
+  return <section className="runtime-legend" aria-label="Runtime overlay legend">
+    <p>{state.observation.colorMode === "lru" ? "LRU topology colors replace storage colors: 1 lru1 · 2 lru2 · 3 lru3 · V void · ! invalid · ? unknown. Private membership has a dashed edge." : "Storage colors retained. ◉ cyan inset: observed resident · D amber corner: dirty · F static magenta edge: flushing."}</p>
+    <p>○ observed not resident · ? unknown / not evaluated · ≠ duplicate ambiguity. No usable source or expired evidence: storage colors only, no runtime marks. Sampled states, not events or durability evidence.</p>
+    <ObservationAge state={state} />
+    <p>Source: {state.runtimeCapability ?? "connecting"} · {state.follow.paused ? "Paused adoption" : "Adopting observations"} · {state.observation.message}</p>
+  </section>;
+}
+
+export function LruSummary({ state }: { readonly state: UiState }) {
+  const batch = state.observation.batch;
+  if (batch === null) return null;
+  const counts = new Map<string, number>();
+  for (const row of batch.rows) {
+    const { lru_list_kind: kind, lru_list_index: index } = row.evidence;
+    if (row.state !== "resident" || !["shared", "private"].includes(kind ?? "") || !/^\d+$/.test(index ?? "")) continue;
+    const key = `${kind} list ${index}`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return <div className="lru-summary">
+    <p>{batch.topology ? `Shared lists: ${batch.topology.shared} · Private lists: ${batch.topology.private}` : "Topology counts unknown"}. Indices are incarnation-local.</p>
+    <details><summary>Observed per-list counts in this batch only</summary>
+      <p>{batch.complete ? "Complete producer scan; summary limited to evaluated requested pages." : "Partial producer scan; partial summary of evaluated requested pages."} Not pool totals, native counters or quotas. Captures are never combined.</p>
+      {counts.size === 0 ? <p>No exact list membership observed in this batch.</p> : <ul>{[...counts].sort(([a], [b]) => a.localeCompare(b, "en", { numeric: true })).map(([list, count]) => <li key={list}>{list}: {count} observed resident</li>)}</ul>}
+    </details>
+  </div>;
+}
+
+export function sectorObservationLabel(state: UiState, rows: ReadonlyMap<string, ObservationRow>, pages: readonly { vol_id: number; page_id: number }[]): string {
+  if (!state.observation.enabled) return "";
+  const counts = new Map<string, number>();
+  for (const page of pages) {
+    const runtime = runtimePage(state, rows.get(`${page.vol_id}:${page.page_id}`));
+    // Keep the sector button concise; exact per-page observations remain in
+    // the named disclosure table and the keyboard-accessible Sector grid.
+    const label = runtime.state === "resident" ? "observed resident" : runtime.label;
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  return `, buffer observations: ${[...counts].map(([label, count]) => `${count} ${label}`).join("; ")}`;
+}
+
+export function compactObservationLabel(row: ObservationRow | undefined): string {
+  if (row?.state === "resident" || row?.state === "not-resident") return observationLabel(row);
+  if (row?.reason === "duplicate-vpid") return "≠ Duplicate ambiguity";
+  if (row?.reason === "partial-omission") return "? Partial gap";
+  return "? Not evaluated";
+}
+
+function ObservationAge({ state }: { readonly state: UiState }) {
+  const { observation } = state;
+  const interval = observationInterval(state);
+  return <p>{observation.batch === null ? "No retained capture" : observation.age === null ? "Age uncertain" : `Conservative age: ${Math.ceil(observation.age / 1000)} s · ${observationIsFresh(observation.age, interval) ? "fresh" : "stale"} (${interval} ms interval)`}{state.follow.paused ? " · paused" : ""}</p>;
 }

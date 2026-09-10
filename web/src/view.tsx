@@ -1,4 +1,4 @@
-import { ObservationMetadata, VisibleObservations, observationLabel, useObservationViewport } from "./observation-view";
+import { compactObservationLabel, ObservationLegend, LruSummary, ObservationMetadata, VisibleObservations, observationRows, runtimePage, sectorObservationLabel, useObservationViewport } from "./observation-view";
 import { useEffect, useRef, type CSSProperties, type Dispatch, type KeyboardEvent } from "react";
 
 import type {
@@ -77,6 +77,7 @@ function sectorAttributionDetail(sector: Sector): string {
 function VolumeMap({ state, dispatch }: Pick<ViewerProps, "state" | "dispatch">) {
   if (state.view?.kind !== "volume") return null;
   const { view } = state;
+  const rows = observationRows(state);
   return (
     <section className="volume-view">
       <div className="workspace-title">
@@ -87,7 +88,7 @@ function VolumeMap({ state, dispatch }: Pick<ViewerProps, "state" | "dispatch">)
             {state.snapshot?.revision ?? "unknown"}
           </p>
         </div>
-        <div id="legend" aria-label="Page allocation and occupancy legend">
+        <div id="legend" aria-label="Page allocation and occupancy legend" hidden={state.observation.enabled && state.observation.colorMode === "lru" && state.observation.batch !== null && ["active", "stale"].includes(state.runtimeCapability ?? "")}>
           <span><i className="swatch unreserved" />Unreserved</span>
           <span><i className="swatch reserved-unallocated" />Reserved, unallocated</span>
           <span><i className="swatch allocated" />Occupied</span>
@@ -96,6 +97,7 @@ function VolumeMap({ state, dispatch }: Pick<ViewerProps, "state" | "dispatch">)
           <span><i className="swatch finding" />Finding outline</span>
         </div>
       </div>
+      <ObservationLegend state={state} />
       <div id="volumeMap" aria-label="Full volume sector map">
         {view.sectors.map((sector) => {
           const table = sectorAttributionLabel(sector);
@@ -106,7 +108,7 @@ function VolumeMap({ state, dispatch }: Pick<ViewerProps, "state" | "dispatch">)
               id={`sector-${sector.sector_id}`}
               key={sector.sector_id}
               type="button"
-              aria-label={`Sector ${sector.sector_id}, ${sector.reserved ? "reserved" : "unreserved"}${table ? `, ${table}` : ""}${fileType ? `, file type ${fileType}` : ""}, 64 pages`}
+              aria-label={`Sector ${sector.sector_id}, ${sector.reserved ? "reserved" : "unreserved"}${table ? `, ${table}` : ""}${fileType ? `, file type ${fileType}` : ""}, 64 pages${sectorObservationLabel(state, rows, sector.pages)}`}
               onClick={() =>
                 dispatch({
                   kind: "navigate",
@@ -123,14 +125,18 @@ function VolumeMap({ state, dispatch }: Pick<ViewerProps, "state" | "dispatch">)
                 {fileType ? <small className="sector-file-type">{fileType}</small> : null}
               </span>
               <span className="sector-preview-pages">
-                {sector.pages.map((page) => (
-                  <i
+                {sector.pages.map((page) => {
+                  const runtime = runtimePage(state, rows.get(`${page.vol_id}:${page.page_id}`));
+                  return <i
                     aria-hidden="true"
-                    className={pageClass(page, "preview-page")}
+                    data-observation-page={`${page.vol_id}:${page.page_id}`}
+                    data-runtime-state={runtime.state}
+                    title={`Page ${page.page_id}: ${runtime.label}`}
+                    className={pageClass(page, "preview-page") + runtime.className}
                     key={page.page_id}
                     style={pageStyle(page)}
-                  />
-                ))}
+                  ><span className="runtime-glyph">{runtime.glyph}</span></i>;
+                })}
               </span>
             </button>
           );
@@ -234,6 +240,8 @@ function ObservationDetail({ state }: Pick<ViewerProps, "state">) {
       <p className={`observation-mark observation-${batch?.state ?? "unknown"}`}>{label}</p>
       {batch !== null ? <>
         <p>VPID {batch.pages[0]?.volid}:{batch.pages[0]?.pageid} · {batch.reason}</p>
+        <LruSummary state={state} />
+        <p>Membership is one sampled tuple. none means no list; invalid means unclassified membership; null means no applicable index. Missing fields remain unknown. Indices identify lists only within this server incarnation.</p>
         <ObservationMetadata state={state}>
         <FieldList fields={Object.entries(batch.evidence).map(([name, value]) => [name.replaceAll("_", " "), value])} />
         </ObservationMetadata>
@@ -605,6 +613,7 @@ function SectorWorkspace({ state, dispatch }: Pick<ViewerProps, "state" | "dispa
   if (state.view?.kind !== "sector") return null;
   const sector = state.view.sector;
   const detail = sectorAttributionDetail(sector);
+  const rows = observationRows(state);
   return (
     <>
       <div className="workspace-title">
@@ -614,12 +623,17 @@ function SectorWorkspace({ state, dispatch }: Pick<ViewerProps, "state" | "dispa
           {detail ? <p className="muted">{detail}</p> : null}
         </div>
       </div>
+      <ObservationLegend state={state} />
       <section className="sector-focus">
         <div className="sector-focus-grid" role="grid" aria-label={`Sector ${sector.sector_id}, 64 physical pages`}>
-          {sector.pages.map((page, index) => (
-            <button
-              aria-label={`Page ${page.page_id}, ${page.allocation}${pageOccupancyLabel(page)}${page.diagnostic.state === "known" ? ", finding" : ""}`}
-              className={pageClass(page, "focus-page")}
+          {sector.pages.map((page, index) => {
+            const runtime = runtimePage(state, rows.get(`${page.vol_id}:${page.page_id}`));
+            return <button
+              data-observation-page={`${page.vol_id}:${page.page_id}`}
+              data-runtime-state={runtime.state}
+              title={runtime.label}
+              aria-label={`Page ${page.page_id}, ${page.allocation}${pageOccupancyLabel(page)}${page.diagnostic.state === "known" ? ", finding" : ""}${runtime.label ? `, ${runtime.label}` : ""}`}
+              className={pageClass(page, "focus-page") + runtime.className}
               key={page.page_id}
               role="gridcell"
               style={pageStyle(page)}
@@ -638,9 +652,10 @@ function SectorWorkspace({ state, dispatch }: Pick<ViewerProps, "state" | "dispa
                 {page.page_type.state === "known" ? page.page_type.value : "not inspected"}
               </span>
               <span className="page-id">{page.page_id}</span>
-              {state.observation.enabled ? <small>{observationLabel(state.observation.batch?.rows.find((row) => row.volid === page.vol_id && row.pageid === page.page_id))}</small> : null}
-            </button>
-          ))}
+              {state.observation.enabled ? <small className="runtime-cell-label">{runtime.state === "unavailable" ? "Source unavailable" : runtime.state === "expired" ? "Expired" : compactObservationLabel(rows.get(`${page.vol_id}:${page.page_id}`))}</small> : null}
+              <span className="runtime-glyph" aria-hidden="true">{runtime.glyph}</span>
+            </button>;
+          })}
         </div>
       </section>
     </>
@@ -727,6 +742,11 @@ export function Viewer({ state, dispatch, nowUnixSeconds }: ViewerProps) {
               {state.observation.enabled ? "Disable observations" : "Enable observations"}
             </button>
             {state.observation.enabled ? <>
+              <label className="runtime-mode">Runtime color mode
+                <select value={state.observation.colorMode} onChange={(event) => dispatch({ kind: "observation-color-mode", mode: event.target.value === "lru" ? "lru" : "state" })}>
+                  <option value="state">State marks</option><option value="lru">LRU topology</option>
+                </select>
+              </label>
               <button type="button" disabled={state.follow.paused || !state.visible || state.observation.loading || state.route.kind === "root"}
                 onClick={() => dispatch({ kind: "refresh-observation" })}>{"page" in state.route ? "Refresh selected-page observation" : "Refresh visible-page observations"}</button>
               <p>{state.observation.loading ? (state.follow.paused ? "Checking observation availability…" : ("page" in state.route ? "Observing selected page…" : "Observing visible pages…")) : state.observation.message}</p>

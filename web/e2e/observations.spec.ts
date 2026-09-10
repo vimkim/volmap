@@ -189,3 +189,169 @@ test("viewport overflow rotates explicitly; scrolling revokes scope and HTTP ove
   await page.getByRole("button", { name: /^Sector 0,/ }).click();
   await expect(page.getByRole("heading", { name: "Sector 0", exact: true })).toBeVisible();
 });
+
+for (const scale of ["volume/0", "sector/0/0"]) {
+  test(`${scale} composes state marks and switches to explicitly labelled LRU colors`, async ({ page }) => {
+    await page.goto(`http://127.0.0.1:41741/${scale}`, { waitUntil: "commit" });
+    await page.getByRole("button", { name: "Enable observations" }).click();
+    const mode = page.getByRole("combobox", { name: "Runtime color mode" });
+    await expect(mode).toHaveValue("state");
+    const coverage = page.getByRole("region", { name: "Visible-page buffer observations" });
+    await expect(coverage).toContainText("observed resident");
+    const cell = page.locator('[data-observation-page="0:10"]');
+    // The Volume scope rotates; freeze adoption as soon as this page is covered.
+    await expect(cell).toHaveAttribute("data-runtime-state", "resident");
+    await page.getByRole("button", { name: "Pause", exact: true }).click();
+    await expect(cell).toHaveClass(/runtime-resident/);
+    await expect(cell).toHaveAttribute("title", /Observed resident/);
+    await mode.focus();
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("Tab");
+    await expect(mode).toHaveValue("lru");
+    await expect(cell).toHaveClass(/runtime-lru/);
+    await coverage.getByText("Available page observations and capture limitations", { exact: true }).click();
+    const observedRow = coverage.getByRole("row").filter({ has: page.getByRole("cell", { name: "0:10", exact: true }) });
+    await expect(observedRow.getByRole("cell", { name: "lru2", exact: true })).toBeVisible();
+    await expect(observedRow.getByRole("cell", { name: "private", exact: true })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Runtime overlay legend" })).toContainText("LRU topology colors replace storage colors");
+    await expect(coverage).toContainText("Shared lists: 2");
+    await expect(coverage).toContainText("incarnation-local");
+    await expect(coverage).toContainText("Observed per-list counts in this batch only");
+    await mode.selectOption("state");
+    await expect(cell).not.toHaveClass(/runtime-lru/);
+  });
+}
+
+for (const scale of ["volume/0", "sector/0/0"]) {
+  test(`${scale} separates partial unknowns, duplicate ambiguity, nonresidency and expired evidence`, async ({ page, browserName }) => {
+    await page.clock.install();
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    let complete = false;
+    await page.route("**/runtime/page-buffer/observe", async (route) => {
+      const response = await route.fetch();
+      const body = await response.json();
+      const resident = body.observations.find((row: { state: string }) => row.state === "resident");
+      // Retain the real normalized capture envelope and request echo. Only the
+      // semantic row scenarios vary, through the production decoder/effects.
+      if (resident) {
+        body.producer_complete = complete;
+        body.observations = body.pages.map((vpid: { volid: number; pageid: number }) => {
+          if (!complete && [10, 11].includes(vpid.pageid)) return { ...vpid, state: "resident", reason: "observed-resident", evidence: { ...resident.evidence, ...vpid, flushing: true, lru_zone: "lru2", lru_list_kind: vpid.pageid === 10 ? "private" : "shared", lru_list_index: vpid.pageid === 10 ? 1 : 0 } };
+          return { ...vpid, state: complete ? "not-resident" : "unknown", reason: complete ? "observed-not-resident" : vpid.pageid === 12 ? "duplicate-vpid" : vpid.pageid === 13 ? "unevaluated" : "partial-omission", evidence: null };
+        });
+        body.evaluated_count = body.observations.filter((row: { reason: string }) => row.reason !== "unevaluated").length;
+      }
+      await route.fulfill({ response, json: body });
+    });
+    await page.goto(`http://127.0.0.1:41741/${scale}`, { waitUntil: "commit" });
+    await expect(page.locator("#crumb")).toContainText("revision");
+    const revision = await page.locator("#crumb").innerText();
+    const cell = (id: number) => page.locator(`[data-observation-page="0:${id}"]`);
+    const storage = await cell(10).evaluate((element) => getComputedStyle(element).background);
+    await page.getByRole("button", { name: "Enable observations" }).click();
+    await expect(cell(10)).toHaveClass(/runtime-dirty runtime-flushing/);
+    expect(await cell(10).evaluate((element) => getComputedStyle(element).background)).toBe(storage);
+    await expect(cell(12)).toHaveAttribute("title", /duplicate-vpid/);
+    await expect(cell(13)).toHaveAttribute("title", /unevaluated/);
+    await expect(cell(14)).toHaveAttribute("title", /partial-omission/);
+    const coverage = page.getByRole("region", { name: "Visible-page buffer observations" });
+    await coverage.getByText("Observed per-list counts in this batch only", { exact: true }).click();
+    await expect(coverage).toContainText("Partial producer scan; partial summary");
+    await expect(coverage).toContainText("private list 1: 1 observed resident");
+    await expect(coverage).toContainText("shared list 0: 1 observed resident");
+    if (scale.startsWith("volume")) {
+      await expect(page.getByRole("button", { name: /^Sector 0,/ })).toHaveAccessibleName(/duplicate-vpid/);
+    } else {
+      await expect(cell(10)).toHaveAccessibleName(/dirty true · flushing true/);
+      await cell(10).focus();
+      await page.clock.runFor(2000);
+      await expect(cell(10)).toBeFocused();
+      await page.keyboard.press("ArrowRight");
+      await expect(cell(11)).toBeFocused();
+    }
+    await page.getByRole("button", { name: "Pause", exact: true }).click();
+    await page.clock.runFor(4500);
+    await expect(cell(10)).toHaveAttribute("title", /stale/);
+    await expect(coverage).toContainText("paused");
+    await page.getByRole("combobox", { name: "Runtime color mode" }).selectOption("lru");
+    await expect(cell(10)).toHaveClass(/lru-private/);
+    await page.emulateMedia({ forcedColors: "active" });
+    await expect(cell(10).locator(".runtime-glyph")).toHaveText("2DF");
+    expect(await cell(10).evaluate((element) => getComputedStyle(element, "::before").borderStyle)).toBe("dashed");
+    await page.emulateMedia({ forcedColors: "none" });
+    await page.screenshot({ path: `../.scratch/pgbuf-overlay-implementation/verification/05-${scale.split("/")[0]}-${browserName}.png` });
+    await page.clock.runFor(31000);
+    await expect(cell(10)).toHaveAttribute("data-runtime-state", "expired");
+    await expect(cell(10)).not.toHaveClass(/runtime-resident/);
+    await expect(coverage).not.toContainText("private list 1: 1");
+    complete = true;
+    await page.getByRole("button", { name: "Resume", exact: true }).click();
+    await expect(cell(10)).toHaveAttribute("title", /Observed not resident/);
+    await expect(cell(10)).not.toHaveClass(/runtime-resident/);
+    await expect(coverage).toContainText("No exact list membership observed");
+    await expect(page.locator("#crumb")).toHaveText(revision);
+  });
+}
+
+test("selected detail exposes exact membership and null meanings; inconsistent topology is refused", async ({ page }) => {
+  let variant = "private";
+  await page.route("**/runtime/page-buffer/observe", async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    const row = body.observations[0];
+    if (row.evidence) {
+      row.evidence.lru_list_kind = variant === "out-of-range" ? "private" : variant;
+      row.evidence.lru_list_index = variant === "private" ? 1 : variant === "out-of-range" ? 3 : null;
+      row.evidence.lru_zone = variant === "none" ? "void" : "lru2";
+    }
+    await route.fulfill({ response, json: body });
+  });
+  await page.goto("http://127.0.0.1:41741/page/0/10", { waitUntil: "commit" });
+  await page.getByRole("button", { name: "Enable observations" }).click();
+  const detail = page.getByRole("region", { name: "Selected-page buffer observation" });
+  await expect(detail).toContainText("Observed resident");
+  await expect(detail).toContainText("lru list index1");
+  await expect(detail).toContainText("incarnation-local");
+  for (const kind of ["none", "invalid"]) {
+    variant = kind;
+    await expect(detail).toContainText(`lru list kind${kind}`);
+    await expect(detail).toContainText("lru list indexnone / not applicable");
+  }
+  variant = "out-of-range";
+  await expect(page.getByRole("region", { name: "CUBRID page-buffer observation" })).toContainText("Incompatible observation response");
+  await expect(detail).not.toContainText("Observed resident");
+});
+
+for (const scale of ["volume/0", "sector/0/0"]) {
+  test(`${scale} source failure hides marks and paused incarnation change revokes every list`, async ({ page }) => {
+    await page.clock.install();
+    await page.goto(`http://127.0.0.1:41741/${scale}`, { waitUntil: "commit" });
+    await page.getByRole("button", { name: "Enable observations" }).click();
+    const cell = page.locator('[data-observation-page="0:10"]');
+    await expect(cell).toHaveAttribute("data-runtime-state", "resident");
+    await page.getByRole("button", { name: "Pause", exact: true }).click();
+    await page.route("**/runtime/capabilities", async (route) => {
+      const response = await route.fetch();
+      const body = await response.json();
+      body.incarnation_binding = "a-new-server-incarnation";
+      await route.fulfill({ response, json: body });
+    });
+    await page.clock.runFor(5000);
+    const source = page.getByRole("region", { name: "CUBRID page-buffer observation" });
+    await expect(source).toContainText("incarnation-changed");
+    await expect(cell).not.toHaveClass(/runtime-resident/);
+    await expect(page.getByRole("region", { name: "Visible-page buffer observations" })).not.toContainText("Shared lists:");
+    await page.unroute("**/runtime/capabilities");
+    await page.getByRole("button", { name: "Resume", exact: true }).click();
+    await page.getByRole("button", { name: "Refresh visible-page observations" }).click();
+    await expect(cell).toHaveAttribute("data-runtime-state", "resident");
+    await page.route("**/runtime/page-buffer/observe", (route) => route.abort("failed"));
+    await page.clock.runFor(2000);
+    await expect(source).toContainText("Observation source: unavailable");
+    await expect(cell).toHaveAttribute("data-runtime-state", "unavailable");
+    await expect(cell).not.toHaveClass(/runtime-resident/);
+    await expect(cell).not.toHaveAttribute("title", /Observed not resident/);
+    await expect(page.getByRole("region", { name: "Runtime overlay legend" })).toContainText("Source: unavailable");
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(scale.startsWith("volume") ? "Volume 0" : "Sector 0");
+  });
+}

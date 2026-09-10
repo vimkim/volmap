@@ -17,3 +17,35 @@
   .observation-resident { border-color: Highlight; }
   .observation-controls button:disabled { opacity: 1; color: GrayText; }
 }
+.runtime-mode { display: block; margin-top: 12px; font-size: 12px; }
+.runtime-mode select { display: block; width: 100%; margin-top: 5px; padding: 6px; color: var(--text); background: var(--panel); border: 1px solid var(--line); }
+.runtime-mode select:focus-visible { outline: 2px solid #ffd376; outline-offset: 2px; }
+.runtime-legend { margin: 0 18px 14px; padding: 12px; border: 1px solid var(--line); font-size: 12px; }
+.runtime-legend p + p { margin-top: 6px; }
+.lru-summary { margin-block: 12px; }
+.page.preview-page { position: relative; font-style: normal; }
+.page.runtime-resident::before { content: ""; position: absolute; inset: 2px; border: 1px solid #67e8f9; pointer-events: none; }
+.page.runtime-dirty::after { content: ""; position: absolute; top: 2px; right: 2px; width: 0; height: 0; border-top: 6px solid #fbbf24; border-left: 6px solid transparent; pointer-events: none; }
+.page.runtime-flushing::before { box-shadow: inset 0 -3px #f18adc; }
+.page.runtime-stale::before { border-style: dotted; }
+.runtime-glyph { position: absolute; bottom: 2px; right: 2px; color: #fff; background: #071014; font: 8px/1.1 ui-monospace, monospace; pointer-events: none; }
+.runtime-glyph:empty { display: none; }
+.focus-page .runtime-glyph { font-size: 11px; bottom: 4px; right: 4px; }
+.focus-page .runtime-cell-label { display: block; padding: 22px 6px; font-size: 9px; line-height: 1.2; overflow-wrap: anywhere; }
+.page.runtime-lru { background: #374151; }
+.page.runtime-lru.zone-lru1 { background: #174f68; }
+.page.runtime-lru.zone-lru2 { background: #593c75; }
+.page.runtime-lru.zone-lru3 { background: #714823; }
+.page.runtime-lru.zone-void { background: #39474a; }
+.page.runtime-lru.zone-invalid { background: repeating-linear-gradient(135deg, #343434 0 4px, #5a3434 4px 8px); }
+.page.runtime-lru.lru-private::before { border-style: dashed; }
+@media (forced-colors: active) {
+  .page.runtime-resident::before { border-color: Highlight; }
+  .page.runtime-dirty::after { border-top-color: CanvasText; }
+  .page.runtime-flushing::before { border-bottom: 4px double Highlight; box-shadow: none; }
+  .runtime-glyph { color: CanvasText; background: Canvas; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .runtime-glyph, .page.runtime-resident::before, .page.runtime-dirty::after { animation: none; transition: none; }
+}
+#legend[hidden] { display: none; }
