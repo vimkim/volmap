@@ -1,3 +1,4 @@
+import { densityUrl } from "./density-address";
 import { loadVolumeCells } from "./volume-fixture";
 import { chromium, firefox, expect, test, type Page } from "@playwright/test";
 import { readFile, readdir, writeFile } from "node:fs/promises";
@@ -45,7 +46,7 @@ test("12288 rendered page cells: per-browser visible latency and paired RSS", as
     dirtyDiffSha256: createHash("sha256").update(execFileSync("git", ["diff", "HEAD"])).digest("hex"),
     corpusSha256: createHash("sha256").update(await readFile("../fixtures/pgbuf-inspector/v1/corpus/exchanges/complete/stream.jsonl")).digest("hex"),
     host: { name: hostname(), kernel: release(), cpu: cpus()[0]?.model, logicalCpus: cpus().length, memoryBytes: totalmem() },
-    build: "release", browserName, command: "playwright test --config playwright.density.config.ts",
+    build: "release", browserName, serverUrl: densityUrl, command: "playwright test --config playwright.density.config.ts",
   };
   const runs: object[] = [];
   const peaks: Record<string, number[]> = { enabled: [], disabled: [] };
@@ -74,7 +75,7 @@ test("12288 rendered page cells: per-browser visible latency and paired RSS", as
       })().catch((error: unknown) => { samplingError = error; });
       try {
         page = await browser.newPage({ viewport });
-        await page.goto("http://127.0.0.1:41742/volume/0", { waitUntil: "commit" });
+        await page.goto(`${densityUrl}/volume/0`, { waitUntil: "commit" });
         const cells = page.locator("[data-observation-page]");
         // Exercise real collection pagination; never inject a synthetic model.
         await loadVolumeCells(page, 12288);

@@ -386,6 +386,10 @@ test("cached unavailable metadata does not turn a pending first capture into pag
   await pending;
   try {
     await expect(source).toContainText("Observing visible pages");
+    const refresh = source.getByRole("button", { name: "Refresh visible-page observations" });
+    await expect(refresh).toBeDisabled();
+    await expect(refresh).toHaveCSS("opacity", "1");
+    await expect(refresh).toHaveCSS("outline-style", "dashed");
     await expect(page.locator('.preview-page[data-runtime-state="unavailable"]')).toHaveCount(0);
     await expect(page.locator(".sector-card").first()).toHaveAccessibleName(/source unavailable/);
   } finally {
@@ -397,4 +401,19 @@ test("cached unavailable metadata does not turn a pending first capture into pag
   await source.getByRole("button", { name: "Refresh visible-page observations" }).click();
   await expect(source).toContainText("Observation source: active");
   await expect(page.locator('.preview-page[data-runtime-state="resident"]').first()).toHaveAttribute("title", /Observed resident/);
+});
+
+test("enabling Volume observations keeps the map in place and the legend available", async ({ page }) => {
+  await page.goto("http://127.0.0.1:41741/volume/0", { waitUntil: "commit" });
+  const map = page.locator("#volumeMap");
+  await expect(map).toBeVisible();
+  const top = await map.evaluate((element) => element.getBoundingClientRect().top + window.scrollY);
+  await page.getByRole("button", { name: "Enable observations", exact: true }).click();
+  const legend = page.getByRole("region", { name: "Runtime overlay legend" });
+  await expect(legend).toBeVisible();
+  await expect(legend).toContainText("Pages outside this batch have no runtime glyph");
+  expect(await map.evaluate((element) => element.getBoundingClientRect().top + window.scrollY)).toBe(top);
+  await page.getByRole("combobox", { name: "Runtime color mode" }).selectOption("lru");
+  await expect(legend).toContainText("LRU topology colors replace storage colors");
+  expect(await map.evaluate((element) => element.getBoundingClientRect().top + window.scrollY)).toBe(top);
 });

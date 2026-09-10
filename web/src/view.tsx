@@ -97,7 +97,6 @@ function VolumeMap({ state, dispatch }: Pick<ViewerProps, "state" | "dispatch">)
           <span><i className="swatch finding" />Finding outline</span>
         </div>
       </div>
-      <ObservationLegend state={state} />
       <VolumeSectorMap state={state} dispatch={dispatch} />
       <p id="mapStatus" role="status">
         {state.collectionMessage || (view.nextCursor.state === "end"
@@ -847,6 +846,7 @@ export function Viewer({ state, dispatch, nowUnixSeconds }: ViewerProps) {
               <p>No verified producer observation is available. Disk inspection is unaffected.</p>
             ) : null}
           </section>
+          {state.view?.kind === "volume" ? <ObservationLegend state={state} /> : null}
           <VisibleObservations state={state} />
           <h2>Snapshot hierarchy</h2>
           <div id="volumes">

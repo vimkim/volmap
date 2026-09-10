@@ -1,5 +1,6 @@
 import { defineConfig } from "@playwright/test";
 import base from "./playwright.config";
+import { densityPort, densityUrl } from "./e2e/density-address";
 
 export default defineConfig({
   ...base,
@@ -11,8 +12,8 @@ export default defineConfig({
   timeout: 180_000,
   webServer: (Array.isArray(base.webServer) ? base.webServer : []).filter((server) => server.url?.endsWith(":41741")).map((server) => ({
     ...server,
-    url: "http://127.0.0.1:41742",
+    url: densityUrl,
     timeout: 300_000,
-    command: `VOLMAP_BROWSER_DENSE=1 VOLMAP_BROWSER_RELEASE=1 ${server.command?.replaceAll("41741", "41742")}`,
+    command: `VOLMAP_BROWSER_DENSE=1 VOLMAP_BROWSER_RELEASE=1 ${server.command?.replaceAll("41741", String(densityPort))}`,
   })),
 });

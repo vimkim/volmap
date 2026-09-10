@@ -1,0 +1,14 @@
+{
+  "baseCommit": "3b8bdce0cb06c13883bdfe605aed75bdd5c8b116",
+  "files": {
+    "web/src/view.tsx": "ec9e4162f7db5e0fe0b50d7623548bf4759cc078eed8ca10b4d808bc1c4ccafd",
+    "web/src/observations.css": "3a77ce33702cd7d529c9a948cf1c3e1f6b9feaa6aa3d3c98f234a2a042b73eb1",
+    "web/e2e/observations.spec.ts": "7b94fcc16943b9e4e97400d3aed577cf898cd170c9274c6c81f1df2b4980c28c",
+    "web/e2e/overlay-density.spec.ts": "7d8bc9cbf6e8e9cd18b8a31c0af0d5990b0f40245c5fe3993d8f65923d12ed27",
+    "web/e2e/density-address.ts": "2b46549cd98bb0d722f298cee541cf56d7c984e092313933d2209d6305962a15",
+    "web/playwright.density.config.ts": "5c1995cb8dd40b7a13469ba8ba4e71546a69d130ca1fd12eb7361ada9edacd7d",
+    "src/web/generated/frontend.css": "59225b766ee21a7d89cde4c214acd04cea0bfcf546613229b093faf504bdb233",
+    "src/web/generated/frontend.js": "4e02d414403452dcda34d3741b5cf393732a64045898e555011c16173e863a31"
+  },
+  "acceptance": "non-passing: Chromium LRU 32.95 MiB exceeds 32 MiB; manual and reference-host evidence missing"
+}

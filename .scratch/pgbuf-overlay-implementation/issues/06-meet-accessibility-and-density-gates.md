@@ -85,3 +85,15 @@ observations or corresponding V8 growth. Native allocations and ownership aliase
 are not substituted for the unchanged summed-RSS gate. See [native causes, raw
 profiles and next repair targets](../verification/06-native-allocation/README.md).
 No production files, thresholds, browser scope or checklist state changed.
+
+2026-09-10 — Native repair replaces pending-button opacity with an opaque dashed
+disabled appearance and relocates the Volume legend beside observation controls.
+Both regression cases were red before their respective changes and now pass in
+both browsers. The map no longer moves when observations are enabled or LRU mode
+is selected. The full release density run retains all 12,288 cells and 40 inputs:
+Chromium 29.62/32.95 MiB, Firefox 23.73/23.45 MiB, worst p95 53.4/58.0 ms.
+**Chromium LRU still fails 32 MiB; ticket acceptance remains non-passing.**
+The optional density port supports a fresh server alongside an existing preview;
+it does not change measurement or server-reuse rules. See [native repair evidence](../verification/06-native-repair/README.md).
+Further Chromium raster investigation and the existing manual/reference-host
+prerequisites remain open. No checklist item is closed.
