@@ -1,0 +1,141 @@
+{
+  "ticket": "06",
+  "acceptance": "non-passing",
+  "consumer_commit": "8810d047256d70d17a8ceb204f1e3cd756062105",
+  "build": "release",
+  "commands": {
+    "density": "mise x node@24.19.0 -- corepack pnpm --dir web exec playwright test --config playwright.density.config.ts",
+    "verification": "just verify"
+  },
+  "density_exit_code": 1,
+  "density_tests": {
+    "executed": 2,
+    "passed": 0,
+    "failed": 2,
+    "skipped": 0
+  },
+  "browser_cases": [
+    {
+      "browser": "chromium",
+      "versions": [
+        "151.0.7922.34"
+      ],
+      "consumer_commit": "8810d047256d70d17a8ceb204f1e3cd756062105",
+      "corpus_sha256": "39e8c6b0f102be1abe919059269d097c6a6a19e9ec82a14fedb265b8caf0a96f",
+      "host": {
+        "name": "dev2",
+        "kernel": "5.14.0-570.30.1.el9_6.x86_64",
+        "cpu": "Intel(R) Xeon(R) Gold 5218R CPU @ 2.10GHz",
+        "logicalCpus": 80,
+        "memoryBytes": 134261731328
+      },
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "actual_laid_out_cells": 12288,
+      "initial_cells_in_viewport": 1984,
+      "executed_arms": 4,
+      "executed_inputs": 160,
+      "state_lru_p95_ms": {
+        "state": 68.3,
+        "lru": 68.7
+      },
+      "state_lru_incremental_peak_rss_mib": [
+        33.57,
+        49.35
+      ],
+      "timing_status": "diagnostic-pass",
+      "memory_status": "fail",
+      "raw_archive": "06/final-diagnostic.tar.gz",
+      "raw_member": "final-diagnostic/overlay-density-12288-rend-3d09e-ible-latency-and-paired-RSS-chromium/density-chromium.json",
+      "summary": "06/final-chromium.json"
+    },
+    {
+      "browser": "firefox",
+      "versions": [
+        "153.0"
+      ],
+      "consumer_commit": "8810d047256d70d17a8ceb204f1e3cd756062105",
+      "corpus_sha256": "39e8c6b0f102be1abe919059269d097c6a6a19e9ec82a14fedb265b8caf0a96f",
+      "host": {
+        "name": "dev2",
+        "kernel": "5.14.0-570.30.1.el9_6.x86_64",
+        "cpu": "Intel(R) Xeon(R) Gold 5218R CPU @ 2.10GHz",
+        "logicalCpus": 80,
+        "memoryBytes": 134261731328
+      },
+      "viewport": {
+        "width": 1920,
+        "height": 1080
+      },
+      "actual_laid_out_cells": 12288,
+      "initial_cells_in_viewport": 1984,
+      "executed_arms": 4,
+      "executed_inputs": 160,
+      "state_lru_p95_ms": {
+        "state": 48,
+        "lru": 55
+      },
+      "state_lru_incremental_peak_rss_mib": [
+        55.26,
+        48.94
+      ],
+      "timing_status": "diagnostic-pass",
+      "memory_status": "fail",
+      "raw_archive": "06/final-diagnostic.tar.gz",
+      "raw_member": "final-diagnostic/overlay-density-12288-rend-3d09e-ible-latency-and-paired-RSS-firefox/density-firefox.json",
+      "summary": "06/final-firefox.json"
+    }
+  ],
+  "manual_screen_reader": {
+    "status": "missing",
+    "reviewer": null,
+    "assistive_technology": null
+  },
+  "manual_visual_review": {
+    "status": "missing",
+    "reviewer": null
+  },
+  "qualified_reference_host": {
+    "status": "not-designated"
+  },
+  "qualified_peak_memory": {
+    "status": "missing",
+    "note": "50ms sampled process-tree RSS is diagnostic; not a qualified peak measurement."
+  },
+  "fixture_sources": {
+    "tools/create-smoke-fixture.rs": "de2fe66cbf77b92e0e42cf8832adf66f0744a56885d1b458d722a817da952ae8",
+    "web/e2e/producer-fixture.py": "575efddca7d90cafe477f7f3b8b6b64e751bd6d0350d677aac3fdabeca9c58f3",
+    "fixtures/pgbuf-inspector/v1/corpus/exchanges/complete/stream.jsonl": "39e8c6b0f102be1abe919059269d097c6a6a19e9ec82a14fedb265b8caf0a96f"
+  },
+  "release_binary_sha256": "1897a0cc21da0c6ae13a9efc5209335e66d32890ffaf249f18a03454dbad9354",
+  "verification": {
+    "consumer_commit": "8810d047256d70d17a8ceb204f1e3cd756062105",
+    "command": "just verify",
+    "exit_code": 0,
+    "rust_passed": 306,
+    "rust_existing_ignored": 3,
+    "frontend_passed": 73,
+    "browser_passed": 39,
+    "browser_existing_skipped": 1,
+    "raw": "06/final-verify.log.gz"
+  },
+  "artifact_sha256": {
+    "final-firefox.json": "b99b616cae6bbe65e799badb0461015d0334d6e253571377ce72fd8c5c8524ad",
+    "final-chromium.json": "7b026db77679ea920f8559b986e70b2ea46e2157491695eb2c79bf5f452b5a8c",
+    "first-diagnostic.tar.gz": "bdad7ba7158a380815f44ab56f349e9f67a6c70facb48b2bb79c3c55afb42566",
+    "second-diagnostic.tar.gz": "f3d47efe43156380b098502611f18824fc143088d53136e25c1cb0b2ba51f355",
+    "interrupted-traced-run.tar.gz": "bb5793a3e9ef6f87ebd166c5393d296ed80c6348c4c23f8f94f4093a9af6d59c",
+    "interrupted-pagination-run.tar.gz": "175bed1dbbe3e16cba7ad8a30b98ada412ad3d8619e7c00ea6485c2dd315a1ad",
+    "third-diagnostic.tar.gz": "17e69a446533cec37e643202aa17b2afc1726b2a0f67469f0da6789602f15e54",
+    "fourth-diagnostic.tar.gz": "22a5ff31ea99a1d091b7ae0312ba4cdc6e1c8c2fd3d48782c228f140550d55a7",
+    "fifth-diagnostic.tar.gz": "f018bde171f55e2fba6e3b0e446c6b79247cc08fe3acafd355cd64dbe19bc79b",
+    "final-diagnostic.tar.gz": "c11e164c9172acade31d068bd6cc74e85f2d17dcd0ac4e12a48920cbc2b9bc55",
+    "source-patches.tar.gz": "1facddb19d5eac7cd64af109ec8a1b1da3436bf803189e930333df20abeb5439",
+    "verify.log.gz": "f5da1dd260bb06bab1334e65c04757a2cc377f5a652205fe23f3b5629c282d21",
+    "final-verify.log.gz": "cb588ee209c847462206721474c0216cb7265452bfd146b3238426f7ea416979",
+    "disclosure.log.gz": "c31e97392739702ef23635bdc0e0d5df2db5572e39ef9e4f0e500717216895ee",
+    "accessibility.log.gz": "3d5e6b52ea4ef7f6eb6047caa29136c9588c1f47e7d0c1625c7fe10f3853a9a3"
+  }
+}

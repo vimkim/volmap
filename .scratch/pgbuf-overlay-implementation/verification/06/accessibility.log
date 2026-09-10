@@ -1,0 +1,42 @@
+[WebServer]     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.06s
+
+[WebServer] Bound to 127.0.0.1:41739
+[WebServer] Available at (non-exhaustive list):
+[WebServer]     http://127.0.0.1:41739
+[WebServer] Holding one immutable reading; a changed input invalidates this session.
+
+[WebServer]     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.06s
+
+[WebServer] Bound to 127.0.0.1:41740
+[WebServer] Available at (non-exhaustive list):
+
+[WebServer]     http://127.0.0.1:41740
+[WebServer] Holding one immutable reading; a changed input invalidates this session.
+
+[WebServer]     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.05s
+
+[WebServer] Bound to 127.0.0.1:41741
+[WebServer] Available at (non-exhaustive list):
+[WebServer]     http://127.0.0.1:41741
+[WebServer] Following the input every 500 ms; a change publishes a new generation.
+
+
+Running 8 tests using 1 worker
+
+(node:1243701) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/8] [chromium] › e2e/overlay-accessibility.spec.ts:4:3 › volume/0 keyboard focus survives quiet polling and age updates
+[2/8] [chromium] › e2e/overlay-accessibility.spec.ts:4:3 › sector/0/0 keyboard focus survives quiet polling and age updates
+[3/8] [chromium] › e2e/overlay-accessibility.spec.ts:57:3 › volume/0 absent and refused sources retain named disk navigation without absence marks
+[4/8] [chromium] › e2e/overlay-accessibility.spec.ts:57:3 › sector/0/0 absent and refused sources retain named disk navigation without absence marks
+(node:1244102) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[5/8] [firefox] › e2e/overlay-accessibility.spec.ts:4:3 › volume/0 keyboard focus survives quiet polling and age updates
+[6/8] [firefox] › e2e/overlay-accessibility.spec.ts:4:3 › sector/0/0 keyboard focus survives quiet polling and age updates
+[7/8] [firefox] › e2e/overlay-accessibility.spec.ts:57:3 › volume/0 absent and refused sources retain named disk navigation without absence marks
+[8/8] [firefox] › e2e/overlay-accessibility.spec.ts:57:3 › sector/0/0 absent and refused sources retain named disk navigation without absence marks
+  8 passed (17.1s)

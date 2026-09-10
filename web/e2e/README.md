@@ -17,7 +17,7 @@ they do not establish manual screen-reader or visual acceptance.
 Run the separate release-build density diagnostic with the pinned tooling:
 
 ```sh
-mise x node@24.19.0 -- corepack pnpm --dir web exec playwright test --config playwright.density.config.ts
+just vite::frontend-density
 ```
 
 DOM tracing is disabled for this diagnostic because recording large DOM snapshots
