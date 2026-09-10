@@ -1,0 +1,610 @@
+{
+  "alloc-true-setup.json": {
+    "totalSampledBytes": 47002608,
+    "stacks": [
+      {
+        "bytes": 8903864,
+        "stack": "web/src/view.tsx:142:31 (e.sector.t.sector.e.dispatch.t.dispatch.e.observationLabel.t.observationLabel.e.marks.length.t.marks.length.e.marks.every.r) > map > web/src/view.tsx:173:31 ()"
+      },
+      {
+        "bytes": 4548896,
+        "stack": "match > getAriaRole > set"
+      },
+      {
+        "bytes": 4525104,
+        "stack": "query > match > getAriaRole"
+      },
+      {
+        "bytes": 2820132,
+        "stack": "queryRole > query > next"
+      },
+      {
+        "bytes": 2590896,
+        "stack": "match > getAriaRole > split"
+      },
+      {
+        "bytes": 2360776,
+        "stack": "map > web/src/view.tsx:122:28 () > web/src/observation-view.tsx:170:17 (Ct)"
+      },
+      {
+        "bytes": 2131788,
+        "stack": "match > getAriaRole > computeAriaRole"
+      },
+      {
+        "bytes": 1655800,
+        "stack": "map > web/src/view.tsx:173:31 () > web/src/view.tsx:24:10 (Lt)"
+      },
+      {
+        "bytes": 1492416,
+        "stack": "map > web/src/view.tsx:173:31 () > web/node_modules/.pnpm/react@19.2.8/node_modules/react/cjs/react-jsx-runtime.production.js:14:10 (r)"
+      },
+      {
+        "bytes": 1262296,
+        "stack": "web/src/view.tsx:122:28 () > map > web/src/view.tsx:125:36 ()"
+      },
+      {
+        "bytes": 1216336,
+        "stack": "web/src/view.tsx:173:31 () > web/src/view.tsx:24:10 (Lt) > trim"
+      },
+      {
+        "bytes": 1180164,
+        "stack": "getAriaRole > computeAriaRole > map"
+      },
+      {
+        "bytes": 1098664,
+        "stack": "getAriaRole > computeAriaRole > split"
+      },
+      {
+        "bytes": 1082800,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:9427:10 (vl) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:9427:10 (vl) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:13577:10 (Fd)"
+      },
+      {
+        "bytes": 920400,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:3327:12 (i) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:2452:10 (_i) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:2445:10 (hi)"
+      },
+      {
+        "bytes": 853440,
+        "stack": "web/src/view.tsx:122:28 () > web/src/observation-view.tsx:170:17 (Ct) > get"
+      },
+      {
+        "bytes": 706784,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:3365:12 (l) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:2452:10 (_i) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:2445:10 (hi)"
+      },
+      {
+        "bytes": 655976,
+        "stack": "web/src/view.tsx:122:28 () > web/src/observation-view.tsx:170:17 (Ct) > web/src/observation-view.tsx:107:17 (bt)"
+      },
+      {
+        "bytes": 639260,
+        "stack": "match > getAriaRole > map"
+      },
+      {
+        "bytes": 575224,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:3503:12 (p) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:3365:12 (l) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:2452:10 (_i)"
+      },
+      {
+        "bytes": 541168,
+        "stack": "map > web/src/view.tsx:125:36 () > web/src/observation-view.tsx:107:17 (bt)"
+      },
+      {
+        "bytes": 476632,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:3793:12 (b) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:3327:12 (i) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:2452:10 (_i)"
+      },
+      {
+        "bytes": 393776,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:6489:10 (_c) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:4333:10 (Eo) > web/src/view.tsx:142:31 (e.sector.t.sector.e.dispatch.t.dispatch.e.observationLabel.t.observationLabel.e.marks.length.t.marks.length.e.marks.every.r)"
+      },
+      {
+        "bytes": 377280,
+        "stack": "map > web/src/view.tsx:173:31 () > trim"
+      },
+      {
+        "bytes": 360752,
+        "stack": "map > web/src/view.tsx:173:31 () > web/src/view.tsx:35:10 (Rt)"
+      },
+      {
+        "bytes": 245888,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:13577:10 (Fd) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:12957:10 ($) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:1291:10 (tn)"
+      },
+      {
+        "bytes": 214416,
+        "stack": "map > web/src/view.tsx:122:28 () > map"
+      },
+      {
+        "bytes": 148696,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:4333:10 (Eo) > web/src/view.tsx:142:31 (e.sector.t.sector.e.dispatch.t.dispatch.e.observationLabel.t.observationLabel.e.marks.length.t.marks.length.e.marks.every.r) > map"
+      },
+      {
+        "bytes": 144688,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:9427:10 (vl) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:13577:10 (Fd) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:12957:10 ($)"
+      },
+      {
+        "bytes": 132172,
+        "stack": "(root) > (V8 API)"
+      }
+    ],
+    "attribution": [
+      {
+        "bytes": 20168164,
+        "source": "queryRole"
+      },
+      {
+        "bytes": 9281144,
+        "source": "web/src/view.tsx:173:31 ()"
+      },
+      {
+        "bytes": 3443856,
+        "source": "web/src/observation-view.tsx:170:17 (Ct)"
+      },
+      {
+        "bytes": 2872136,
+        "source": "web/src/view.tsx:24:10 (Lt)"
+      },
+      {
+        "bytes": 1676480,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:2445:10 (hi)"
+      },
+      {
+        "bytes": 1640064,
+        "source": "web/node_modules/.pnpm/react@19.2.8/node_modules/react/cjs/react-jsx-runtime.production.js:14:10 (r)"
+      },
+      {
+        "bytes": 1262296,
+        "source": "web/src/view.tsx:125:36 ()"
+      },
+      {
+        "bytes": 1197144,
+        "source": "web/src/observation-view.tsx:107:17 (bt)"
+      },
+      {
+        "bytes": 1184952,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:13577:10 (Fd)"
+      },
+      {
+        "bytes": 1051856,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:2452:10 (_i)"
+      },
+      {
+        "bytes": 576916,
+        "source": "automation/native"
+      },
+      {
+        "bytes": 542472,
+        "source": "web/src/view.tsx:142:31 (e.sector.t.sector.e.dispatch.t.dispatch.e.observationLabel.t.observationLabel.e.marks.length.t.marks.length.e.marks.every.r)"
+      },
+      {
+        "bytes": 360752,
+        "source": "web/src/view.tsx:35:10 (Rt)"
+      },
+      {
+        "bytes": 247232,
+        "source": "web/src/view.tsx:122:28 ()"
+      },
+      {
+        "bytes": 245888,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:1291:10 (tn)"
+      },
+      {
+        "bytes": 163948,
+        "source": "web/src/observation-view.tsx:180:48 ()"
+      },
+      {
+        "bytes": 144688,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:12957:10 ($)"
+      },
+      {
+        "bytes": 120636,
+        "source": "web/src/observation-view.tsx:18:11 (o)"
+      },
+      {
+        "bytes": 114768,
+        "source": "web/src/observation-view.tsx:27:70 ()"
+      },
+      {
+        "bytes": 98360,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:3622:12 (h)"
+      },
+      {
+        "bytes": 81984,
+        "source": "web/src/observation-view.tsx:96:53 ()"
+      },
+      {
+        "bytes": 61504,
+        "source": "web/src/observations.ts:106:17 (h)"
+      },
+      {
+        "bytes": 56032,
+        "source": "web/src/observation-view.tsx:95:17 (mt)"
+      },
+      {
+        "bytes": 49312,
+        "source": "web/src/observation-view.tsx:151:17 (St)"
+      },
+      {
+        "bytes": 34280,
+        "source": "web/src/observation-view.tsx:74:17 (pt)"
+      }
+    ]
+  },
+  "alloc-true-interaction.json": {
+    "totalSampledBytes": 4528352,
+    "stacks": [
+      {
+        "bytes": 1836192,
+        "stack": "query > match > getAriaRole"
+      },
+      {
+        "bytes": 917644,
+        "stack": "match > getAriaRole > set"
+      },
+      {
+        "bytes": 737912,
+        "stack": "match > getAriaRole > split"
+      },
+      {
+        "bytes": 557400,
+        "stack": "queryRole > query > next"
+      },
+      {
+        "bytes": 114780,
+        "stack": "match > normalizeWhiteSpace > replace"
+      },
+      {
+        "bytes": 81980,
+        "stack": "map > (native) > replace"
+      },
+      {
+        "bytes": 32784,
+        "stack": "asFlatString > map > (native)"
+      },
+      {
+        "bytes": 18120,
+        "stack": "isElementHiddenForAria > isElementStyleVisibilityVisible > set"
+      },
+      {
+        "bytes": 18020,
+        "stack": "isElementHiddenForAria > getElementComputedStyle > set"
+      },
+      {
+        "bytes": 16616,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:15297:10 (up) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:15382:10 (dp) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:1419:10 (ln)"
+      },
+      {
+        "bytes": 16456,
+        "stack": "match > matchesAttributePart > match"
+      },
+      {
+        "bytes": 16440,
+        "stack": "getElementAccessibleNameText > computeAccessibleNameComposite > Set"
+      },
+      {
+        "bytes": 16416,
+        "stack": "match > getElementAccessibleNameText > computeAccessibleNameComposite"
+      },
+      {
+        "bytes": 16408,
+        "stack": "computeAccessibleNameComposite > asFlatString > split"
+      },
+      {
+        "bytes": 16400,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:3622:12 (h) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:3319:12 (r) > Map"
+      },
+      {
+        "bytes": 16400,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:4333:10 (Eo) > web/src/observation-view.tsx:151:17 (St) > next"
+      },
+      {
+        "bytes": 16400,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:5100:10 (ps) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:5081:10 (ds) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:5053:10 (cs)"
+      },
+      {
+        "bytes": 16400,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:1494:10 (mn) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:12455:20 () > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:12129:10 (md)"
+      },
+      {
+        "bytes": 16400,
+        "stack": "serialize > innerSerialize > next"
+      },
+      {
+        "bytes": 16400,
+        "stack": "match > isElementHiddenForAria > getElementComputedStyle"
+      },
+      {
+        "bytes": 16392,
+        "stack": "getElementAccessibleNameText > computeAccessibleNameComposite > getTextAlternativeInternal"
+      },
+      {
+        "bytes": 16392,
+        "stack": "getTextAlternativeInternal > innerAccumulatedElementText > getIdRefs"
+      },
+      {
+        "bytes": 0,
+        "stack": "(root)"
+      },
+      {
+        "bytes": 0,
+        "stack": "(root) > web/node_modules/.pnpm/scheduler@0.27.0/node_modules/scheduler/cjs/scheduler.production.js:121:10 (ie)"
+      },
+      {
+        "bytes": 0,
+        "stack": "(root) > web/node_modules/.pnpm/scheduler@0.27.0/node_modules/scheduler/cjs/scheduler.production.js:121:10 (ie) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:12065:10 (cd)"
+      },
+      {
+        "bytes": 0,
+        "stack": "web/node_modules/.pnpm/scheduler@0.27.0/node_modules/scheduler/cjs/scheduler.production.js:121:10 (ie) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:12065:10 (cd) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:10681:10 (gu)"
+      },
+      {
+        "bytes": 0,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:12065:10 (cd) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:10681:10 (gu) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:11120:10 (Ou)"
+      },
+      {
+        "bytes": 0,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:10681:10 (gu) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:11120:10 (Ou) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:11181:10 (ku)"
+      },
+      {
+        "bytes": 0,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:11120:10 (Ou) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:11181:10 (ku) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:7392:10 (Pc)"
+      },
+      {
+        "bytes": 0,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:11181:10 (ku) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:7392:10 (Pc) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:3793:12 (b)"
+      }
+    ],
+    "attribution": [
+      {
+        "bytes": 4429736,
+        "source": "queryRole"
+      },
+      {
+        "bytes": 16616,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:1419:10 (ln)"
+      },
+      {
+        "bytes": 16400,
+        "source": "automation/native"
+      },
+      {
+        "bytes": 16400,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:3319:12 (r)"
+      },
+      {
+        "bytes": 16400,
+        "source": "web/src/observation-view.tsx:151:17 (St)"
+      },
+      {
+        "bytes": 16400,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:5053:10 (cs)"
+      },
+      {
+        "bytes": 16400,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:12129:10 (md)"
+      },
+      {
+        "bytes": 0,
+        "source": "web/node_modules/.pnpm/scheduler@0.27.0/node_modules/scheduler/cjs/scheduler.production.js:121:10 (ie)"
+      },
+      {
+        "bytes": 0,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:12065:10 (cd)"
+      },
+      {
+        "bytes": 0,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:10681:10 (gu)"
+      },
+      {
+        "bytes": 0,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:11120:10 (Ou)"
+      },
+      {
+        "bytes": 0,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:11181:10 (ku)"
+      },
+      {
+        "bytes": 0,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:7392:10 (Pc)"
+      },
+      {
+        "bytes": 0,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:3793:12 (b)"
+      },
+      {
+        "bytes": 0,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:3622:12 (h)"
+      },
+      {
+        "bytes": 0,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:6489:10 (_c)"
+      },
+      {
+        "bytes": 0,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:4333:10 (Eo)"
+      },
+      {
+        "bytes": 0,
+        "source": "web/src/foundation.tsx:21:17 (dn)"
+      },
+      {
+        "bytes": 0,
+        "source": "web/node_modules/.pnpm/react@19.2.8/node_modules/react/cjs/react.production.js:495:21 (e.useEffect)"
+      },
+      {
+        "bytes": 0,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:5100:10 (ps)"
+      },
+      {
+        "bytes": 0,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:5081:10 (ds)"
+      },
+      {
+        "bytes": 0,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:15263:10 (cp)"
+      },
+      {
+        "bytes": 0,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:15297:10 (up)"
+      },
+      {
+        "bytes": 0,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:12408:10 (wd)"
+      },
+      {
+        "bytes": 0,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:1494:10 (mn)"
+      }
+    ]
+  },
+  "alloc-false-setup.json": {
+    "totalSampledBytes": 0,
+    "stacks": [
+      {
+        "bytes": 0,
+        "stack": "(root)"
+      }
+    ],
+    "attribution": [
+      {
+        "bytes": 0,
+        "source": "automation/native"
+      }
+    ]
+  },
+  "alloc-false-interaction.json": {
+    "totalSampledBytes": 5180868,
+    "stacks": [
+      {
+        "bytes": 1279040,
+        "stack": "query > match > getAriaRole"
+      },
+      {
+        "bytes": 910496,
+        "stack": "match > getAriaRole > set"
+      },
+      {
+        "bytes": 787108,
+        "stack": "match > getAriaRole > split"
+      },
+      {
+        "bytes": 737624,
+        "stack": "match > getAriaRole > map"
+      },
+      {
+        "bytes": 655760,
+        "stack": "queryRole > query > next"
+      },
+      {
+        "bytes": 213164,
+        "stack": "getAriaRole > computeAriaRole > getExplicitAriaRole"
+      },
+      {
+        "bytes": 114744,
+        "stack": "computeAriaRole > getExplicitAriaRole > map"
+      },
+      {
+        "bytes": 81972,
+        "stack": "match > normalizeWhiteSpace > replace"
+      },
+      {
+        "bytes": 49196,
+        "stack": "computeAriaRole > getExplicitAriaRole > split"
+      },
+      {
+        "bytes": 49192,
+        "stack": "getElementAccessibleNameText > computeAccessibleNameComposite > getTextAlternativeInternal"
+      },
+      {
+        "bytes": 49180,
+        "stack": "map > (native) > replace"
+      },
+      {
+        "bytes": 33168,
+        "stack": "(root) > (IDLE_EXTERNAL)"
+      },
+      {
+        "bytes": 32800,
+        "stack": "(native) > evaluate > parseEvaluationResultValue"
+      },
+      {
+        "bytes": 20440,
+        "stack": "match > getElementAccessibleNameText > computeAccessibleNameComposite"
+      },
+      {
+        "bytes": 18120,
+        "stack": "isElementHiddenForAria > getElementComputedStyle > set"
+      },
+      {
+        "bytes": 17600,
+        "stack": "match > getAriaRole > getImplicitAriaRole"
+      },
+      {
+        "bytes": 16416,
+        "stack": "querySelectorAll > _queryEngineAll > queryAll"
+      },
+      {
+        "bytes": 16416,
+        "stack": "queryRole > query > match"
+      },
+      {
+        "bytes": 16412,
+        "stack": "queryAll > parseAttributeSelector > readAttribute"
+      },
+      {
+        "bytes": 16412,
+        "stack": "computeAccessibleNameComposite > asFlatString > trim"
+      },
+      {
+        "bytes": 16408,
+        "stack": "getElementAccessibleNameText > computeAccessibleNameComposite > asFlatString"
+      },
+      {
+        "bytes": 16408,
+        "stack": "computeAccessibleNameComposite > getTextAlternativeInternal > joinCompositeString"
+      },
+      {
+        "bytes": 16400,
+        "stack": "getElementAccessibleNameText > computeAccessibleNameComposite > Set"
+      },
+      {
+        "bytes": 16392,
+        "stack": "asFlatString > map > (native)"
+      },
+      {
+        "bytes": 0,
+        "stack": "(root)"
+      },
+      {
+        "bytes": 0,
+        "stack": "(root) > (native)"
+      },
+      {
+        "bytes": 0,
+        "stack": "(root) > (native) > evaluate"
+      },
+      {
+        "bytes": 0,
+        "stack": "(native) > evaluate > callMatchedElements"
+      },
+      {
+        "bytes": 0,
+        "stack": "evaluate > callMatchedElements > querySelectorAll"
+      },
+      {
+        "bytes": 0,
+        "stack": "callMatchedElements > querySelectorAll > _queryEngineAll"
+      }
+    ],
+    "attribution": [
+      {
+        "bytes": 5082072,
+        "source": "queryRole"
+      },
+      {
+        "bytes": 65968,
+        "source": "automation/native"
+      },
+      {
+        "bytes": 32828,
+        "source": "querySelectorAll"
+      }
+    ]
+  }
+}

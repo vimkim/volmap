@@ -45,3 +45,12 @@ the entire item. Follow-up diagnosis in `9df2c31` reproduced the memory failure;
 neither equivalent CSS selectors nor diagnostic-only forced GC established a
 passing gate or a specific production fix. Manual review and reference-host
 inputs remain the external prerequisites for advancing acceptance.
+
+2026-09-10 — Resumed allocation investigation identifies both automation selector
+allocations and dense enable/mode render allocations. Source-mapped native-control
+profiles retain about 24.8 MiB setup allocation after selector work is removed;
+the corresponding RSS diagnostic still fails. Both original browser cases were
+rerun and remain non-passing. See [allocation findings and repair targets](../verification/06-allocation-profile/README.md).
+No production change or gate relaxation was made. Memory diagnosis can proceed
+independently of the outstanding manual reviews; the external prerequisites do
+not block investigating these identified render paths.
