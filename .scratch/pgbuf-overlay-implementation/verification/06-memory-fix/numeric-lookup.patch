@@ -1,0 +1,282 @@
+diff --git a/web/e2e/observations.spec.ts b/web/e2e/observations.spec.ts
+index 1b21d99..5ea85e2 100644
+--- a/web/e2e/observations.spec.ts
++++ b/web/e2e/observations.spec.ts
+@@ -204,11 +204,19 @@ for (const scale of ["volume/0", "sector/0/0"]) {
+     await page.getByRole("button", { name: "Pause", exact: true }).click();
+     await expect(cell).toHaveClass(/runtime-resident/);
+     await expect(cell).toHaveAttribute("title", /Observed resident/);
++    const unadmitted = scale.startsWith("volume") ? page.locator("[data-observation-page]:not([data-runtime-state])").first() : null;
++    const unadmittedStorage = await unadmitted?.evaluate((element) => getComputedStyle(element).backgroundColor);
+     await mode.focus();
+     await page.keyboard.press("ArrowDown");
+     await page.keyboard.press("Tab");
+     await expect(mode).toHaveValue("lru");
+     await expect(cell).toHaveClass(/runtime-lru/);
++    if (unadmitted) {
++      await expect(unadmitted).toHaveCSS("background-color", "rgb(55, 65, 81)");
++      await expect(unadmitted).toHaveAttribute("title", /^Page \d+:/);
++      await expect(unadmitted.locator("../..")).toHaveAccessibleName(/Not evaluated/);
++      await expect(coverage).toContainText("not evaluated in this batch");
++    }
+     await coverage.getByText("Available page observations and capture limitations", { exact: true }).click();
+     const observedRow = coverage.getByRole("row").filter({ has: page.getByRole("cell", { name: "0:10", exact: true }) });
+     await expect(observedRow.getByRole("cell", { name: "lru2", exact: true })).toBeVisible();
+@@ -219,6 +227,7 @@ for (const scale of ["volume/0", "sector/0/0"]) {
+     await expect(coverage).toContainText("Observed per-list counts in this batch only");
+     await mode.selectOption("state");
+     await expect(cell).not.toHaveClass(/runtime-lru/);
++    if (unadmitted && unadmittedStorage) await expect(unadmitted).toHaveCSS("background-color", unadmittedStorage);
+   });
+ }
+ 
+@@ -355,3 +364,37 @@ for (const scale of ["volume/0", "sector/0/0"]) {
+     await expect(page.getByRole("heading", { level: 1 })).toContainText(scale.startsWith("volume") ? "Volume 0" : "Sector 0");
+   });
+ }
++
++test("cached unavailable metadata does not turn a pending first capture into page failures", async ({ page }) => {
++  await page.route("**/runtime/capabilities", (route) => route.fulfill({
++    status: 200, headers: { "cache-control": "no-store" },
++    json: { schema: "volmap.runtime", schema_version: 1, source: "cubrid-page-buffer-observation",
++      state: "unavailable", verification: "unverified", reason: "observation-expired",
++      incarnation_binding: null, capture_identity: null, revision: "0" },
++  }));
++  let releaseCapture!: () => void;
++  const captureGate = new Promise<void>((resolve) => { releaseCapture = resolve; });
++  await page.route("**/runtime/page-buffer/observe", async (route) => {
++    await captureGate;
++    await route.fulfill({ status: 503, json: { code: "runtime-unavailable" } });
++  });
++  await page.goto("http://127.0.0.1:41741/volume/0", { waitUntil: "commit" });
++  const source = page.getByRole("region", { name: "CUBRID page-buffer observation" });
++  await expect(source).toContainText("Observation source: unavailable");
++  const pending = page.waitForRequest("**/runtime/page-buffer/observe");
++  await source.getByRole("button", { name: "Enable observations" }).click();
++  await pending;
++  try {
++    await expect(source).toContainText("Observing visible pages");
++    await expect(page.locator('.preview-page[data-runtime-state="unavailable"]')).toHaveCount(0);
++    await expect(page.locator(".sector-card").first()).toHaveAccessibleName(/source unavailable/);
++  } finally {
++    releaseCapture();
++  }
++  await expect(source).toContainText("Observation unavailable");
++  await expect(page.locator('.preview-page[data-runtime-state="unavailable"]').first()).toHaveAttribute("title", /No usable observation/);
++  await page.unroute("**/runtime/page-buffer/observe");
++  await source.getByRole("button", { name: "Refresh visible-page observations" }).click();
++  await expect(source).toContainText("Observation source: active");
++  await expect(page.locator('.preview-page[data-runtime-state="resident"]').first()).toHaveAttribute("title", /Observed resident/);
++});
+diff --git a/web/e2e/overlay-density.spec.ts b/web/e2e/overlay-density.spec.ts
+index 912ca49..3e8072a 100644
+--- a/web/e2e/overlay-density.spec.ts
++++ b/web/e2e/overlay-density.spec.ts
+@@ -88,9 +88,9 @@ test("12288 rendered page cells: per-browser visible latency and paired RSS", as
+         }));
+         expect(rendered.count).toBe(12288);
+         if (enabled) {
+-          await page.getByRole("button", { name: "Enable observations" }).click();
+-          await expect(page.getByRole("region", { name: "Visible-page buffer observations" })).toContainText("Evaluated 512 / requested 512");
+-          await page.getByRole("combobox", { name: "Runtime color mode" }).selectOption(mode);
++          await page.locator(".observation-controls").getByRole("button", { name: "Enable observations" }).click();
++          await expect(page.locator(".observation-detail[aria-label=\"Visible-page buffer observations\"]")).toContainText("Evaluated 512 / requested 512");
++          await page.locator(".observation-controls").getByRole("combobox", { name: "Runtime color mode" }).selectOption(mode);
+         }
+         // Same keyboard focus changes, viewport and DOM workload in both arms.
+         // The second animation frame gives a conservative post-paint bound.
+@@ -110,7 +110,7 @@ test("12288 rendered page cells: per-browser visible latency and paired RSS", as
+             }));
+           }, true);
+         });
+-        await page.getByRole("button", { name: /^Sector 0,/ }).focus();
++        await page.locator("#sector-0").focus();
+         for (let index = 0; index < 40; index += 1) {
+           await page.keyboard.press("Tab");
+           await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+diff --git a/web/e2e/volume-fixture.ts b/web/e2e/volume-fixture.ts
+index 67be93f..e530cf7 100644
+--- a/web/e2e/volume-fixture.ts
++++ b/web/e2e/volume-fixture.ts
+@@ -7,7 +7,7 @@ export async function loadVolumeCells(page: Page, expected: number): Promise<voi
+   for (;;) {
+     const before = await cells.count();
+     if (before >= expected) break;
+-    await page.getByRole("button", { name: "Load more sectors" }).evaluateAll((buttons) => {
++    await page.locator("#mapSentinel .load-more").evaluateAll((buttons) => {
+       buttons.forEach((button) => (button as HTMLButtonElement).click());
+     });
+     await expect.poll(() => cells.count()).toBeGreaterThan(before);
+diff --git a/web/src/observation-view.tsx b/web/src/observation-view.tsx
+index 7047629..c22db5d 100644
+--- a/web/src/observation-view.tsx
++++ b/web/src/observation-view.tsx
+@@ -167,11 +167,11 @@ export function LruSummary({ state }: { readonly state: UiState }) {
+   </div>;
+ }
+ 
+-export function sectorObservationLabel(state: UiState, rows: ReadonlyMap<string, ObservationRow>, pages: readonly { vol_id: number; page_id: number }[]): string {
+-  if (!state.observation.enabled) return "";
++export function sectorObservationLabel(enabled: boolean, marks: readonly (ReturnType<typeof runtimePage> | null)[], fallback: ReturnType<typeof runtimePage>): string {
++  if (!enabled) return "";
+   const counts = new Map<string, number>();
+-  for (const page of pages) {
+-    const runtime = runtimePage(state, rows.get(`${page.vol_id}:${page.page_id}`));
++  for (const mark of marks) {
++    const runtime = mark ?? fallback;
+     // Keep the sector button concise; exact per-page observations remain in
+     // the named disclosure table and the keyboard-accessible Sector grid.
+     const label = runtime.state === "resident" ? "observed resident" : runtime.label;
+diff --git a/web/src/observations.css b/web/src/observations.css
+index b321afc..b1eb9ce 100644
+--- a/web/src/observations.css
++++ b/web/src/observations.css
+@@ -33,6 +33,12 @@
+ .focus-page .runtime-glyph { font-size: 11px; bottom: 4px; right: 4px; }
+ .focus-page .runtime-cell-label { display: block; padding: 22px 6px; font-size: 9px; line-height: 1.2; overflow-wrap: anywhere; }
+ .page.runtime-lru { background: #374151; }
++#volumeMap[data-runtime-mode="lru"] {
++  --unreserved: #374151;
++  --reserved: #374151;
++  --allocated: #374151;
++  --system: #374151;
++}
+ .page.runtime-lru.zone-lru1 { background: #174f68; }
+ .page.runtime-lru.zone-lru2 { background: #593c75; }
+ .page.runtime-lru.zone-lru3 { background: #714823; }
+diff --git a/web/src/view.tsx b/web/src/view.tsx
+index f187a3e..6a370ab 100644
+--- a/web/src/view.tsx
++++ b/web/src/view.tsx
+@@ -32,10 +32,10 @@ function pageClass(page: Page, extra = ""): string {
+   return `page ${extra} ${page.allocation}${occupancy}${finding}`.trim();
+ }
+ 
+-function pageStyle(page: Page): CSSProperties {
++function pageStyle(page: Page): CSSProperties | undefined {
+   return page.allocation === "allocated" && page.occupancy.state === "known"
+     ? ({ "--occupied": `${page.occupancy.occupied_percent}%` } as CSSProperties)
+-    : {};
++    : undefined;
+ }
+ 
+ function pageOccupancyLabel(page: Page): string {
+@@ -116,14 +116,30 @@ function VolumeMap({ state, dispatch }: Pick<ViewerProps, "state" | "dispatch">)
+ const VolumeSectorMap = memo(function VolumeSectorMap({ state, dispatch }: Pick<ViewerProps, "state" | "dispatch">) {
+   if (state.view?.kind !== "volume") return null;
+   const view = state.view;
+-  const rows = observationRows(state);
++  const rows = new Map(state.observation.batch?.rows
++    .filter((row) => row.volid === view.volume.vol_id)
++    .map((row) => [row.pageid, row]) ?? []);
++  // Unadmitted pages share the container's unknown LRU color, so a mode
++  // change does not recreate their sector previews.
++  const unadmitted = runtimePage(state, undefined);
++  const terminal = state.observation.enabled && (state.observation.message === "Observation expired" ||
++    ["refused", "incompatible"].includes(state.runtimeCapability ?? "") ||
++    (state.runtimeCapability === "unavailable" && state.observation.failures > 0));
++  const usable = state.observation.enabled && ["active", "stale"].includes(state.runtimeCapability ?? "") &&
++    state.observation.message !== "Observation expired";
+   return (
+-      <div id="volumeMap" aria-label="Full volume sector map">
+-        {view.sectors.map((sector) => <VolumeSectorCard
+-          key={sector.sector_id} sector={sector} dispatch={dispatch}
+-          observationLabel={sectorObservationLabel(state, rows, sector.pages)}
+-          marks={sector.pages.map((page) => runtimePage(state, rows.get(`${page.vol_id}:${page.page_id}`)))}
+-        />)}
++      <div id="volumeMap" aria-label="Full volume sector map" data-runtime-mode={usable ? state.observation.colorMode : undefined}>
++        {view.sectors.map((sector) => {
++          const marks = sector.pages.map((page) => {
++            const row = rows.get(page.page_id);
++            return row === undefined ? (terminal ? unadmitted : null) : runtimePage(state, row);
++          });
++          return <VolumeSectorCard
++            key={sector.sector_id} sector={sector} dispatch={dispatch}
++            observationLabel={sectorObservationLabel(state.observation.enabled, marks, unadmitted)}
++            marks={marks}
++          />;
++        })}
+       </div>
+   );
+ }, (before, after) => {
+@@ -133,15 +149,26 @@ const VolumeSectorMap = memo(function VolumeSectorMap({ state, dispatch }: Pick<
+     a.runtimeCapability === b.runtimeCapability &&
+     a.observation.enabled === b.observation.enabled &&
+     a.observation.batch === b.observation.batch &&
++    (a.observation.failures > 0) === (b.observation.failures > 0) &&
+     a.observation.colorMode === b.observation.colorMode &&
+     (a.observation.message === "Observation expired") === (b.observation.message === "Observation expired") &&
+     observationIsFresh(a.observation.age, observationInterval(a)) === observationIsFresh(b.observation.age, observationInterval(b));
+ });
+ 
++type PreviewMark = ReturnType<typeof runtimePage> | null;
++
++function samePreviewMarks(before: readonly PreviewMark[], after: readonly PreviewMark[]): boolean {
++  return before === after || (before.length === after.length && before.every((mark, index) => {
++    const next = after[index]!;
++    return mark === next || (mark !== null && next !== null && mark.className === next.className &&
++      mark.label === next.label && mark.glyph === next.glyph && mark.state === next.state);
++  }));
++}
++
+ // Retain unchanged sector DOM when a bounded batch rotates elsewhere.
+ const VolumeSectorCard = memo(function VolumeSectorCard({ sector, marks, observationLabel, dispatch }: {
+   readonly sector: Sector;
+-  readonly marks: readonly ReturnType<typeof runtimePage>[];
++  readonly marks: readonly PreviewMark[];
+   readonly observationLabel: string;
+   readonly dispatch: Dispatch<Action>;
+ }) {
+@@ -169,28 +196,33 @@ const VolumeSectorCard = memo(function VolumeSectorCard({ sector, marks, observa
+                 {table ? <em className="sector-table">{table}</em> : null}
+                 {fileType ? <small className="sector-file-type">{fileType}</small> : null}
+               </span>
+-              <span className="sector-preview-pages">
+-                {sector.pages.map((page, index) => {
+-                  const runtime = marks[index]!;
+-                  return <i
+-                    aria-hidden="true"
+-                    data-observation-page={`${page.vol_id}:${page.page_id}`}
+-                    data-runtime-state={runtime.state}
+-                    title={`Page ${page.page_id}: ${runtime.label}`}
+-                    className={pageClass(page, "preview-page") + runtime.className}
+-                    key={page.page_id}
+-                    style={pageStyle(page)}
+-                  ><span className="runtime-glyph">{runtime.glyph}</span></i>;
+-                })}
+-              </span>
++              <VolumeSectorPreview sector={sector} marks={marks} />
+             </button>
+   );
+ }, (before, after) => before.sector === after.sector && before.dispatch === after.dispatch &&
+-  before.observationLabel === after.observationLabel && before.marks.length === after.marks.length &&
+-  before.marks.every((mark, index) => {
+-    const next = after.marks[index]!;
+-    return mark.className === next.className && mark.label === next.label && mark.glyph === next.glyph && mark.state === next.state;
+-  }));
++  before.observationLabel === after.observationLabel && samePreviewMarks(before.marks, after.marks));
++
++// Source-wide pending/unevaluated status belongs to the sector summary and
++// legend. Only row evidence or terminal state changes the individual cells.
++const VolumeSectorPreview = memo(function VolumeSectorPreview({ sector, marks }: {
++  readonly sector: Sector;
++  readonly marks: readonly PreviewMark[];
++}) {
++  return <span className="sector-preview-pages">
++    {sector.pages.map((page, index) => {
++      const runtime = marks[index];
++      return <i
++        aria-hidden="true"
++        data-observation-page={`${page.vol_id}:${page.page_id}`}
++        data-runtime-state={runtime?.state}
++        title={`Page ${page.page_id}: ${runtime?.label ?? ""}`}
++        className={pageClass(page, "preview-page") + (runtime?.className ?? "")}
++        key={page.page_id}
++        style={pageStyle(page)}
++      >{runtime?.glyph ? <span className="runtime-glyph">{runtime.glyph}</span> : null}</i>;
++    })}
++  </span>;
++}, (before, after) => before.sector === after.sector && samePreviewMarks(before.marks, after.marks));
+ 
+ function LoadMoreSectors({ dispatch }: Pick<ViewerProps, "dispatch">) {
+   const sentinel = useRef<HTMLDivElement>(null);

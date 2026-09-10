@@ -1,0 +1,354 @@
+{
+  "alloc-true-setup.json": {
+    "totalSampledBytes": 13603300,
+    "stacks": [
+      {
+        "bytes": 4017372,
+        "stack": "web/src/view.tsx:203:34 () > map > web/src/view.tsx:208:19 ()"
+      },
+      {
+        "bytes": 1786844,
+        "stack": "web/src/view.tsx:129:28 () > map > web/src/view.tsx:130:43 ()"
+      },
+      {
+        "bytes": 1623000,
+        "stack": "map > web/src/view.tsx:208:19 () > web/src/view.tsx:24:10 (Lt)"
+      },
+      {
+        "bytes": 1216280,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:3365:12 (l) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:2452:10 (_i) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:2445:10 (hi)"
+      },
+      {
+        "bytes": 935040,
+        "stack": "web/src/view.tsx:208:19 () > web/src/view.tsx:24:10 (Lt) > trim"
+      },
+      {
+        "bytes": 803616,
+        "stack": "map > web/src/view.tsx:208:19 () > web/node_modules/.pnpm/react@19.2.8/node_modules/react/cjs/react-jsx-runtime.production.js:14:10 (r)"
+      },
+      {
+        "bytes": 786996,
+        "stack": "map > web/src/view.tsx:129:28 () > web/src/observation-view.tsx:170:17 (Ct)"
+      },
+      {
+        "bytes": 181632,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:4333:10 (Eo) > web/src/view.tsx:203:34 () > map"
+      },
+      {
+        "bytes": 148632,
+        "stack": "map > web/src/view.tsx:129:28 () > map"
+      },
+      {
+        "bytes": 131456,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:3327:12 (i) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:2452:10 (_i) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:2445:10 (hi)"
+      },
+      {
+        "bytes": 131212,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:6489:10 (_c) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:4333:10 (Eo) > web/src/view.tsx:165:31 ()"
+      },
+      {
+        "bytes": 114896,
+        "stack": "web/src/view.tsx:129:28 () > web/src/observation-view.tsx:170:17 (Ct) > Map"
+      },
+      {
+        "bytes": 114844,
+        "stack": "web/src/view.tsx:129:28 () > web/src/observation-view.tsx:170:17 (Ct) > next"
+      },
+      {
+        "bytes": 98368,
+        "stack": "web/src/observation-view.tsx:95:17 (mt) > map > web/src/observation-view.tsx:96:53 ()"
+      },
+      {
+        "bytes": 98368,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:11120:10 (Ou) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:11181:10 (ku) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:7955:10 (Bc)"
+      },
+      {
+        "bytes": 83864,
+        "stack": "(root) > web/node_modules/.pnpm/scheduler@0.27.0/node_modules/scheduler/cjs/scheduler.production.js:121:10 (ie)"
+      },
+      {
+        "bytes": 82252,
+        "stack": "map > web/src/observations.ts:288:34 () > web/src/observations.ts:319:10 (se)"
+      },
+      {
+        "bytes": 82160,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:7392:10 (Pc) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:3793:12 (b) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:2521:10 (yi)"
+      },
+      {
+        "bytes": 82016,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:4333:10 (Eo) > web/src/view.tsx:165:31 () > web/node_modules/.pnpm/react@19.2.8/node_modules/react/cjs/react-jsx-runtime.production.js:14:10 (r)"
+      },
+      {
+        "bytes": 81968,
+        "stack": "web/src/observation-view.tsx:26:70 () > map > web/src/observation-view.tsx:27:70 ()"
+      },
+      {
+        "bytes": 65728,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:3793:12 (b) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:3327:12 (i) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:2452:10 (_i)"
+      },
+      {
+        "bytes": 65604,
+        "stack": "web/src/view.tsx:116:30 () > map > web/src/view.tsx:129:28 ()"
+      },
+      {
+        "bytes": 65580,
+        "stack": "map > web/src/observation-view.tsx:180:48 () > next"
+      },
+      {
+        "bytes": 50040,
+        "stack": "flatMap > web/src/observation-view.tsx:26:70 () > sort"
+      },
+      {
+        "bytes": 49632,
+        "stack": "flatMap > web/src/observation-view.tsx:26:70 () > map"
+      },
+      {
+        "bytes": 49232,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:9427:10 (vl) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:9427:10 (vl) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:13577:10 (Fd)"
+      },
+      {
+        "bytes": 49196,
+        "stack": "(root) > (V8 API)"
+      },
+      {
+        "bytes": 49192,
+        "stack": "web/src/view.tsx:129:28 () > web/src/observation-view.tsx:170:17 (Ct) > map"
+      },
+      {
+        "bytes": 49184,
+        "stack": "web/src/observation-view.tsx:18:11 (o) > flatMap > web/src/observation-view.tsx:20:45 ()"
+      },
+      {
+        "bytes": 40716,
+        "stack": "(root) > web/src/observation-view.tsx:18:11 (o) > flatMap"
+      }
+    ],
+    "attribution": [
+      {
+        "bytes": 4017372,
+        "source": "web/src/view.tsx:208:19 ()"
+      },
+      {
+        "bytes": 2558040,
+        "source": "web/src/view.tsx:24:10 (Lt)"
+      },
+      {
+        "bytes": 1786844,
+        "source": "web/src/view.tsx:130:43 ()"
+      },
+      {
+        "bytes": 1397032,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:2445:10 (hi)"
+      },
+      {
+        "bytes": 1082328,
+        "source": "web/src/observation-view.tsx:170:17 (Ct)"
+      },
+      {
+        "bytes": 885632,
+        "source": "web/node_modules/.pnpm/react@19.2.8/node_modules/react/cjs/react-jsx-runtime.production.js:14:10 (r)"
+      },
+      {
+        "bytes": 214236,
+        "source": "web/src/view.tsx:129:28 ()"
+      },
+      {
+        "bytes": 198040,
+        "source": "web/src/view.tsx:203:34 ()"
+      },
+      {
+        "bytes": 131212,
+        "source": "web/src/view.tsx:165:31 ()"
+      },
+      {
+        "bytes": 116524,
+        "source": "automation/native"
+      },
+      {
+        "bytes": 99672,
+        "source": "web/src/observation-view.tsx:26:70 ()"
+      },
+      {
+        "bytes": 98380,
+        "source": "web/src/observation-view.tsx:180:48 ()"
+      },
+      {
+        "bytes": 98368,
+        "source": "web/src/observation-view.tsx:96:53 ()"
+      },
+      {
+        "bytes": 98368,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:7955:10 (Bc)"
+      },
+      {
+        "bytes": 83864,
+        "source": "web/node_modules/.pnpm/scheduler@0.27.0/node_modules/scheduler/cjs/scheduler.production.js:121:10 (ie)"
+      },
+      {
+        "bytes": 82252,
+        "source": "web/src/observations.ts:319:10 (se)"
+      },
+      {
+        "bytes": 82160,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:2521:10 (yi)"
+      },
+      {
+        "bytes": 81968,
+        "source": "web/src/observation-view.tsx:27:70 ()"
+      },
+      {
+        "bytes": 65744,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:13577:10 (Fd)"
+      },
+      {
+        "bytes": 65728,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:2452:10 (_i)"
+      },
+      {
+        "bytes": 61372,
+        "source": "web/src/observation-view.tsx:18:11 (o)"
+      },
+      {
+        "bytes": 59136,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:12957:10 ($)"
+      },
+      {
+        "bytes": 49184,
+        "source": "web/src/observation-view.tsx:20:45 ()"
+      },
+      {
+        "bytes": 32936,
+        "source": "web/src/observations.ts:278:17 (ie)"
+      },
+      {
+        "bytes": 32780,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:3622:12 (h)"
+      }
+    ]
+  },
+  "alloc-true-interaction.json": {
+    "totalSampledBytes": 32880,
+    "stacks": [
+      {
+        "bytes": 16480,
+        "stack": "(root) > (BYTECODE_COMPILER)"
+      },
+      {
+        "bytes": 16400,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:15297:10 (up) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:15382:10 (dp) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:1419:10 (ln)"
+      },
+      {
+        "bytes": 0,
+        "stack": "(root)"
+      },
+      {
+        "bytes": 0,
+        "stack": "(root) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:15263:10 (cp)"
+      },
+      {
+        "bytes": 0,
+        "stack": "(root) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:15263:10 (cp) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:15297:10 (up)"
+      },
+      {
+        "bytes": 0,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:15263:10 (cp) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:15297:10 (up) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:15382:10 (dp)"
+      }
+    ],
+    "attribution": [
+      {
+        "bytes": 16480,
+        "source": "automation/native"
+      },
+      {
+        "bytes": 16400,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:1419:10 (ln)"
+      },
+      {
+        "bytes": 0,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:15263:10 (cp)"
+      },
+      {
+        "bytes": 0,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:15297:10 (up)"
+      },
+      {
+        "bytes": 0,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:15382:10 (dp)"
+      }
+    ]
+  },
+  "alloc-false-setup.json": {
+    "totalSampledBytes": 0,
+    "stacks": [
+      {
+        "bytes": 0,
+        "stack": "(root)"
+      }
+    ],
+    "attribution": [
+      {
+        "bytes": 0,
+        "source": "automation/native"
+      }
+    ]
+  },
+  "alloc-false-interaction.json": {
+    "totalSampledBytes": 16392,
+    "stacks": [
+      {
+        "bytes": 16392,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:15297:10 (up) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:15382:10 (dp) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:1419:10 (ln)"
+      },
+      {
+        "bytes": 0,
+        "stack": "(root)"
+      },
+      {
+        "bytes": 0,
+        "stack": "(root) > (native)"
+      },
+      {
+        "bytes": 0,
+        "stack": "(root) > (native) > evaluate"
+      },
+      {
+        "bytes": 0,
+        "stack": "(native) > evaluate > (native)"
+      },
+      {
+        "bytes": 0,
+        "stack": "evaluate > (native) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:15263:10 (cp)"
+      },
+      {
+        "bytes": 0,
+        "stack": "(native) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:15263:10 (cp) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:15297:10 (up)"
+      },
+      {
+        "bytes": 0,
+        "stack": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:15263:10 (cp) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:15297:10 (up) > web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:15382:10 (dp)"
+      }
+    ],
+    "attribution": [
+      {
+        "bytes": 16392,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:1419:10 (ln)"
+      },
+      {
+        "bytes": 0,
+        "source": "automation/native"
+      },
+      {
+        "bytes": 0,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:15263:10 (cp)"
+      },
+      {
+        "bytes": 0,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:15297:10 (up)"
+      },
+      {
+        "bytes": 0,
+        "source": "web/node_modules/.pnpm/react-dom@19.2.8_react@19.2.8/node_modules/react-dom/cjs/react-dom-client.production.js:15382:10 (dp)"
+      }
+    ]
+  }
+}

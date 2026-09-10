@@ -54,3 +54,18 @@ rerun and remain non-passing. See [allocation findings and repair targets](../ve
 No production change or gate relaxation was made. Memory diagnosis can proceed
 independently of the outstanding manual reviews; the external prerequisites do
 not block investigating these identified render paths.
+
+2026-09-10 — Fix-phase checkpoint `0a2f5ea` reduces the demonstrated render
+allocations and fixes a tested transient whole-map failure projection while the
+first capture is pending behind cached unavailable metadata. The focused test
+was red before the guard and passes through actual failure and recovery in both
+browsers. Full `just verify` passes (73 frontend unit tests, 41 browser passes,
+existing one Firefox skip, Rust/release checks).
+
+The original fresh-release 12,288-cell / 40-input density command still fails the
+unchanged 32 MiB gate overall in both browsers; passing latency and lower sampled
+JavaScript allocation do not establish memory acceptance. No checklist item is
+closed. See [the repair evidence](../verification/06-memory-fix/README.md) for
+retained/rejected experiments, source-mapped profiles, raw results and remaining
+native-memory investigation. Manual and reference-host prerequisites remain
+outstanding but do not block further memory repair.

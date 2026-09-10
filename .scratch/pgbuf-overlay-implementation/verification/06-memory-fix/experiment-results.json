@@ -1,0 +1,585 @@
+[
+  {
+    "archive": "committed-density.tar.gz",
+    "reports": [
+      {
+        "browser": "chromium",
+        "incrementalMiB": [
+          48.375,
+          51.11328125
+        ],
+        "p95Ms": 69.89999999850988,
+        "memoryPass": false
+      },
+      {
+        "browser": "firefox",
+        "incrementalMiB": [
+          25.01171875,
+          47.6328125
+        ],
+        "p95Ms": 55,
+        "memoryPass": false
+      }
+    ]
+  },
+  {
+    "archive": "contents-hint-rejected.tar.gz",
+    "reports": [
+      {
+        "browser": "chromium",
+        "incrementalMiB": [
+          49.56640625,
+          53.12109375
+        ],
+        "p95Ms": 70.70000000298023,
+        "memoryPass": false
+      },
+      {
+        "browser": "firefox",
+        "incrementalMiB": [
+          41.390625,
+          44.0
+        ],
+        "p95Ms": 47,
+        "memoryPass": false
+      }
+    ]
+  },
+  {
+    "archive": "direct-selectors.tar.gz",
+    "reports": [
+      {
+        "browser": "chromium",
+        "incrementalMiB": [
+          24.23828125,
+          47.203125
+        ],
+        "p95Ms": 72.39999999850988,
+        "memoryPass": false
+      },
+      {
+        "browser": "firefox",
+        "incrementalMiB": [
+          35.79296875,
+          55.4765625
+        ],
+        "p95Ms": 72,
+        "memoryPass": false
+      }
+    ]
+  },
+  {
+    "archive": "empty-glyph-rejected.tar.gz",
+    "reports": [
+      {
+        "browser": "chromium",
+        "incrementalMiB": [
+          55.06640625,
+          62.49609375
+        ],
+        "p95Ms": 73.19999999552965,
+        "memoryPass": false
+      },
+      {
+        "browser": "firefox",
+        "incrementalMiB": [
+          48.26171875,
+          57.83203125
+        ],
+        "p95Ms": 53,
+        "memoryPass": false
+      }
+    ]
+  },
+  {
+    "archive": "empty-style.tar.gz",
+    "reports": [
+      {
+        "browser": "chromium",
+        "incrementalMiB": [
+          49.7890625,
+          44.98828125
+        ],
+        "p95Ms": 71,
+        "memoryPass": false
+      },
+      {
+        "browser": "firefox",
+        "incrementalMiB": [
+          58.92578125,
+          42.12890625
+        ],
+        "p95Ms": 190,
+        "memoryPass": false
+      }
+    ]
+  },
+  {
+    "archive": "firefox-memory-report.tar.gz",
+    "reports": [
+      {
+        "browser": "firefox",
+        "incrementalMiB": [
+          40.34765625
+        ],
+        "p95Ms": 59,
+        "memoryPass": false
+      }
+    ]
+  },
+  {
+    "archive": "guard-allocation.tar.gz",
+    "reports": [
+      {
+        "browser": "chromium",
+        "incrementalMiB": [
+          32.10546875
+        ],
+        "p95Ms": 60.20000000298023,
+        "memoryPass": false
+      }
+    ]
+  },
+  {
+    "archive": "inherited-unknown.tar.gz",
+    "reports": [
+      {
+        "browser": "chromium",
+        "incrementalMiB": [
+          31.86328125,
+          32.7890625
+        ],
+        "p95Ms": 67.29999999701977,
+        "memoryPass": false
+      },
+      {
+        "browser": "firefox",
+        "incrementalMiB": [
+          43.41796875,
+          49.51953125
+        ],
+        "p95Ms": 55,
+        "memoryPass": false
+      }
+    ]
+  },
+  {
+    "archive": "label-reuse.tar.gz",
+    "reports": [
+      {
+        "browser": "chromium",
+        "incrementalMiB": [
+          47.1328125,
+          34.89453125
+        ],
+        "p95Ms": 73.5,
+        "memoryPass": false
+      }
+    ]
+  },
+  {
+    "archive": "memory-mappings.tar.gz",
+    "reports": [
+      {
+        "browser": "chromium",
+        "incrementalMiB": [
+          42.203125
+        ],
+        "p95Ms": 66.39999999850988,
+        "memoryPass": false
+      },
+      {
+        "browser": "firefox",
+        "incrementalMiB": [
+          38.625
+        ],
+        "p95Ms": 59,
+        "memoryPass": false
+      }
+    ]
+  },
+  {
+    "archive": "numeric-lookup.tar.gz",
+    "reports": [
+      {
+        "browser": "chromium",
+        "incrementalMiB": [
+          42.94140625,
+          53.9921875
+        ],
+        "p95Ms": 66.80000000447035,
+        "memoryPass": false
+      },
+      {
+        "browser": "firefox",
+        "incrementalMiB": [
+          42.29296875,
+          52.0234375
+        ],
+        "p95Ms": 67,
+        "memoryPass": false
+      }
+    ]
+  },
+  {
+    "archive": "paint-containment-rejected.tar.gz",
+    "reports": [
+      {
+        "browser": "chromium",
+        "incrementalMiB": [
+          30.85546875,
+          55.23046875
+        ],
+        "p95Ms": 38.600000001490116,
+        "memoryPass": false
+      },
+      {
+        "browser": "firefox",
+        "incrementalMiB": [
+          51.74609375,
+          47.57421875
+        ],
+        "p95Ms": 59,
+        "memoryPass": false
+      }
+    ]
+  },
+  {
+    "archive": "palette-variables.tar.gz",
+    "reports": [
+      {
+        "browser": "chromium",
+        "incrementalMiB": [
+          42.6796875,
+          44.78125
+        ],
+        "p95Ms": 58.600000001490116,
+        "memoryPass": false
+      },
+      {
+        "browser": "firefox",
+        "incrementalMiB": [
+          32.03515625,
+          52.6484375
+        ],
+        "p95Ms": 59,
+        "memoryPass": false
+      }
+    ]
+  },
+  {
+    "archive": "pending-capture-density.tar.gz",
+    "reports": [
+      {
+        "browser": "chromium",
+        "incrementalMiB": [
+          47.87890625,
+          51.9765625
+        ],
+        "p95Ms": 68,
+        "memoryPass": false
+      },
+      {
+        "browser": "firefox",
+        "incrementalMiB": [
+          39.5546875,
+          44.9375
+        ],
+        "p95Ms": 55,
+        "memoryPass": false
+      }
+    ]
+  },
+  {
+    "archive": "preview-allocation-before-pending.tar.gz",
+    "reports": [
+      {
+        "browser": "chromium",
+        "incrementalMiB": [
+          43.58203125
+        ],
+        "p95Ms": 49.399999998509884,
+        "memoryPass": false
+      }
+    ]
+  },
+  {
+    "archive": "preview-separated.tar.gz",
+    "reports": [
+      {
+        "browser": "chromium",
+        "incrementalMiB": [
+          51.60546875,
+          53.14453125
+        ],
+        "p95Ms": 55.600000001490116,
+        "memoryPass": false
+      },
+      {
+        "browser": "firefox",
+        "incrementalMiB": [
+          11.85546875,
+          59.671875
+        ],
+        "p95Ms": 57,
+        "memoryPass": false
+      }
+    ]
+  },
+  {
+    "archive": "release-density.tar.gz",
+    "reports": [
+      {
+        "browser": "chromium",
+        "incrementalMiB": [
+          39.05078125,
+          45.98046875
+        ],
+        "p95Ms": 63.79999999701977,
+        "memoryPass": false
+      },
+      {
+        "browser": "firefox",
+        "incrementalMiB": [
+          37.4296875,
+          20.765625
+        ],
+        "p95Ms": 57,
+        "memoryPass": false
+      }
+    ]
+  },
+  {
+    "archive": "remaining-debug-results.tar.gz",
+    "reports": [
+      {
+        "browser": "chromium",
+        "incrementalMiB": [
+          24.23828125,
+          47.203125
+        ],
+        "p95Ms": 72.39999999850988,
+        "memoryPass": false
+      },
+      {
+        "browser": "firefox",
+        "incrementalMiB": [
+          35.79296875,
+          55.4765625
+        ],
+        "p95Ms": 72,
+        "memoryPass": false
+      },
+      {
+        "browser": "firefox",
+        "incrementalMiB": [
+          40.34765625
+        ],
+        "p95Ms": 59,
+        "memoryPass": false
+      },
+      {
+        "browser": "chromium",
+        "incrementalMiB": [
+          39.4609375,
+          33.59375
+        ],
+        "p95Ms": 80.60000000149012,
+        "memoryPass": false
+      },
+      {
+        "browser": "firefox",
+        "incrementalMiB": [
+          43.82421875,
+          52.76953125
+        ],
+        "p95Ms": 64,
+        "memoryPass": false
+      }
+    ]
+  },
+  {
+    "archive": "resident-containment-rejected.tar.gz",
+    "reports": [
+      {
+        "browser": "chromium",
+        "incrementalMiB": [
+          39.4609375,
+          33.59375
+        ],
+        "p95Ms": 80.60000000149012,
+        "memoryPass": false
+      },
+      {
+        "browser": "firefox",
+        "incrementalMiB": [
+          43.82421875,
+          52.76953125
+        ],
+        "p95Ms": 64,
+        "memoryPass": false
+      }
+    ]
+  },
+  {
+    "archive": "resident-layer-rejected.tar.gz",
+    "reports": [
+      {
+        "browser": "chromium",
+        "incrementalMiB": [
+          51.296875,
+          59.14453125
+        ],
+        "p95Ms": 66.10000000149012,
+        "memoryPass": false
+      },
+      {
+        "browser": "firefox",
+        "incrementalMiB": [
+          49.66796875,
+          37.04296875
+        ],
+        "p95Ms": 59,
+        "memoryPass": false
+      }
+    ]
+  },
+  {
+    "archive": "scoped-pagination.tar.gz",
+    "reports": [
+      {
+        "browser": "chromium",
+        "incrementalMiB": [
+          59.484375,
+          51.30078125
+        ],
+        "p95Ms": 63.5,
+        "memoryPass": false
+      },
+      {
+        "browser": "firefox",
+        "incrementalMiB": [
+          51.5390625,
+          62.41015625
+        ],
+        "p95Ms": 56,
+        "memoryPass": false
+      }
+    ]
+  },
+  {
+    "archive": "scoped-selectors.tar.gz",
+    "reports": [
+      {
+        "browser": "chromium",
+        "incrementalMiB": [
+          44.05078125,
+          33.08984375
+        ],
+        "p95Ms": 58.80000000447035,
+        "memoryPass": false
+      },
+      {
+        "browser": "firefox",
+        "incrementalMiB": [
+          47.10546875,
+          56.03125
+        ],
+        "p95Ms": 54,
+        "memoryPass": false
+      }
+    ]
+  },
+  {
+    "archive": "sidebar-legend.tar.gz",
+    "reports": [
+      {
+        "browser": "chromium",
+        "incrementalMiB": [
+          26.4296875,
+          36.06640625
+        ],
+        "p95Ms": 58.599999994039536,
+        "memoryPass": false
+      },
+      {
+        "browser": "firefox",
+        "incrementalMiB": [
+          25.734375,
+          55.875
+        ],
+        "p95Ms": 67,
+        "memoryPass": false
+      }
+    ]
+  },
+  {
+    "archive": "sidebar-selector.tar.gz",
+    "reports": [
+      {
+        "browser": "chromium",
+        "incrementalMiB": [
+          30.20703125,
+          48.2265625
+        ],
+        "p95Ms": 67.10000000149012,
+        "memoryPass": false
+      },
+      {
+        "browser": "firefox",
+        "incrementalMiB": [
+          43.17578125,
+          58.9453125
+        ],
+        "p95Ms": 66,
+        "memoryPass": false
+      }
+    ]
+  },
+  {
+    "archive": "sparse-glyph-combination.tar.gz",
+    "reports": [
+      {
+        "browser": "chromium",
+        "incrementalMiB": [
+          63.5234375,
+          58.15625
+        ],
+        "p95Ms": 69.20000000298023,
+        "memoryPass": false
+      },
+      {
+        "browser": "firefox",
+        "incrementalMiB": [
+          9.29296875,
+          38.04296875
+        ],
+        "p95Ms": 149,
+        "memoryPass": false
+      }
+    ]
+  },
+  {
+    "archive": "static-classes-rejected.tar.gz",
+    "reports": [
+      {
+        "browser": "chromium",
+        "incrementalMiB": [
+          54.0703125,
+          43.875
+        ],
+        "p95Ms": 71.30000000447035,
+        "memoryPass": false
+      },
+      {
+        "browser": "firefox",
+        "incrementalMiB": [
+          43.56640625,
+          53.81640625
+        ],
+        "p95Ms": 51,
+        "memoryPass": false
+      }
+    ]
+  }
+]

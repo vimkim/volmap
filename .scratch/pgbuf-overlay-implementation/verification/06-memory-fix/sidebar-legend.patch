@@ -1,0 +1,189 @@
+diff --git a/web/src/observation-view.tsx b/web/src/observation-view.tsx
+index 7047629..c22db5d 100644
+--- a/web/src/observation-view.tsx
++++ b/web/src/observation-view.tsx
+@@ -167,11 +167,11 @@ export function LruSummary({ state }: { readonly state: UiState }) {
+   </div>;
+ }
+ 
+-export function sectorObservationLabel(state: UiState, rows: ReadonlyMap<string, ObservationRow>, pages: readonly { vol_id: number; page_id: number }[]): string {
+-  if (!state.observation.enabled) return "";
++export function sectorObservationLabel(enabled: boolean, marks: readonly (ReturnType<typeof runtimePage> | null)[], fallback: ReturnType<typeof runtimePage>): string {
++  if (!enabled) return "";
+   const counts = new Map<string, number>();
+-  for (const page of pages) {
+-    const runtime = runtimePage(state, rows.get(`${page.vol_id}:${page.page_id}`));
++  for (const mark of marks) {
++    const runtime = mark ?? fallback;
+     // Keep the sector button concise; exact per-page observations remain in
+     // the named disclosure table and the keyboard-accessible Sector grid.
+     const label = runtime.state === "resident" ? "observed resident" : runtime.label;
+diff --git a/web/src/observations.css b/web/src/observations.css
+index b321afc..b1eb9ce 100644
+--- a/web/src/observations.css
++++ b/web/src/observations.css
+@@ -33,6 +33,12 @@
+ .focus-page .runtime-glyph { font-size: 11px; bottom: 4px; right: 4px; }
+ .focus-page .runtime-cell-label { display: block; padding: 22px 6px; font-size: 9px; line-height: 1.2; overflow-wrap: anywhere; }
+ .page.runtime-lru { background: #374151; }
++#volumeMap[data-runtime-mode="lru"] {
++  --unreserved: #374151;
++  --reserved: #374151;
++  --allocated: #374151;
++  --system: #374151;
++}
+ .page.runtime-lru.zone-lru1 { background: #174f68; }
+ .page.runtime-lru.zone-lru2 { background: #593c75; }
+ .page.runtime-lru.zone-lru3 { background: #714823; }
+diff --git a/web/src/view.tsx b/web/src/view.tsx
+index f187a3e..1c6aacc 100644
+--- a/web/src/view.tsx
++++ b/web/src/view.tsx
+@@ -32,10 +32,10 @@ function pageClass(page: Page, extra = ""): string {
+   return `page ${extra} ${page.allocation}${occupancy}${finding}`.trim();
+ }
+ 
+-function pageStyle(page: Page): CSSProperties {
++function pageStyle(page: Page): CSSProperties | undefined {
+   return page.allocation === "allocated" && page.occupancy.state === "known"
+     ? ({ "--occupied": `${page.occupancy.occupied_percent}%` } as CSSProperties)
+-    : {};
++    : undefined;
+ }
+ 
+ function pageOccupancyLabel(page: Page): string {
+@@ -97,7 +97,6 @@ function VolumeMap({ state, dispatch }: Pick<ViewerProps, "state" | "dispatch">)
+           <span><i className="swatch finding" />Finding outline</span>
+         </div>
+       </div>
+-      <ObservationLegend state={state} />
+       <VolumeSectorMap state={state} dispatch={dispatch} />
+       <p id="mapStatus" role="status">
+         {state.collectionMessage || (view.nextCursor.state === "end"
+@@ -116,14 +115,30 @@ function VolumeMap({ state, dispatch }: Pick<ViewerProps, "state" | "dispatch">)
+ const VolumeSectorMap = memo(function VolumeSectorMap({ state, dispatch }: Pick<ViewerProps, "state" | "dispatch">) {
+   if (state.view?.kind !== "volume") return null;
+   const view = state.view;
+-  const rows = observationRows(state);
++  const rows = new Map(state.observation.batch?.rows
++    .filter((row) => row.volid === view.volume.vol_id)
++    .map((row) => [row.pageid, row]) ?? []);
++  // Unadmitted pages share the container's unknown LRU color, so a mode
++  // change does not recreate their sector previews.
++  const unadmitted = runtimePage(state, undefined);
++  const terminal = state.observation.enabled && (state.observation.message === "Observation expired" ||
++    ["refused", "incompatible"].includes(state.runtimeCapability ?? "") ||
++    (state.runtimeCapability === "unavailable" && state.observation.failures > 0));
++  const usable = state.observation.enabled && ["active", "stale"].includes(state.runtimeCapability ?? "") &&
++    state.observation.message !== "Observation expired";
+   return (
+-      <div id="volumeMap" aria-label="Full volume sector map">
+-        {view.sectors.map((sector) => <VolumeSectorCard
+-          key={sector.sector_id} sector={sector} dispatch={dispatch}
+-          observationLabel={sectorObservationLabel(state, rows, sector.pages)}
+-          marks={sector.pages.map((page) => runtimePage(state, rows.get(`${page.vol_id}:${page.page_id}`)))}
+-        />)}
++      <div id="volumeMap" aria-label="Full volume sector map" data-runtime-mode={usable ? state.observation.colorMode : undefined}>
++        {view.sectors.map((sector) => {
++          const marks = sector.pages.map((page) => {
++            const row = rows.get(page.page_id);
++            return row === undefined ? (terminal ? unadmitted : null) : runtimePage(state, row);
++          });
++          return <VolumeSectorCard
++            key={sector.sector_id} sector={sector} dispatch={dispatch}
++            observationLabel={sectorObservationLabel(state.observation.enabled, marks, unadmitted)}
++            marks={marks}
++          />;
++        })}
+       </div>
+   );
+ }, (before, after) => {
+@@ -133,15 +148,26 @@ const VolumeSectorMap = memo(function VolumeSectorMap({ state, dispatch }: Pick<
+     a.runtimeCapability === b.runtimeCapability &&
+     a.observation.enabled === b.observation.enabled &&
+     a.observation.batch === b.observation.batch &&
++    (a.observation.failures > 0) === (b.observation.failures > 0) &&
+     a.observation.colorMode === b.observation.colorMode &&
+     (a.observation.message === "Observation expired") === (b.observation.message === "Observation expired") &&
+     observationIsFresh(a.observation.age, observationInterval(a)) === observationIsFresh(b.observation.age, observationInterval(b));
+ });
+ 
++type PreviewMark = ReturnType<typeof runtimePage> | null;
++
++function samePreviewMarks(before: readonly PreviewMark[], after: readonly PreviewMark[]): boolean {
++  return before === after || (before.length === after.length && before.every((mark, index) => {
++    const next = after[index]!;
++    return mark === next || (mark !== null && next !== null && mark.className === next.className &&
++      mark.label === next.label && mark.glyph === next.glyph && mark.state === next.state);
++  }));
++}
++
+ // Retain unchanged sector DOM when a bounded batch rotates elsewhere.
+ const VolumeSectorCard = memo(function VolumeSectorCard({ sector, marks, observationLabel, dispatch }: {
+   readonly sector: Sector;
+-  readonly marks: readonly ReturnType<typeof runtimePage>[];
++  readonly marks: readonly PreviewMark[];
+   readonly observationLabel: string;
+   readonly dispatch: Dispatch<Action>;
+ }) {
+@@ -169,28 +195,33 @@ const VolumeSectorCard = memo(function VolumeSectorCard({ sector, marks, observa
+                 {table ? <em className="sector-table">{table}</em> : null}
+                 {fileType ? <small className="sector-file-type">{fileType}</small> : null}
+               </span>
+-              <span className="sector-preview-pages">
+-                {sector.pages.map((page, index) => {
+-                  const runtime = marks[index]!;
+-                  return <i
+-                    aria-hidden="true"
+-                    data-observation-page={`${page.vol_id}:${page.page_id}`}
+-                    data-runtime-state={runtime.state}
+-                    title={`Page ${page.page_id}: ${runtime.label}`}
+-                    className={pageClass(page, "preview-page") + runtime.className}
+-                    key={page.page_id}
+-                    style={pageStyle(page)}
+-                  ><span className="runtime-glyph">{runtime.glyph}</span></i>;
+-                })}
+-              </span>
++              <VolumeSectorPreview sector={sector} marks={marks} />
+             </button>
+   );
+ }, (before, after) => before.sector === after.sector && before.dispatch === after.dispatch &&
+-  before.observationLabel === after.observationLabel && before.marks.length === after.marks.length &&
+-  before.marks.every((mark, index) => {
+-    const next = after.marks[index]!;
+-    return mark.className === next.className && mark.label === next.label && mark.glyph === next.glyph && mark.state === next.state;
+-  }));
++  before.observationLabel === after.observationLabel && samePreviewMarks(before.marks, after.marks));
++
++// Source-wide pending/unevaluated status belongs to the sector summary and
++// legend. Only row evidence or terminal state changes the individual cells.
++const VolumeSectorPreview = memo(function VolumeSectorPreview({ sector, marks }: {
++  readonly sector: Sector;
++  readonly marks: readonly PreviewMark[];
++}) {
++  return <span className="sector-preview-pages">
++    {sector.pages.map((page, index) => {
++      const runtime = marks[index];
++      return <i
++        aria-hidden="true"
++        data-observation-page={`${page.vol_id}:${page.page_id}`}
++        data-runtime-state={runtime?.state}
++        title={`Page ${page.page_id}: ${runtime?.label ?? ""}`}
++        className={pageClass(page, "preview-page") + (runtime?.className ?? "")}
++        key={page.page_id}
++        style={pageStyle(page)}
++      >{runtime?.glyph ? <span className="runtime-glyph">{runtime.glyph}</span> : null}</i>;
++    })}
++  </span>;
++}, (before, after) => before.sector === after.sector && samePreviewMarks(before.marks, after.marks));
+ 
+ function LoadMoreSectors({ dispatch }: Pick<ViewerProps, "dispatch">) {
+   const sentinel = useRef<HTMLDivElement>(null);
+@@ -815,6 +846,7 @@ export function Viewer({ state, dispatch, nowUnixSeconds }: ViewerProps) {
+               <p>No verified producer observation is available. Disk inspection is unaffected.</p>
+             ) : null}
+           </section>
++          {state.view?.kind === "volume" ? <ObservationLegend state={state} /> : null}
+           <VisibleObservations state={state} />
+           <h2>Snapshot hierarchy</h2>
+           <div id="volumes">

@@ -1,0 +1,78 @@
+{
+  "consumerCommit": "0a2f5ea7797597aab4107bc22bc10d4662dba4d7",
+  "diagnosisBaseline": "a037479",
+  "acceptance": "non-passing",
+  "commands": {
+    "just verify": {
+      "exitCode": 0,
+      "frontendUnitPass": 73,
+      "browserPass": 41,
+      "browserSkip": 1
+    },
+    "just vite::frontend-density": {
+      "exitCode": 1,
+      "renderedCellsPerArm": 12288,
+      "realTabInputsPerArm": 40,
+      "incrementalRssLimitBytes": 33554432,
+      "p95LimitMs": 100
+    }
+  },
+  "generatedAssets": {
+    "src/web/generated/frontend.js": "955e67005f76193c9918928a8eccba4f789b955f0bcbb900ddf7261bce0d7fef",
+    "src/web/generated/frontend.css": "410a6f4781d9a9b3f08bdef05942e26110495e169dbcd4578122ed82377f7944"
+  },
+  "exactCommitDensity": [
+    {
+      "consumerCommit": "0a2f5ea7797597aab4107bc22bc10d4662dba4d7",
+      "corpusSha256": "39e8c6b0f102be1abe919059269d097c6a6a19e9ec82a14fedb265b8caf0a96f",
+      "host": {
+        "name": "dev2",
+        "kernel": "5.14.0-570.30.1.el9_6.x86_64",
+        "cpu": "Intel(R) Xeon(R) Gold 5218R CPU @ 2.10GHz",
+        "logicalCpus": 80,
+        "memoryBytes": 134261731328
+      },
+      "build": "release",
+      "browserName": "chromium",
+      "p95Ms": 69.89999999850988,
+      "incrementalPeakRssBytes": [
+        50724864,
+        53596160
+      ],
+      "timingPass": true,
+      "memoryPass": false
+    },
+    {
+      "consumerCommit": "0a2f5ea7797597aab4107bc22bc10d4662dba4d7",
+      "corpusSha256": "39e8c6b0f102be1abe919059269d097c6a6a19e9ec82a14fedb265b8caf0a96f",
+      "host": {
+        "name": "dev2",
+        "kernel": "5.14.0-570.30.1.el9_6.x86_64",
+        "cpu": "Intel(R) Xeon(R) Gold 5218R CPU @ 2.10GHz",
+        "logicalCpus": 80,
+        "memoryBytes": 134261731328
+      },
+      "build": "release",
+      "browserName": "firefox",
+      "p95Ms": 55,
+      "incrementalPeakRssBytes": [
+        26226688,
+        49946624
+      ],
+      "timingPass": true,
+      "memoryPass": false
+    }
+  ],
+  "remaining": [
+    "32 MiB memory acceptance",
+    "named manual screen-reader and visual reviews",
+    "qualified reference-host/peak-memory evidence"
+  ],
+  "review": {
+    "baseline": "a037479",
+    "standardsHardFindings": 0,
+    "standardsJudgementFindings": 1,
+    "specConfirmedImplementationFindings": 0,
+    "specAcceptance": "incomplete"
+  }
+}
