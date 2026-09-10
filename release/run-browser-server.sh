@@ -19,6 +19,7 @@ cleanup() {
     kill "$server_pid"
     wait "$server_pid" 2>/dev/null || true
   fi
+  if [[ -n ${VOLMAP_BROWSER_PRODUCER_PID_FILE:-} ]]; then rm -f -- "$VOLMAP_BROWSER_PRODUCER_PID_FILE"; fi
   rm -rf -- "$server_root"
 }
 trap cleanup EXIT INT TERM
@@ -41,6 +42,7 @@ if [[ ${VOLMAP_BROWSER_PRODUCER:-0} == 1 ]]; then
     fixtures/pgbuf-inspector/v1/corpus/exchanges/complete/stream.jsonl \
     > "$server_root/producer-ready" &
   producer_pid=$!
+  if [[ -n ${VOLMAP_BROWSER_PRODUCER_PID_FILE:-} ]]; then printf '%s\n' "$producer_pid" > "$VOLMAP_BROWSER_PRODUCER_PID_FILE"; fi
   read -r producer_ready < "$server_root/producer-ready"
   [[ $producer_ready == ready ]]
   runtime_arguments=(--runtime-page-buffer --runtime-socket "$server_root/producer.sock")

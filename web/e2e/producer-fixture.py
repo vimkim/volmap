@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import socket
+import signal
 import sys
 
 socket_path, volume_path, corpus_path = sys.argv[1:]
@@ -20,8 +21,19 @@ os.chmod(socket_path, 0o600)
 server.listen(1)
 print("ready", flush=True)
 sequence = 0
+active_connection = None
+
+def restart(_signal, _frame):
+    global sequence
+    sequence = 0
+    hello["incarnation"] = os.urandom(16).hex()
+    if active_connection is not None:
+        active_connection.shutdown(socket.SHUT_RDWR)
+
+signal.signal(signal.SIGHUP, restart)
 while True:
     connection, _ = server.accept()
+    active_connection = connection
     with connection, connection.makefile("rb") as reader:
         if not reader.readline():
             continue
@@ -31,9 +43,11 @@ while True:
             for source in frames:
                 if source["type"] not in ("scan_header", "page", "scan_footer"):
                     continue
-                frame = dict(source, scan_seq=str(sequence))
+                frame = dict(source, scan_seq=str(sequence), incarnation=hello["incarnation"])
                 if frame["type"] == "page":
                     frame["pageid"] = 10
                 # Deliberate coalescing/format independence: ordinary JSON,
                 # retaining the pinned semantic values and real wire framing.
                 connection.sendall((json.dumps(frame) + "\n").encode())
+
+    active_connection = None

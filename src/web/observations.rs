@@ -1,4 +1,6 @@
 //! Private authenticated observation broker, independent of disk-follow ownership.
+#[cfg(test)]
+mod lifecycle_tests;
 mod memory;
 mod session;
 mod socket;
@@ -20,11 +22,14 @@ use serde::{Deserialize, Serialize};
 pub(super) struct ValidatedScope {
     pages: Box<[Vpid]>,
     epoch: u64,
+    cadence: Duration,
+    after_request: bool,
 }
 
 #[derive(Debug, Eq, PartialEq)]
 pub(super) enum ScopeError {
     TooManyPages,
+    InvalidCadence,
 }
 
 impl ValidatedScope {
@@ -35,7 +40,22 @@ impl ValidatedScope {
         Ok(Self {
             pages: pages.into(),
             epoch,
+            cadence: Duration::from_millis(500),
+            after_request: false,
         })
+    }
+
+    pub(super) fn with_demand(
+        mut self,
+        cadence_ms: u64,
+        after_request: bool,
+    ) -> Result<Self, ScopeError> {
+        if !(100..=30_000).contains(&cadence_ms) {
+            return Err(ScopeError::InvalidCadence);
+        }
+        self.cadence = Duration::from_millis(cadence_ms);
+        self.after_request = after_request;
+        Ok(self)
     }
 
     pub(super) fn pages(&self) -> &[Vpid] {
@@ -67,6 +87,9 @@ pub(super) struct Capability {
     state: CapabilityState,
     verification: &'static str,
     reason: &'static str,
+    incarnation_binding: Option<String>,
+    capture_identity: Option<String>,
+    revision: String,
 }
 
 pub(super) struct Broker {
@@ -102,8 +125,8 @@ impl Broker {
     pub(super) fn with_scheduler(socket: Option<PathBuf>, sleep: Scheduler) -> Self {
         Self {
             adapter: socket.map_or(Adapter::Disabled, |path| Adapter::Socket { path }),
+            session: session::Session::new(sleep.clone()),
             sleep,
-            session: session::Session::default(),
         }
     }
 
@@ -123,8 +146,8 @@ impl Broker {
     ) -> Self {
         Self {
             adapter: Adapter::Simulated { arrived, release },
+            session: session::Session::new(sleep.clone()),
             sleep,
-            session: session::Session::default(),
         }
     }
 
@@ -154,19 +177,31 @@ impl Broker {
         }
     }
 
+    #[cfg(test)]
     pub(super) async fn capabilities(&self) -> Result<Capability, ()> {
+        self.capabilities_for(self.session.retained_identity())
+            .await
+    }
+
+    pub(super) async fn capabilities_for(
+        &self,
+        identity: Option<crate::inspection::RuntimeIdentity>,
+    ) -> Result<Capability, ()> {
         tokio::select! {
             biased;
             () = (self.sleep)(Duration::from_secs(1)) => Err(()),
-            capability = self.read_capability() => Ok(capability),
+            capability = self.read_capability(identity) => Ok(capability),
         }
     }
 
-    fn read_capability(&self) -> Pin<Box<dyn Future<Output = Capability> + Send + '_>> {
+    fn read_capability(
+        &self,
+        identity: Option<crate::inspection::RuntimeIdentity>,
+    ) -> Pin<Box<dyn Future<Output = Capability> + Send + '_>> {
         Box::pin(async move {
             let (state, reason) = match &self.adapter {
                 Adapter::Disabled => (CapabilityState::Disabled, "not-requested"),
-                Adapter::Socket { .. } => return self.session.capability(),
+                Adapter::Socket { path } => return self.session.capability(path, identity).await,
                 #[cfg(test)]
                 Adapter::Simulated { arrived, release } => {
                     let _ = arrived.send(());
@@ -185,6 +220,9 @@ impl Broker {
                 state,
                 verification: "unverified",
                 reason,
+                incarnation_binding: None,
+                capture_identity: None,
+                revision: "0".into(),
             }
         })
     }

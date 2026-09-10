@@ -432,3 +432,17 @@ test("a direct OOS route recovers through scoped enrichment and falls back seman
   expect(unchanged.route).toEqual({ kind: "volume", vol: 0 });
   expect(unchanged.error).toBeNull();
 });
+
+test("a newer disk route response cannot adopt after pause wins the race", () => {
+  let state = initialState({ kind: "page", vol: 0, page: 7 });
+  state = { ...state, snapshot: { id: "old", revision: "1", validity: "valid", format_profile: "fixture", generation: "1", observed_at_unix_seconds: "1", input_modified_unix_seconds: "1" }, follow: { ...state.follow, enabled: true } };
+  state = reduce(state, { kind: "toggle-pause" });
+  const next = reduce(state, { kind: "route-loaded", scope: state.scope, result: {
+    route: { kind: "page", vol: 0, page: 7 }, snapshot: { ...state.snapshot!, generation: "2" }, outcome: "success", volumes: [],
+    follow: { state: "following", poll_interval_ms: "1000", retained_generations: "2" },
+    view: { kind: "volume", volume: { vol_id: 0, total_sectors: 0 }, sectors: [], nextCursor: { state: "end" } },
+  } });
+  expect(next.snapshot?.generation).toBe("1");
+  expect(next.follow.paused).toBe(true);
+  expect(reduce(next, { kind: "toggle-pause" }).effects.at(-1)?.kind).toBe("read-route");
+});

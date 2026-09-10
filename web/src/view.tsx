@@ -732,7 +732,9 @@ export function Viewer({ state, dispatch, nowUnixSeconds }: ViewerProps) {
             {state.observation.enabled ? <>
               <button type="button" disabled={state.follow.paused || !state.visible || state.observation.loading || !("page" in state.route)}
                 onClick={() => dispatch({ kind: "refresh-observation" })}>Refresh selected-page observation</button>
-              <p>{state.observation.loading ? "Observing selected page…" : state.observation.message}</p>
+              <p>{state.observation.loading ? (state.follow.paused ? "Checking observation availability…" : "Observing selected page…") : state.observation.message}</p>
+              {state.observation.stopped ? <p>Automatic retry stopped · Refresh explicitly to retry attachment.</p> : null}
+              {state.follow.paused && state.observation.newerAvailable ? <p>Newer observation available · Resume to request a new capture.</p> : null}
 
             </> : null}
             <p>Observation source: {state.runtimeCapability ?? "checking capability"}</p>

@@ -95,3 +95,150 @@ test("absent optional evidence remains unknown while nullable LSA is known empty
   expect(decoded.evidence.latch_mode).toBe("unknown");
   expect(decoded.evidence.page_lsa).toBe("none / not applicable");
 });
+
+test("enabled selected-page observations poll without explicit retry and never queue missed ticks", () => {
+  const { state, effect } = requested();
+  let next = reduce(state, loaded(effect));
+  next = reduce(next, { kind: "observation-due", epoch: next.observation.epoch });
+  const refresh = next.effects.at(-1);
+  expect(refresh?.kind).toBe("read-observation");
+  if (refresh?.kind !== "read-observation") throw new Error("missing poll");
+  expect(refresh.request.retry).toBe(false);
+  expect(refresh.request.cadence_ms).toBe(500);
+  const effects = next.effects;
+  next = reduce(next, { kind: "observation-due", epoch: next.observation.epoch });
+  expect(next.effects).toEqual(effects);
+});
+
+test("transient failures retain original evidence age, back off, and reset only after a valid scan", () => {
+  const { state, effect } = requested();
+  let next = reduce(state, loaded(effect));
+  for (const delay of [500, 1000, 2000, 4000, 8000, 8000]) {
+    next = reduce(next, { kind: "observation-due", epoch: next.observation.epoch });
+    const request = next.effects.at(-1);
+    if (request?.kind !== "read-observation") throw new Error("missing retry");
+    next = reduce(next, { ...loaded(request), batch: null, received: 1500, wallReceived: 100500 });
+    expect(next.observation.batch?.state).toBe("resident");
+    expect(next.observation.received).toBe(1000);
+    expect(next.effects.at(-1)).toMatchObject({ kind: "delay-observation", milliseconds: delay, jitter: true });
+    expect(next.runtimeCapability).toBe("unavailable");
+  }
+  next = reduce(next, { kind: "observation-due", epoch: next.observation.epoch });
+  const request = next.effects.at(-1);
+  if (request?.kind !== "read-observation") throw new Error("missing retry");
+  next = reduce(next, loaded(request));
+  expect(next.observation.failures).toBe(0);
+  expect(next.effects.at(-1)).toMatchObject({ milliseconds: 500, jitter: false });
+});
+
+test("refusal clears evidence and stops automatic retry until explicit refresh", () => {
+  const { state, effect } = requested();
+  for (const capability of ["refused", "incompatible"] as const) {
+    let next = reduce(state, loaded(effect, { ...batch(effect), capability, state: "unavailable", incarnation: null, upperAgeMs: null, reason: "identity-mismatch" }));
+    expect(next.observation.batch).toBeNull();
+    expect(next.observation.stopped).toBe(true);
+    const effects = next.effects;
+    next = reduce(next, { kind: "observation-due", epoch: next.observation.epoch });
+    expect(next.effects).toEqual(effects);
+    next = reduce(next, { kind: "refresh-observation" });
+    expect(next.effects.at(-1)).toMatchObject({ kind: "read-observation", request: { retry: true } });
+  }
+});
+
+test("pause schedules only metadata; hidden revokes requests; resume demands a post-request scan", () => {
+  const { state, effect } = requested();
+  let next = reduce(state, loaded(effect));
+  next = reduce(next, { kind: "toggle-pause" });
+  expect(next.effects.at(-1)).toMatchObject({ kind: "delay-observation", milliseconds: 5000 });
+  next = reduce(next, { kind: "observation-due", epoch: next.observation.epoch });
+  expect(next.effects.at(-1)).toMatchObject({ kind: "read-runtime-capability", epoch: next.observation.epoch });
+  const metadataEpoch = next.observation.epoch;
+  next = reduce(next, { kind: "visibility-changed", visible: false });
+  const effects = next.effects;
+  expect(reduce(next, { kind: "observation-due", epoch: metadataEpoch }).effects).toEqual(effects);
+  next = reduce(next, { kind: "visibility-changed", visible: true });
+  next = reduce(next, { kind: "toggle-pause" });
+  next = reduce(next, { kind: "observation-due", epoch: next.observation.epoch });
+  expect(next.effects.at(-1)).toMatchObject({ kind: "read-observation", request: { after_request: true, retry: false } });
+  expect(reduce(next, loaded(effect)).observation.loading).toBe(true);
+});
+
+test("paused metadata is availability only and restart clears evidence even without resume", () => {
+  const { state, effect } = requested();
+  const observed = reduce(state, loaded(effect, { ...batch(effect), captureIdentity: "scan-1" }));
+  const paused = reduce(observed, { kind: "toggle-pause" });
+  const metadata = { state: "active" as const, reason: "observation-available", incarnation: "fixture-incarnation", captureIdentity: "scan-2", revision: 2n };
+  const offered = reduce(paused, { kind: "runtime-capability-loaded", state: "active", metadata, epoch: paused.observation.epoch });
+  expect(offered.observation.batch).toEqual(observed.observation.batch);
+  expect(offered.observation.age).toBe(300);
+  expect(offered.observation.newerAvailable).toBe(true);
+  const restarted = reduce(offered, { kind: "runtime-capability-loaded", state: "active", metadata: { ...metadata, incarnation: "new-incarnation", revision: 3n }, epoch: offered.observation.epoch });
+  expect(restarted.observation.batch).toBeNull();
+  expect(restarted.observation.epoch).toBeGreaterThan(offered.observation.epoch);
+  expect(reduce(restarted, loaded(effect)).observation.batch).toBeNull();
+});
+
+test("same-page generation replacement revokes late adoption but retains state-only evidence", () => {
+  const { state, effect } = requested();
+  const observed = reduce(state, loaded(effect));
+  const next = invalidateObservation(observed, { ...observed, scope: "new-scope", snapshot: { ...observed.snapshot!, generation: "2" } });
+  expect(next.observation.batch).toEqual(observed.observation.batch);
+  expect(next.observation.epoch).toBeGreaterThan(observed.observation.epoch);
+  expect(reduce(next, loaded(effect)).observation.batch).toEqual(observed.observation.batch);
+});
+
+test("reusing a capture cannot lower age and suspension cannot revive it from cache", () => {
+  const { state, effect } = requested();
+  let next = reduce(state, loaded(effect, { ...batch(effect), captureIdentity: "same" }));
+  next = reduce(next, { kind: "refresh-observation" });
+  const request = next.effects.at(-1);
+  if (request?.kind !== "read-observation") throw new Error("missing observation");
+  next = reduce(next, { ...loaded(request, { ...batch(request), captureIdentity: "same", upperAgeMs: 1 }), received: 1500, wallReceived: 100500, roundTrip: 1 });
+  expect(next.observation.age).toBe(800);
+  next = reduce(next, { kind: "observation-ticked", now: 1501, wallNow: 105501 });
+  expect(next.observation.batch).toBeNull();
+  expect(next.observation.resumeRequired).toBe(true);
+});
+
+import { invalidateObservation } from "./observations";
+
+test("failed resume retains its barrier and cannot adopt another tab's old cached capture", () => {
+  const { state, effect } = requested();
+  let next = reduce(state, { kind: "toggle-pause" });
+  next = reduce(next, { kind: "toggle-pause" });
+  next = reduce(next, { kind: "observation-due", epoch: next.observation.epoch });
+  const resumed = next.effects.at(-1);
+  if (resumed?.kind !== "read-observation") throw new Error("missing resume demand");
+  expect(resumed.request.after_request).toBe(true);
+  next = reduce(next, loaded(resumed, { ...batch(resumed), capability: "stale" }));
+  expect(next.observation.batch).toBeNull();
+  expect(next.observation.resumeRequired).toBe(true);
+  next = reduce(next, { kind: "observation-due", epoch: next.observation.epoch });
+  expect(next.effects.at(-1)).toMatchObject({ request: { after_request: true } });
+  expect(reduce(next, loaded(effect)).observation.batch).toBeNull();
+});
+
+test("a new-incarnation stale fallback clears old evidence before preserving any failure state", () => {
+  const { state, effect } = requested();
+  let next = reduce(state, loaded(effect));
+  next = reduce(next, { kind: "observation-due", epoch: next.observation.epoch });
+  const request = next.effects.at(-1);
+  if (request?.kind !== "read-observation") throw new Error("missing demand");
+  next = reduce(next, loaded(request, { ...batch(request), capability: "stale", incarnation: "other-tab-reattached" }));
+  expect(next.observation.batch).toBeNull();
+  expect(next.observation.message).toBe("incarnation-changed");
+  expect(next.observation.epoch).toBeGreaterThan(Number(request.request.epoch));
+});
+
+test("paused connectivity failure remains visible and a restarted broker's lower revision cannot hide incarnation change", () => {
+  const { state, effect } = requested();
+  let next = reduce(reduce(state, loaded(effect)), { kind: "toggle-pause" });
+  const metadata = { state: "active" as const, reason: "observation-available", incarnation: "fixture-incarnation", captureIdentity: "scan", revision: 9n };
+  next = reduce(next, { kind: "runtime-capability-loaded", state: "active", metadata, epoch: next.observation.epoch });
+  next = reduce(next, { kind: "runtime-capability-loaded", state: "unavailable", metadata: { ...metadata, state: "unavailable", reason: "no-usable-observation", incarnation: null, captureIdentity: null, revision: 0n }, epoch: next.observation.epoch });
+  expect(next.runtimeCapability).toBe("unavailable");
+  expect(next.observation.batch?.state).toBe("resident");
+  next = reduce(next, { kind: "runtime-capability-loaded", state: "active", metadata: { ...metadata, incarnation: "new-producer", revision: 1n }, epoch: next.observation.epoch });
+  expect(next.observation.batch).toBeNull();
+  expect(next.observation.message).toBe("incarnation-changed");
+});

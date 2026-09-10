@@ -8,10 +8,35 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::path::Path;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
-use tokio::sync::Mutex;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::{Duration, Instant, SystemTime};
+use tokio::sync::{Mutex, Notify, OwnedMutexGuard};
 
 pub(super) type Clock = Arc<dyn Fn() -> Instant + Send + Sync>;
+
+/// Wall time can revoke trust in elapsed time, but cannot renew capture age.
+/// In particular Linux monotonic time may stop during system suspension.
+pub(super) fn conservative_clock(
+    read: Arc<dyn Fn() -> (Instant, SystemTime) + Send + Sync>,
+) -> Clock {
+    let first = read();
+    let previous = std::sync::Mutex::new((first, first.0));
+    Arc::new(move || {
+        let mut previous = previous.lock().expect("observation clock");
+        let current = read();
+        let monotonic = current.0.checked_duration_since(previous.0.0);
+        let wall = current.1.duration_since(previous.0.1).ok();
+        let elapsed = match (monotonic, wall) {
+            (Some(monotonic), Some(wall)) if monotonic.abs_diff(wall) <= Duration::from_secs(1) => {
+                monotonic.max(wall)
+            }
+            _ => EXPIRY,
+        };
+        previous.1 += elapsed;
+        previous.0 = current;
+        previous.1
+    })
+}
 
 const EXPIRY: Duration = Duration::from_secs(30);
 const FLOOR: Duration = Duration::from_millis(500);
@@ -22,19 +47,32 @@ pub(super) struct Session {
     requests: Arc<tokio::sync::Semaphore>,
     _fixed: Charge,
     now: Clock,
-}
-impl Default for Session {
-    fn default() -> Self {
-        Self::with_clock(Arc::new(Instant::now))
-    }
+    observers: Arc<Observers>,
+    sleep: super::Scheduler,
 }
 impl Session {
+    pub(super) fn new(sleep: super::Scheduler) -> Self {
+        let session = Self::with_scheduler(
+            conservative_clock(Arc::new(|| (Instant::now(), SystemTime::now()))),
+            sleep,
+        );
+        session.inner.try_lock().expect("new session").scan_now = Arc::new(Instant::now);
+        session
+    }
+
+    pub(super) fn with_scheduler(now: Clock, sleep: super::Scheduler) -> Self {
+        let mut session = Self::with_clock(now);
+        session.sleep = sleep;
+        session
+    }
+
     pub fn with_clock(now: Clock) -> Self {
         let budget = Budget::default();
         let fixed = budget.reserve(8 * MIB).expect("initial identity budget");
         Self {
             inner: Arc::new(Mutex::new(Inner {
                 now: now.clone(),
+                scan_now: now.clone(),
                 identity: None,
                 connection: None,
                 latest: None,
@@ -45,17 +83,45 @@ impl Session {
                 accept_incarnation_change: false,
                 expired: false,
                 failed_refresh: false,
+                failure_reason: "no-usable-observation",
+                revision: 0,
             })),
             budget,
             requests: Arc::new(tokio::sync::Semaphore::new(8)),
             _fixed: fixed,
             now,
+            observers: Arc::new(Observers::default()),
+            sleep: Arc::new(super::monotonic_sleep),
         }
+    }
+}
+
+#[derive(Default)]
+struct Observers {
+    count: AtomicUsize,
+    changed: Notify,
+}
+impl Observers {
+    async fn empty(&self) {
+        loop {
+            if self.count.load(Ordering::SeqCst) == 0 {
+                return;
+            }
+            self.changed.notified().await;
+        }
+    }
+}
+struct Demand(Arc<Observers>);
+impl Drop for Demand {
+    fn drop(&mut self) {
+        self.0.count.fetch_sub(1, Ordering::SeqCst);
+        self.0.changed.notify_one();
     }
 }
 
 struct Inner {
     now: Clock,
+    scan_now: Clock,
     identity: Option<RuntimeIdentity>,
     connection: Option<Connection>,
     latest: Option<TimedCapture>,
@@ -66,6 +132,8 @@ struct Inner {
     accept_incarnation_change: bool,
     expired: bool,
     failed_refresh: bool,
+    failure_reason: &'static str,
+    revision: u64,
 }
 
 struct TimedCapture {
@@ -123,11 +191,33 @@ struct Response<'a> {
 }
 
 impl Session {
-    pub fn capability(&self) -> Capability {
+    #[cfg(test)]
+    pub(super) fn retained_identity(&self) -> Option<RuntimeIdentity> {
+        self.inner
+            .try_lock()
+            .ok()
+            .and_then(|inner| inner.identity.clone())
+    }
+
+    pub async fn capability(
+        &self,
+        path: &Path,
+        current_identity: Option<RuntimeIdentity>,
+    ) -> Capability {
         let Ok(mut inner) = self.inner.try_lock() else {
             return capability(CapabilityState::Connecting, "observation-in-flight");
         };
         inner.expire();
+        if inner.identity.is_some() && inner.identity != current_identity {
+            inner.fail("identity-mismatch");
+            inner.identity = current_identity;
+        }
+        if inner.identity.is_some() && inner.refusal.is_none() {
+            match inner.connect(path, self.budget.clone()).await {
+                Ok(connection) => inner.connection = Some(connection),
+                Err(reason) => inner.fail(reason),
+            }
+        }
         inner.capability()
     }
 
@@ -145,9 +235,11 @@ impl Session {
             .try_acquire_owned()
             .map_err(|_| "runtime-admission-refused")?;
         let charge = self.budget.reserve(2 * MIB)?;
+        self.observers.count.fetch_add(1, Ordering::SeqCst);
+        let _demand = Demand(self.observers.clone());
         let demanded = (self.now)();
         tokio::time::timeout(Duration::from_millis(2500), async {
-            let mut inner = self.inner.lock().await;
+            let mut inner = self.inner.clone().lock_owned().await;
             inner.expire();
             if identity.is_none()
                 || inner
@@ -158,6 +250,7 @@ impl Session {
                 inner.latest = None;
                 inner.connection = None;
                 inner.refusal = Some("identity-mismatch");
+                inner.revision += 1;
             }
             inner.identity = identity;
             if retry && inner.identity.is_some() && inner.refusal.take().is_some() {
@@ -165,48 +258,34 @@ impl Session {
             }
             if inner.refusal.is_none() {
                 let shared = inner.latest.as_ref().is_some_and(|latest| {
-                    latest.published >= demanded || inner.age(latest.start) < FLOOR
+                    if scope.after_request {
+                        latest.start > demanded
+                    } else {
+                        latest.published >= demanded
+                            || inner
+                                .age(latest.start)
+                                .saturating_add(Duration::from_millis(101))
+                                <= scope.cadence
+                    }
                 });
                 if !shared {
-                    if let Some(start) = inner.last_start
-                        && let Some(delay) = FLOOR.checked_sub(inner.age(start))
-                    {
-                        tokio::time::sleep(delay).await;
-                    }
-                    if inner
-                        .latest
-                        .as_ref()
-                        .is_some_and(|latest| inner.age(latest.start) >= Duration::from_secs(27))
-                    {
-                        inner.latest = None;
-                        inner.expired = true;
-                    }
-                    if let Err(reason) = inner.refresh(path, self.budget.clone()).await {
-                        inner.failed_refresh = true;
-                        if matches!(
-                            reason,
-                            "identity-mismatch"
-                                | "peer-refused"
-                                | "peer-unverifiable"
-                                | "version-unsupported"
-                                | "incarnation-changed"
-                                | "identity-oversized"
-                        ) {
-                            inner.latest = None;
-                            inner.refusal = Some(reason);
+                    let observers = self.observers.clone();
+                    let budget = self.budget.clone();
+                    let path = path.to_path_buf();
+                    let sleep = self.sleep.clone();
+                    let owner = Arc::downgrade(&self.inner);
+                    // Ownership is session-wide: dropping one HTTP future must
+                    // not cancel another admitted caller's refresh demand.
+                    inner = tokio::spawn(async move {
+                        tokio::select! {
+                            biased;
+                            () = observers.empty() => {},
+                            () = refresh_demand(&mut inner, &path, budget, sleep, owner) => {},
                         }
-                    } else {
-                        inner.failed_refresh = false;
-                        let expires =
-                            inner.latest.as_ref().expect("published capture").start + EXPIRY;
-                        let weak = Arc::downgrade(&self.inner);
-                        tokio::spawn(async move {
-                            tokio::time::sleep_until(tokio::time::Instant::from_std(expires)).await;
-                            if let Some(inner) = weak.upgrade() {
-                                inner.lock().await.expire();
-                            }
-                        });
-                    }
+                        inner
+                    })
+                    .await
+                    .map_err(|_| "runtime-refresh-failed")?;
                 }
             }
             inner.expire();
@@ -229,6 +308,47 @@ impl Session {
     }
 }
 
+async fn refresh_demand(
+    inner: &mut OwnedMutexGuard<Inner>,
+    path: &Path,
+    budget: Budget,
+    sleep: super::Scheduler,
+    owner: std::sync::Weak<Mutex<Inner>>,
+) {
+    if let Some(start) = inner.last_start
+        && let Some(delay) = FLOOR.checked_sub(
+            (inner.scan_now)()
+                .checked_duration_since(start)
+                .unwrap_or_default(),
+        )
+    {
+        (sleep)(delay).await;
+    }
+    if inner
+        .latest
+        .as_ref()
+        .is_some_and(|latest| inner.age(latest.start) >= Duration::from_secs(27))
+    {
+        inner.latest = None;
+        inner.expired = true;
+    }
+    if let Err(reason) = inner.refresh(path, budget).await {
+        inner.fail(reason);
+    } else {
+        inner.failed_refresh = false;
+        inner.revision += 1;
+        let remaining = EXPIRY
+            .saturating_sub(inner.age(inner.latest.as_ref().expect("published capture").start));
+        let weak = owner;
+        tokio::spawn(async move {
+            tokio::time::sleep(remaining).await;
+            if let Some(inner) = weak.upgrade() {
+                inner.lock().await.expire();
+            }
+        });
+    }
+}
+
 impl Inner {
     fn age(&self, start: Instant) -> Duration {
         (self.now)()
@@ -243,38 +363,90 @@ impl Inner {
         {
             self.latest = None;
             self.expired = true;
+            self.revision += 1;
+        }
+    }
+
+    fn fail(&mut self, reason: &'static str) {
+        self.failed_refresh = true;
+        self.failure_reason = match reason {
+            "producer-busy" => "busy",
+            "rate-limited" => "rate-limited",
+            "parameter-off" => "parameter-off",
+            _ => "no-usable-observation",
+        };
+        self.revision += 1;
+        if matches!(
+            reason,
+            "identity-mismatch"
+                | "peer-refused"
+                | "peer-unverifiable"
+                | "version-unsupported"
+                | "incarnation-changed"
+                | "identity-oversized"
+        ) {
+            self.latest = None;
+            self.connection = None;
+            self.refusal = Some(reason);
         }
     }
 
     fn capability(&self) -> Capability {
-        if let Some(reason) = self.refusal {
-            return capability(
+        let mut result = if let Some(reason) = self.refusal {
+            capability(
                 if reason == "version-unsupported" {
                     CapabilityState::Incompatible
                 } else {
                     CapabilityState::Refused
                 },
                 reason,
-            );
-        }
-        if self.latest.is_some() {
+            )
+        } else if self.latest.is_some() {
             capability(
                 if self.failed_refresh {
                     CapabilityState::Stale
                 } else {
                     CapabilityState::Active
                 },
-                "observation-available",
+                if self.failed_refresh {
+                    self.failure_reason
+                } else {
+                    "observation-available"
+                },
             )
         } else {
-            capability(CapabilityState::Unavailable, "no-usable-observation")
+            capability(
+                CapabilityState::Unavailable,
+                if self.expired {
+                    "observation-expired"
+                } else {
+                    self.failure_reason
+                },
+            )
+        };
+        result.revision = self.revision.to_string();
+        if self.refusal.is_none() {
+            result.incarnation_binding = self
+                .incarnation
+                .as_ref()
+                .map(|incarnation| digest(incarnation.as_bytes()));
+            result.capture_identity = self.latest.as_ref().map(|latest| {
+                digest(
+                    format!("{}:{}", latest.hello.incarnation, latest.capture.sequence).as_bytes(),
+                )
+            });
         }
+        result
     }
 
-    async fn refresh(&mut self, path: &Path, budget: Budget) -> Result<(), &'static str> {
-        // Taking the connection makes cancellation close the unfinished stream.
-        // Previously published evidence remains independently owned and aged.
-        let mut connection = match self.connection.take() {
+    async fn connect(&mut self, path: &Path, budget: Budget) -> Result<Connection, &'static str> {
+        let mut existing = self.connection.take();
+        if let Some(connection) = &existing
+            && !connection.is_current(path)?
+        {
+            existing = None;
+        }
+        let connection = match existing {
             Some(connection) => connection,
             None => Connection::with_budget(path, budget).await?,
         };
@@ -295,9 +467,16 @@ impl Inner {
         }
         self.incarnation = Some(hello.incarnation.clone());
         self.accept_incarnation_change = false;
+        Ok(connection)
+    }
+
+    async fn refresh(&mut self, path: &Path, budget: Budget) -> Result<(), &'static str> {
+        // Taking the connection makes cancellation close the unfinished stream.
+        let mut connection = self.connect(path, budget).await?;
+        let hello = connection.hello();
         let hello = hello.clone();
         let start = (self.now)();
-        self.last_start = Some(start);
+        self.last_start = Some((self.scan_now)());
         connection.set_sequence_floor(self.sequence);
         let mut lease = ScanLease {
             connection: Some(connection),
@@ -456,6 +635,9 @@ fn capability(state: CapabilityState, reason: &'static str) -> Capability {
             "unverified"
         },
         reason,
+        incarnation_binding: None,
+        capture_identity: None,
+        revision: "0".into(),
     }
 }
 

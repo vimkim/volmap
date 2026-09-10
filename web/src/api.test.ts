@@ -14,7 +14,7 @@ test("runtime capabilities use their own validated envelope and no-store request
       verification: "unverified", reason: "no-usable-observation",
     }));
   };
-  expect(await createHttpApi(fetcher).runtimeCapabilities()).toBe("unavailable");
+  expect(await createHttpApi(fetcher).runtimeCapabilities()).toMatchObject({ state: "unavailable" });
 });
 
 test.each([

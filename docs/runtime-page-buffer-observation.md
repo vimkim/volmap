@@ -1,8 +1,9 @@
 # Selected-page buffer observations
 
 Start a loopback viewer with `--runtime-page-buffer --runtime-socket PATH`,
-select a Page, enable observations, and choose **Refresh selected-page
-observation**. The producer socket must be in an owner-only directory (0700)
+select a Page, and enable observations. Sampling runs every 500 ms after each
+completed request; **Refresh selected-page observation** also provides an
+explicit attachment retry. The producer socket must be in an owner-only directory (0700)
 and have mode 0600. Both peers must have exactly the same effective UID.
 Remote operators can forward the loopback viewer through SSH.
 
@@ -25,6 +26,44 @@ the transmitted age includes that window and integer rounding. Cache reads do
 not renew age. Evidence expires by 30 seconds, including while paused. A
 browser clock discontinuity can expire evidence earlier. Pause, navigation,
 generation changes and disabling observations revoke pending adoption.
+
+## Polling, pause, and recovery
+
+Transient failures retain previously observed evidence with its original age.
+Retries use nominal delays of 0.5, 1, 2, 4, then 8 seconds, with ±20% jitter
+and a 9.6-second maximum timer delay. A valid scan resets retry backoff. Source
+connectivity and observation freshness remain separate. Peer/identity refusal,
+producer incarnation changes, and incompatible protocols clear evidence and
+stop automatic retry until the operator explicitly refreshes.
+
+Hidden tabs send no runtime requests. Pause freezes adoption of runtime captures
+and newer disk generations. Visible paused tabs check capability metadata every
+five seconds, without requesting scans. A newer capture from another tab is an
+availability offer only. Metadata rechecks socket ownership, detects a closed
+or replaced producer connection, and verifies any replacement handshake before
+reporting its incarnation. Disk identity changes invalidate retained evidence;
+a generation number alone does not invalidate same-identity state observations.
+
+Resume requests a scan started after the resumed request reaches the broker,
+which conservatively satisfies the browser's resume boundary. Cached or already
+in-flight pre-resume scans cannot fulfill it. The shared 500 ms scan-start floor
+still applies, independently of the producer's 100 ms floor. Cancelling one
+caller preserves other admitted demand; the last departing caller cancels an
+unfinished refresh. Epoch and scope checks reject late results independently
+of network cancellation.
+
+Observation POST bodies accept `cadence_ms` (default 500, bounded to 100–30,000)
+and `after_request` (default false). Cadence governs cache eligibility, not the
+shared scan-start floor. Capability metadata supplies a monotonic session
+`revision`, sanitized `incarnation_binding`, and optional `capture_identity`;
+it never supplies page evidence for paused adoption. Busy, rate-limited, and
+defensive parameter-off responses have stable normalized reasons. Socket
+absence remains unavailable and never implies parameter-off.
+
+Both broker and browser compare elapsed wall time with monotonic elapsed time
+only to detect clock discontinuity or suspension. Discontinuities can expire
+evidence early; wall time cannot renew it or bypass the scan-start floor.
+Reusing a capture cannot lower its previously established conservative age.
 
 ## Bounds and ownership
 
@@ -77,6 +116,9 @@ Credential isolation requires Linux user namespaces and subordinate UID/GID
 mappings; it fails instead of skipping when that environment is unavailable.
 
 Browser tests use the actual Volmap server and a scripted Unix-socket producer
-whose semantic records come from the pinned corpus. They do not replace the
-HTTP response with browser fixtures. Real CUBRID integration and release
+whose semantic records come from the pinned corpus. Lifecycle fault tests also
+intercept browser requests to exercise retry and HTTP protocol incompatibility;
+separate real socket and HTTP cases prove authentication, framing, ownership,
+restart and resume behavior. The test producer accepts a test-only SIGHUP restart,
+and process-wide fault scenarios run serially across Chromium and Firefox. Real CUBRID integration and release
 performance evidence remain tickets 07 and 08; this slice does not claim them.

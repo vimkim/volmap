@@ -288,6 +288,14 @@ struct ObservationRequest {
     generation: String,
     #[serde(default)]
     retry: bool,
+    #[serde(default = "default_observation_cadence")]
+    cadence_ms: u64,
+    #[serde(default)]
+    after_request: bool,
+}
+
+fn default_observation_cadence() -> u64 {
+    500
 }
 
 #[derive(Deserialize)]
@@ -328,7 +336,9 @@ async fn runtime_observations(
     let Some(pages) = pages else {
         return error_response(StatusCode::BAD_REQUEST, "invalid-observation-scope");
     };
-    let Ok(scope) = observations::ValidatedScope::new(&pages, epoch) else {
+    let Ok(scope) = observations::ValidatedScope::new(&pages, epoch)
+        .and_then(|scope| scope.with_demand(request.cadence_ms, request.after_request))
+    else {
         return error_response(StatusCode::BAD_REQUEST, "invalid-observation-scope");
     };
     let identity = reading.view.runtime_identity();
@@ -353,7 +363,17 @@ async fn runtime_observations(
 }
 
 async fn runtime_capabilities(State(state): State<WebState>) -> Response {
-    match state.runtime.capabilities().await {
+    match state
+        .runtime
+        .capabilities_for(
+            state
+                .source
+                .current()
+                .ok()
+                .and_then(|reading| reading.view.runtime_identity()),
+        )
+        .await
+    {
         Ok(capability) => Json(capability).into_response(),
         Err(()) => error_response(StatusCode::GATEWAY_TIMEOUT, "runtime-deadline-exceeded"),
     }
@@ -2983,6 +3003,8 @@ mod tests {
                         epoch: "1".into(),
                         generation: state.source.current().unwrap().generation.to_string(),
                         retry: false,
+                        cadence_ms: 500,
+                        after_request: false,
                     }))
                 };
                 let mut responses = Vec::new();
@@ -3023,6 +3045,10 @@ mod tests {
     }
 
     #[test]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "One real HTTP lifecycle with shared producer and inspection baseline"
+    )]
     fn selected_page_observation_crosses_real_socket_and_http_with_bound_identity() {
         use std::io::{BufRead as _, Write as _};
         use std::os::unix::{fs::PermissionsExt as _, net::UnixListener};
@@ -3050,13 +3076,24 @@ mod tests {
                     "volume_creation":volume.volume_creation.to_string(), "device":volume.device.to_string(), "inode":volume.inode.to_string()})).collect::<Vec<_>>(),
                 "shared_lru_count":2,"private_lru_count":3});
             writeln!(stream, "{hello}").unwrap();
-            request.clear();
-            reader.read_line(&mut request).unwrap();
             let transcript = include_str!(
                 "../fixtures/pgbuf-inspector/v1/corpus/exchanges/complete/stream.jsonl"
             );
-            for line in transcript.lines().skip(3) {
-                writeln!(stream, "{line}").unwrap();
+            for sequence in 1..=2 {
+                request.clear();
+                reader.read_line(&mut request).unwrap();
+                assert!(!request.is_empty());
+                for line in transcript.lines().skip(3) {
+                    writeln!(
+                        stream,
+                        "{}",
+                        line.replace(
+                            "\"scan_seq\":\"1\"",
+                            &format!("\"scan_seq\":\"{sequence}\"")
+                        )
+                    )
+                    .unwrap();
+                }
             }
         });
         let before = get(server.address, "/api/v1/session");
@@ -3085,6 +3122,38 @@ mod tests {
         assert_eq!(result["observations"][1]["state"], "not-resident");
         assert_eq!(result["requested_count"], 2);
         assert_eq!(result["evaluated_count"], 2);
+        let (status, metadata) = get(server.address, "/api/v1/runtime/capabilities");
+        assert_eq!(status, 200);
+        assert_eq!(metadata["capture_identity"], result["capture"]["identity"]);
+        let post = |cadence, barrier| {
+            let request = serde_json::json!({"pages":[{"volid":0,"pageid":7}],"epoch":"18","generation":server.source.current().unwrap().generation.to_string(),"cadence_ms":cadence,"after_request":barrier}).to_string();
+            exchange_with_headers(
+                server.address,
+                &format!(
+                    "POST /api/v1/runtime/page-buffer/observe HTTP/1.1\r\nHost: {}\r\nOrigin: http://{}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{request}",
+                    server.address,
+                    server.address,
+                    request.len()
+                ),
+            )
+        };
+        for cadence in [99, 30_001] {
+            assert_eq!(post(cadence, false).0, 400);
+        }
+        let (status, _, cached) = post(2000, false);
+        assert_eq!(status, 200);
+        let cached: serde_json::Value = serde_json::from_str(&cached).unwrap();
+        assert_eq!(cached["capture"]["sequence"], "1");
+        let (status, headers, resumed) = post(500, true);
+        assert_eq!(status, 200);
+        assert!(
+            headers
+                .to_ascii_lowercase()
+                .contains("cache-control: no-store")
+        );
+        let resumed: serde_json::Value = serde_json::from_str(&resumed).unwrap();
+        assert_eq!(resumed["capture"]["sequence"], "2");
+        assert_eq!(resumed["epoch"], "18");
         assert_eq!(get(server.address, "/api/v1/session"), before);
         producer.join().unwrap();
     }
@@ -3101,7 +3170,7 @@ mod tests {
                 "schema": "volmap.runtime", "schema_version": 1,
                 "source": "cubrid-page-buffer-observation",
                 "state": "disabled", "verification": "unverified",
-                "reason": "not-requested"
+                "reason": "not-requested", "incarnation_binding": null, "capture_identity": null, "revision": "0"
             })
         );
         assert_eq!(get(server.address, "/api/v1/session"), before);
@@ -3133,7 +3202,7 @@ mod tests {
             serde_json::json!({
                 "schema": "volmap.runtime", "schema_version": 1,
                 "source": "cubrid-page-buffer-observation", "state": "unavailable",
-                "verification": "unverified", "reason": "no-usable-observation"
+                "verification": "unverified", "reason": "no-usable-observation", "incarnation_binding": null, "capture_identity": null, "revision": "0"
             })
         );
         assert!(!body.contains("private"));

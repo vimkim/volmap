@@ -1,4 +1,4 @@
-import { decodeObservation, decodeCapability } from "./observations";
+import { decodeObservation, decodeCapabilityMetadata, ObservationProtocolError } from "./observations";
 export type JsonObject = Record<string, unknown>;
 
 export interface Snapshot {
@@ -551,8 +551,16 @@ export function createHttpApi(fetcher: typeof fetch = globalThis.fetch.bind(glob
   }
 
   return {
-    observePageBuffer: async (request, signal) => decodeObservation(await json("/api/v1/runtime/page-buffer/observe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request), signal })),
-    runtimeCapabilities: async (signal) => decodeCapability(await json("/api/v1/runtime/capabilities", { signal })),
+    observePageBuffer: async (request, signal) => {
+      const value = await json("/api/v1/runtime/page-buffer/observe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request), signal });
+      try { return decodeObservation(value); }
+      catch { throw new ObservationProtocolError("Incompatible observation response"); }
+    },
+    runtimeCapabilities: async (signal) => {
+      const value = await json("/api/v1/runtime/capabilities", { signal });
+      try { return decodeCapabilityMetadata(value); }
+      catch { throw new ObservationProtocolError("invalid runtime capability"); }
+    },
     session: (signal) => resource("/api/v1/session", sessionData, { signal }),
     volumes: (signal) => resource("/api/v1/volumes", collection(volume), { signal }),
     sectors: (vol, cursor, signal) =>

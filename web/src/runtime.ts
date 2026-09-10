@@ -1,3 +1,4 @@
+import { ObservationProtocolError, observationAgeAt, type ObservationUi } from "./observations";
 import { ApiError } from "./api";
 import { readRoute, type InspectorApi } from "./effects";
 import type { Action, Effect, UiError, WriteHistoryEffect } from "./model";
@@ -49,6 +50,7 @@ export function applyHistory(port: HistoryPort, effect: WriteHistoryEffect): voi
 export interface RuntimePorts {
   readonly api: InspectorApi;
   readonly history: HistoryPort;
+  readonly allowRuntime?: (effect: Extract<Effect, { kind: "read-observation" | "read-runtime-capability" }>) => boolean;
   readonly schedule: (milliseconds: number, action: () => void) => void;
   readonly requestSignal?: (group: "route" | "collection" | "enrichment" | "watch" | "license" | "runtime-capability" | "observation") =>
     | AbortSignal
@@ -68,6 +70,7 @@ export function createBrowserHistory(browser: Window): HistoryPort {
 export function createRequestSignals(): {
   readonly signal: NonNullable<RuntimePorts["requestSignal"]>;
   readonly abortAll: () => void;
+  readonly abortRuntime: () => void;
 } {
   const controllers = new Map<string, AbortController>();
   return {
@@ -76,6 +79,10 @@ export function createRequestSignals(): {
       const controller = new AbortController();
       controllers.set(group, controller);
       return controller.signal;
+    },
+    abortRuntime: () => {
+      controllers.get("observation")?.abort();
+      controllers.get("runtime-capability")?.abort();
     },
     abortAll: () => {
       for (const controller of controllers.values()) controller.abort();
@@ -93,8 +100,10 @@ export function subscribeBrowserEvents(
     const route = parseRoute(browser.location.pathname);
     if (route !== null) dispatch({ kind: "navigate", route, history: "none", autoEnrich: false });
   };
-  const visibility = () =>
+  const visibility = () => {
+    tick();
     dispatch({ kind: "visibility-changed", visible: documentSource.visibilityState === "visible" });
+  };
   const tick = () => {
     dispatch({ kind: "clock-ticked", nowUnixSeconds: Math.floor(Date.now() / 1000) });
     dispatch({ kind: "observation-ticked", now: performance.now(), wallNow: Date.now() });
@@ -109,6 +118,20 @@ export function subscribeBrowserEvents(
     documentSource.removeEventListener("visibilitychange", visibility);
     browser.clearInterval(timer);
   };
+}
+
+export function subscribeObservationExpiry(
+  timers: { setTimeout(run: () => void, milliseconds: number): number; clearTimeout(id: number): void },
+  observation: ObservationUi,
+  dispatch: (action: Action) => void,
+  clock = () => ({ now: performance.now(), wallNow: Date.now() }),
+): () => void {
+  if (observation.batch === null) return () => undefined;
+  const reading = clock();
+  const age = observationAgeAt(observation, reading.now, reading.wallNow);
+  const timer = timers.setTimeout(() => dispatch({ kind: "observation-ticked", ...clock() }),
+    age === null ? 0 : Math.max(0, 30_000 - age));
+  return () => timers.clearTimeout(timer);
 }
 
 function uiError(error: unknown): UiError {
@@ -131,7 +154,12 @@ export async function executeEffect(
   dispatch: (action: Action) => void,
 ): Promise<void> {
   try {
+    if ((effect.kind === "read-observation" || effect.kind === "read-runtime-capability") && ports.allowRuntime?.(effect) === false) return;
     switch (effect.kind) {
+      case "delay-observation":
+        ports.schedule(effect.milliseconds * (effect.jitter ? 0.8 + Math.random() * 0.4 : 1), () =>
+          dispatch({ kind: "observation-due", epoch: effect.epoch }));
+        return;
       case "read-observation": {
         const start = performance.now();
         const wallStart = Date.now();
@@ -139,12 +167,12 @@ export async function executeEffect(
         const received = performance.now();
         const wallReceived = Date.now();
         dispatch({ kind: "observation-loaded", scope: effect.scope, request: effect.request, batch, received, wallReceived,
-          roundTrip: wallReceived < wallStart ? Number.NaN : Math.max(received - start, wallReceived - wallStart) });
+          roundTrip: wallReceived < wallStart || Math.abs((received - start) - (wallReceived - wallStart)) > 1000 ? Number.NaN : Math.max(received - start, wallReceived - wallStart) });
         return;
       }
       case "read-runtime-capability": {
-        const state = await ports.api.runtimeCapabilities(ports.requestSignal?.("runtime-capability"));
-        dispatch({ kind: "runtime-capability-loaded", state });
+        const metadata = await ports.api.runtimeCapabilities(ports.requestSignal?.("runtime-capability"));
+        dispatch({ kind: "runtime-capability-loaded", state: metadata.state, metadata, epoch: effect.epoch });
         return;
       }
       case "write-history":
@@ -218,12 +246,14 @@ export async function executeEffect(
     }
   } catch (error) {
     if (effect.kind === "read-observation") {
-      dispatch({ kind: "observation-loaded", scope: effect.scope, request: effect.request, batch: null, received: performance.now(), wallReceived: Date.now(), roundTrip: 0 });
+      dispatch({ kind: "observation-loaded", scope: effect.scope, request: effect.request, batch: null, ...(error instanceof ObservationProtocolError ? { failure: "protocol-incompatible" as const } : {}), received: performance.now(), wallReceived: Date.now(), roundTrip: 0 });
       return;
     }
     if (effect.kind === "read-runtime-capability") {
       // Never surface network/decoder text through inspection errors or UI.
-      dispatch({ kind: "runtime-capability-loaded", state: "unavailable" });
+      const incompatible = error instanceof ObservationProtocolError;
+      const state = incompatible ? "incompatible" : "unavailable";
+      dispatch({ kind: "runtime-capability-loaded", state, metadata: { state, reason: incompatible ? "version-unsupported" : "no-usable-observation", incarnation: null, captureIdentity: null, revision: 0n }, epoch: effect.epoch });
       return;
     }
     if (aborted(error)) return;

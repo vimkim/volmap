@@ -272,6 +272,7 @@ impl Decoder {
                     Some("incarnation-changed") => "incarnation-changed",
                     Some("busy") => "producer-busy",
                     Some("rate-limited") => "rate-limited",
+                    Some("parameter-off") => "parameter-off",
                     _ => "producer-refused",
                 });
             }

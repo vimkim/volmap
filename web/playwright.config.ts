@@ -5,6 +5,8 @@ const serverUrl = "http://127.0.0.1:41739";
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
+  // Fault scenarios share one process-wide producer incarnation.
+  workers: 1,
   forbidOnly: true,
   retries: 0,
   reporter: "line",
@@ -28,7 +30,7 @@ export default defineConfig({
     timeout: 120_000,
     url: "http://127.0.0.1:41740",
   }, {
-    command: "VOLMAP_BROWSER_PORT=41741 VOLMAP_BROWSER_PRODUCER=1 ../release/run-browser-server.sh",
+    command: "VOLMAP_BROWSER_PORT=41741 VOLMAP_BROWSER_PRODUCER=1 VOLMAP_BROWSER_PRODUCER_PID_FILE=/tmp/volmap-browser-producer-41741.pid ../release/run-browser-server.sh",
     cwd: ".",
     reuseExistingServer: false,
     timeout: 120_000,

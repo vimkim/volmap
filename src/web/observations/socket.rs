@@ -9,6 +9,7 @@ use tokio::net::UnixStream;
 pub(super) struct Connection {
     stream: UnixStream,
     decoder: Decoder,
+    socket_identity: (u64, u64),
 }
 
 impl Connection {
@@ -31,18 +32,7 @@ impl Connection {
 
     async fn handshake(path: &Path, budget: Budget) -> Result<Self, &'static str> {
         let uid = effective_uid()?;
-        let directory = path.parent().ok_or("unsafe-socket")?;
-        let parent = std::fs::symlink_metadata(directory).map_err(|_| "source-unavailable")?;
-        let socket = std::fs::symlink_metadata(path).map_err(|_| "source-unavailable")?;
-        if !parent.is_dir()
-            || parent.uid() != uid
-            || parent.mode() & 0o7777 != 0o700
-            || !socket.file_type().is_socket()
-            || socket.uid() != uid
-            || socket.mode() & 0o7777 != 0o600
-        {
-            return Err("peer-refused");
-        }
+        let socket = verified_socket_metadata(path, uid)?;
         let stream = UnixStream::connect(path)
             .await
             .map_err(|_| "source-unavailable")?;
@@ -61,6 +51,7 @@ impl Connection {
         let mut connection = Self {
             stream,
             decoder: Decoder::with_budget(budget)?,
+            socket_identity: (socket.dev(), socket.ino()),
         };
         connection
             .write(b"{\"type\":\"client_hello\",\"supported_majors\":[1]}\n")
@@ -72,6 +63,21 @@ impl Connection {
             return Err("protocol-invalid");
         }
         Ok(connection)
+    }
+
+    /// An idle metadata check consumes no scan request or page evidence.
+    pub fn is_current(&self, path: &Path) -> Result<bool, &'static str> {
+        let uid = effective_uid()?;
+        let socket = verified_socket_metadata(path, uid)?;
+        if (socket.dev(), socket.ino()) != self.socket_identity {
+            return Ok(false);
+        }
+        match self.stream.try_read(&mut [0; 1]) {
+            Ok(0) => Ok(false),
+            Ok(_) => Err("version-unsupported"),
+            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => Ok(true),
+            Err(_) => Ok(false),
+        }
     }
 
     pub fn hello(&self) -> &Hello {
@@ -140,6 +146,22 @@ impl Connection {
             }
         }
     }
+}
+
+fn verified_socket_metadata(path: &Path, uid: u32) -> Result<std::fs::Metadata, &'static str> {
+    let directory = path.parent().ok_or("peer-refused")?;
+    let parent = std::fs::symlink_metadata(directory).map_err(|_| "source-unavailable")?;
+    let socket = std::fs::symlink_metadata(path).map_err(|_| "source-unavailable")?;
+    if !parent.is_dir()
+        || parent.uid() != uid
+        || parent.mode() & 0o7777 != 0o700
+        || !socket.file_type().is_socket()
+        || socket.uid() != uid
+        || socket.mode() & 0o7777 != 0o600
+    {
+        return Err("peer-refused");
+    }
+    Ok(socket)
 }
 
 fn effective_uid() -> Result<u32, &'static str> {

@@ -1,4 +1,4 @@
-import type { ObservationBatch, ObservationRequest } from "./observations";
+import type { CapabilityMetadata, ObservationBatch, ObservationRequest } from "./observations";
 import type { JsonObject, Resource } from "./api";
 import type {
   CollectionData,
@@ -18,7 +18,7 @@ import type { RuntimeCapabilityState } from "./model";
 
 export interface InspectorApi {
   observePageBuffer(request: ObservationRequest, signal?: AbortSignal): Promise<ObservationBatch>;
-  runtimeCapabilities(signal?: AbortSignal): Promise<RuntimeCapabilityState>;
+  runtimeCapabilities(signal?: AbortSignal): Promise<CapabilityMetadata>;
   session(signal?: AbortSignal): Promise<Resource<SessionData>>;
   volumes(signal?: AbortSignal): Promise<Resource<CollectionData<Volume>>>;
   sectors(

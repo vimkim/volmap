@@ -1,4 +1,4 @@
-import { initialObservation, observationAction, invalidateObservation, type ObservationUi, type ObservationAction, type ObservationEffect } from "./observations";
+import { initialObservation, observationAction, observationMetadata, type CapabilityMetadata, invalidateObservation, type ObservationUi, type ObservationAction, type ObservationEffect, type ObservationDelay } from "./observations";
 import type { JsonObject, Resource, Snapshot } from "./api";
 import type {
   CollectionData,
@@ -16,7 +16,8 @@ export type RuntimeCapabilityState = "disabled" | "connecting" | "active" | "sta
 
 export type Effect =
   | ObservationEffect
-  | Readonly<{ id: number; kind: "read-runtime-capability" }>
+  | ObservationDelay
+  | Readonly<{ id: number; kind: "read-runtime-capability"; epoch?: number }>
   | ReadRouteEffect
   | ReadSectorBatchEffect
   | EnrichRouteEffect
@@ -130,7 +131,7 @@ export interface UiError {
 
 export type Action =
   | ObservationAction
-  | Readonly<{ kind: "runtime-capability-loaded"; state: RuntimeCapabilityState }>
+  | Readonly<{ kind: "runtime-capability-loaded"; state: RuntimeCapabilityState; metadata?: CapabilityMetadata; epoch?: number }>
   | Readonly<{
       kind: "navigate";
       route: Route;
@@ -308,11 +309,16 @@ function loadRoute(
 }
 
 export function reduce(state: UiState, action: Action): UiState {
-  if (action.kind === "toggle-observation" || action.kind === "refresh-observation" || action.kind === "observation-loaded" || action.kind === "observation-ticked") return observationAction(state, action);
+  if (action.kind === "observation-due" || action.kind === "toggle-observation" || action.kind === "refresh-observation" || action.kind === "observation-loaded" || action.kind === "observation-ticked") return observationAction(state, action);
   return invalidateObservation(state, reduceInspection(state, action));
 }
 
 function reduceInspection(state: UiState, action: Exclude<Action, ObservationAction>): UiState {
+  const incomingSnapshot = action.kind === "route-loaded" ? action.result.snapshot
+    : action.kind === "enrichment-loaded" || action.kind === "sector-batch-loaded" ? action.resource.snapshot : null;
+  if (state.follow.paused && state.snapshot !== null && incomingSnapshot !== null && incomingSnapshot.generation !== state.snapshot.generation) {
+    return { ...state, collectionMessage: "Paused generation retained · Resume to adopt newer disk state" };
+  }
   if (action.kind === "effects-started") {
     const started = new Set(action.ids);
     return { ...state, effects: state.effects.filter((effect) => !started.has(effect.id)) };
@@ -551,7 +557,7 @@ function reduceInspection(state: UiState, action: Exclude<Action, ObservationAct
       ...state,
       follow: { ...state.follow, paused: !state.follow.paused },
     };
-    return state.follow.paused && state.follow.offered !== null ? reloadCurrentRoute(next) : next;
+    return state.follow.paused ? reloadCurrentRoute(next) : next;
   }
   if (action.kind === "enrichment-loaded") {
     if (action.scope !== state.scope) return state;
@@ -639,7 +645,10 @@ function reduceInspection(state: UiState, action: Exclude<Action, ObservationAct
       effects: [...state.effects, { id: state.nextEffectId, kind: "history-back", parent }],
     };
   }
-  if (action.kind === "runtime-capability-loaded") return { ...state, runtimeCapability: action.state };
+  if (action.kind === "runtime-capability-loaded") {
+    if (action.epoch !== undefined && action.metadata !== undefined) return observationMetadata(state, action.metadata, action.epoch);
+    return state.observation.enabled ? state : { ...state, runtimeCapability: action.state };
+  }
   if (action.kind === "visibility-changed") {
     if (!action.visible || state.runtimeCapabilityRequested) return { ...state, visible: action.visible };
     return {
