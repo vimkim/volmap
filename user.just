@@ -24,3 +24,9 @@ tui-page-preview:
 # This non-interactive preview complements the production `tui` command.
 tui-interpretation-preview:
     {{cargo}} test --quiet --locked --lib tui::focused::tests::print_interpretation_mode_preview -- --ignored --nocapture --test-threads=1
+
+# Synthetic dense overlay on the requested LAN address; Ctrl-C cleans up its fixture server.
+[positional-arguments]
+serve-overlay-preview host="192.168.4.2" port="7777":
+    just vite::frontend-generate-artifacts
+    python3 tools/serve-overlay-preview.py --listen "$1" --port "$2"
