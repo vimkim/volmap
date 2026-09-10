@@ -576,3 +576,91 @@ fn a_pre_resume_inflight_capture_cannot_fulfill_resumed_demand() {
         });
     drop(broker);
 }
+
+#[test]
+fn rotating_truncated_captures_never_accumulate_absence_or_hide_duplicate_ambiguity() {
+    let producer = Producer::script("rotation", move |listener| {
+        let (mut stream, _) = listener.accept().unwrap();
+        let mut reader = std::io::BufReader::new(stream.try_clone().unwrap());
+        let transcript = include_str!(
+            "../../../fixtures/pgbuf-inspector/v1/corpus/exchanges/complete/stream.jsonl"
+        );
+        let mut request = String::new();
+        reader.read_line(&mut request).unwrap();
+        writeln!(stream, "{}", transcript.lines().nth(1).unwrap()).unwrap();
+        // Script a stable six-slot pool: truncated scans advance beyond their
+        // two visited slots, then a complete scan has a duplicate VPID.
+        for sequence in 1..=4 {
+            request.clear();
+            reader.read_line(&mut request).unwrap();
+            let binding = format!(
+                "\"incarnation\":\"0123456789abcdef0123456789abcdef\",\"scan_seq\":\"{sequence}\""
+            );
+            writeln!(
+                stream,
+                "{{\"type\":\"scan_header\",{binding},\"start_time_us\":\"1\"}}"
+            )
+            .unwrap();
+            let pages = if sequence == 4 {
+                vec![0, 1, 2, 3, 4, 4]
+            } else {
+                vec![(sequence - 1) * 2, (sequence - 1) * 2 + 1]
+            };
+            for page in &pages {
+                writeln!(
+                    stream,
+                    "{{\"type\":\"page\",{binding},\"volid\":0,\"pageid\":{page}}}"
+                )
+                .unwrap();
+            }
+            writeln!(stream, "{{\"type\":\"scan_footer\",{binding},\"end_time_us\":\"2\",\"record_count\":{},\"visited_slots\":{},\"truncated\":{}}}", pages.len(), pages.len(), sequence != 4).unwrap();
+        }
+    });
+    let ticks = Arc::new(AtomicU64::new(0));
+    let clock = ticks.clone();
+    let origin = Instant::now();
+    let broker = Broker::with_clock(
+        producer.path.clone(),
+        Arc::new(move || origin + Duration::from_millis(clock.load(Ordering::SeqCst))),
+    );
+    let pages: Vec<_> = (0..7)
+        .map(|page| Vpid::new(VolId::new(0).unwrap(), PageId::new(page).unwrap()))
+        .collect();
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(async {
+            for sequence in 1..=4 {
+                ticks.store(sequence * 2000, Ordering::SeqCst);
+                let response = broker
+                    .observe(
+                        ValidatedScope::new(&pages, sequence).unwrap(),
+                        Some(identity()),
+                        "1",
+                        false,
+                    )
+                    .await
+                    .unwrap();
+                let response: serde_json::Value =
+                    serde_json::from_slice(response.as_ref()).unwrap();
+                assert_eq!(response["evaluated_count"], 7);
+                assert_eq!(response["producer_complete"], sequence == 4);
+                for page in 0..7 {
+                    let expected = if sequence == 4 {
+                        match page {
+                            0..=3 => "observed-resident",
+                            4 => "duplicate-vpid",
+                            _ => "observed-not-resident",
+                        }
+                    } else if page / 2 == usize::try_from(sequence - 1).unwrap() {
+                        "observed-resident"
+                    } else {
+                        "partial-omission"
+                    };
+                    assert_eq!(response["observations"][page]["reason"], expected);
+                }
+            }
+        });
+    drop(broker);
+}

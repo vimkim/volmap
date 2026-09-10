@@ -663,3 +663,30 @@ impl std::io::Write for LimitedWriter {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod response_tests {
+    use super::LimitedWriter;
+    use std::io::Write as _;
+
+    #[test]
+    fn normalized_response_cap_includes_all_serialized_bytes_without_growing_past_it() {
+        for length in [1_048_575, 1_048_576, 1_048_577] {
+            let mut output = LimitedWriter(Vec::with_capacity(1_048_576));
+            let chunk = [b' '; 4096];
+            let mut accepted = true;
+            for offset in (0..length).step_by(chunk.len()) {
+                if output
+                    .write_all(&chunk[..chunk.len().min(length - offset)])
+                    .is_err()
+                {
+                    accepted = false;
+                    break;
+                }
+            }
+            assert_eq!(accepted, length <= 1_048_576);
+            assert!(output.0.len() <= 1_048_576);
+            assert_eq!(output.0.capacity(), 1_048_576);
+        }
+    }
+}

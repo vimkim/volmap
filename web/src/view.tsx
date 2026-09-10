@@ -1,4 +1,4 @@
-import { observationIsFresh } from "./observations";
+import { ObservationMetadata, VisibleObservations, observationLabel, useObservationViewport } from "./observation-view";
 import { useEffect, useRef, type CSSProperties, type Dispatch, type KeyboardEvent } from "react";
 
 import type {
@@ -234,14 +234,9 @@ function ObservationDetail({ state }: Pick<ViewerProps, "state">) {
       <p className={`observation-mark observation-${batch?.state ?? "unknown"}`}>{label}</p>
       {batch !== null ? <>
         <p>VPID {batch.pages[0]?.volid}:{batch.pages[0]?.pageid} · {batch.reason}</p>
-        <p>{observation.age === null ? "Age uncertain" : `Conservative age: ${Math.ceil(observation.age / 1000)} s · ${observationIsFresh(observation.age) ? "fresh (500 ms interval)" : "stale"}`}{state.follow.paused ? " · paused" : ""}</p>
-        <p>Evaluated {batch.evaluated} / requested {batch.requested}; producer scan {batch.complete === null ? "unavailable" : batch.complete ? "complete" : "partial"}.</p>
+        <ObservationMetadata state={state}>
         <FieldList fields={Object.entries(batch.evidence).map(([name, value]) => [name.replaceAll("_", " "), value])} />
-        <details>
-          <summary>Capture identity and limitations</summary>
-          <p>{batch.captureLabel}</p>
-          {batch.limitations.map((limitation) => <p key={limitation}>{limitation}</p>)}
-        </details>
+        </ObservationMetadata>
       </> : <p>Refresh to request a separate runtime observation. Disk facts remain independently observed.</p>}
     </section>
   );
@@ -643,6 +638,7 @@ function SectorWorkspace({ state, dispatch }: Pick<ViewerProps, "state" | "dispa
                 {page.page_type.state === "known" ? page.page_type.value : "not inspected"}
               </span>
               <span className="page-id">{page.page_id}</span>
+              {state.observation.enabled ? <small>{observationLabel(state.observation.batch?.rows.find((row) => row.volid === page.vol_id && row.pageid === page.page_id))}</small> : null}
             </button>
           ))}
         </div>
@@ -694,6 +690,7 @@ function Breadcrumb({ state, dispatch }: Pick<ViewerProps, "state" | "dispatch">
 }
 
 export function Viewer({ state, dispatch, nowUnixSeconds }: ViewerProps) {
+  useObservationViewport(state, dispatch);
   const follow =
     state.snapshot === null ? "" : followLabel(state.snapshot, state.follow, nowUnixSeconds);
   return (
@@ -730,9 +727,9 @@ export function Viewer({ state, dispatch, nowUnixSeconds }: ViewerProps) {
               {state.observation.enabled ? "Disable observations" : "Enable observations"}
             </button>
             {state.observation.enabled ? <>
-              <button type="button" disabled={state.follow.paused || !state.visible || state.observation.loading || !("page" in state.route)}
-                onClick={() => dispatch({ kind: "refresh-observation" })}>Refresh selected-page observation</button>
-              <p>{state.observation.loading ? (state.follow.paused ? "Checking observation availability…" : "Observing selected page…") : state.observation.message}</p>
+              <button type="button" disabled={state.follow.paused || !state.visible || state.observation.loading || state.route.kind === "root"}
+                onClick={() => dispatch({ kind: "refresh-observation" })}>{"page" in state.route ? "Refresh selected-page observation" : "Refresh visible-page observations"}</button>
+              <p>{state.observation.loading ? (state.follow.paused ? "Checking observation availability…" : ("page" in state.route ? "Observing selected page…" : "Observing visible pages…")) : state.observation.message}</p>
               {state.observation.stopped ? <p>Automatic retry stopped · Refresh explicitly to retry attachment.</p> : null}
               {state.follow.paused && state.observation.newerAvailable ? <p>Newer observation available · Resume to request a new capture.</p> : null}
 
@@ -744,6 +741,7 @@ export function Viewer({ state, dispatch, nowUnixSeconds }: ViewerProps) {
               <p>No verified producer observation is available. Disk inspection is unaffected.</p>
             ) : null}
           </section>
+          <VisibleObservations state={state} />
           <h2>Snapshot hierarchy</h2>
           <div id="volumes">
             {state.volumes.map((volume) => (

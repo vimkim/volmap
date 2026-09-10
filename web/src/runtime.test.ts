@@ -129,7 +129,7 @@ test("browser expiry has its own cancellable deadline instead of waiting for the
   const scheduled: Array<readonly [number, () => void]> = [];
   const cancelled: number[] = [];
   const actions: Action[] = [];
-  const batch: ObservationBatch = { capability: "active", pages: [{ volid: 0, pageid: 7 }], epoch: "1", generation: "1", state: "resident", reason: "observed-resident", upperAgeMs: 100, incarnation: "fixture", captureIdentity: "capture", captureLabel: "fixture", evidence: {}, requested: 1, evaluated: 1, complete: true, limitations: [] };
+  const batch: ObservationBatch = { rows: [], capability: "active", pages: [{ volid: 0, pageid: 7 }], epoch: "1", generation: "1", state: "resident", reason: "observed-resident", upperAgeMs: 100, incarnation: "fixture", captureIdentity: "capture", captureLabel: "fixture", evidence: {}, requested: 1, evaluated: 1, complete: true, limitations: [] };
   const observation = { ...initialObservation(), enabled: true, batch, age: 300, received: 1000, wallReceived: 100000 };
   let reading = { now: 1100, wallNow: 100100 };
   const cleanup = subscribeObservationExpiry({ setTimeout: (run, delay) => { scheduled.push([delay, run]); return 7; }, clearTimeout: (id) => cancelled.push(id) }, observation,

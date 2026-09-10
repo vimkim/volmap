@@ -12,7 +12,32 @@ export interface ObservationRequest {
   readonly after_request?: boolean;
 }
 
+const observationReasons = {
+  resident: ["observed-resident"], "not-resident": ["observed-not-resident"],
+  unknown: ["partial-omission", "duplicate-vpid", "unevaluated"],
+  unavailable: ["no-usable-observation"], expired: ["observation-expired"],
+} as const;
+
+type ObservationState = {
+  [State in keyof typeof observationReasons]: {
+    readonly state: State;
+    readonly reason: (typeof observationReasons)[State][number];
+  }
+}[keyof typeof observationReasons];
+
+export type ObservationRow = ObservationState & {
+  readonly volid: number;
+  readonly pageid: number;
+  readonly evidence: Readonly<Record<string, string>>;
+};
+
+function validObservationState(value: { state: string; reason: string }): value is ObservationState {
+  const reasons: Readonly<Record<string, readonly string[]>> = observationReasons;
+  return Object.hasOwn(reasons, value.state) && reasons[value.state]!.includes(value.reason);
+}
+
 export interface ObservationBatch {
+  readonly rows: readonly ObservationRow[];
   readonly capability: RuntimeCapabilityState;
   readonly pages: ObservationRequest["pages"];
   readonly epoch: string;
@@ -31,6 +56,9 @@ export interface ObservationBatch {
 }
 
 export interface ObservationUi {
+  readonly viewport: ObservationRequest["pages"];
+  readonly viewportCount: number;
+  readonly rotation: number;
   readonly enabled: boolean;
   readonly epoch: number;
   readonly loading: boolean;
@@ -46,10 +74,11 @@ export interface ObservationUi {
 }
 
 export type ObservationAction =
+  | Readonly<{ kind: "observation-viewport"; scope: string; pages: ObservationRequest["pages"] }>
   | Readonly<{ kind: "observation-due"; epoch: number }>
   | Readonly<{ kind: "toggle-observation" }>
   | Readonly<{ kind: "refresh-observation" }>
-  | Readonly<{ kind: "observation-loaded"; scope: string; request: ObservationRequest; batch: ObservationBatch | null; failure?: "protocol-incompatible"; received: number; wallReceived: number; roundTrip: number }>
+  | Readonly<{ kind: "observation-loaded"; scope: string; request: ObservationRequest; batch: ObservationBatch | null; failure?: "protocol-incompatible" | "overloaded"; received: number; wallReceived: number; roundTrip: number }>
   | Readonly<{ kind: "observation-ticked"; now: number; wallNow: number }>;
 
 export interface ObservationDelay {
@@ -68,13 +97,19 @@ export interface ObservationEffect {
 }
 
 export function initialObservation(): ObservationUi {
-  return { enabled: false, epoch: 0, loading: false, batch: null, received: 0, wallReceived: 0, age: null, message: "Not observed", failures: 0, stopped: false, resumeRequired: false, newerAvailable: false };
+  return { viewport: [], viewportCount: 0, rotation: 0, enabled: false, epoch: 0, loading: false, batch: null, received: 0, wallReceived: 0, age: null, message: "Not observed", failures: 0, stopped: false, resumeRequired: false, newerAvailable: false };
 }
 
 export function observationAction(state: UiState, action: ObservationAction): UiState {
   const previous = state.observation;
+  if (action.kind === "observation-viewport") {
+    if (action.scope !== state.scope || samePages(previous.viewport, action.pages)) return state;
+    return scheduleObservation({ ...state, observation: { ...previous, viewport: action.pages,
+      viewportCount: 0, rotation: 0, batch: null, age: null, loading: false, epoch: previous.epoch + 1 },
+      effects: state.effects.filter((effect) => effect.kind !== "read-observation" && effect.kind !== "delay-observation") }, 0);
+  }
   if (action.kind === "toggle-observation") {
-    return scheduleObservation({ ...state, observation: { ...initialObservation(), enabled: !previous.enabled, epoch: previous.epoch + 1 } }, state.follow.paused ? 5000 : 0);
+    return scheduleObservation({ ...state, observation: { ...initialObservation(), viewport: previous.viewport, enabled: !previous.enabled, epoch: previous.epoch + 1 } }, state.follow.paused ? 5000 : 0);
   }
   if (action.kind === "refresh-observation" || action.kind === "observation-due") {
     if (action.kind === "observation-due") {
@@ -84,10 +119,18 @@ export function observationAction(state: UiState, action: ObservationAction): Ui
       if (previous.stopped) return state;
     }
     if (!previous.enabled || state.follow.paused || !state.visible || previous.loading ||
-        !("page" in state.route) || state.snapshot == null) return state;
+        state.route.kind === "root" || state.snapshot == null) return state;
     const epoch = previous.epoch + 1;
-    const request: ObservationRequest = { pages: [{ volid: state.route.vol, pageid: state.route.page }], epoch: String(epoch), generation: state.snapshot.generation ?? "0", retry: action.kind === "refresh-observation", cadence_ms: 500, after_request: previous.resumeRequired };
-    return { ...state, observation: { ...previous, epoch, loading: true, stopped: false, message: "Observing selected page" }, nextEffectId: state.nextEffectId + 1,
+    const selected = "page" in state.route ? { volid: state.route.vol, pageid: state.route.page } : null;
+    const remainder = previous.viewport.filter((page) => page.volid !== selected?.volid || page.pageid !== selected?.pageid);
+    const capacity = 512 - (selected === null ? 0 : 1);
+    const rotated = remainder.length > capacity;
+    const offset = rotated ? previous.rotation % remainder.length : 0;
+    const pages = selected === null ? [] : [selected];
+    for (let index = 0; index < Math.min(capacity, remainder.length); index += 1) pages.push(remainder[(offset + index) % remainder.length]!);
+    if (pages.length === 0) return scheduleObservation(state, observationInterval(state));
+    const request: ObservationRequest = { pages, epoch: String(epoch), generation: state.snapshot.generation ?? "0", retry: action.kind === "refresh-observation", cadence_ms: observationInterval(state), after_request: previous.resumeRequired };
+    return { ...state, observation: { ...previous, epoch, loading: true, stopped: false, viewportCount: remainder.length + (selected === null ? 0 : 1), rotation: rotated ? (offset + capacity) % remainder.length : 0, message: selected === null ? "Observing visible pages" : "Observing selected page" }, nextEffectId: state.nextEffectId + 1,
       effects: [...state.effects, { kind: "read-observation", id: state.nextEffectId, scope: state.scope, request }] };
   }
   if (action.kind === "observation-loaded") {
@@ -100,7 +143,7 @@ export function observationAction(state: UiState, action: ObservationAction): Ui
       return stopObservation(state, "incompatible", "Incompatible observation response");
     }
     if (action.failure === "protocol-incompatible") return stopObservation(state, "incompatible", "Incompatible observation response");
-    if (batch === null) return failedObservation(state, "unavailable", "Observation unavailable");
+    if (batch === null) return failedObservation(state, "unavailable", action.failure === "overloaded" ? "Observation overloaded (HTTP 429); retrying" : "Observation unavailable");
     if (batch.capability === "refused" || batch.capability === "incompatible") return stopObservation(state, batch.capability, batch.reason);
     if (batch.incarnation === null) return failedObservation(state, batch.capability, batch.reason);
     if (previous.batch !== null && previous.batch.incarnation !== batch.incarnation) return stopObservation(state, "refused", "incarnation-changed");
@@ -112,8 +155,8 @@ export function observationAction(state: UiState, action: ObservationAction): Ui
       age = priorAge === null || age === null ? null : Math.max(priorAge, age);
     }
     if (age === null || age >= 30_000) return expireObservation(state);
-    const adopted = { ...state, runtimeCapability: batch.capability, observation: { ...previous, loading: false, batch, received: action.received, wallReceived: action.wallReceived, age, failures: 0, resumeRequired: false, newerAvailable: false, message: batch.state } };
-    return batch.capability === "stale" ? failedObservation(adopted, "stale", batch.reason) : scheduleObservation(adopted, 500);
+    const adopted = { ...state, runtimeCapability: batch.capability, observation: { ...previous, loading: false, batch, received: action.received, wallReceived: action.wallReceived, age, failures: 0, resumeRequired: false, newerAvailable: false, message: "page" in state.route ? batch.state : "Visible-page observations available" } };
+    return batch.capability === "stale" ? failedObservation(adopted, "stale", batch.reason) : scheduleObservation(adopted, observationInterval(state));
   }
   if (previous.batch === null) return state;
   const age = observationAgeAt(previous, action.now, action.wallNow);
@@ -131,7 +174,7 @@ export function observationAgeAt(previous: ObservationUi, now: number, wallNow: 
 function expireObservation(state: UiState): UiState {
   const next = { ...state, observation: { ...state.observation, batch: null, age: null, message: "Observation expired", resumeRequired: true,
     loading: false, epoch: state.observation.epoch + 1 } };
-  return scheduleObservation(next, state.follow.paused ? 5000 : 500);
+  return scheduleObservation(next, state.follow.paused ? 5000 : observationInterval(state));
 }
 
 function stopObservation(state: UiState, capability: RuntimeCapabilityState, message: string): UiState {
@@ -161,7 +204,7 @@ export function invalidateObservation(before: UiState, after: UiState): UiState 
   if (!scopeChanged && !generationChanged && !paused && !visibility) return after;
   const next = { ...after, observation: { ...after.observation, epoch: after.observation.epoch + 1, loading: false,
     resumeRequired: after.observation.resumeRequired || (paused && !after.follow.paused) || visibility,
-    ...(routeChanged ? { batch: null, age: null, message: "Not observed" } : {}) },
+    ...(routeChanged ? { viewport: [], viewportCount: 0, rotation: 0, batch: null, age: null, message: "Not observed" } : {}) },
     effects: after.effects.filter((effect) => effect.kind !== "read-observation" && effect.kind !== "delay-observation" && (effect.kind !== "read-runtime-capability" || (effect.epoch === undefined && after.visible))) };
   return scheduleObservation(next, after.follow.paused ? 5000 : 0);
 }
@@ -235,13 +278,49 @@ export function decodeObservation(value: unknown): ObservationBatch {
   const pages = data.pages.map((page) => { const entry = objectData(page); return { volid: count(entry.volid, 32767), pageid: count(entry.pageid, 2147483647) }; });
   const capability = objectData(data.capability);
   const capabilityState = decodeCapability(capability);
-  const row = objectData(data.observations[0]);
-  if (!pages[0] || row.volid !== pages[0].volid || row.pageid !== pages[0].pageid ||
-      !["resident", "not-resident", "unknown", "unavailable", "expired"].includes(text(row.state))) throw new Error("invalid observation row");
   const capture = data.capture === null ? null : objectData(data.capture);
-  if ((capture !== null) !== ["active", "stale"].includes(capabilityState) ||
-      (row.state === "resident" && (capture === null || row.evidence === null)) ||
-      (row.state === "not-resident" && (capture === null || data.producer_complete !== true))) throw new Error("inconsistent observation evidence");
+  if ((capture !== null) !== ["active", "stale"].includes(capabilityState)) throw new Error("inconsistent capture");
+  const rows = data.observations.map((value, index) => decodeRow(value, pages[index]!, capture !== null, data.producer_complete));
+  const requested = count(data.requested_count);
+  const evaluated = count(data.evaluated_count);
+  const evaluatedRows = rows.filter((row) => row.reason !== "unevaluated" && row.state !== "unavailable" && row.state !== "expired").length;
+  if (requested !== pages.length || evaluated !== evaluatedRows) throw new Error("inconsistent scope coverage");
+  const row = rows[0];
+  if (!Array.isArray(data.limitations) || data.limitations.length > 16) throw new Error("invalid limitations");
+  if (data.producer_complete !== null && typeof data.producer_complete !== "boolean") throw new Error("invalid completeness");
+  return { capability: capabilityState, pages, epoch: text(data.epoch), generation: text(data.generation), state: row?.state ?? "unknown", reason: capabilityState !== "active" ? text(capability.reason) : row?.reason ?? "unevaluated",
+    upperAgeMs: capture === null ? null : count(capture.upper_age_ms, Number.MAX_SAFE_INTEGER),
+    incarnation: capture === null ? null : text(capture.incarnation_binding),
+    captureIdentity: capture === null ? undefined : text(capture.identity),
+    captureLabel: capture === null ? "No capture" : `Verified · database ${text(capture.database_fingerprint).slice(0, 12)} · Protocol ${count(capture.protocol_major)}.${count(capture.protocol_minor, 2147483647)} · ${text(capture.incarnation)} · scan ${text(capture.sequence)} · ${text(capture.start_time_us)}–${text(capture.end_time_us)} µs (source wall time)`,
+    rows, evidence: row?.evidence ?? {}, requested, evaluated, complete: data.producer_complete,
+    limitations: data.limitations.map(text) };
+}
+
+export const selectedObservationIntervalMs = 500;
+export function observationIsFresh(age: number | null, interval = selectedObservationIntervalMs): boolean {
+  return age !== null && age >= 0 && age <= 2 * interval;
+}
+
+function samePages(left: ObservationRequest["pages"], right: ObservationRequest["pages"]): boolean {
+  return left.length === right.length && left.every((page, index) => page.volid === right[index]?.volid && page.pageid === right[index]?.pageid);
+}
+
+export function observationInterval(state: UiState): number {
+  return "page" in state.route ? 500 : 2000;
+}
+
+function decodeRow(value: unknown, page: ObservationRequest["pages"][number], captured: boolean, complete: unknown): ObservationRow {
+  const row = objectData(value);
+  const classification = { state: text(row.state), reason: text(row.reason) };
+  if (!validObservationState(classification)) throw new Error("invalid observation classification");
+  const { state, reason } = classification;
+  if (row.volid !== page.volid || row.pageid !== page.pageid ||
+      (state === "resident" ? !captured || row.evidence == null : row.evidence !== null) ||
+      (state === "not-resident" && (!captured || complete !== true)) ||
+      (reason === "partial-omission" && (!captured || complete !== false)) ||
+      (state === "unknown" && !captured) ||
+      ((state === "unavailable" || state === "expired") && captured)) throw new Error("inconsistent observation row");
   const evidence: Record<string, string> = {};
   if (row.evidence !== null) {
     const fields = objectData(row.evidence);
@@ -254,18 +333,5 @@ export function decodeObservation(value: unknown): ObservationBatch {
       else { const lsa = objectData(item); evidence[field] = `${text(lsa.pageid)}:${count(lsa.offset, 32767)}`; }
     }
   }
-  if (!Array.isArray(data.limitations) || data.limitations.length > 16) throw new Error("invalid limitations");
-  if (data.producer_complete !== null && typeof data.producer_complete !== "boolean") throw new Error("invalid completeness");
-  return { capability: capabilityState, pages, epoch: text(data.epoch), generation: text(data.generation), state: text(row.state), reason: capabilityState !== "active" ? text(capability.reason) : text(row.reason),
-    upperAgeMs: capture === null ? null : count(capture.upper_age_ms, Number.MAX_SAFE_INTEGER),
-    incarnation: capture === null ? null : text(capture.incarnation_binding),
-    captureIdentity: capture === null ? undefined : text(capture.identity),
-    captureLabel: capture === null ? "No capture" : `Verified · database ${text(capture.database_fingerprint).slice(0, 12)} · Protocol ${count(capture.protocol_major)}.${count(capture.protocol_minor, 2147483647)} · ${text(capture.incarnation)} · scan ${text(capture.sequence)} · ${text(capture.start_time_us)}–${text(capture.end_time_us)} µs (source wall time)`,
-    evidence, requested: count(data.requested_count), evaluated: count(data.evaluated_count), complete: data.producer_complete,
-    limitations: data.limitations.map(text) };
-}
-
-export const selectedObservationIntervalMs = 500;
-export function observationIsFresh(age: number | null): boolean {
-  return age !== null && age >= 0 && age <= 2 * selectedObservationIntervalMs;
+  return { ...page, ...classification, evidence };
 }

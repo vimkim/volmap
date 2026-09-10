@@ -309,7 +309,7 @@ function loadRoute(
 }
 
 export function reduce(state: UiState, action: Action): UiState {
-  if (action.kind === "observation-due" || action.kind === "toggle-observation" || action.kind === "refresh-observation" || action.kind === "observation-loaded" || action.kind === "observation-ticked") return observationAction(state, action);
+  if (action.kind === "observation-viewport" || action.kind === "observation-due" || action.kind === "toggle-observation" || action.kind === "refresh-observation" || action.kind === "observation-loaded" || action.kind === "observation-ticked") return observationAction(state, action);
   return invalidateObservation(state, reduceInspection(state, action));
 }
 

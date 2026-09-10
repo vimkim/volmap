@@ -905,6 +905,10 @@ mod wire_tests {
     }
 
     #[test]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "One gated scan proves all eight independent caller scopes and admission"
+    )]
     fn eight_inflight_callers_share_one_slow_capture_and_reject_a_ninth() {
         use crate::inspection::{RuntimeIdentity, RuntimeVolumeIdentity};
         use crate::model::{PageId, VolId, Vpid};
@@ -971,7 +975,20 @@ mod wire_tests {
                     tasks.push(tokio::spawn(async move {
                         broker
                             .observe(
-                                super::ValidatedScope::new(&[page], epoch).unwrap(),
+                                super::ValidatedScope::new(
+                                    &[
+                                        Vpid::new(
+                                            VolId::new(0).unwrap(),
+                                            PageId::new(i32::try_from(epoch).unwrap()).unwrap(),
+                                        ),
+                                        page,
+                                        Vpid::new(VolId::new(1).unwrap(), PageId::new(0).unwrap()),
+                                    ],
+                                    epoch,
+                                )
+                                .unwrap()
+                                .with_demand(if epoch % 2 == 0 { 500 } else { 2000 }, false)
+                                .unwrap(),
                                 Some(identity),
                                 "1",
                                 false,
@@ -995,13 +1012,20 @@ mod wire_tests {
                 ));
                 release.send(()).unwrap();
                 let mut held = Vec::new();
-                for task in tasks {
+                for (epoch, task) in tasks.into_iter().enumerate() {
                     let response = task.await.unwrap().unwrap();
                     let value: serde_json::Value =
                         serde_json::from_slice(response.as_ref()).unwrap();
                     assert_eq!(value["capture"]["sequence"], "1");
                     assert_eq!(value["capture"]["upper_age_ms"], 701);
                     assert_eq!(value["capability"]["state"], "active");
+                    assert_eq!(value["epoch"], epoch.to_string());
+                    assert_eq!(value["pages"][0]["pageid"], epoch);
+                    assert_eq!(value["requested_count"], 3);
+                    assert_eq!(value["evaluated_count"], 2);
+                    assert_eq!(value["producer_complete"], true);
+                    assert_eq!(value["observations"][1]["state"], "resident");
+                    assert_eq!(value["observations"][2]["reason"], "unevaluated");
                     held.push(response);
                 }
             });

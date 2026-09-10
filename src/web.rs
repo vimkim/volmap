@@ -2984,6 +2984,103 @@ mod tests {
     }
 
     #[test]
+    fn concurrent_http_scopes_share_scan_but_keep_coverage_and_disk_admission_independent() {
+        use std::io::{BufRead as _, Write as _};
+        use std::os::unix::{fs::PermissionsExt as _, net::UnixListener};
+        let directory = FixtureDirectory::new();
+        std::fs::set_permissions(directory.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
+        let path = directory.path().join("producer.sock");
+        let listener = UnixListener::bind(&path).unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+        let server = boot_runtime(None, false, observations::Broker::new(Some(path)));
+        let identity = server
+            .source
+            .current()
+            .unwrap()
+            .view
+            .runtime_identity()
+            .unwrap();
+        let (release, released) = std::sync::mpsc::channel();
+        let producer = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut reader = std::io::BufReader::new(stream.try_clone().unwrap());
+            let mut request = String::new();
+            reader.read_line(&mut request).unwrap();
+            let hello = serde_json::json!({"type":"server_hello", "protocol_major":1,"protocol_minor":0,
+                "incarnation":"0123456789abcdef0123456789abcdef", "database_creation":identity.database_creation.to_string(),
+                "volumes":identity.volumes.iter().map(|volume| serde_json::json!({"volid":volume.volid,
+                    "volume_creation":volume.volume_creation.to_string(), "device":volume.device.to_string(), "inode":volume.inode.to_string()})).collect::<Vec<_>>(),
+                "shared_lru_count":2,"private_lru_count":3});
+            writeln!(stream, "{hello}").unwrap();
+            request.clear();
+            reader.read_line(&mut request).unwrap();
+            assert!(request.contains("scan_request"));
+            released
+                .recv_timeout(std::time::Duration::from_secs(3))
+                .unwrap();
+            let transcript = include_str!(
+                "../fixtures/pgbuf-inspector/v1/corpus/exchanges/complete/stream.jsonl"
+            );
+            for line in transcript.lines().skip(3) {
+                writeln!(
+                    stream,
+                    "{}",
+                    line.replace("\"truncated\":false", "\"truncated\":true")
+                )
+                .unwrap();
+            }
+            // Only one capture is supplied; extra scans would fail the waiters.
+        });
+        let address = server.address;
+        let generation = server.source.current().unwrap().generation.to_string();
+        let post = move |body: &str| {
+            exchange_raw(
+                address,
+                &format!(
+                    "POST /api/v1/runtime/page-buffer/observe HTTP/1.1\r\nHost: {address}\r\nOrigin: http://{address}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                ),
+            )
+        };
+        let clients: Vec<_> = (0..8).map(|epoch| {
+            let body = serde_json::json!({"pages":[{"volid":0,"pageid":7},{"volid":0,"pageid":epoch + 8},{"volid":1,"pageid":7}],"epoch":epoch.to_string(),"generation":generation,"cadence_ms":if epoch % 2 == 0 {500} else {2000}}).to_string();
+            std::thread::spawn(move || post(&body))
+        }).collect();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        loop {
+            let (status, _) = post("{}");
+            if status == 429 {
+                break;
+            }
+            assert_eq!(status, 400);
+            assert!(
+                std::time::Instant::now() < deadline,
+                "eight HTTP waiters must occupy admission"
+            );
+            std::thread::yield_now();
+        }
+        assert_eq!(get(address, "/api/v1/session").0, 200);
+        assert_eq!(get(address, "/api/v1/volumes").0, 200);
+        assert_eq!(get(address, "/api/v1/runtime/capabilities").0, 200);
+        release.send(()).unwrap();
+        for (epoch, client) in clients.into_iter().enumerate() {
+            let (status, body) = client.join().unwrap();
+            assert_eq!(status, 200, "{body}");
+            let value: serde_json::Value = serde_json::from_str(&body).unwrap();
+            assert_eq!(value["epoch"], epoch.to_string());
+            assert_eq!(value["capture"]["sequence"], "1");
+            assert_eq!(value["pages"][1]["pageid"], epoch + 8);
+            assert_eq!(value["requested_count"], 3);
+            assert_eq!(value["evaluated_count"], 2);
+            assert_eq!(value["producer_complete"], false);
+            assert_eq!(value["observations"][0]["state"], "resident");
+            assert_eq!(value["observations"][1]["reason"], "partial-omission");
+            assert_eq!(value["observations"][2]["reason"], "unevaluated");
+        }
+        producer.join().unwrap();
+    }
+
+    #[test]
     fn held_http_response_bodies_keep_admission_until_released() {
         let (_directory, mut state) = state();
         state.runtime = Arc::new(observations::Broker::new(Some(

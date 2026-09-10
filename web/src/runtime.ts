@@ -246,7 +246,7 @@ export async function executeEffect(
     }
   } catch (error) {
     if (effect.kind === "read-observation") {
-      dispatch({ kind: "observation-loaded", scope: effect.scope, request: effect.request, batch: null, ...(error instanceof ObservationProtocolError ? { failure: "protocol-incompatible" as const } : {}), received: performance.now(), wallReceived: Date.now(), roundTrip: 0 });
+      dispatch({ kind: "observation-loaded", scope: effect.scope, request: effect.request, batch: null, ...(error instanceof ObservationProtocolError ? { failure: "protocol-incompatible" as const } : error instanceof ApiError && error.status === 429 ? { failure: "overloaded" as const } : {}), received: performance.now(), wallReceived: Date.now(), roundTrip: 0 });
       return;
     }
     if (effect.kind === "read-runtime-capability") {

@@ -79,3 +79,52 @@ mod tests {
         assert!(budget.reserve(128 * MIB).is_ok());
     }
 }
+
+#[cfg(test)]
+mod capture_tests {
+    use super::*;
+    use crate::web::observations::wire::Decoder;
+
+    #[test]
+    fn actual_decoders_cannot_admit_object_caps_that_exceed_the_shared_total() {
+        let budget = Budget::default();
+        let _session = budget.reserve(8 * MIB).unwrap();
+        let responses: Vec<_> = (0..8).map(|_| budget.reserve(2 * MIB).unwrap()).collect();
+        let transcript = include_str!(
+            "../../../fixtures/pgbuf-inspector/v1/corpus/exchanges/complete/stream.jsonl"
+        );
+        let hello = format!("{}\n", transcript.lines().nth(1).unwrap());
+        let header = format!("{}\n", transcript.lines().nth(3).unwrap());
+        let capture = || {
+            let mut decoder = Decoder::with_budget(budget.clone()).unwrap();
+            decoder.feed(hello.as_bytes()).unwrap();
+            decoder.begin_scan().unwrap();
+            for line in transcript.lines().skip(3) {
+                decoder.feed(format!("{line}\n").as_bytes()).unwrap();
+            }
+            decoder.take_capture().unwrap()
+        };
+        let old = capture();
+        let retained = capture();
+        let mut inflight = Decoder::with_budget(budget.clone()).unwrap();
+        inflight.feed(hello.as_bytes()).unwrap();
+        inflight.begin_scan().unwrap();
+        // 8 session + 16 responses + 32 old + 32 latest + 16 parser = 104 MiB.
+        // A 32 MiB capture remains individually legal but cannot fit the total.
+        assert_eq!(
+            inflight.feed(header.as_bytes()),
+            Err("runtime-memory-admission")
+        );
+        drop(old);
+        let mut replacement = Decoder::with_budget(budget.clone()).unwrap();
+        replacement.feed(hello.as_bytes()).unwrap();
+        replacement.begin_scan().unwrap();
+        replacement.feed(header.as_bytes()).unwrap();
+        // 120 MiB including the failed decoder's still-owned parser scratch.
+        let below = budget.reserve(8 * MIB - 1).unwrap();
+        let at = budget.reserve(1).unwrap();
+        assert!(budget.reserve(1).is_err());
+        drop((retained, responses, replacement, inflight, below, at));
+        assert!(budget.reserve(120 * MIB).is_ok());
+    }
+}

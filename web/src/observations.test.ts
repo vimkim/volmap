@@ -29,7 +29,7 @@ function requested() {
 }
 
 function batch(effect: ObservationEffect): ObservationBatch {
-  return { capability: "active", pages: effect.request.pages, epoch: effect.request.epoch, generation: "1", state: "resident", reason: "observed-resident", upperAgeMs: 100, incarnation: "fixture-incarnation", captureLabel: "fixture interval", evidence: { latch_mode: "read" }, requested: 1, evaluated: 1, complete: true, limitations: ["No page-image correspondence"] };
+  return { rows: [], capability: "active", pages: effect.request.pages, epoch: effect.request.epoch, generation: "1", state: "resident", reason: "observed-resident", upperAgeMs: 100, incarnation: "fixture-incarnation", captureLabel: "fixture interval", evidence: { latch_mode: "read" }, requested: 1, evaluated: 1, complete: true, limitations: ["No page-image correspondence"] };
 }
 
 function loaded(effect: ObservationEffect, observation = batch(effect)) {
@@ -79,7 +79,7 @@ test("a backwards browser wall clock cannot extend observation freshness", () =>
 import { decodeObservation, observationIsFresh } from "./observations";
 
 test("selected-page freshness uses two 500 ms caller intervals", () => {
-  expect([999, 1000, 1001, null].map(observationIsFresh)).toEqual([true, true, false, false]);
+  expect([999, 1000, 1001, null].map((age) => observationIsFresh(age))).toEqual([true, true, false, false]);
 });
 
 test("absent optional evidence remains unknown while nullable LSA is known empty", () => {
@@ -241,4 +241,66 @@ test("paused connectivity failure remains visible and a restarted broker's lower
   next = reduce(next, { kind: "runtime-capability-loaded", state: "active", metadata: { ...metadata, incarnation: "new-producer", revision: 1n }, epoch: next.observation.epoch });
   expect(next.observation.batch).toBeNull();
   expect(next.observation.message).toBe("incarnation-changed");
+});
+
+test("viewport demand preserves selected priority, rotates overflow, and revokes late batches", () => {
+  const { state, effect } = requested();
+  const pages = Array.from({ length: 600 }, (_, pageid) => ({ volid: 0, pageid }));
+  let next = reduce(state, { kind: "observation-viewport", scope: state.scope, pages });
+  expect(next.observation.batch).toBeNull();
+  expect(reduce(next, loaded(effect)).observation.batch).toBeNull();
+  next = reduce(next, { kind: "refresh-observation" });
+  const first = next.effects.at(-1);
+  if (first?.kind !== "read-observation") throw new Error("missing viewport request");
+  expect(first.request.pages).toHaveLength(512);
+  expect(first.request.pages[0]).toEqual({ volid: 0, pageid: 7 });
+  expect(first.request.pages[1]).toEqual({ volid: 0, pageid: 0 });
+  expect(next.observation.viewportCount).toBe(600);
+  next = reduce(next, loaded(first, { ...batch(first), requested: 512, evaluated: 512 }));
+  next = reduce(next, { kind: "observation-due", epoch: next.observation.epoch });
+  const second = next.effects.at(-1);
+  if (second?.kind !== "read-observation") throw new Error("missing rotated request");
+  expect(second.request.pages[0]).toEqual({ volid: 0, pageid: 7 });
+  expect(second.request.pages[1]).toEqual({ volid: 0, pageid: 512 });
+  expect(new Set([...first.request.pages, ...second.request.pages].map((page) => page.pageid)).size).toBe(600);
+});
+
+function viewportEnvelope() {
+  return {
+    schema: "volmap.runtime.page-buffer", schema_version: 1,
+    capability: { schema: "volmap.runtime", schema_version: 1, source: "cubrid-page-buffer-observation", state: "active", reason: "observation-available", verification: "verified" },
+    pages: [{ volid: 0, pageid: 7 }, { volid: 0, pageid: 8 }], epoch: "1", generation: "0", requested_count: 2, evaluated_count: 2, producer_complete: false,
+    capture: { identity: "capture", incarnation_binding: "binding", incarnation: "0123456789ab", protocol_major: 1, protocol_minor: 0, database_fingerprint: "fingerprint", sequence: "1", start_time_us: "1", end_time_us: "2", upper_age_ms: 100 },
+    observations: [{ volid: 0, pageid: 7, state: "resident", reason: "observed-resident", evidence: { volid: 0, pageid: 7, dirty: true } },
+      { volid: 0, pageid: 8, state: "unknown", reason: "partial-omission", evidence: null }], limitations: [],
+  };
+}
+
+test("every batch row and scope coverage is validated independently of producer completeness", () => {
+  const envelope = viewportEnvelope();
+  expect(decodeObservation(envelope).rows).toMatchObject([{ state: "resident" }, { state: "unknown", reason: "partial-omission" }]);
+  for (const malformed of [
+    { ...envelope, observations: [envelope.observations[0], { ...envelope.observations[1], pageid: 9 }] },
+    { ...envelope, observations: [envelope.observations[0], { ...envelope.observations[1], state: "not-resident", reason: "observed-not-resident" }] },
+    { ...envelope, requested_count: 1 }, { ...envelope, evaluated_count: 3 }, { ...envelope, evaluated_count: 1 },
+    { ...envelope, observations: [envelope.observations[0], { ...envelope.observations[1], reason: "observed-not-resident" }] },
+  ]) expect(() => decodeObservation(malformed)).toThrow();
+});
+
+test("visible-page cadence is two seconds with explicit below, at and above-cap coverage", () => {
+  for (const count of [511, 512, 513]) {
+    const base = requested().state;
+    let state = reduce(base, { kind: "navigate", route: { kind: "volume", vol: 0 }, history: "push", autoEnrich: false });
+    state = reduce(state, { kind: "observation-viewport", scope: state.scope, pages: Array.from({ length: count }, (_, pageid) => ({ volid: 0, pageid })) });
+    state = reduce(state, { kind: "refresh-observation" });
+    const effect = state.effects.at(-1);
+    if (effect?.kind !== "read-observation") throw new Error("missing visible scope");
+    expect(effect.request.cadence_ms).toBe(2000);
+    expect(effect.request.pages).toHaveLength(Math.min(count, 512));
+    expect(state.observation.viewportCount).toBe(count);
+    expect(state.observation.rotation).toBe(count > 512 ? 512 : 0);
+    state = reduce(state, loaded(effect, { ...batch(effect), requested: Math.min(count, 512), evaluated: Math.min(count, 512) }));
+    expect(state.effects.at(-1)).toMatchObject({ kind: "delay-observation", milliseconds: 2000 });
+    expect(state.observation.message).toBe("Visible-page observations available");
+  }
 });
