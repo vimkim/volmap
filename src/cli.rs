@@ -131,7 +131,7 @@ struct ServeCommand {
     resources: ResourceArgs,
     #[arg(long, default_value = "127.0.0.1:0")]
     listen: SocketAddr,
-    /// Request the optional, loopback-only CUBRID page-buffer observation source.
+    /// Request the optional CUBRID page-buffer observation source.
     #[arg(long, requires = "runtime_socket")]
     runtime_page_buffer: bool,
     /// Explicit producer socket; no discovery or environment fallback.

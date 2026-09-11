@@ -11,7 +11,7 @@ use volmap::format::{FormatProfile, IO_PAGE_SIZE, PageType};
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
 
 #[test]
-fn runtime_attachment_requires_explicit_pair_and_loopback() {
+fn runtime_attachment_requires_explicit_pair_and_non_wildcard_listener() {
     for arguments in [
         vec!["serve", "--vinf", "/missing", "--runtime-page-buffer"],
         vec![
@@ -27,7 +27,7 @@ fn runtime_attachment_requires_explicit_pair_and_loopback() {
         assert!(String::from_utf8_lossy(&output.stderr).contains("required"));
     }
     let (_directory, vinf) = fixture();
-    for listener in ["0.0.0.0:0", "192.0.2.10:0", "[::]:0"] {
+    for listener in ["0.0.0.0:0", "[::]:0"] {
         let output = volmap(&[
             "serve",
             "--vinf",
@@ -43,7 +43,7 @@ fn runtime_attachment_requires_explicit_pair_and_loopback() {
         assert!(!output.status.success());
         assert!(
             String::from_utf8_lossy(&output.stderr)
-                .contains("runtime attachment requires a loopback")
+                .contains("runtime attachment requires a loopback or explicit IPv4")
         );
     }
 }

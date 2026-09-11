@@ -98,17 +98,20 @@ volmap serve --vinf /snapshot/demodb_vinf --listen 127.0.0.1:8080 \
   --runtime-page-buffer --runtime-socket /run/user/1000/cubrid/inspector.sock
 ```
 
-This is currently capability-only: the viewer reports `disabled` without
-opt-in, or `unavailable` / `unverified` with reason
-`attachment-not-implemented` when requested. It does not open or probe the
-producer socket yet, and cannot supply page observations. A missing socket
-does not prove the engine's parameter setting. Ordinary disk inspection needs
-no CUBRID service or installation and continues unchanged.
+The viewer verifies the producer's database and volume identities before supplying
+observations. Select a Page and click **Enable observations** to attach.
 
-Runtime attachment is rejected with any non-loopback HTTP listener. For remote
-use, run the viewer on the database host and forward its loopback port with
-SSH (for example, `ssh -L 8080:127.0.0.1:8080 database-host`). There is no socket
-discovery or environment fallback, and no new HTTP authentication or TLS.
+Runtime attachment accepts loopback or an explicit IPv4 listener, such as
+`--listen 192.168.4.2:7777`; wildcard runtime listeners are rejected. Direct LAN
+serving is unauthenticated plain HTTP, so anyone who can reach the port can use
+the enabled observations. SSH forwarding remains available for loopback serving.
+There is no socket discovery or environment fallback.
+
+For the local inspector-contract demodb setup, run `just user::serve-demodb-overlay`
+and open `http://192.168.4.2:7777`. An optional positional argument overrides the
+producer socket. This serves real database volumes; `serve-overlay-preview` and
+`check-overlay` use a synthetic fixture preview instead.
+
 The capability endpoint uses its own bounded admission and returns sanitized,
 non-cacheable metadata; it never changes inspection facts, outcomes, revisions,
 TUI or exports. Page-buffer observations, when implemented, will not prove
@@ -140,6 +143,9 @@ oos:VOLID:PAGEID:SLOTID
 - `serve` follows on-disk changes by default. It reports observed disk state,
   which is not the same as transactionally committed database state. Use
   `--no-follow` for one immutable reading.
+- Optional runtime-observation sources are additive. If a source is absent,
+  refuses attachment, or is unsupported, Volmap continues ordinary disk
+  inspection with no runtime overlay.
 - Raw application bytes, ciphertext, and TDE secrets never appear in output.
   Decoded values appear only for explicitly selected records.
 - The web server has no built-in authentication. Keep it on loopback or place

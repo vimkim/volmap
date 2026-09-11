@@ -85,8 +85,8 @@ struct WebState {
 
 #[derive(Debug)]
 pub enum ServeError {
-    RemoteWildcardRequired,
-    RuntimeLoopbackRequired,
+    UnsupportedListener,
+    RuntimeExplicitListenerRequired,
     Io(io::Error),
     Runtime(String),
 }
@@ -94,11 +94,11 @@ pub enum ServeError {
 impl std::fmt::Display for ServeError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::RuntimeLoopbackRequired => {
-                formatter.write_str("runtime attachment requires a loopback HTTP listener")
+            Self::RuntimeExplicitListenerRequired => {
+                formatter.write_str("runtime attachment requires a loopback or explicit IPv4 HTTP listener (no wildcard)")
             }
-            Self::RemoteWildcardRequired => formatter
-                .write_str("remote HTTP requires an explicit --listen 0.0.0.0:PORT listener"),
+            Self::UnsupportedListener => formatter
+                .write_str("HTTP requires a loopback or IPv4 listener"),
             Self::Io(error) => write!(formatter, "web I/O failed: {error}"),
             Self::Runtime(message) => write!(formatter, "web runtime failed: {message}"),
         }
@@ -156,7 +156,7 @@ async fn serve_async(view: GraphView, options: ServeOptions) -> Result<(), Serve
     print_follow_state(options.follow.as_ref());
     if !options.listen.ip().is_loopback() {
         eprintln!(
-            "WARNING: unauthenticated plain HTTP is listening on all interfaces. Anyone who can reach this port can inspect metadata and request enrichment."
+            "WARNING: unauthenticated plain HTTP is listening on {local}. Anyone who can reach this port can inspect metadata, request enrichment, and use enabled runtime observations."
         );
     }
     axum::serve(listener, router)
@@ -1680,11 +1680,11 @@ fn default_error_message(code: &str) -> &'static str {
 
 fn validate_listener(options: &ServeOptions) -> Result<(), ServeError> {
     let ip = options.listen.ip();
-    if options.runtime_socket.is_some() && !ip.is_loopback() {
-        return Err(ServeError::RuntimeLoopbackRequired);
+    if options.runtime_socket.is_some() && ip.is_unspecified() {
+        return Err(ServeError::RuntimeExplicitListenerRequired);
     }
-    if !ip.is_loopback() && ip != IpAddr::V4(Ipv4Addr::UNSPECIFIED) {
-        return Err(ServeError::RemoteWildcardRequired);
+    if !ip.is_loopback() && !ip.is_ipv4() {
+        return Err(ServeError::UnsupportedListener);
     }
     Ok(())
 }
@@ -1917,16 +1917,57 @@ mod tests {
     }
 
     #[test]
-    fn remote_http_requires_the_explicit_ipv4_wildcard_listener() {
+    fn http_accepts_loopback_and_ipv4_listeners() {
         assert!(validate_listener(&options("127.0.0.1:8787")).is_ok());
         assert!(validate_listener(&options("0.0.0.0:8787")).is_ok());
 
-        for rejected in ["192.0.2.10:8787", "[::]:8787"] {
+        assert!(validate_listener(&options("192.0.2.10:8787")).is_ok());
+        for rejected in ["[::]:8787", "[2001:db8::1]:8787"] {
             assert!(matches!(
                 validate_listener(&options(rejected)),
-                Err(ServeError::RemoteWildcardRequired)
+                Err(ServeError::UnsupportedListener)
             ));
         }
+    }
+
+    #[test]
+    fn runtime_attachment_accepts_explicit_ipv4_and_loopback_listeners() {
+        for listener in ["127.0.0.1:7777", "[::1]:7777", "192.168.4.2:7777"] {
+            let mut configured = options(listener);
+            configured.runtime_socket = Some("/private/inspector".into());
+            assert!(validate_listener(&configured).is_ok(), "{listener}");
+        }
+    }
+
+    #[test]
+    fn lan_runtime_requests_require_matching_host_and_origin() {
+        let (_directory, mut state) = state();
+        state.authority = Some(Arc::from("192.168.4.2:7777"));
+        let mut observation = request(Method::POST, "/api/v1/runtime/page-buffer/observe");
+        observation
+            .headers_mut()
+            .insert(HOST, HeaderValue::from_static("192.168.4.2:7777"));
+        observation
+            .headers_mut()
+            .insert(ORIGIN, HeaderValue::from_static("http://192.168.4.2:7777"));
+        observation
+            .headers_mut()
+            .insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        assert!(guard(&state, &observation).is_ok());
+        observation
+            .headers_mut()
+            .insert(ORIGIN, HeaderValue::from_static("http://attacker.test"));
+        assert_eq!(
+            guard(&state, &observation).unwrap_err().code,
+            "origin-rejected"
+        );
+        observation
+            .headers_mut()
+            .insert(HOST, HeaderValue::from_static("attacker.test"));
+        assert_eq!(
+            guard(&state, &observation).unwrap_err().code,
+            "invalid-host"
+        );
     }
 
     #[test]

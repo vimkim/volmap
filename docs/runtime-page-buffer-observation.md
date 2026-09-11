@@ -1,11 +1,12 @@
 # Selected-page buffer observations
 
-Start a loopback viewer with `--runtime-page-buffer --runtime-socket PATH`,
+Start a viewer on loopback or an explicit IPv4 address with `--runtime-page-buffer --runtime-socket PATH`,
 select a Page, and enable observations. Sampling runs every 500 ms after each
 completed request; **Refresh selected-page observation** also provides an
 explicit attachment retry. The producer socket must be in an owner-only directory (0700)
 and have mode 0600. Both peers must have exactly the same effective UID.
-Remote operators can forward the loopback viewer through SSH.
+Wildcard runtime listeners are rejected. Direct LAN serving uses unauthenticated
+plain HTTP; remote operators can also forward a loopback viewer through SSH.
 
 The broker verifies database creation and the complete permanent-volume
 identity set before requesting a scan. A refusal or incompatible protocol
