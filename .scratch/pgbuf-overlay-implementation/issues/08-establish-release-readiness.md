@@ -63,3 +63,11 @@ listener requirement is explicitly qualified by current ADR 0006. Test execution
 source/design evidence, native producer authority and manual review remain
 separate. The complete delivery audit, candidate memory failure and all real
 performance/manual gates stay open; no acceptance checkbox is closed here.
+
+2026-09-11 — User asked whether the budget failure is a leak. A
+[same-browser20-cycle diagnostic](../verification/08-memory-growth/README.md)
+compares disabled control with repeated enable/LRU/disable, recording RSS and
+post-GC heap/DOM counts. DOM/listener counts remain stable after cycle5; retained
+heap and RSS still increase modestly, so neither a leak nor a leak-free plateau
+is established. The prior32MiB failure remains open; GC interventions are not
+acceptance evidence. Production source and normal tests are unchanged.

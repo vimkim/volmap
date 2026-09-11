@@ -386,6 +386,13 @@
       "result": "non-passing: Chromium RSS verdict varies across unchanged-source executions; initial failure retained",
       "executed_count": 4,
       "scope": "Existing local sampled density gate; not dedicated-host matrix; synthetic producer"
+    },
+    "memory_growth_diagnostic": {
+      "manifest": ".scratch/pgbuf-overlay-implementation/verification/08-memory-growth/manifest.json",
+      "sha256": "b2ac8b7f1e511bf957bbdfd111352e49f05178005dc467df008c66d104907445",
+      "scope": "Same-browser 20-cycle Chromium characterization with forced GC; not acceptance",
+      "result": "No leak cause established; small retained-heap/RSS growth remains",
+      "executed_cases": 2
     }
   },
   "evidence_inventory": ".scratch/pgbuf-overlay-implementation/verification/08-release-readiness/evidence-inventory.json",
