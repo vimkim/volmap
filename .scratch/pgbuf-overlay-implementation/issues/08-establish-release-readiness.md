@@ -54,3 +54,12 @@ original 12,288-cell / 40-input-per-arm workload. See [raw attempts and diagnosi
 boundary](../verification/08-candidate-density/README.md). The candidate-density
 gate is now explicitly failed; historical 06 acceptance is preserved. No runtime
 code or threshold changed. Manual and dedicated-host gates remain open.
+
+2026-09-11 — Added a [named functional evidence ledger](../verification/08-contract-ledger/README.md)
+for all 50 checklist entries in tickets 01–05: 81 test/source references, source
+fingerprints, execution contexts and explicit limits instead of aggregate-only
+suite references. New focused state/effect reports pass 21+8 cases. The original
+listener requirement is explicitly qualified by current ADR 0006. Test execution,
+source/design evidence, native producer authority and manual review remain
+separate. The complete delivery audit, candidate memory failure and all real
+performance/manual gates stay open; no acceptance checkbox is closed here.

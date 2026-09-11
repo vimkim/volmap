@@ -1,0 +1,2203 @@
+{
+  "schema_version": 1,
+  "status": "named-evidence-map; not release approval",
+  "consumer_commit_at_audit": "71e1e3ccba2addc2e2c17aeb9638fe41be8c332f",
+  "path_base": "repository root",
+  "scope": "All50 checklist entries from tickets01-05; individual mapped assertions and residual limits. Tickets06/07/08 use existing gate/evidence manifests.",
+  "execution_contexts": {
+    "preparation-full-suite": {
+      "consumer_base": "08ed9477bd7414c6a320a2c06ee7b439e8685ba5",
+      "command": "just verify",
+      "build": "Debug Rust tests and ordinary debug browser fixture servers; separate optimized musl ELF verification in just verify.",
+      "raw_artifact": ".scratch/pgbuf-overlay-implementation/verification/08-release-readiness/local-verify.log.gz",
+      "sha256": "d1592cb152c89e55bfdc052b799458a5d57e81f9fbd69f0e450170d130997429",
+      "exit_code": 0,
+      "browser_passed": 65,
+      "browser_skipped": 1,
+      "skip": "Firefox parity case in current-viewer.spec.ts; no referenced browser family is that skip",
+      "environment": "Toolchain versions in raw output; original host environment is not fully captured, so this is not dedicated-host evidence.",
+      "producer": "Scripted fixtures; real-engine cases remain separately indexed",
+      "testcase_revision": "08ed9477bd7414c6a320a2c06ee7b439e8685ba5"
+    },
+    "named-frontend-rerun": {
+      "consumer_commit": "71e1e3ccba2addc2e2c17aeb9638fe41be8c332f",
+      "command": "mise x node@24.19.0 -- corepack pnpm --dir web exec vitest run src/observations.test.ts --reporter=json --outputFile=/home/vimkim/temp/volmap/.scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/observations-results.json",
+      "build": "Vitest frontend source execution, not release browser",
+      "raw_artifact": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/observations-results.json",
+      "sha256": "c64118d54681982aba1038391412d53980c0817e930d93894c6f86db9f36219f",
+      "exit_code": 0,
+      "executed_count": 21,
+      "passed": 21,
+      "failed": 0,
+      "skipped": 0,
+      "producer": "none; reducer fixtures",
+      "testcase_revision": "71e1e3ccba2addc2e2c17aeb9638fe41be8c332f"
+    },
+    "source-review": {
+      "consumer_commit": "71e1e3ccba2addc2e2c17aeb9638fe41be8c332f",
+      "command": null,
+      "executed_count": 0,
+      "result": "source/document inspection, not test execution"
+    },
+    "named-runtime-rerun": {
+      "consumer_commit": "71e1e3ccba2addc2e2c17aeb9638fe41be8c332f",
+      "testcase_revision": "71e1e3ccba2addc2e2c17aeb9638fe41be8c332f",
+      "command": "mise x node@24.19.0 -- corepack pnpm --dir web exec vitest run src/runtime.test.ts --reporter=json --outputFile=/home/vimkim/temp/volmap/.scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/runtime-results.json",
+      "build": "Vitest frontend effects source execution, not release browser",
+      "raw_artifact": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/runtime-results.json",
+      "sha256": "cf3ab6267239865e0db0afbdb123549b1717c60a27489f511ede0358f4065dd8",
+      "exit_code": 0,
+      "executed_count": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "producer": "none; injected scheduling/HTTP fixtures"
+    }
+  },
+  "corpus": {
+    "contract_version": "1.0",
+    "corpus_revision": 2,
+    "corpus_sha256": "11dbecc72e4b9dd78e22080f138c801c189c7e047c0db23af8233f44a804d5ce"
+  },
+  "source_fingerprints": {
+    "tests/cli_contract.rs": {
+      "sha256": "2db8e4546b460312bb21f93dc46464abce6acf553e0fac358f1154bd68b0444a",
+      "matches_preparation_base": true
+    },
+    "src/web.rs": {
+      "sha256": "04e5b0c8c9849214e4644ad1ed0b1e1bc96eeeb04116249d3569752275096b5d",
+      "matches_preparation_base": true
+    },
+    "src/web/observations.rs": {
+      "sha256": "4bf6a01f70918a9579d84183e323c5eba3304b139fb81ec923b933849078d1ac",
+      "matches_preparation_base": true
+    },
+    "src/web/observations/memory.rs": {
+      "sha256": "8a1bbe856a4f416cb27261e2546b9733e9c9eec2a50005a121c5f3f72650dd9a",
+      "matches_preparation_base": true
+    },
+    "src/web/observations/lifecycle_tests.rs": {
+      "sha256": "6c973cff940ed0ab81cf2efb096a198d46ed2e0fd4d04cad8468969d23b4d75c",
+      "matches_preparation_base": true
+    },
+    "web/e2e/current-viewer.spec.ts": {
+      "sha256": "d731f39fe98507fec7c2f926eb01ac141592282781683ec3a174ab6dccd82f5c",
+      "matches_preparation_base": true
+    },
+    "web/e2e/observations.spec.ts": {
+      "sha256": "ed0ff081aefce3bf9171981bd90359d63583e8374be3ae16ba4034739da1f50e",
+      "matches_preparation_base": true
+    },
+    "docs/runtime-overlay.md": {
+      "sha256": "8819bc30aa24f1e4530b6bcff9b8b4db09550fe8ff1b59337bc11d79bf83cfae",
+      "matches_preparation_base": false
+    },
+    "docs/adr/0006-runtime-observations-are-loopback-web-capabilities.md": {
+      "sha256": "efccc1fd94c8c3608cb2af24ef80d847c1a21d8e8d798ee7186e682092b85a82",
+      "matches_preparation_base": true
+    },
+    "tests/pgbuf_corpus.rs": {
+      "sha256": "4ec2ec2340e09204514a84db7fb5a795a3d432b63cd3452e5026099d8dcc18ef",
+      "matches_preparation_base": true
+    },
+    "web/src/observations.test.ts": {
+      "sha256": "22c6334e1541b4e766e8966d1ef18d4008765d356720e7dc0d23ee898b155b7f",
+      "matches_preparation_base": true
+    },
+    "src/web/observations/session.rs": {
+      "sha256": "e11557bf49a50a76ef28539a0b426fac7f7fa591e1fda3970de4a0a1ee507177",
+      "matches_preparation_base": true
+    },
+    "web/e2e/overlay-accessibility.spec.ts": {
+      "sha256": "9cd85226c9b04e28cdfe92e7bc9b11a430c904583dae2155b106c18123cb9fdd",
+      "matches_preparation_base": true
+    },
+    "web/src/runtime.test.ts": {
+      "sha256": "0d9447ce82ae8c29468dffa93195f651577453e3f91e8f63271f11e61097aae5",
+      "matches_preparation_base": true
+    }
+  },
+  "evidence": {
+    "rust:runtime_attachment_requires_explicit_pair_and_non_wildcard_listener": {
+      "kind": "rust-test",
+      "name": "runtime_attachment_requires_explicit_pair_and_non_wildcard_listener",
+      "source": {
+        "path": "tests/cli_contract.rs",
+        "line": 14,
+        "source_fingerprint": "tests/cli_contract.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 234,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "rust:runtime_attachment_accepts_explicit_ipv4_and_loopback_listeners": {
+      "kind": "rust-test",
+      "name": "web::tests::runtime_attachment_accepts_explicit_ipv4_and_loopback_listeners",
+      "source": {
+        "path": "src/web.rs",
+        "line": 1948,
+        "source_fingerprint": "src/web.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 64,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "rust:configured_runtime_is_unavailable_unverified_and_sanitized_over_http": {
+      "kind": "rust-test",
+      "name": "web::tests::configured_runtime_is_unavailable_unverified_and_sanitized_over_http",
+      "source": {
+        "path": "src/web.rs",
+        "line": 3482,
+        "source_fingerprint": "src/web.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 100,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "rust:runtime_capabilities_are_independent_of_disk_inspection_over_http": {
+      "kind": "rust-test",
+      "name": "web::tests::runtime_capabilities_are_independent_of_disk_inspection_over_http",
+      "source": {
+        "path": "src/web.rs",
+        "line": 3464,
+        "source_fingerprint": "src/web.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 102,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "rust:runtime_capability_admission_is_bounded_and_independent_over_http": {
+      "kind": "rust-test",
+      "name": "web::tests::runtime_capability_admission_is_bounded_and_independent_over_http",
+      "source": {
+        "path": "src/web.rs",
+        "line": 3516,
+        "source_fingerprint": "src/web.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 106,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "rust:runtime_capability_deadline_releases_its_slot_over_http": {
+      "kind": "rust-test",
+      "name": "web::tests::runtime_capability_deadline_releases_its_slot_over_http",
+      "source": {
+        "path": "src/web.rs",
+        "line": 3544,
+        "source_fingerprint": "src/web.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 154,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "rust:configured_and_disabled_brokers_accept_an_injected_scheduler": {
+      "kind": "rust-test",
+      "name": "web::observations::tests::configured_and_disabled_brokers_accept_an_injected_scheduler",
+      "source": {
+        "path": "src/web/observations.rs",
+        "line": 353,
+        "source_fingerprint": "src/web/observations.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 44,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "rust:observation_http_bounds_ordered_scopes_and_request_bytes": {
+      "kind": "rust-test",
+      "name": "web::tests::observation_http_bounds_ordered_scopes_and_request_bytes",
+      "source": {
+        "path": "src/web.rs",
+        "line": 3001,
+        "source_fingerprint": "src/web.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 147,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "rust:observation_scope_enforces_the_bound_before_copying_and_keeps_order": {
+      "kind": "rust-test",
+      "name": "web::observations::tests::observation_scope_enforces_the_bound_before_copying_and_keeps_order",
+      "source": {
+        "path": "src/web/observations.rs",
+        "line": 264,
+        "source_fingerprint": "src/web/observations.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 46,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "rust:canonical_exchange_corpus_validates_all_server_stream_outcomes": {
+      "kind": "rust-test",
+      "name": "web::observations::wire_tests::canonical_exchange_corpus_validates_all_server_stream_outcomes",
+      "source": {
+        "path": "src/web/observations.rs",
+        "line": 425,
+        "source_fingerprint": "src/web/observations.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 114,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "rust:broker_refuses_each_identity_component_and_incomplete_volume_sets_before_scanning": {
+      "kind": "rust-test",
+      "name": "web::observations::wire_tests::broker_refuses_each_identity_component_and_incomplete_volume_sets_before_scanning",
+      "source": {
+        "path": "src/web/observations.rs",
+        "line": 640,
+        "source_fingerprint": "src/web/observations.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 95,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "rust:actual_io_deadlines_bound_stalled_handshake_and_scan": {
+      "kind": "rust-test",
+      "name": "web::observations::wire_tests::actual_io_deadlines_bound_stalled_handshake_and_scan",
+      "source": {
+        "path": "src/web/observations.rs",
+        "line": 717,
+        "source_fingerprint": "src/web/observations.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 155,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "rust:aggregate_boundary_counts_retained_inflight_and_response_owners_until_last_drop": {
+      "kind": "rust-test",
+      "name": "web::observations::memory::tests::aggregate_boundary_counts_retained_inflight_and_response_owners_until_last_drop",
+      "source": {
+        "path": "src/web/observations/memory.rs",
+        "line": 59,
+        "source_fingerprint": "src/web/observations/memory.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 43,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "rust:actual_decoders_cannot_admit_object_caps_that_exceed_the_shared_total": {
+      "kind": "rust-test",
+      "name": "web::observations::memory::capture_tests::actual_decoders_cannot_admit_object_caps_that_exceed_the_shared_total",
+      "source": {
+        "path": "src/web/observations/memory.rs",
+        "line": 89,
+        "source_fingerprint": "src/web/observations/memory.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 51,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "rust:broker_shares_capture_charges_held_responses_retains_original_age_and_expires": {
+      "kind": "rust-test",
+      "name": "web::observations::wire_tests::broker_shares_capture_charges_held_responses_retains_original_age_and_expires",
+      "source": {
+        "path": "src/web/observations.rs",
+        "line": 778,
+        "source_fingerprint": "src/web/observations.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 101,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "rust:eight_inflight_callers_share_one_slow_capture_and_reject_a_ninth": {
+      "kind": "rust-test",
+      "name": "web::observations::wire_tests::eight_inflight_callers_share_one_slow_capture_and_reject_a_ninth",
+      "source": {
+        "path": "src/web/observations.rs",
+        "line": 939,
+        "source_fingerprint": "src/web/observations.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 98,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "rust:caller_cadence_controls_cache_reuse_and_resume_requires_a_later_scan": {
+      "kind": "rust-test",
+      "name": "web::observations::lifecycle_tests::caller_cadence_controls_cache_reuse_and_resume_requires_a_later_scan",
+      "source": {
+        "path": "src/web/observations/lifecycle_tests.rs",
+        "line": 93,
+        "source_fingerprint": "src/web/observations/lifecycle_tests.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 89,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "rust:cancellation_preserves_other_callers_and_last_observer_closes_unfinished_scan": {
+      "kind": "rust-test",
+      "name": "web::observations::lifecycle_tests::cancellation_preserves_other_callers_and_last_observer_closes_unfinished_scan",
+      "source": {
+        "path": "src/web/observations/lifecycle_tests.rs",
+        "line": 246,
+        "source_fingerprint": "src/web/observations/lifecycle_tests.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 72,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "rust:rotating_truncated_captures_never_accumulate_absence_or_hide_duplicate_ambiguity": {
+      "kind": "rust-test",
+      "name": "web::observations::lifecycle_tests::rotating_truncated_captures_never_accumulate_absence_or_hide_duplicate_ambiguity",
+      "source": {
+        "path": "src/web/observations/lifecycle_tests.rs",
+        "line": 581,
+        "source_fingerprint": "src/web/observations/lifecycle_tests.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 93,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "rust:complete_producer_scan_publishes_only_after_the_footer": {
+      "kind": "rust-test",
+      "name": "web::observations::wire_tests::complete_producer_scan_publishes_only_after_the_footer",
+      "source": {
+        "path": "src/web/observations.rs",
+        "line": 1187,
+        "source_fingerprint": "src/web/observations.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 50,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "rust:producer_errors_have_stable_normalized_reasons_and_only_refusals_stop_retry": {
+      "kind": "rust-test",
+      "name": "web::observations::lifecycle_tests::producer_errors_have_stable_normalized_reasons_and_only_refusals_stop_retry",
+      "source": {
+        "path": "src/web/observations/lifecycle_tests.rs",
+        "line": 460,
+        "source_fingerprint": "src/web/observations/lifecycle_tests.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 81,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "rust:selected_page_observation_crosses_real_socket_and_http_with_bound_identity": {
+      "kind": "rust-test",
+      "name": "web::tests::selected_page_observation_crosses_real_socket_and_http_with_bound_identity",
+      "source": {
+        "path": "src/web.rs",
+        "line": 3354,
+        "source_fingerprint": "src/web.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 132,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "rust:observation_http_deadline_includes_stalled_request_body": {
+      "kind": "rust-test",
+      "name": "web::tests::observation_http_deadline_includes_stalled_request_body",
+      "source": {
+        "path": "src/web.rs",
+        "line": 3331,
+        "source_fingerprint": "src/web.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 156,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "rust:lan_runtime_requests_require_matching_host_and_origin": {
+      "kind": "rust-test",
+      "name": "web::tests::lan_runtime_requests_require_matching_host_and_origin",
+      "source": {
+        "path": "src/web.rs",
+        "line": 1957,
+        "source_fingerprint": "src/web.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 67,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "source:src/web/observations.rs:135": {
+      "kind": "source-review",
+      "source": {
+        "path": "src/web/observations.rs",
+        "line": 135,
+        "source_fingerprint": "src/web/observations.rs"
+      },
+      "execution_context": "source-review",
+      "executed_count": 0,
+      "result": "source-evidence-only",
+      "claim": "Simulated adapter and constructors are cfg(test); production variants are disabled/socket."
+    },
+    "rust:injected_scheduler_controls_capability_deadline_boundaries": {
+      "kind": "rust-test",
+      "name": "web::observations::tests::injected_scheduler_controls_capability_deadline_boundaries",
+      "source": {
+        "path": "src/web/observations.rs",
+        "line": 324,
+        "source_fingerprint": "src/web/observations.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 47,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "browser:current-viewer.spec.ts:3": {
+      "kind": "browser-case-family",
+      "source": {
+        "path": "web/e2e/current-viewer.spec.ts",
+        "line": 3,
+        "source_fingerprint": "web/e2e/current-viewer.spec.ts"
+      },
+      "cases": [
+        {
+          "browser": "chromium",
+          "name": "optional runtime capability stays separate from working disk inspection",
+          "raw_line": 599
+        },
+        {
+          "browser": "firefox",
+          "name": "optional runtime capability stays separate from working disk inspection",
+          "raw_line": 636
+        }
+      ],
+      "execution_context": "preparation-full-suite",
+      "executed_count": 2,
+      "result": "passed-in-successful-suite",
+      "preconditions": "Playwright fixture servers; port41741 scripted producer, fault cases may intercept HTTP; source shows exact preconditions. This family is not the known unrelated Firefox parity skip."
+    },
+    "browser:observations.spec.ts:7": {
+      "kind": "browser-case-family",
+      "source": {
+        "path": "web/e2e/observations.spec.ts",
+        "line": 7,
+        "source_fingerprint": "web/e2e/observations.spec.ts"
+      },
+      "cases": [
+        {
+          "browser": "chromium",
+          "name": "selected-page observation uses a scripted socket producer, real HTTP and non-color detail",
+          "raw_line": 602
+        },
+        {
+          "browser": "firefox",
+          "name": "selected-page observation uses a scripted socket producer, real HTTP and non-color detail",
+          "raw_line": 639
+        }
+      ],
+      "execution_context": "preparation-full-suite",
+      "executed_count": 2,
+      "result": "passed-in-successful-suite",
+      "preconditions": "Playwright fixture servers; port41741 scripted producer, fault cases may intercept HTTP; source shows exact preconditions. This family is not the known unrelated Firefox parity skip."
+    },
+    "source:docs/runtime-overlay.md:62": {
+      "kind": "source-review",
+      "source": {
+        "path": "docs/runtime-overlay.md",
+        "line": 62,
+        "source_fingerprint": "docs/runtime-overlay.md"
+      },
+      "execution_context": "source-review",
+      "executed_count": 0,
+      "result": "source-evidence-only",
+      "claim": "Operator enablement, explicit socket, profile, SSH and exclusions."
+    },
+    "source:docs/adr/0006-runtime-observations-are-loopback-web-capabilities.md:1": {
+      "kind": "source-review",
+      "source": {
+        "path": "docs/adr/0006-runtime-observations-are-loopback-web-capabilities.md",
+        "line": 1,
+        "source_fingerprint": "docs/adr/0006-runtime-observations-are-loopback-web-capabilities.md"
+      },
+      "execution_context": "source-review",
+      "executed_count": 0,
+      "result": "source-evidence-only",
+      "claim": "Runtime is a volatile optional web capability outside inspection facts/exports/TUI."
+    },
+    "rust:vendored_producer_revision_and_every_corpus_byte_match_the_pin": {
+      "kind": "rust-test",
+      "name": "vendored_producer_revision_and_every_corpus_byte_match_the_pin",
+      "source": {
+        "path": "tests/pgbuf_corpus.rs",
+        "line": 6,
+        "source_fingerprint": "tests/pgbuf_corpus.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 392,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "rust:peer_credentials_reject_another_effective_uid_without_a_root_exception": {
+      "kind": "rust-test",
+      "name": "web::observations::wire_tests::peer_credentials_reject_another_effective_uid_without_a_root_exception",
+      "source": {
+        "path": "src/web/observations.rs",
+        "line": 1064,
+        "source_fingerprint": "src/web/observations.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 70,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "rust:actual_private_socket_accepts_chunked_producer_and_rejects_unsafe_mode": {
+      "kind": "rust-test",
+      "name": "web::observations::wire_tests::actual_private_socket_accepts_chunked_producer_and_rejects_unsafe_mode",
+      "source": {
+        "path": "src/web/observations.rs",
+        "line": 1138,
+        "source_fingerprint": "src/web/observations.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 59,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "frontend:refusal clears evidence and stops automatic retry until explicit refresh": {
+      "kind": "frontend-state-test",
+      "name": "refusal clears evidence and stops automatic retry until explicit refresh",
+      "source": {
+        "path": "web/src/observations.test.ts",
+        "line": 134,
+        "source_fingerprint": "web/src/observations.test.ts"
+      },
+      "execution_context": "named-frontend-rerun",
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "Reducer fixture and explicit action timestamps defined in the test; not actual socket timing."
+    },
+    "rust:paused_metadata_detects_replaced_producer_and_refuses_until_explicit_retry": {
+      "kind": "rust-test",
+      "name": "web::observations::lifecycle_tests::paused_metadata_detects_replaced_producer_and_refuses_until_explicit_retry",
+      "source": {
+        "path": "src/web/observations/lifecycle_tests.rs",
+        "line": 328,
+        "source_fingerprint": "src/web/observations/lifecycle_tests.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 119,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "browser:observations.spec.ts:97": {
+      "kind": "browser-case-family",
+      "source": {
+        "path": "web/e2e/observations.spec.ts",
+        "line": 97,
+        "source_fingerprint": "web/e2e/observations.spec.ts"
+      },
+      "cases": [
+        {
+          "browser": "chromium",
+          "name": "Page producer restart while paused clears evidence and requires an explicit retry",
+          "raw_line": 604
+        },
+        {
+          "browser": "chromium",
+          "name": "Sector producer restart while paused clears evidence and requires an explicit retry",
+          "raw_line": 605
+        },
+        {
+          "browser": "firefox",
+          "name": "Page producer restart while paused clears evidence and requires an explicit retry",
+          "raw_line": 641
+        },
+        {
+          "browser": "firefox",
+          "name": "Sector producer restart while paused clears evidence and requires an explicit retry",
+          "raw_line": 642
+        }
+      ],
+      "execution_context": "preparation-full-suite",
+      "executed_count": 4,
+      "result": "passed-in-successful-suite",
+      "preconditions": "Playwright fixture servers; port41741 scripted producer, fault cases may intercept HTTP; source shows exact preconditions. This family is not the known unrelated Firefox parity skip."
+    },
+    "rust:additive_unknown_numbers_do_not_require_machine_numeric_range": {
+      "kind": "rust-test",
+      "name": "web::observations::wire_tests::additive_unknown_numbers_do_not_require_machine_numeric_range",
+      "source": {
+        "path": "src/web/observations.rs",
+        "line": 532,
+        "source_fingerprint": "src/web/observations.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 48,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "rust:producer_duplicate_members_and_excessive_depth_are_rejected": {
+      "kind": "rust-test",
+      "name": "web::observations::wire_tests::producer_duplicate_members_and_excessive_depth_are_rejected",
+      "source": {
+        "path": "src/web/observations.rs",
+        "line": 374,
+        "source_fingerprint": "src/web/observations.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 54,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "browser:observations.spec.ts:322": {
+      "kind": "browser-case-family",
+      "source": {
+        "path": "web/e2e/observations.spec.ts",
+        "line": 322,
+        "source_fingerprint": "web/e2e/observations.spec.ts"
+      },
+      "cases": [
+        {
+          "browser": "chromium",
+          "name": "selected detail exposes exact membership and null meanings; inconsistent topology is refused",
+          "raw_line": 613
+        },
+        {
+          "browser": "firefox",
+          "name": "selected detail exposes exact membership and null meanings; inconsistent topology is refused",
+          "raw_line": 650
+        }
+      ],
+      "execution_context": "preparation-full-suite",
+      "executed_count": 2,
+      "result": "passed-in-successful-suite",
+      "preconditions": "Playwright fixture servers; port41741 scripted producer, fault cases may intercept HTTP; source shows exact preconditions. This family is not the known unrelated Firefox parity skip."
+    },
+    "frontend:absent optional evidence remains unknown while nullable LSA is known empty": {
+      "kind": "frontend-state-test",
+      "name": "absent optional evidence remains unknown while nullable LSA is known empty",
+      "source": {
+        "path": "web/src/observations.test.ts",
+        "line": 85,
+        "source_fingerprint": "web/src/observations.test.ts"
+      },
+      "execution_context": "named-frontend-rerun",
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "Reducer fixture and explicit action timestamps defined in the test; not actual socket timing."
+    },
+    "browser:observations.spec.ts:248": {
+      "kind": "browser-case-family",
+      "source": {
+        "path": "web/e2e/observations.spec.ts",
+        "line": 248,
+        "source_fingerprint": "web/e2e/observations.spec.ts"
+      },
+      "cases": [
+        {
+          "browser": "chromium",
+          "name": "volume/0 separates partial unknowns, duplicate ambiguity, nonresidency and expired evidence",
+          "raw_line": 611
+        },
+        {
+          "browser": "chromium",
+          "name": "sector/0/0 separates partial unknowns, duplicate ambiguity, nonresidency and expired evidence",
+          "raw_line": 612
+        },
+        {
+          "browser": "firefox",
+          "name": "volume/0 separates partial unknowns, duplicate ambiguity, nonresidency and expired evidence",
+          "raw_line": 648
+        },
+        {
+          "browser": "firefox",
+          "name": "sector/0/0 separates partial unknowns, duplicate ambiguity, nonresidency and expired evidence",
+          "raw_line": 649
+        }
+      ],
+      "execution_context": "preparation-full-suite",
+      "executed_count": 4,
+      "result": "passed-in-successful-suite",
+      "preconditions": "Playwright fixture servers; port41741 scripted producer, fault cases may intercept HTTP; source shows exact preconditions. This family is not the known unrelated Firefox parity skip."
+    },
+    "rust:wire_frame_limits_include_newline_at_below_and_above_boundaries": {
+      "kind": "rust-test",
+      "name": "web::observations::wire_tests::wire_frame_limits_include_newline_at_below_and_above_boundaries",
+      "source": {
+        "path": "src/web/observations.rs",
+        "line": 545,
+        "source_fingerprint": "src/web/observations.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 63,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "rust:raw_record_slot_and_framed_scan_limits_are_checked_before_deduplication": {
+      "kind": "rust-test",
+      "name": "web::observations::wire_tests::raw_record_slot_and_framed_scan_limits_are_checked_before_deduplication",
+      "source": {
+        "path": "src/web/observations.rs",
+        "line": 575,
+        "source_fingerprint": "src/web/observations.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 157,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "rust:normalized_response_cap_includes_all_serialized_bytes_without_growing_past_it": {
+      "kind": "rust-test",
+      "name": "web::observations::session::response_tests::normalized_response_cap_includes_all_serialized_bytes_without_growing_past_it",
+      "source": {
+        "path": "src/web/observations/session.rs",
+        "line": 704,
+        "source_fingerprint": "src/web/observations/session.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 45,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "rust:resume_obeys_the_independent_broker_scan_start_floor_with_a_virtual_scheduler": {
+      "kind": "rust-test",
+      "name": "web::observations::lifecycle_tests::resume_obeys_the_independent_broker_scan_start_floor_with_a_virtual_scheduler",
+      "source": {
+        "path": "src/web/observations/lifecycle_tests.rs",
+        "line": 166,
+        "source_fingerprint": "src/web/observations/lifecycle_tests.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 71,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "frontend:full round trip contributes to conservative age and paused evidence expires at 30 seconds": {
+      "kind": "frontend-state-test",
+      "name": "full round trip contributes to conservative age and paused evidence expires at 30 seconds",
+      "source": {
+        "path": "web/src/observations.test.ts",
+        "line": 59,
+        "source_fingerprint": "web/src/observations.test.ts"
+      },
+      "execution_context": "named-frontend-rerun",
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "Reducer fixture and explicit action timestamps defined in the test; not actual socket timing."
+    },
+    "frontend:a backwards browser wall clock cannot extend observation freshness": {
+      "kind": "frontend-state-test",
+      "name": "a backwards browser wall clock cannot extend observation freshness",
+      "source": {
+        "path": "web/src/observations.test.ts",
+        "line": 72,
+        "source_fingerprint": "web/src/observations.test.ts"
+      },
+      "execution_context": "named-frontend-rerun",
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "Reducer fixture and explicit action timestamps defined in the test; not actual socket timing."
+    },
+    "frontend:selected-page freshness uses two 500 ms caller intervals": {
+      "kind": "frontend-state-test",
+      "name": "selected-page freshness uses two 500 ms caller intervals",
+      "source": {
+        "path": "web/src/observations.test.ts",
+        "line": 81,
+        "source_fingerprint": "web/src/observations.test.ts"
+      },
+      "execution_context": "named-frontend-rerun",
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "Reducer fixture and explicit action timestamps defined in the test; not actual socket timing."
+    },
+    "frontend:reusing a capture cannot lower age and suspension cannot revive it from cache": {
+      "kind": "frontend-state-test",
+      "name": "reusing a capture cannot lower age and suspension cannot revive it from cache",
+      "source": {
+        "path": "web/src/observations.test.ts",
+        "line": 190,
+        "source_fingerprint": "web/src/observations.test.ts"
+      },
+      "execution_context": "named-frontend-rerun",
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "Reducer fixture and explicit action timestamps defined in the test; not actual socket timing."
+    },
+    "frontend:echoed epoch and ordered VPIDs independently reject incompatible responses": {
+      "kind": "frontend-state-test",
+      "name": "echoed epoch and ordered VPIDs independently reject incompatible responses",
+      "source": {
+        "path": "web/src/observations.test.ts",
+        "line": 39,
+        "source_fingerprint": "web/src/observations.test.ts"
+      },
+      "execution_context": "named-frontend-rerun",
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "Reducer fixture and explicit action timestamps defined in the test; not actual socket timing."
+    },
+    "frontend:pause revokes late adoption independently of request cancellation": {
+      "kind": "frontend-state-test",
+      "name": "pause revokes late adoption independently of request cancellation",
+      "source": {
+        "path": "web/src/observations.test.ts",
+        "line": 52,
+        "source_fingerprint": "web/src/observations.test.ts"
+      },
+      "execution_context": "named-frontend-rerun",
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "Reducer fixture and explicit action timestamps defined in the test; not actual socket timing."
+    },
+    "browser:overlay-accessibility.spec.ts:54": {
+      "kind": "browser-case-family",
+      "source": {
+        "path": "web/e2e/overlay-accessibility.spec.ts",
+        "line": 54,
+        "source_fingerprint": "web/e2e/overlay-accessibility.spec.ts"
+      },
+      "cases": [
+        {
+          "browser": "chromium",
+          "name": "volume/0 absent and refused sources retain named disk navigation without absence marks",
+          "raw_line": 630
+        },
+        {
+          "browser": "chromium",
+          "name": "sector/0/0 absent and refused sources retain named disk navigation without absence marks",
+          "raw_line": 631
+        },
+        {
+          "browser": "firefox",
+          "name": "volume/0 absent and refused sources retain named disk navigation without absence marks",
+          "raw_line": 667
+        },
+        {
+          "browser": "firefox",
+          "name": "sector/0/0 absent and refused sources retain named disk navigation without absence marks",
+          "raw_line": 668
+        }
+      ],
+      "execution_context": "preparation-full-suite",
+      "executed_count": 4,
+      "result": "passed-in-successful-suite",
+      "preconditions": "Playwright fixture servers; port41741 scripted producer, fault cases may intercept HTTP; source shows exact preconditions. This family is not the known unrelated Firefox parity skip."
+    },
+    "frontend:enabled selected-page observations poll without explicit retry and never queue missed ticks": {
+      "kind": "frontend-state-test",
+      "name": "enabled selected-page observations poll without explicit retry and never queue missed ticks",
+      "source": {
+        "path": "web/src/observations.test.ts",
+        "line": 99,
+        "source_fingerprint": "web/src/observations.test.ts"
+      },
+      "execution_context": "named-frontend-rerun",
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "Reducer fixture and explicit action timestamps defined in the test; not actual socket timing."
+    },
+    "frontend:transient failures retain original evidence age, back off, and reset only after a valid scan": {
+      "kind": "frontend-state-test",
+      "name": "transient failures retain original evidence age, back off, and reset only after a valid scan",
+      "source": {
+        "path": "web/src/observations.test.ts",
+        "line": 113,
+        "source_fingerprint": "web/src/observations.test.ts"
+      },
+      "execution_context": "named-frontend-rerun",
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "Reducer fixture and explicit action timestamps defined in the test; not actual socket timing."
+    },
+    "browser:observations.spec.ts:119": {
+      "kind": "browser-case-family",
+      "source": {
+        "path": "web/e2e/observations.spec.ts",
+        "line": 119,
+        "source_fingerprint": "web/e2e/observations.spec.ts"
+      },
+      "cases": [
+        {
+          "browser": "chromium",
+          "name": "transient browser retries back off and protocol incompatibility waits for explicit retry",
+          "raw_line": 606
+        },
+        {
+          "browser": "firefox",
+          "name": "transient browser retries back off and protocol incompatibility waits for explicit retry",
+          "raw_line": 643
+        }
+      ],
+      "execution_context": "preparation-full-suite",
+      "executed_count": 2,
+      "result": "passed-in-successful-suite",
+      "preconditions": "Playwright fixture servers; port41741 scripted producer, fault cases may intercept HTTP; source shows exact preconditions. This family is not the known unrelated Firefox parity skip."
+    },
+    "frontend:pause schedules only metadata; hidden revokes requests; resume demands a post-request scan": {
+      "kind": "frontend-state-test",
+      "name": "pause schedules only metadata; hidden revokes requests; resume demands a post-request scan",
+      "source": {
+        "path": "web/src/observations.test.ts",
+        "line": 148,
+        "source_fingerprint": "web/src/observations.test.ts"
+      },
+      "execution_context": "named-frontend-rerun",
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "Reducer fixture and explicit action timestamps defined in the test; not actual socket timing."
+    },
+    "frontend:paused metadata is availability only and restart clears evidence even without resume": {
+      "kind": "frontend-state-test",
+      "name": "paused metadata is availability only and restart clears evidence even without resume",
+      "source": {
+        "path": "web/src/observations.test.ts",
+        "line": 166,
+        "source_fingerprint": "web/src/observations.test.ts"
+      },
+      "execution_context": "named-frontend-rerun",
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "Reducer fixture and explicit action timestamps defined in the test; not actual socket timing."
+    },
+    "browser:observations.spec.ts:38": {
+      "kind": "browser-case-family",
+      "source": {
+        "path": "web/e2e/observations.spec.ts",
+        "line": 38,
+        "source_fingerprint": "web/e2e/observations.spec.ts"
+      },
+      "cases": [
+        {
+          "browser": "chromium",
+          "name": "automatic polling, paused offers, hidden silence, resume and expiry preserve disk navigation",
+          "raw_line": 603
+        },
+        {
+          "browser": "firefox",
+          "name": "automatic polling, paused offers, hidden silence, resume and expiry preserve disk navigation",
+          "raw_line": 640
+        }
+      ],
+      "execution_context": "preparation-full-suite",
+      "executed_count": 2,
+      "result": "passed-in-successful-suite",
+      "preconditions": "Playwright fixture servers; port41741 scripted producer, fault cases may intercept HTTP; source shows exact preconditions. This family is not the known unrelated Firefox parity skip."
+    },
+    "rust:metadata_offers_capture_identity_without_scanning_and_expires_while_paused": {
+      "kind": "rust-test",
+      "name": "web::observations::lifecycle_tests::metadata_offers_capture_identity_without_scanning_and_expires_while_paused",
+      "source": {
+        "path": "src/web/observations/lifecycle_tests.rs",
+        "line": 131,
+        "source_fingerprint": "src/web/observations/lifecycle_tests.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 66,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "frontend:failed resume retains its barrier and cannot adopt another tab's old cached capture": {
+      "kind": "frontend-state-test",
+      "name": "failed resume retains its barrier and cannot adopt another tab's old cached capture",
+      "source": {
+        "path": "web/src/observations.test.ts",
+        "line": 205,
+        "source_fingerprint": "web/src/observations.test.ts"
+      },
+      "execution_context": "named-frontend-rerun",
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "Reducer fixture and explicit action timestamps defined in the test; not actual socket timing."
+    },
+    "rust:a_pre_resume_inflight_capture_cannot_fulfill_resumed_demand": {
+      "kind": "rust-test",
+      "name": "web::observations::lifecycle_tests::a_pre_resume_inflight_capture_cannot_fulfill_resumed_demand",
+      "source": {
+        "path": "src/web/observations/lifecycle_tests.rs",
+        "line": 504,
+        "source_fingerprint": "src/web/observations/lifecycle_tests.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 69,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "browser:observations.spec.ts:534": {
+      "kind": "browser-case-family",
+      "source": {
+        "path": "web/e2e/observations.spec.ts",
+        "line": 534,
+        "source_fingerprint": "web/e2e/observations.spec.ts"
+      },
+      "cases": [
+        {
+          "browser": "chromium",
+          "name": "Sector pause rejects a delayed response and resume starts fresh scope demand",
+          "raw_line": 627
+        },
+        {
+          "browser": "firefox",
+          "name": "Sector pause rejects a delayed response and resume starts fresh scope demand",
+          "raw_line": 664
+        }
+      ],
+      "execution_context": "preparation-full-suite",
+      "executed_count": 2,
+      "result": "passed-in-successful-suite",
+      "preconditions": "Playwright fixture servers; port41741 scripted producer, fault cases may intercept HTTP; source shows exact preconditions. This family is not the known unrelated Firefox parity skip."
+    },
+    "frontend:same-page generation replacement revokes late adoption but retains state-only evidence": {
+      "kind": "frontend-state-test",
+      "name": "same-page generation replacement revokes late adoption but retains state-only evidence",
+      "source": {
+        "path": "web/src/observations.test.ts",
+        "line": 181,
+        "source_fingerprint": "web/src/observations.test.ts"
+      },
+      "execution_context": "named-frontend-rerun",
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "Reducer fixture and explicit action timestamps defined in the test; not actual socket timing."
+    },
+    "frontend:a new-incarnation stale fallback clears old evidence before preserving any failure state": {
+      "kind": "frontend-state-test",
+      "name": "a new-incarnation stale fallback clears old evidence before preserving any failure state",
+      "source": {
+        "path": "web/src/observations.test.ts",
+        "line": 221,
+        "source_fingerprint": "web/src/observations.test.ts"
+      },
+      "execution_context": "named-frontend-rerun",
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "Reducer fixture and explicit action timestamps defined in the test; not actual socket timing."
+    },
+    "rust:metadata_preserves_matching_disk_identity_and_invalidates_a_changed_volume": {
+      "kind": "rust-test",
+      "name": "web::observations::lifecycle_tests::metadata_preserves_matching_disk_identity_and_invalidates_a_changed_volume",
+      "source": {
+        "path": "src/web/observations/lifecycle_tests.rs",
+        "line": 427,
+        "source_fingerprint": "src/web/observations/lifecycle_tests.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 65,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "rust:wall_clock_steps_and_suspension_revoke_broker_cache_age_authority": {
+      "kind": "rust-test",
+      "name": "web::observations::lifecycle_tests::wall_clock_steps_and_suspension_revoke_broker_cache_age_authority",
+      "source": {
+        "path": "src/web/observations/lifecycle_tests.rs",
+        "line": 208,
+        "source_fingerprint": "src/web/observations/lifecycle_tests.rs"
+      },
+      "execution_context": "preparation-full-suite",
+      "raw_line": 75,
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "See named test body: private fixture, socket or injected scheduler as specified; no subcase count inferred."
+    },
+    "frontend:paused connectivity failure remains visible and a restarted broker's lower revision cannot hide incarnation change": {
+      "kind": "frontend-state-test",
+      "name": "paused connectivity failure remains visible and a restarted broker's lower revision cannot hide incarnation change",
+      "source": {
+        "path": "web/src/observations.test.ts",
+        "line": 233,
+        "source_fingerprint": "web/src/observations.test.ts"
+      },
+      "execution_context": "named-frontend-rerun",
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "Reducer fixture and explicit action timestamps defined in the test; not actual socket timing."
+    },
+    "frontend:viewport demand preserves selected priority, rotates overflow, and revokes late batches": {
+      "kind": "frontend-state-test",
+      "name": "viewport demand preserves selected priority, rotates overflow, and revokes late batches",
+      "source": {
+        "path": "web/src/observations.test.ts",
+        "line": 246,
+        "source_fingerprint": "web/src/observations.test.ts"
+      },
+      "execution_context": "named-frontend-rerun",
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "Reducer fixture and explicit action timestamps defined in the test; not actual socket timing."
+    },
+    "frontend:visible-page cadence is two seconds with explicit below, at and above-cap coverage": {
+      "kind": "frontend-state-test",
+      "name": "visible-page cadence is two seconds with explicit below, at and above-cap coverage",
+      "source": {
+        "path": "web/src/observations.test.ts",
+        "line": 290,
+        "source_fingerprint": "web/src/observations.test.ts"
+      },
+      "execution_context": "named-frontend-rerun",
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "Reducer fixture and explicit action timestamps defined in the test; not actual socket timing."
+    },
+    "browser:observations.spec.ts:180": {
+      "kind": "browser-case-family",
+      "source": {
+        "path": "web/e2e/observations.spec.ts",
+        "line": 180,
+        "source_fingerprint": "web/e2e/observations.spec.ts"
+      },
+      "cases": [
+        {
+          "browser": "chromium",
+          "name": "viewport overflow rotates explicitly; scrolling revokes scope and HTTP overload keeps disk usable",
+          "raw_line": 608
+        },
+        {
+          "browser": "firefox",
+          "name": "viewport overflow rotates explicitly; scrolling revokes scope and HTTP overload keeps disk usable",
+          "raw_line": 645
+        }
+      ],
+      "execution_context": "preparation-full-suite",
+      "executed_count": 2,
+      "result": "passed-in-successful-suite",
+      "preconditions": "Playwright fixture servers; port41741 scripted producer, fault cases may intercept HTTP; source shows exact preconditions. This family is not the known unrelated Firefox parity skip."
+    },
+    "browser:observations.spec.ts:147": {
+      "kind": "browser-case-family",
+      "source": {
+        "path": "web/e2e/observations.spec.ts",
+        "line": 147,
+        "source_fingerprint": "web/e2e/observations.spec.ts"
+      },
+      "cases": [
+        {
+          "browser": "chromium",
+          "name": "Volume and Sector show bounded coverage, semantic rows and independent cadences across tabs",
+          "raw_line": 607
+        },
+        {
+          "browser": "firefox",
+          "name": "Volume and Sector show bounded coverage, semantic rows and independent cadences across tabs",
+          "raw_line": 644
+        }
+      ],
+      "execution_context": "preparation-full-suite",
+      "executed_count": 2,
+      "result": "passed-in-successful-suite",
+      "preconditions": "Playwright fixture servers; port41741 scripted producer, fault cases may intercept HTTP; source shows exact preconditions. This family is not the known unrelated Firefox parity skip."
+    },
+    "frontend:every batch row and scope coverage is validated independently of producer completeness": {
+      "kind": "frontend-state-test",
+      "name": "every batch row and scope coverage is validated independently of producer completeness",
+      "source": {
+        "path": "web/src/observations.test.ts",
+        "line": 279,
+        "source_fingerprint": "web/src/observations.test.ts"
+      },
+      "execution_context": "named-frontend-rerun",
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "Reducer fixture and explicit action timestamps defined in the test; not actual socket timing."
+    },
+    "browser:observations.spec.ts:207": {
+      "kind": "browser-case-family",
+      "source": {
+        "path": "web/e2e/observations.spec.ts",
+        "line": 207,
+        "source_fingerprint": "web/e2e/observations.spec.ts"
+      },
+      "cases": [
+        {
+          "browser": "chromium",
+          "name": "volume/0 composes state marks and switches to explicitly labelled LRU colors",
+          "raw_line": 609
+        },
+        {
+          "browser": "chromium",
+          "name": "sector/0/0 composes state marks and switches to explicitly labelled LRU colors",
+          "raw_line": 610
+        },
+        {
+          "browser": "firefox",
+          "name": "volume/0 composes state marks and switches to explicitly labelled LRU colors",
+          "raw_line": 646
+        },
+        {
+          "browser": "firefox",
+          "name": "sector/0/0 composes state marks and switches to explicitly labelled LRU colors",
+          "raw_line": 647
+        }
+      ],
+      "execution_context": "preparation-full-suite",
+      "executed_count": 4,
+      "result": "passed-in-successful-suite",
+      "preconditions": "Playwright fixture servers; port41741 scripted producer, fault cases may intercept HTTP; source shows exact preconditions. This family is not the known unrelated Firefox parity skip."
+    },
+    "browser:observations.spec.ts:438": {
+      "kind": "browser-case-family",
+      "source": {
+        "path": "web/e2e/observations.spec.ts",
+        "line": 438,
+        "source_fingerprint": "web/e2e/observations.spec.ts"
+      },
+      "cases": [
+        {
+          "browser": "chromium",
+          "name": "Volume nonresident markers share an image and retain a forced-color glyph",
+          "raw_line": 618
+        },
+        {
+          "browser": "firefox",
+          "name": "Volume nonresident markers share an image and retain a forced-color glyph",
+          "raw_line": 655
+        }
+      ],
+      "execution_context": "preparation-full-suite",
+      "executed_count": 2,
+      "result": "passed-in-successful-suite",
+      "preconditions": "Playwright fixture servers; port41741 scripted producer, fault cases may intercept HTTP; source shows exact preconditions. This family is not the known unrelated Firefox parity skip."
+    },
+    "browser:observations.spec.ts:466": {
+      "kind": "browser-case-family",
+      "source": {
+        "path": "web/e2e/observations.spec.ts",
+        "line": 466,
+        "source_fingerprint": "web/e2e/observations.spec.ts"
+      },
+      "cases": [
+        {
+          "browser": "chromium",
+          "name": "Volume nonresident circles preserve known and unknown occupancy backgrounds",
+          "raw_line": 619
+        },
+        {
+          "browser": "firefox",
+          "name": "Volume nonresident circles preserve known and unknown occupancy backgrounds",
+          "raw_line": 656
+        }
+      ],
+      "execution_context": "preparation-full-suite",
+      "executed_count": 2,
+      "result": "passed-in-successful-suite",
+      "preconditions": "Playwright fixture servers; port41741 scripted producer, fault cases may intercept HTTP; source shows exact preconditions. This family is not the known unrelated Firefox parity skip."
+    },
+    "browser:observations.spec.ts:352": {
+      "kind": "browser-case-family",
+      "source": {
+        "path": "web/e2e/observations.spec.ts",
+        "line": 352,
+        "source_fingerprint": "web/e2e/observations.spec.ts"
+      },
+      "cases": [
+        {
+          "browser": "chromium",
+          "name": "volume/0 source failure hides marks and paused incarnation change revokes every list",
+          "raw_line": 614
+        },
+        {
+          "browser": "chromium",
+          "name": "sector/0/0 source failure hides marks and paused incarnation change revokes every list",
+          "raw_line": 615
+        },
+        {
+          "browser": "firefox",
+          "name": "volume/0 source failure hides marks and paused incarnation change revokes every list",
+          "raw_line": 651
+        },
+        {
+          "browser": "firefox",
+          "name": "sector/0/0 source failure hides marks and paused incarnation change revokes every list",
+          "raw_line": 652
+        }
+      ],
+      "execution_context": "preparation-full-suite",
+      "executed_count": 4,
+      "result": "passed-in-successful-suite",
+      "preconditions": "Playwright fixture servers; port41741 scripted producer, fault cases may intercept HTTP; source shows exact preconditions. This family is not the known unrelated Firefox parity skip."
+    },
+    "browser:overlay-accessibility.spec.ts:5": {
+      "kind": "browser-case-family",
+      "source": {
+        "path": "web/e2e/overlay-accessibility.spec.ts",
+        "line": 5,
+        "source_fingerprint": "web/e2e/overlay-accessibility.spec.ts"
+      },
+      "cases": [
+        {
+          "browser": "chromium",
+          "name": "volume/0 keyboard focus survives quiet polling and age updates",
+          "raw_line": 628
+        },
+        {
+          "browser": "chromium",
+          "name": "sector/0/0 keyboard focus survives quiet polling and age updates",
+          "raw_line": 629
+        },
+        {
+          "browser": "firefox",
+          "name": "volume/0 keyboard focus survives quiet polling and age updates",
+          "raw_line": 665
+        },
+        {
+          "browser": "firefox",
+          "name": "sector/0/0 keyboard focus survives quiet polling and age updates",
+          "raw_line": 666
+        }
+      ],
+      "execution_context": "preparation-full-suite",
+      "executed_count": 4,
+      "result": "passed-in-successful-suite",
+      "preconditions": "Playwright fixture servers; port41741 scripted producer, fault cases may intercept HTTP; source shows exact preconditions. This family is not the known unrelated Firefox parity skip."
+    },
+    "frontend-effects:observation retry timers apply bounded jitter and dispatch one epoch-bound demand": {
+      "kind": "frontend-effect-test",
+      "name": "observation retry timers apply bounded jitter and dispatch one epoch-bound demand",
+      "source": {
+        "path": "web/src/runtime.test.ts",
+        "line": 90,
+        "source_fingerprint": "web/src/runtime.test.ts"
+      },
+      "execution_context": "named-runtime-rerun",
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "Injected effect ports, scheduling/HTTP fixtures, and explicit random values/timestamps from test body; no browser/engine performance claim."
+    },
+    "frontend-effects:queued runtime effects send no requests after visibility or adoption authority is revoked": {
+      "kind": "frontend-effect-test",
+      "name": "queued runtime effects send no requests after visibility or adoption authority is revoked",
+      "source": {
+        "path": "web/src/runtime.test.ts",
+        "line": 107,
+        "source_fingerprint": "web/src/runtime.test.ts"
+      },
+      "execution_context": "named-runtime-rerun",
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "Injected effect ports, scheduling/HTTP fixtures, and explicit random values/timestamps from test body; no browser/engine performance claim."
+    },
+    "frontend-effects:browser expiry has its own cancellable deadline instead of waiting for the periodic age tick": {
+      "kind": "frontend-effect-test",
+      "name": "browser expiry has its own cancellable deadline instead of waiting for the periodic age tick",
+      "source": {
+        "path": "web/src/runtime.test.ts",
+        "line": 128,
+        "source_fingerprint": "web/src/runtime.test.ts"
+      },
+      "execution_context": "named-runtime-rerun",
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "Injected effect ports, scheduling/HTTP fixtures, and explicit random values/timestamps from test body; no browser/engine performance claim."
+    },
+    "frontend-effects:protocol-incompatible observation responses stop retry without exposing decoder details": {
+      "kind": "frontend-effect-test",
+      "name": "protocol-incompatible observation responses stop retry without exposing decoder details",
+      "source": {
+        "path": "web/src/runtime.test.ts",
+        "line": 119,
+        "source_fingerprint": "web/src/runtime.test.ts"
+      },
+      "execution_context": "named-runtime-rerun",
+      "executed_count": 1,
+      "result": "passed",
+      "preconditions": "Injected effect ports, scheduling/HTTP fixtures, and explicit random values/timestamps from test body; no browser/engine performance claim."
+    }
+  },
+  "contracts": [
+    {
+      "id": "01-01",
+      "requirement": "Runtime attachment requires both explicit enablement and an explicit socket path; no discovery or environment fallback occurs. Requested attachment with a non-loopback HTTP listener fails startup. Unattached serving retains its existing listener behavior.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/01-configure-optional-runtime-attachment.md",
+      "evidence": [
+        "rust:runtime_attachment_requires_explicit_pair_and_non_wildcard_listener",
+        "rust:runtime_attachment_accepts_explicit_ipv4_and_loopback_listeners",
+        "rust:lan_runtime_requests_require_matching_host_and_origin"
+      ],
+      "covered": "Explicit flag/path pairing, wildcard rejection, explicit IPv4 acceptance, Host/Origin checks.",
+      "remaining_or_limit": "Original non-loopback rejection is superseded by accepted ADR0006; never demand its obsolete test outcome. Environment/discovery exclusions also require source audit.",
+      "disposition": "superseded-in-part-by-adr0006"
+    },
+    {
+      "id": "01-02",
+      "requirement": "Introduce the smallest private runtime broker boundary needed by this behavior, independently owned per live inspection session. Its interface exposes capability metadata and bounded observations for validated scopes; producer protocol, identity, retry, cache and resource details stay private. Any necessary ownership prefactor happens first within this slice, with disk behavior unchanged.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/01-configure-optional-runtime-attachment.md",
+      "evidence": [
+        "rust:configured_and_disabled_brokers_accept_an_injected_scheduler",
+        "rust:runtime_capabilities_are_independent_of_disk_inspection_over_http",
+        "source:src/web/observations.rs:135"
+      ],
+      "covered": "Private adapter/broker session ownership and unchanged HTTP disk-session response.",
+      "remaining_or_limit": "Smallest interface/no ownership prefactor are design judgements, not a numerical test; no complete architecture-negative proof claimed.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "01-03",
+      "requirement": "Use private real/simulated adapter and injected clock/scheduling seams without a new runtime dependency. Simulations are test fixtures, never a production trust bypass. Until ticket 02 provides verified attachment, no observations or active/verified capability are fabricated.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/01-configure-optional-runtime-attachment.md",
+      "evidence": [
+        "rust:configured_and_disabled_brokers_accept_an_injected_scheduler",
+        "rust:injected_scheduler_controls_capability_deadline_boundaries",
+        "source:src/web/observations.rs:135"
+      ],
+      "covered": "Injected scheduler works for configured/disabled brokers; simulated implementation is test-only.",
+      "remaining_or_limit": "Historical until-ticket02 sequencing is not a current lack of real attachment requirement; no dependency graph audit inferred from this test.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "01-04",
+      "requirement": "GET /api/v1/runtime/capabilities returns Cache-Control: no-store and a sanitized runtime envelope. Reserve disabled, connecting, active, stale, unavailable, refused and incompatible as capability states; pause, expiry and observation coverage are separate dimensions. Missing sockets mean unavailable, not proof of the producer's parameter setting.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/01-configure-optional-runtime-attachment.md",
+      "evidence": [
+        "rust:configured_runtime_is_unavailable_unverified_and_sanitized_over_http",
+        "rust:runtime_capabilities_are_independent_of_disk_inspection_over_http",
+        "rust:producer_errors_have_stable_normalized_reasons_and_only_refusals_stop_retry"
+      ],
+      "covered": "Disabled/unavailable sanitized envelopes, no-store, stable producer-error reasons.",
+      "remaining_or_limit": "State-space and dimension presentation are supplemented by lifecycle/UI rows below; missing socket never proves parameter value.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "01-05",
+      "requirement": "Capability requests have four independent admission slots, no queue and a one-second deadline. Runtime admission and errors cannot consume the ordinary inspection resource queue or change inspection outcomes or diagnostics.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/01-configure-optional-runtime-attachment.md",
+      "evidence": [
+        "rust:runtime_capability_admission_is_bounded_and_independent_over_http",
+        "rust:runtime_capability_deadline_releases_its_slot_over_http",
+        "rust:injected_scheduler_controls_capability_deadline_boundaries"
+      ],
+      "covered": "Four admitted requests, fifth429, no blocked disk session, deadline release and virtual boundaries.",
+      "remaining_or_limit": "Not a throughput/latency benchmark or exhaustive scheduler proof.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "01-06",
+      "requirement": "The browser identifies the source as CUBRID page-buffer observation and presents disabled/unavailable states with accessible text. Paths, UID/GID/PID, raw OS errors, pointers, private structures and application bytes are absent from HTTP and UI disclosures.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/01-configure-optional-runtime-attachment.md",
+      "evidence": [
+        "rust:configured_runtime_is_unavailable_unverified_and_sanitized_over_http",
+        "browser:current-viewer.spec.ts:3",
+        "browser:observations.spec.ts:7"
+      ],
+      "covered": "Accessible source label and disabled/unavailable states; selected observation rendering and sanitized HTTP.",
+      "remaining_or_limit": "Specific checked envelopes cannot establish absence of all future disclosures; keep producer07 sanitization evidence and source review.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "01-07",
+      "requirement": "Runtime capability publication never advances snapshot generations, inspection revisions or cursors, or wakes disk-watch clients. The inspection graph, TUI, exports and standalone executable contract remain unchanged.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/01-configure-optional-runtime-attachment.md",
+      "evidence": [
+        "rust:runtime_capabilities_are_independent_of_disk_inspection_over_http",
+        "rust:configured_runtime_is_unavailable_unverified_and_sanitized_over_http"
+      ],
+      "covered": "Capability calls leave the compared disk-session response unchanged.",
+      "remaining_or_limit": "No comprehensive negative proof of every graph/TUI/export/watch path from two HTTP tests; retain ADR0004/0006 and full distribution checks.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "01-08",
+      "requirement": "Tests exercise actual configuration parsing, the real HTTP boundary and rendered capability presentation, including invalid listener/configuration combinations, no-store, sanitization, independent admission below/at/above capacity and unaffected disk inspection without CUBRID installed.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/01-configure-optional-runtime-attachment.md",
+      "evidence": [
+        "rust:runtime_attachment_requires_explicit_pair_and_non_wildcard_listener",
+        "rust:runtime_attachment_accepts_explicit_ipv4_and_loopback_listeners",
+        "rust:configured_runtime_is_unavailable_unverified_and_sanitized_over_http",
+        "rust:runtime_capability_admission_is_bounded_and_independent_over_http",
+        "rust:runtime_capability_deadline_releases_its_slot_over_http",
+        "browser:current-viewer.spec.ts:3"
+      ],
+      "covered": "Actual configuration parsing, HTTP admission/no-store and embedded browser capability without CUBRID.",
+      "remaining_or_limit": "Listener expectation follows revised ADR0006. External engine and full release evidence are separate.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "01-09",
+      "requirement": "Document explicit opt-in and loopback/SSH use using the accepted domain vocabulary. This ticket adds neither public authentication/TLS nor engine discovery, resident-page inspection, AOUT, event history or engine implementation.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/01-configure-optional-runtime-attachment.md",
+      "evidence": [
+        "source:docs/runtime-overlay.md:62",
+        "source:docs/adr/0006-runtime-observations-are-loopback-web-capabilities.md:1"
+      ],
+      "covered": "Operator docs and current accepted transport boundary are present.",
+      "remaining_or_limit": "Documentation/source evidence, not an executed SSH or engine installation test.",
+      "disposition": "documentation-reviewed"
+    },
+    {
+      "id": "02-01",
+      "requirement": "Vendor an exact revision/hash-pinned producer-owned corpus and verify it offline. Resolve semantic conflicts explicitly with the producer owner rather than adding browser exceptions. CUBRID producer implementation remains external.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
+      "evidence": [
+        "rust:vendored_producer_revision_and_every_corpus_byte_match_the_pin",
+        "rust:canonical_exchange_corpus_validates_all_server_stream_outcomes"
+      ],
+      "covered": "Offline corpus pin and all enumerated decoder exchanges are checked.",
+      "remaining_or_limit": "Producer execution and semantic-mapping authority remain in integration-01/08; no browser exception or engine implementation is introduced here.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "02-02",
+      "requirement": "Authenticate Linux AF_UNIX SOCK_STREAM peers with SO_PEERCRED and exact effective-UID equality, with no root/group exception. Check private-directory and socket ownership before trusting observations. Verify database-creation identity and the complete permanent-volume set of volid, volume-creation identity, device and inode, excluding temporary volumes. Names or paths alone and subset identity proof are insufficient; oversized identity proof refuses attachment.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
+      "evidence": [
+        "rust:peer_credentials_reject_another_effective_uid_without_a_root_exception",
+        "rust:actual_private_socket_accepts_chunked_producer_and_rejects_unsafe_mode",
+        "rust:broker_refuses_each_identity_component_and_incomplete_volume_sets_before_scanning",
+        "rust:canonical_exchange_corpus_validates_all_server_stream_outcomes"
+      ],
+      "covered": "Actual credential isolation, unsafe endpoint mode rejection, six identity mutations and corpus refusal cases.",
+      "remaining_or_limit": "Private-directory ownership, oversized identity and temporary-volume exclusion require their source/native/corpus-specific evidence; do not inflate one named case into all boundary permutations.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "02-03",
+      "requirement": "Bind observations to the producer's unpredictable incarnation and negotiated protocol. The handshake supplies shared/private LRU topology counts. Identity mismatch produces refused with stable identity-mismatch; refusal or protocol incompatibility clears evidence and requires explicit retry. Sanitize verification, protocol, database fingerprint and abbreviated incarnation; never disclose raw peer identity or socket details.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
+      "evidence": [
+        "rust:broker_refuses_each_identity_component_and_incomplete_volume_sets_before_scanning",
+        "rust:producer_errors_have_stable_normalized_reasons_and_only_refusals_stop_retry",
+        "frontend:refusal clears evidence and stops automatic retry until explicit refresh",
+        "rust:paused_metadata_detects_replaced_producer_and_refuses_until_explicit_retry",
+        "browser:observations.spec.ts:97",
+        "frontend-effects:protocol-incompatible observation responses stop retry without exposing decoder details"
+      ],
+      "covered": "Identity/incarnation refusals, evidence revocation and explicit retry reach broker/state/browser.",
+      "remaining_or_limit": "Unpredictable producer incarnation generation and coherent native topology are producer evidence; formatting/sanitization scope stays explicit.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "02-04",
+      "requirement": "Decode versioned JSON-lines with snake_case fields and lowercase semantic enums. Ignore unknown optional same-major fields within limits; reject missing mandatory identity, framing or count fields. Consume semantic page kind rather than native ordinals, including branch-dependent mappings, and never expose packed flags.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
+      "evidence": [
+        "rust:canonical_exchange_corpus_validates_all_server_stream_outcomes",
+        "rust:additive_unknown_numbers_do_not_require_machine_numeric_range",
+        "rust:producer_duplicate_members_and_excessive_depth_are_rejected"
+      ],
+      "covered": "Pinned corpus decoding, additive numbers, duplicate members and depth refusal.",
+      "remaining_or_limit": "Native ordinal mapping/coherent sampling require producer07 tests; decoder acceptance cannot prove native implementation.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "02-05",
+      "requirement": "Present VPID, semantic page kind, latch mode none/read/write/flush, waiter presence, fix count, dirty, flushing, async_flush_requested, to_vacuum, page LSA and oldest-unflush LSA. Preserve the coherent latch-word tuple and coherent LRU flags tuple without claiming record-wide or pool-wide atomicity. Present LRU zone lru1/lru2/lru3/void/invalid, list kind shared/private/none/invalid and exact kind-local index or null when not applicable; indices are incarnation-local.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
+      "evidence": [
+        "browser:observations.spec.ts:7",
+        "browser:observations.spec.ts:322",
+        "frontend:absent optional evidence remains unknown while nullable LSA is known empty"
+      ],
+      "covered": "Selected detail and exact membership/null semantics, absent optional fields.",
+      "remaining_or_limit": "Browser cases assert selected labels/variants; they do not independently prove every native flag or coherent latch/LRU tuple. See integration08 native evidence.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "02-06",
+      "requirement": "Validate scan sequence/start header, records and explicit end/count/truncation footer, including raw counts before deduplication and increasing incarnation-local sequence. Sequence is not an event sequence; use capture intervals, not invented per-page timestamps. Duplicate VPIDs are ambiguous/unknown, never last-write-wins.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
+      "evidence": [
+        "rust:canonical_exchange_corpus_validates_all_server_stream_outcomes",
+        "rust:complete_producer_scan_publishes_only_after_the_footer",
+        "rust:rotating_truncated_captures_never_accumulate_absence_or_hide_duplicate_ambiguity"
+      ],
+      "covered": "Footer-before-publication, corpus sequence/count cases and duplicate ambiguity across rotating captures.",
+      "remaining_or_limit": "Producer event/atomicity exclusions remain semantic documentation; consumer checks do not prove source capture timing implementation.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "02-07",
+      "requirement": "An evaluated requested Page omitted from a complete scan is observed not-resident, not guaranteed currently absent. Partial omissions and unevaluated Pages are unknown. Valid truncated scans publish partial evidence; malformed streams, missing footers or assembly overflow discard the whole unfinished assembly and retain only prior usable, unexpired evidence with its original age. Never synthesize a footer or merge scans into apparent completeness.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
+      "evidence": [
+        "rust:canonical_exchange_corpus_validates_all_server_stream_outcomes",
+        "rust:complete_producer_scan_publishes_only_after_the_footer",
+        "rust:rotating_truncated_captures_never_accumulate_absence_or_hide_duplicate_ambiguity",
+        "rust:broker_shares_capture_charges_held_responses_retains_original_age_and_expires",
+        "browser:observations.spec.ts:248"
+      ],
+      "covered": "Complete omission versus partial unknown, duplicates, footer rejection, retained original-age data and UI expiry.",
+      "remaining_or_limit": "No cross-capture union; setup-specific tests do not prove all malformed-stream variants beyond the named corpus.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "02-08",
+      "requirement": "Enforce binary-byte limits before unbounded allocation: 65,536 records, 64 MiB framed scan, 4 KiB record/control frame including newline, 64 KiB handshake and nesting depth 16; connect plus handshake within 500 ms and whole scan exchange including drain/footer within two seconds. Parse incrementally without buffering the whole wire stream.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
+      "evidence": [
+        "rust:wire_frame_limits_include_newline_at_below_and_above_boundaries",
+        "rust:raw_record_slot_and_framed_scan_limits_are_checked_before_deduplication",
+        "rust:producer_duplicate_members_and_excessive_depth_are_rejected",
+        "rust:actual_io_deadlines_bound_stalled_handshake_and_scan"
+      ],
+      "covered": "Frame/raw-count/framed-scan/depth boundaries and actual stalled handshake/scan deadlines.",
+      "remaining_or_limit": "Deadlines are exercised I/O bounds, not hard-real-time scheduling or release performance evidence.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "02-09",
+      "requirement": "Account at most 48 MiB per decoded scan and 128 MiB total broker memory, including allocated capacities, indexes, duplicate tracking, parser buffers, retained/in-flight captures, response-held older captures and serialization. No spill or history; aggregate admission can stop below an individual object limit. Replacement does not uncharge still-referenced memory. RSS is a separate measurement.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
+      "evidence": [
+        "rust:aggregate_boundary_counts_retained_inflight_and_response_owners_until_last_drop",
+        "rust:actual_decoders_cannot_admit_object_caps_that_exceed_the_shared_total",
+        "rust:broker_shares_capture_charges_held_responses_retains_original_age_and_expires"
+      ],
+      "covered": "Shared allocation admission and retained/inflight/response ownership accounting, actual decoder aggregate refusal.",
+      "remaining_or_limit": "RSS is separately measured and currently fails; source reservations/record-size assertions supplement exact48MiB cap, not a peak-memory test.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "02-10",
+      "requirement": "POST /api/v1/runtime/page-buffer/observe returns Cache-Control: no-store and echoes accepted ordered VPIDs and scope/request epoch, normalized states, capture identity/interval, limitations, producer completeness and separate requested/evaluated counts. Enforce at most 512 VPIDs, 64 KiB request body and 1 MiB response, eight admitted requests including waiters with no extra queue, a 2.5-second deadline and HTTP 429 overload. A requested scope never changes the producer's bulk-scan cap.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
+      "evidence": [
+        "rust:observation_http_bounds_ordered_scopes_and_request_bytes",
+        "rust:selected_page_observation_crosses_real_socket_and_http_with_bound_identity",
+        "rust:eight_inflight_callers_share_one_slow_capture_and_reject_a_ninth",
+        "rust:observation_http_deadline_includes_stalled_request_body",
+        "rust:normalized_response_cap_includes_all_serialized_bytes_without_growing_past_it"
+      ],
+      "covered": "Ordered scopes,512 pages,64KiB request,1MiB response, eight/ninth admission, real HTTP and body-inclusive deadline.",
+      "remaining_or_limit": "Producer bulk traversal cap is separately covered; named test executions are not per-boundary execution counts.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "02-11",
+      "requirement": "Maintain one connection, one latest capture and at most one in-flight scan per session from the first working attachment, with a 500 ms scan-start floor. This slice supports explicit selected-Page refresh; automated lifecycle and viewport scheduling follow in tickets 03 and 04 without temporarily removing safety limits.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
+      "evidence": [
+        "rust:broker_shares_capture_charges_held_responses_retains_original_age_and_expires",
+        "rust:eight_inflight_callers_share_one_slow_capture_and_reject_a_ninth",
+        "rust:caller_cadence_controls_cache_reuse_and_resume_requires_a_later_scan",
+        "rust:resume_obeys_the_independent_broker_scan_start_floor_with_a_virtual_scheduler"
+      ],
+      "covered": "Shared cached capture, concurrent coalescing and independent500ms scan-start floor.",
+      "remaining_or_limit": "One-connection ownership source audit supplements observed request counts; no fairness guarantee.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "02-12",
+      "requirement": "From the first observation, enforce monotonic conservative age from broker scan-request start through serialization, adding browser full HTTP round trip and elapsed time. Cache reads never renew capture age; source wall time is display-only. Fresh means known upper age within two caller intervals; uncertain evidence is not fresh. Evict browser and broker evidence after 30 seconds even while paused. Revoke incompatible late adoption on route, scope, generation, overlay, pause or incarnation changes, checking echoed scope/epoch independently of cancellation.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
+      "evidence": [
+        "rust:broker_shares_capture_charges_held_responses_retains_original_age_and_expires",
+        "frontend:full round trip contributes to conservative age and paused evidence expires at 30 seconds",
+        "frontend:a backwards browser wall clock cannot extend observation freshness",
+        "frontend:selected-page freshness uses two 500 ms caller intervals",
+        "frontend:reusing a capture cannot lower age and suspension cannot revive it from cache",
+        "frontend:echoed epoch and ordered VPIDs independently reject incompatible responses",
+        "frontend:pause revokes late adoption independently of request cancellation",
+        "frontend-effects:browser expiry has its own cancellable deadline instead of waiting for the periodic age tick"
+      ],
+      "covered": "Roundtrip/elapsed age, expiry while paused, clock changes, cache age monotonicity and epoch/scope revocation.",
+      "remaining_or_limit": "Serialization age implementation is source-backed; finite tests do not establish arbitrary scheduler delays.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "02-13",
+      "requirement": "Selected-Page detail and an initial residency mark distinguish observed residency, observed nonresidency, partial/ambiguous unknown, unavailable and expired evidence with non-color labels. Storage facts remain intact; nothing claims page-image correspondence, commit visibility, durability or event causality.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
+      "evidence": [
+        "browser:observations.spec.ts:7",
+        "browser:observations.spec.ts:248",
+        "browser:overlay-accessibility.spec.ts:54"
+      ],
+      "covered": "Non-color residency/partial/duplicate/unavailable/expired distinctions and retained disk navigation.",
+      "remaining_or_limit": "Named human interpretation/accessibility review is still missing; no image correspondence or transaction claim.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "02-14",
+      "requirement": "Test the production decoder using scripted socket chunking/coalescing, EOF, stalls, malformed framing, additive fields, count/sequence/identity errors, duplicate ambiguity and valid partial scans. Exercise the real HTTP and browser boundaries, plus deterministic highest-interface broker tests and actual I/O timeout checks. Cover below/at/above applicable caps, including retained plus in-flight plus response-held memory; report named executed cases and nonzero counts. Peer-credential isolation requires a suitable environment, not a silent skip.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
+      "evidence": [
+        "rust:canonical_exchange_corpus_validates_all_server_stream_outcomes",
+        "rust:actual_io_deadlines_bound_stalled_handshake_and_scan",
+        "rust:actual_private_socket_accepts_chunked_producer_and_rejects_unsafe_mode",
+        "rust:aggregate_boundary_counts_retained_inflight_and_response_owners_until_last_drop",
+        "rust:actual_decoders_cannot_admit_object_caps_that_exceed_the_shared_total",
+        "rust:selected_page_observation_crosses_real_socket_and_http_with_bound_identity",
+        "browser:observations.spec.ts:7"
+      ],
+      "covered": "Concrete decoder/socket/HTTP/browser tests with nonzero execution records, actual timeout and allocation tests.",
+      "remaining_or_limit": "Use corpus case manifest for subcases and cross-repo evidence for native scope; no skipped credential run is relabelled pass.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "03-01",
+      "requirement": "Add default selected-Page polling at 500 ms through the shared broker. Respect the independent 500 ms broker scan-start floor rather than confusing it with the producer's 100 ms floor. Reuse a capture only within the requesting caller's cadence or join refresh demand; never accumulate missed ticks or historical captures.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/03-handle-observation-lifecycle.md",
+      "evidence": [
+        "rust:caller_cadence_controls_cache_reuse_and_resume_requires_a_later_scan",
+        "frontend:enabled selected-page observations poll without explicit retry and never queue missed ticks",
+        "rust:resume_obeys_the_independent_broker_scan_start_floor_with_a_virtual_scheduler"
+      ],
+      "covered": "Default selected polling, no missed-tick backlog, caller cadence and broker scan floor.",
+      "remaining_or_limit": "Producer100ms floor remains a separate native boundary; no cadence performance acceptance.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "03-02",
+      "requirement": "Transient retry uses nominal delays 0.5, 1, 2, 4 and 8 seconds, then eight seconds, with +/-20% jitter and an actual maximum of 9.6 seconds. Reset after a valid scan. Connectivity status and retained, aged evidence remain separate.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/03-handle-observation-lifecycle.md",
+      "evidence": [
+        "frontend:transient failures retain original evidence age, back off, and reset only after a valid scan",
+        "browser:observations.spec.ts:119",
+        "frontend-effects:observation retry timers apply bounded jitter and dispatch one epoch-bound demand"
+      ],
+      "covered": "Nominal0.5/1/2/4/8-second backoff, retained age and valid-scan reset. The effect test asserts6400/8000/9600ms at random0/0.5/1 for the8000ms nominal delay.",
+      "remaining_or_limit": "Numerical jitter/epoch dispatch and nominal progression are separate named tests; timer scheduling precision on a busy host is not measured.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "03-03",
+      "requirement": "Interpret version-unsupported, busy, rate-limited and incarnation-changed through stable normalized capability/reason behavior. Parameter-off is only defensive compatibility; socket absence does not prove that setting. Peer/identity refusal and protocol incompatibility clear evidence and stop automatic retry until an explicit operator retry.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/03-handle-observation-lifecycle.md",
+      "evidence": [
+        "rust:producer_errors_have_stable_normalized_reasons_and_only_refusals_stop_retry",
+        "frontend:refusal clears evidence and stops automatic retry until explicit refresh",
+        "browser:observations.spec.ts:119",
+        "frontend-effects:protocol-incompatible observation responses stop retry without exposing decoder details"
+      ],
+      "covered": "Normalized error reasons and refusal/incompatibility stop until explicit retry.",
+      "remaining_or_limit": "Parameter-off is defensive protocol behavior; no inference from absent socket.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "03-04",
+      "requirement": "Hidden tabs send no runtime requests. Paused tabs stop adoption of disk generations and runtime observations and check capability metadata only every five seconds; these checks cause neither scans nor adoption. Another tab's newer capture is only an availability indication while paused.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/03-handle-observation-lifecycle.md",
+      "evidence": [
+        "frontend:pause schedules only metadata; hidden revokes requests; resume demands a post-request scan",
+        "frontend:paused metadata is availability only and restart clears evidence even without resume",
+        "browser:observations.spec.ts:38",
+        "rust:metadata_offers_capture_identity_without_scanning_and_expires_while_paused",
+        "frontend-effects:queued runtime effects send no requests after visibility or adoption authority is revoked"
+      ],
+      "covered": "Hidden silence, five-second paused metadata, newer-capture offers without adoption/scans.",
+      "remaining_or_limit": "Browser visibility is emulated in scripted coverage; real-engine tab lifecycle remains integration09.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "03-05",
+      "requirement": "Resume requires a scan started after resume, respecting the shared scan-start floor; an older cache hit or pre-resume in-flight scan cannot fulfill it. Route, scope, overlay and pause changes revoke incompatible late responses even if cancellation races.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/03-handle-observation-lifecycle.md",
+      "evidence": [
+        "frontend:pause revokes late adoption independently of request cancellation",
+        "frontend:failed resume retains its barrier and cannot adopt another tab's old cached capture",
+        "rust:cancellation_preserves_other_callers_and_last_observer_closes_unfinished_scan",
+        "rust:a_pre_resume_inflight_capture_cannot_fulfill_resumed_demand",
+        "browser:observations.spec.ts:534",
+        "frontend-effects:queued runtime effects send no requests after visibility or adoption authority is revoked"
+      ],
+      "covered": "Late response revocation, failed-resume barrier, pre-resume inflight rejection and cancellation isolation.",
+      "remaining_or_limit": "No claim of fairness for arbitrary client counts or hard timing.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "03-06",
+      "requirement": "Producer incarnation changes clear retained evidence and adoption authority even while paused. Disk-generation changes prevent incompatible generation-scoped late adoption but do not alone erase retained state for the same proven database/volume identity; matching generations/VPIDs never imply image correspondence.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/03-handle-observation-lifecycle.md",
+      "evidence": [
+        "frontend:paused metadata is availability only and restart clears evidence even without resume",
+        "frontend:same-page generation replacement revokes late adoption but retains state-only evidence",
+        "frontend:a new-incarnation stale fallback clears old evidence before preserving any failure state",
+        "rust:metadata_preserves_matching_disk_identity_and_invalidates_a_changed_volume",
+        "browser:observations.spec.ts:97"
+      ],
+      "covered": "Incarnation reset and matching-identity generation retention with incompatible late-adoption rejection.",
+      "remaining_or_limit": "Generation/VPID equality remains insufficient for page-image correspondence.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "03-07",
+      "requirement": "Maintain conservative monotonic age across cache reuse and failed requests. Freshness is relative to each caller's expected cadence and requires known age within two intervals. Wall-clock steps never renew age; uncertain elapsed time after suspension revokes freshness. Enforce 30-second broker/browser eviction while paused and display an expired explanation rather than a history.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/03-handle-observation-lifecycle.md",
+      "evidence": [
+        "frontend:full round trip contributes to conservative age and paused evidence expires at 30 seconds",
+        "frontend:a backwards browser wall clock cannot extend observation freshness",
+        "frontend:selected-page freshness uses two 500 ms caller intervals",
+        "frontend:reusing a capture cannot lower age and suspension cannot revive it from cache",
+        "rust:wall_clock_steps_and_suspension_revoke_broker_cache_age_authority",
+        "frontend-effects:browser expiry has its own cancellable deadline instead of waiting for the periodic age tick"
+      ],
+      "covered": "Paused30s expiry, caller freshness and broker/browser wall-clock/suspension invalidation.",
+      "remaining_or_limit": "Virtual-clock semantics and source accounting are not clock-change release workload measurements.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "03-08",
+      "requirement": "Preserve all authentication, framing, memory, timeout and HTTP limits from ticket 02. Polling or reconnecting cannot bypass them, change inspection outcomes/diagnostics or disturb ordinary disk navigation.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/03-handle-observation-lifecycle.md",
+      "evidence": [
+        "rust:observation_http_bounds_ordered_scopes_and_request_bytes",
+        "rust:actual_io_deadlines_bound_stalled_handshake_and_scan",
+        "rust:aggregate_boundary_counts_retained_inflight_and_response_owners_until_last_drop",
+        "rust:runtime_capability_admission_is_bounded_and_independent_over_http",
+        "rust:runtime_capabilities_are_independent_of_disk_inspection_over_http",
+        "browser:observations.spec.ts:38"
+      ],
+      "covered": "Existing bounded admission/deadline/memory tests plus lifecycle navigation.",
+      "remaining_or_limit": "Finite combined tests cannot alone prove all combinations of reconnect with each cap; retain functional integration audit.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "03-09",
+      "requirement": "Demonstrate the complete flow with deterministic clock/scheduler broker and browser-effect tests, real HTTP coverage and Chromium/Firefox lifecycle scenarios: retries, refusal/explicit retry, differing cadences, hidden/pause/resume, another-tab newer offers, late responses, clock steps/suspension, expiry and restart while paused. Keep actual socket timeout checks separate from virtual-time tests.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/03-handle-observation-lifecycle.md",
+      "evidence": [
+        "rust:caller_cadence_controls_cache_reuse_and_resume_requires_a_later_scan",
+        "rust:cancellation_preserves_other_callers_and_last_observer_closes_unfinished_scan",
+        "rust:producer_errors_have_stable_normalized_reasons_and_only_refusals_stop_retry",
+        "rust:actual_io_deadlines_bound_stalled_handshake_and_scan",
+        "browser:observations.spec.ts:38",
+        "browser:observations.spec.ts:97",
+        "browser:observations.spec.ts:119",
+        "frontend:paused connectivity failure remains visible and a restarted broker's lower revision cannot hide incarnation change",
+        "frontend-effects:observation retry timers apply bounded jitter and dispatch one epoch-bound demand"
+      ],
+      "covered": "Named deterministic state/broker tests, actual I/O deadline and both-browser lifecycle families.",
+      "remaining_or_limit": "Scripted socket and intercepted browser faults are labelled; native shipped-server evidence remains integration09.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "04-01",
+      "requirement": "Extend normalized requests and browser presentation to selected-first ordered scopes, followed by nearest visible-sector pages and physical order. At the 512-VPID limit, rotate the non-selected remainder explicitly and show reduced admission/rotation; do not silently exclude the selected Page or claim full viewport evaluation.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/04-observe-visible-pages-with-shared-demand.md",
+      "evidence": [
+        "rust:observation_scope_enforces_the_bound_before_copying_and_keeps_order",
+        "frontend:viewport demand preserves selected priority, rotates overflow, and revokes late batches",
+        "frontend:visible-page cadence is two seconds with explicit below, at and above-cap coverage",
+        "browser:observations.spec.ts:180"
+      ],
+      "covered": "Selected priority, bounded512-page scopes, overflow rotation and scrolling revocation.",
+      "remaining_or_limit": "ADR0008 changes future Volume scope to64 sectors/no timer rotation; current shipped512-page evidence does not validate that unimplemented expansion.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "04-02",
+      "requirement": "Use a two-second visible-page cadence and a 500 ms selected-page cadence, with one connection, latest-scan cache and in-flight refresh per attached session. Cache eligibility is per caller's own cadence, and scan starts remain at least 500 ms apart. No per-tab scan, connection, missed-tick backlog or history is introduced.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/04-observe-visible-pages-with-shared-demand.md",
+      "evidence": [
+        "rust:caller_cadence_controls_cache_reuse_and_resume_requires_a_later_scan",
+        "rust:eight_inflight_callers_share_one_slow_capture_and_reject_a_ninth",
+        "frontend:visible-page cadence is two seconds with explicit below, at and above-cap coverage",
+        "browser:observations.spec.ts:147"
+      ],
+      "covered": "Two-second visible cadence versus500ms selected cadence with shared scans and coalescing.",
+      "remaining_or_limit": "Future64-sector behavior and real32-tab performance remain separate.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "04-03",
+      "requirement": "Return requested/evaluated counts and accepted scope/epoch per waiter independently of producer completeness. Fully evaluated browser scope does not imply a complete producer scan; partial or unevaluated omissions remain unknown. Duplicate ambiguity and complete-scan omission semantics survive batching unchanged.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/04-observe-visible-pages-with-shared-demand.md",
+      "evidence": [
+        "rust:observation_http_bounds_ordered_scopes_and_request_bytes",
+        "frontend:every batch row and scope coverage is validated independently of producer completeness",
+        "rust:rotating_truncated_captures_never_accumulate_absence_or_hide_duplicate_ambiguity",
+        "browser:observations.spec.ts:248"
+      ],
+      "covered": "Independent per-row/scope counts, producer completeness, duplicates and partial omissions.",
+      "remaining_or_limit": "A fully evaluated scope is not a complete pool scan; no union across captures.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "04-04",
+      "requirement": "Coalesce admitted requests without replacing their scope authority. One caller cancelling cannot cancel another's demand; stop unnecessary work when the last observer leaves. No claim of starvation-free service for arbitrarily many clients is made.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/04-observe-visible-pages-with-shared-demand.md",
+      "evidence": [
+        "rust:cancellation_preserves_other_callers_and_last_observer_closes_unfinished_scan",
+        "rust:eight_inflight_callers_share_one_slow_capture_and_reject_a_ninth"
+      ],
+      "covered": "Other callers survive cancellation; last observer cancels unfinished work; eight waiters share capture.",
+      "remaining_or_limit": "No starvation-free guarantee or arbitrarily many-client proof.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "04-05",
+      "requirement": "Enforce eight observation slots including waiters, no queue, 2.5-second deadline and HTTP 429 overload; capabilities retain four independent slots and a one-second deadline. Keep body/response caps at 64 KiB/1 MiB and runtime admission independent of disk requests.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/04-observe-visible-pages-with-shared-demand.md",
+      "evidence": [
+        "rust:runtime_capability_admission_is_bounded_and_independent_over_http",
+        "rust:runtime_capability_deadline_releases_its_slot_over_http",
+        "rust:eight_inflight_callers_share_one_slow_capture_and_reject_a_ninth",
+        "rust:observation_http_bounds_ordered_scopes_and_request_bytes",
+        "rust:observation_http_deadline_includes_stalled_request_body",
+        "rust:normalized_response_cap_includes_all_serialized_bytes_without_growing_past_it",
+        "browser:observations.spec.ts:180"
+      ],
+      "covered": "Separate capability/observation admission,HTTP429, body/response limits and body-inclusive deadline.",
+      "remaining_or_limit": "Cached HTTP25ms and concurrent disk5% performance gates remain unexecuted.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "04-06",
+      "requirement": "Under concurrent demand, remain within 48 MiB per decoded scan and 128 MiB total accounted broker allocation, including retained, in-flight, old response-held captures and serialization. Prove that object caps cannot collectively exceed total admission and that no whole-wire buffering or spill is introduced.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/04-observe-visible-pages-with-shared-demand.md",
+      "evidence": [
+        "rust:aggregate_boundary_counts_retained_inflight_and_response_owners_until_last_drop",
+        "rust:actual_decoders_cannot_admit_object_caps_that_exceed_the_shared_total",
+        "rust:broker_shares_capture_charges_held_responses_retains_original_age_and_expires"
+      ],
+      "covered": "Aggregate admission/ownership survives decoder and response/capture retention.",
+      "remaining_or_limit": "RSS limit is independent and current density fails; no whole-wire/no-spill source-wide negative audit inferred.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "04-07",
+      "requirement": "Show coverage/overload and useful available observations at both Volume and Sector scopes using existing semantic presentation; the full visual encoding follows in ticket 05. Existing selected-Page age, expiry and late-response safeguards apply throughout.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/04-observe-visible-pages-with-shared-demand.md",
+      "evidence": [
+        "browser:observations.spec.ts:147",
+        "browser:observations.spec.ts:180",
+        "browser:observations.spec.ts:248"
+      ],
+      "covered": "Volume/Sector coverage, overload and unknown/expired presentation through normalized HTTP.",
+      "remaining_or_limit": "Manual accessibility and dedicated-host visual/input measurements remain open.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "04-08",
+      "requirement": "Verify via scripted producer plus real HTTP and browser tests: simultaneous tabs, different cadences, viewport churn, selected priority, overflow rotation, independently validated waiters, cancellation isolation, no-demand shutdown, overload and unaffected concurrent disk requests. Exercise below/at/above scope, response, admission and memory caps, including retained/in-flight/response peaks.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/04-observe-visible-pages-with-shared-demand.md",
+      "evidence": [
+        "rust:eight_inflight_callers_share_one_slow_capture_and_reject_a_ninth",
+        "rust:cancellation_preserves_other_callers_and_last_observer_closes_unfinished_scan",
+        "rust:caller_cadence_controls_cache_reuse_and_resume_requires_a_later_scan",
+        "rust:observation_http_bounds_ordered_scopes_and_request_bytes",
+        "rust:aggregate_boundary_counts_retained_inflight_and_response_owners_until_last_drop",
+        "rust:actual_decoders_cannot_admit_object_caps_that_exceed_the_shared_total",
+        "browser:observations.spec.ts:147",
+        "browser:observations.spec.ts:180",
+        "frontend:viewport demand preserves selected priority, rotates overflow, and revokes late batches"
+      ],
+      "covered": "Named shared-demand, cadence, cancellation, caps, viewport and both-browser scenarios.",
+      "remaining_or_limit": "Real32-tab resource matrix and per-combination limits are not proven by small deterministic cases.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "04-09",
+      "requirement": "Test valid truncated rotating captures, exact-cap complete captures and stable-pool rotation progress. Never union partial scans into completeness or absence evidence. Consumer tests recognize the producer contract of at most one visit per slot and rotation beyond the visited span; engine traversal implementation remains owned by CBRD-27398.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/04-observe-visible-pages-with-shared-demand.md",
+      "evidence": [
+        "rust:rotating_truncated_captures_never_accumulate_absence_or_hide_duplicate_ambiguity",
+        "rust:raw_record_slot_and_framed_scan_limits_are_checked_before_deduplication",
+        "rust:canonical_exchange_corpus_validates_all_server_stream_outcomes"
+      ],
+      "covered": "Rotating truncated captures preserve partial/duplicate semantics; full-count consumer boundary.",
+      "remaining_or_limit": "At-most-once slot visits and next-start beyond visited span are producer traversal evidence under integration07/08, not inferred from consumer simulation.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "04-10",
+      "requirement": "This slice can be developed and verified independently of ticket 03 using explicit requests and controlled visibility/cadence fixtures. It must use the same shared broker scheduling contract so later lifecycle integration preserves all admission and adoption invariants.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/04-observe-visible-pages-with-shared-demand.md",
+      "evidence": [
+        "rust:caller_cadence_controls_cache_reuse_and_resume_requires_a_later_scan",
+        "rust:eight_inflight_callers_share_one_slow_capture_and_reject_a_ninth",
+        "rust:cancellation_preserves_other_callers_and_last_observer_closes_unfinished_scan"
+      ],
+      "covered": "Controlled explicit broker requests independently exercise the shared scheduling contract.",
+      "remaining_or_limit": "Historical development independence is a design property, not a new runtime gate; lifecycle behavior now coexists.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "05-01",
+      "requirement": "Preserve existing storage colors beneath cyan residency outlines, amber dirty corners and static magenta flushing edges. Use the accepted visual prototype as design evidence, not production code or proof of performance.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/05-render-heatmap-and-lru-topology.md",
+      "evidence": [
+        "browser:observations.spec.ts:207",
+        "browser:observations.spec.ts:438",
+        "browser:observations.spec.ts:466"
+      ],
+      "covered": "State/LRU mode composition, shared circle and occupancy preservation.",
+      "remaining_or_limit": "Exact visual/color interpretation still needs manual review and CSS authority; prototype is not performance evidence.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "05-02",
+      "requirement": "Provide an alternative LRU-topology color mode rather than mixing LRU colors into storage allocation colors. Consume normalized shared/private topology counts and coherent zone/list-kind/kind-local-index observations; show exact indices in selected-Page detail, including none/invalid/null meanings and incarnation-local scope.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/05-render-heatmap-and-lru-topology.md",
+      "evidence": [
+        "browser:observations.spec.ts:207",
+        "browser:observations.spec.ts:322"
+      ],
+      "covered": "Keyboard LRU switch, storage-color restoration, list counts and exact/null/invalid membership labels.",
+      "remaining_or_limit": "Producer coherent native tuples/topology need integration evidence; no atomic pool view.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "05-03",
+      "requirement": "Derive only observed per-list summaries from validated capture records and explicitly label them partial when the source is partial. Do not present native counters/quotas or combine captures into an apparent pool snapshot.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/05-render-heatmap-and-lru-topology.md",
+      "evidence": [
+        "browser:observations.spec.ts:207",
+        "browser:observations.spec.ts:248",
+        "browser:observations.spec.ts:352"
+      ],
+      "covered": "Per-batch list-count label, partial unknowns and incarnation invalidation.",
+      "remaining_or_limit": "Counts are not native totals/quotas; detailed source arithmetic audit supplements semantic assertions.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "05-04",
+      "requirement": "Keep latch/waiter/fix and other detailed state in selected-Page detail rather than dense-grid animation. Retain semantic page kind, dirty/flushing/async-flush-requested/to-vacuum and log-position detail without inventing transition start/end, duration, counts, cause or durability.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/05-render-heatmap-and-lru-topology.md",
+      "evidence": [
+        "browser:observations.spec.ts:7",
+        "browser:observations.spec.ts:322"
+      ],
+      "covered": "Selected detail has semantic latch/log-position and exact list membership; limitations visible.",
+      "remaining_or_limit": "Not every flag has an independent browser value assertion; native semantics and no-event-history exclusion remain producer/source/docs evidence.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "05-05",
+      "requirement": "At both Volume and Sector scales, distinguish capability, freshness, pause, expiry and observation coverage independently. Source-unavailable, unevaluated/partial unknown, duplicate ambiguity and observed nonresidency must not share a misleading absence mark. Prefer no overlay to fabricated evidence.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/05-render-heatmap-and-lru-topology.md",
+      "evidence": [
+        "browser:observations.spec.ts:248",
+        "browser:observations.spec.ts:352",
+        "browser:overlay-accessibility.spec.ts:54"
+      ],
+      "covered": "Partial/duplicate/absence/expired/refused distinctions, no misleading source-failure absence marks.",
+      "remaining_or_limit": "Human perception and real workloads remain manual/performance gates.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "05-06",
+      "requirement": "Provide keyboard-operable controls, stable compatible focus and non-color glyphs/text/accessible names for runtime states. Respect reduced motion and high contrast; polling and age ticks do not create repeated announcements. Initial semantics must be accessible before the final gate in ticket 06.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/05-render-heatmap-and-lru-topology.md",
+      "evidence": [
+        "browser:overlay-accessibility.spec.ts:5",
+        "browser:observations.spec.ts:438",
+        "browser:observations.spec.ts:466"
+      ],
+      "covered": "Focus, keyboard navigation, quiet live regions, forced-color/reduced-motion emulation and glyph tests.",
+      "remaining_or_limit": "Named manual screen-reader/visual review is still missing; browser assertions cannot substitute for it.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "05-07",
+      "requirement": "Test the complete normalized HTTP-to-render path with real frontend state/effects and Chromium/Firefox semantic assertions at both scales. Cover state-mark/LRU switching, exact membership, partial summaries, identity changes, unknowns and expired/unavailable evidence; use a small screenshot set only as supporting visual evidence.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/05-render-heatmap-and-lru-topology.md",
+      "evidence": [
+        "browser:observations.spec.ts:7",
+        "browser:observations.spec.ts:207",
+        "browser:observations.spec.ts:248",
+        "browser:observations.spec.ts:322",
+        "browser:observations.spec.ts:352",
+        "frontend:every batch row and scope coverage is validated independently of producer completeness"
+      ],
+      "covered": "Normalized scripted socket/HTTP/state-to-browser journey at both scales and invalidation scenarios.",
+      "remaining_or_limit": "Synthetic and intercepted cases supplement real-producer integration; screenshots are supporting artifacts only.",
+      "disposition": "mapped-with-limits"
+    },
+    {
+      "id": "05-08",
+      "requirement": "Runtime rendering never mutates inspection facts, revisions, generations, diagnostics, outcomes, export content or TUI behavior. No AOUT history, protected resident-page inspection, image correspondence or unrelated kernel-cache/attribute-selection feature is introduced.",
+      "owner": "Volmap (producer boundary retained where noted)",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/05-render-heatmap-and-lru-topology.md",
+      "evidence": [
+        "rust:runtime_capabilities_are_independent_of_disk_inspection_over_http",
+        "browser:observations.spec.ts:7",
+        "browser:observations.spec.ts:38",
+        "source:docs/adr/0006-runtime-observations-are-loopback-web-capabilities.md:1"
+      ],
+      "covered": "Disk-session/navigation preservation and documented presentation-only separation.",
+      "remaining_or_limit": "No exhaustive negative proof of every graph/export/TUI path; separate distribution/source review remains part of delivery.",
+      "disposition": "mapped-with-limits"
+    }
+  ],
+  "release_ready": false
+}

@@ -729,451 +729,451 @@
       "id": "01-01",
       "requirement": "Runtime attachment requires both explicit enablement and an explicit socket path; no discovery or environment fallback occurs. Requested attachment with a non-loopback HTTP listener fails startup. Unattached serving retains its existing listener behavior.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/0",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/01-configure-optional-runtime-attachment.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "superseded-in-part-by-adr0006",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "01-02",
       "requirement": "Introduce the smallest private runtime broker boundary needed by this behavior, independently owned per live inspection session. Its interface exposes capability metadata and bounded observations for validated scopes; producer protocol, identity, retry, cache and resource details stay private. Any necessary ownership prefactor happens first within this slice, with disk behavior unchanged.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/1",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/01-configure-optional-runtime-attachment.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "01-03",
       "requirement": "Use private real/simulated adapter and injected clock/scheduling seams without a new runtime dependency. Simulations are test fixtures, never a production trust bypass. Until ticket 02 provides verified attachment, no observations or active/verified capability are fabricated.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/2",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/01-configure-optional-runtime-attachment.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "01-04",
       "requirement": "GET /api/v1/runtime/capabilities returns Cache-Control: no-store and a sanitized runtime envelope. Reserve disabled, connecting, active, stale, unavailable, refused and incompatible as capability states; pause, expiry and observation coverage are separate dimensions. Missing sockets mean unavailable, not proof of the producer's parameter setting.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/3",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/01-configure-optional-runtime-attachment.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "01-05",
       "requirement": "Capability requests have four independent admission slots, no queue and a one-second deadline. Runtime admission and errors cannot consume the ordinary inspection resource queue or change inspection outcomes or diagnostics.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/4",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/01-configure-optional-runtime-attachment.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "01-06",
       "requirement": "The browser identifies the source as CUBRID page-buffer observation and presents disabled/unavailable states with accessible text. Paths, UID/GID/PID, raw OS errors, pointers, private structures and application bytes are absent from HTTP and UI disclosures.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/5",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/01-configure-optional-runtime-attachment.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "01-07",
       "requirement": "Runtime capability publication never advances snapshot generations, inspection revisions or cursors, or wakes disk-watch clients. The inspection graph, TUI, exports and standalone executable contract remain unchanged.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/6",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/01-configure-optional-runtime-attachment.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "01-08",
       "requirement": "Tests exercise actual configuration parsing, the real HTTP boundary and rendered capability presentation, including invalid listener/configuration combinations, no-store, sanitization, independent admission below/at/above capacity and unaffected disk inspection without CUBRID installed.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/7",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/01-configure-optional-runtime-attachment.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "01-09",
       "requirement": "Document explicit opt-in and loopback/SSH use using the accepted domain vocabulary. This ticket adds neither public authentication/TLS nor engine discovery, resident-page inspection, AOUT, event history or engine implementation.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/8",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/01-configure-optional-runtime-attachment.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "documentation-reviewed",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "02-01",
       "requirement": "Vendor an exact revision/hash-pinned producer-owned corpus and verify it offline. Resolve semantic conflicts explicitly with the producer owner rather than adding browser exceptions. CUBRID producer implementation remains external.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/9",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "02-02",
       "requirement": "Authenticate Linux AF_UNIX SOCK_STREAM peers with SO_PEERCRED and exact effective-UID equality, with no root/group exception. Check private-directory and socket ownership before trusting observations. Verify database-creation identity and the complete permanent-volume set of volid, volume-creation identity, device and inode, excluding temporary volumes. Names or paths alone and subset identity proof are insufficient; oversized identity proof refuses attachment.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/10",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "02-03",
       "requirement": "Bind observations to the producer's unpredictable incarnation and negotiated protocol. The handshake supplies shared/private LRU topology counts. Identity mismatch produces refused with stable identity-mismatch; refusal or protocol incompatibility clears evidence and requires explicit retry. Sanitize verification, protocol, database fingerprint and abbreviated incarnation; never disclose raw peer identity or socket details.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/11",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "02-04",
       "requirement": "Decode versioned JSON-lines with snake_case fields and lowercase semantic enums. Ignore unknown optional same-major fields within limits; reject missing mandatory identity, framing or count fields. Consume semantic page kind rather than native ordinals, including branch-dependent mappings, and never expose packed flags.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/12",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "02-05",
       "requirement": "Present VPID, semantic page kind, latch mode none/read/write/flush, waiter presence, fix count, dirty, flushing, async_flush_requested, to_vacuum, page LSA and oldest-unflush LSA. Preserve the coherent latch-word tuple and coherent LRU flags tuple without claiming record-wide or pool-wide atomicity. Present LRU zone lru1/lru2/lru3/void/invalid, list kind shared/private/none/invalid and exact kind-local index or null when not applicable; indices are incarnation-local.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/13",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "02-06",
       "requirement": "Validate scan sequence/start header, records and explicit end/count/truncation footer, including raw counts before deduplication and increasing incarnation-local sequence. Sequence is not an event sequence; use capture intervals, not invented per-page timestamps. Duplicate VPIDs are ambiguous/unknown, never last-write-wins.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/14",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "02-07",
       "requirement": "An evaluated requested Page omitted from a complete scan is observed not-resident, not guaranteed currently absent. Partial omissions and unevaluated Pages are unknown. Valid truncated scans publish partial evidence; malformed streams, missing footers or assembly overflow discard the whole unfinished assembly and retain only prior usable, unexpired evidence with its original age. Never synthesize a footer or merge scans into apparent completeness.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/15",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "02-08",
       "requirement": "Enforce binary-byte limits before unbounded allocation: 65,536 records, 64 MiB framed scan, 4 KiB record/control frame including newline, 64 KiB handshake and nesting depth 16; connect plus handshake within 500 ms and whole scan exchange including drain/footer within two seconds. Parse incrementally without buffering the whole wire stream.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/16",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "02-09",
       "requirement": "Account at most 48 MiB per decoded scan and 128 MiB total broker memory, including allocated capacities, indexes, duplicate tracking, parser buffers, retained/in-flight captures, response-held older captures and serialization. No spill or history; aggregate admission can stop below an individual object limit. Replacement does not uncharge still-referenced memory. RSS is a separate measurement.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/17",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "02-10",
       "requirement": "POST /api/v1/runtime/page-buffer/observe returns Cache-Control: no-store and echoes accepted ordered VPIDs and scope/request epoch, normalized states, capture identity/interval, limitations, producer completeness and separate requested/evaluated counts. Enforce at most 512 VPIDs, 64 KiB request body and 1 MiB response, eight admitted requests including waiters with no extra queue, a 2.5-second deadline and HTTP 429 overload. A requested scope never changes the producer's bulk-scan cap.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/18",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "02-11",
       "requirement": "Maintain one connection, one latest capture and at most one in-flight scan per session from the first working attachment, with a 500 ms scan-start floor. This slice supports explicit selected-Page refresh; automated lifecycle and viewport scheduling follow in tickets 03 and 04 without temporarily removing safety limits.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/19",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "02-12",
       "requirement": "From the first observation, enforce monotonic conservative age from broker scan-request start through serialization, adding browser full HTTP round trip and elapsed time. Cache reads never renew capture age; source wall time is display-only. Fresh means known upper age within two caller intervals; uncertain evidence is not fresh. Evict browser and broker evidence after 30 seconds even while paused. Revoke incompatible late adoption on route, scope, generation, overlay, pause or incarnation changes, checking echoed scope/epoch independently of cancellation.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/20",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "02-13",
       "requirement": "Selected-Page detail and an initial residency mark distinguish observed residency, observed nonresidency, partial/ambiguous unknown, unavailable and expired evidence with non-color labels. Storage facts remain intact; nothing claims page-image correspondence, commit visibility, durability or event causality.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/21",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "02-14",
       "requirement": "Test the production decoder using scripted socket chunking/coalescing, EOF, stalls, malformed framing, additive fields, count/sequence/identity errors, duplicate ambiguity and valid partial scans. Exercise the real HTTP and browser boundaries, plus deterministic highest-interface broker tests and actual I/O timeout checks. Cover below/at/above applicable caps, including retained plus in-flight plus response-held memory; report named executed cases and nonzero counts. Peer-credential isolation requires a suitable environment, not a silent skip.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/22",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "03-01",
       "requirement": "Add default selected-Page polling at 500 ms through the shared broker. Respect the independent 500 ms broker scan-start floor rather than confusing it with the producer's 100 ms floor. Reuse a capture only within the requesting caller's cadence or join refresh demand; never accumulate missed ticks or historical captures.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/23",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/03-handle-observation-lifecycle.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "03-02",
       "requirement": "Transient retry uses nominal delays 0.5, 1, 2, 4 and 8 seconds, then eight seconds, with +/-20% jitter and an actual maximum of 9.6 seconds. Reset after a valid scan. Connectivity status and retained, aged evidence remain separate.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/24",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/03-handle-observation-lifecycle.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "03-03",
       "requirement": "Interpret version-unsupported, busy, rate-limited and incarnation-changed through stable normalized capability/reason behavior. Parameter-off is only defensive compatibility; socket absence does not prove that setting. Peer/identity refusal and protocol incompatibility clear evidence and stop automatic retry until an explicit operator retry.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/25",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/03-handle-observation-lifecycle.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "03-04",
       "requirement": "Hidden tabs send no runtime requests. Paused tabs stop adoption of disk generations and runtime observations and check capability metadata only every five seconds; these checks cause neither scans nor adoption. Another tab's newer capture is only an availability indication while paused.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/26",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/03-handle-observation-lifecycle.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "03-05",
       "requirement": "Resume requires a scan started after resume, respecting the shared scan-start floor; an older cache hit or pre-resume in-flight scan cannot fulfill it. Route, scope, overlay and pause changes revoke incompatible late responses even if cancellation races.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/27",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/03-handle-observation-lifecycle.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "03-06",
       "requirement": "Producer incarnation changes clear retained evidence and adoption authority even while paused. Disk-generation changes prevent incompatible generation-scoped late adoption but do not alone erase retained state for the same proven database/volume identity; matching generations/VPIDs never imply image correspondence.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/28",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/03-handle-observation-lifecycle.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "03-07",
       "requirement": "Maintain conservative monotonic age across cache reuse and failed requests. Freshness is relative to each caller's expected cadence and requires known age within two intervals. Wall-clock steps never renew age; uncertain elapsed time after suspension revokes freshness. Enforce 30-second broker/browser eviction while paused and display an expired explanation rather than a history.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/29",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/03-handle-observation-lifecycle.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "03-08",
       "requirement": "Preserve all authentication, framing, memory, timeout and HTTP limits from ticket 02. Polling or reconnecting cannot bypass them, change inspection outcomes/diagnostics or disturb ordinary disk navigation.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/30",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/03-handle-observation-lifecycle.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "03-09",
       "requirement": "Demonstrate the complete flow with deterministic clock/scheduler broker and browser-effect tests, real HTTP coverage and Chromium/Firefox lifecycle scenarios: retries, refusal/explicit retry, differing cadences, hidden/pause/resume, another-tab newer offers, late responses, clock steps/suspension, expiry and restart while paused. Keep actual socket timeout checks separate from virtual-time tests.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/31",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/03-handle-observation-lifecycle.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "04-01",
       "requirement": "Extend normalized requests and browser presentation to selected-first ordered scopes, followed by nearest visible-sector pages and physical order. At the 512-VPID limit, rotate the non-selected remainder explicitly and show reduced admission/rotation; do not silently exclude the selected Page or claim full viewport evaluation.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/32",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/04-observe-visible-pages-with-shared-demand.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "04-02",
       "requirement": "Use a two-second visible-page cadence and a 500 ms selected-page cadence, with one connection, latest-scan cache and in-flight refresh per attached session. Cache eligibility is per caller's own cadence, and scan starts remain at least 500 ms apart. No per-tab scan, connection, missed-tick backlog or history is introduced.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/33",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/04-observe-visible-pages-with-shared-demand.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "04-03",
       "requirement": "Return requested/evaluated counts and accepted scope/epoch per waiter independently of producer completeness. Fully evaluated browser scope does not imply a complete producer scan; partial or unevaluated omissions remain unknown. Duplicate ambiguity and complete-scan omission semantics survive batching unchanged.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/34",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/04-observe-visible-pages-with-shared-demand.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "04-04",
       "requirement": "Coalesce admitted requests without replacing their scope authority. One caller cancelling cannot cancel another's demand; stop unnecessary work when the last observer leaves. No claim of starvation-free service for arbitrarily many clients is made.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/35",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/04-observe-visible-pages-with-shared-demand.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "04-05",
       "requirement": "Enforce eight observation slots including waiters, no queue, 2.5-second deadline and HTTP 429 overload; capabilities retain four independent slots and a one-second deadline. Keep body/response caps at 64 KiB/1 MiB and runtime admission independent of disk requests.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/36",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/04-observe-visible-pages-with-shared-demand.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "04-06",
       "requirement": "Under concurrent demand, remain within 48 MiB per decoded scan and 128 MiB total accounted broker allocation, including retained, in-flight, old response-held captures and serialization. Prove that object caps cannot collectively exceed total admission and that no whole-wire buffering or spill is introduced.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/37",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/04-observe-visible-pages-with-shared-demand.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "04-07",
       "requirement": "Show coverage/overload and useful available observations at both Volume and Sector scopes using existing semantic presentation; the full visual encoding follows in ticket 05. Existing selected-Page age, expiry and late-response safeguards apply throughout.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/38",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/04-observe-visible-pages-with-shared-demand.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "04-08",
       "requirement": "Verify via scripted producer plus real HTTP and browser tests: simultaneous tabs, different cadences, viewport churn, selected priority, overflow rotation, independently validated waiters, cancellation isolation, no-demand shutdown, overload and unaffected concurrent disk requests. Exercise below/at/above scope, response, admission and memory caps, including retained/in-flight/response peaks.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/39",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/04-observe-visible-pages-with-shared-demand.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "04-09",
       "requirement": "Test valid truncated rotating captures, exact-cap complete captures and stable-pool rotation progress. Never union partial scans into completeness or absence evidence. Consumer tests recognize the producer contract of at most one visit per slot and rotation beyond the visited span; engine traversal implementation remains owned by CBRD-27398.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/40",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/04-observe-visible-pages-with-shared-demand.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "04-10",
       "requirement": "This slice can be developed and verified independently of ticket 03 using explicit requests and controlled visibility/cadence fixtures. It must use the same shared broker scheduling contract so later lifecycle integration preserves all admission and adoption invariants.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/41",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/04-observe-visible-pages-with-shared-demand.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "05-01",
       "requirement": "Preserve existing storage colors beneath cyan residency outlines, amber dirty corners and static magenta flushing edges. Use the accepted visual prototype as design evidence, not production code or proof of performance.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/42",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/05-render-heatmap-and-lru-topology.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "05-02",
       "requirement": "Provide an alternative LRU-topology color mode rather than mixing LRU colors into storage allocation colors. Consume normalized shared/private topology counts and coherent zone/list-kind/kind-local-index observations; show exact indices in selected-Page detail, including none/invalid/null meanings and incarnation-local scope.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/43",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/05-render-heatmap-and-lru-topology.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "05-03",
       "requirement": "Derive only observed per-list summaries from validated capture records and explicitly label them partial when the source is partial. Do not present native counters/quotas or combine captures into an apparent pool snapshot.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/44",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/05-render-heatmap-and-lru-topology.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "05-04",
       "requirement": "Keep latch/waiter/fix and other detailed state in selected-Page detail rather than dense-grid animation. Retain semantic page kind, dirty/flushing/async-flush-requested/to-vacuum and log-position detail without inventing transition start/end, duration, counts, cause or durability.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/45",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/05-render-heatmap-and-lru-topology.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "05-05",
       "requirement": "At both Volume and Sector scales, distinguish capability, freshness, pause, expiry and observation coverage independently. Source-unavailable, unevaluated/partial unknown, duplicate ambiguity and observed nonresidency must not share a misleading absence mark. Prefer no overlay to fabricated evidence.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/46",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/05-render-heatmap-and-lru-topology.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "05-06",
       "requirement": "Provide keyboard-operable controls, stable compatible focus and non-color glyphs/text/accessible names for runtime states. Respect reduced motion and high contrast; polling and age ticks do not create repeated announcements. Initial semantics must be accessible before the final gate in ticket 06.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/47",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/05-render-heatmap-and-lru-topology.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "05-07",
       "requirement": "Test the complete normalized HTTP-to-render path with real frontend state/effects and Chromium/Firefox semantic assertions at both scales. Cover state-mark/LRU switching, exact membership, partial summaries, identity changes, unknowns and expired/unavailable evidence; use a small screenshot set only as supporting visual evidence.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/48",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/05-render-heatmap-and-lru-topology.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     },
     {
       "id": "05-08",
       "requirement": "Runtime rendering never mutates inspection facts, revisions, generations, diagnostics, outcomes, export content or TUI behavior. No AOUT history, protected resident-page inspection, image correspondence or unrelated kernel-cache/attribute-selection feature is introduced.",
       "owner": "Volmap",
-      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json#/contracts/49",
       "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/05-render-heatmap-and-lru-topology.md",
-      "candidate_result": "not-revalidated",
-      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+      "candidate_result": "mapped-with-limits",
+      "note": "Named tests/source evidence and clause-specific limits recorded; final release acceptance remains open."
     }
   ],
   "performance_matrix": {
@@ -1272,5 +1272,12 @@
     "spec_actionable_preparation_findings": 0,
     "report": ".scratch/pgbuf-overlay-implementation/verification/08-release-readiness/verification.md",
     "release_approval": false
+  },
+  "functional_contract_ledger": {
+    "path": ".scratch/pgbuf-overlay-implementation/verification/08-contract-ledger/ledger.json",
+    "sha256": "faf8cbedfe91b860461773fbd378b89f6788709f5109d4fed9f35ee1c8e25cf7",
+    "contract_count": 50,
+    "evidence_entry_count": 81,
+    "result": "named-map-with-limits; not complete delivery acceptance"
   }
 }

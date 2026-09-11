@@ -79,3 +79,11 @@ memory failure (34.54 MiB LRU increment), plus two passing Chromium-only repeats
 The manifest marks candidate density failed; variability is not a repair or an
 acceptance pass. Firefox and input timing passed the original rerun. These new
 results supplement the older preparation audit without rewriting its evidence.
+
+## Named contract evidence
+
+The [functional ledger](../08-contract-ledger/README.md) replaces aggregate-only
+references for all 50 checklist entries from tickets 01–05 with named tests/source
+links and explicit clause-specific limits. Two focused frontend reports record
+21+8 passing cases. It does not close manual, density, performance or final
+delivery gates; inherited source/producer/environment qualifications remain.
