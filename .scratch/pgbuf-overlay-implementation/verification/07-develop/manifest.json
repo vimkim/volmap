@@ -1,0 +1,126 @@
+{
+  "status": "incomplete",
+  "consumer_commit": "7c6e7e9c7d1b51e806da3a5f43f8fe4bc888e3b1",
+  "producer_commit": "48a3e87e3d56d3b0c998d286f17fc6674bb5e547",
+  "producer_ledger": "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-develop/docs/pgbuf-inspector/verification/07",
+  "retained_format_aligned_ledger": "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-develop/docs/pgbuf-inspector/verification/06",
+  "corpus_revision": 2,
+  "corpus_identical_files": 109,
+  "corpus_sha256": "11dbecc72e4b9dd78e22080f138c801c189c7e047c0db23af8233f44a804d5ce",
+  "producer_corpus": {
+    "debug": {
+      "command": "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-develop/build_preset_debug_gcc/bin/test_pgbuf_inspector [corpus] --reporter junit",
+      "junit_leaf_entries": 7,
+      "top_level_test_cases": 5,
+      "assertions": 1256,
+      "names": [
+        "SHA-256 matches the FIPS 180 known answers",
+        "Every generated corpus stream is exactly what the serializer produces from its semantic input",
+        "The checksum file lists every corpus file with its digest, and the manifest pins the checksum file",
+        "The checksum file lists every corpus file with its digest, and the manifest pins the checksum file/every listed digest matches the file, in the format sha256sum reads",
+        "The checksum file lists every corpus file with its digest, and the manifest pins the checksum file/the manifest carries the contract version, a positive revision and the aggregate hash",
+        "Every expected outcome agrees with the stream it describes",
+        "Independent exchange corpus agrees with canonical encoding and incremental validation"
+      ],
+      "exit_code": 0
+    },
+    "release": {
+      "command": "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-develop/build_preset_release_gcc/bin/test_pgbuf_inspector [corpus] --reporter junit",
+      "junit_leaf_entries": 7,
+      "top_level_test_cases": 5,
+      "assertions": 1256,
+      "names": [
+        "SHA-256 matches the FIPS 180 known answers",
+        "Every generated corpus stream is exactly what the serializer produces from its semantic input",
+        "The checksum file lists every corpus file with its digest, and the manifest pins the checksum file",
+        "The checksum file lists every corpus file with its digest, and the manifest pins the checksum file/every listed digest matches the file, in the format sha256sum reads",
+        "The checksum file lists every corpus file with its digest, and the manifest pins the checksum file/the manifest carries the contract version, a positive revision and the aggregate hash",
+        "Every expected outcome agrees with the stream it describes",
+        "Independent exchange corpus agrees with canonical encoding and incremental validation"
+      ],
+      "exit_code": 0
+    }
+  },
+  "consumer_observation_cases": 28,
+  "consumer_pin_cases": 1,
+  "exchange_cases": [
+    "array-frame",
+    "complete",
+    "duplicate-key",
+    "duplicate-volume",
+    "duplicate-vpid",
+    "empty",
+    "future-enum",
+    "future-lru",
+    "impossible-lru",
+    "invalid-lru-pair",
+    "malformed-json",
+    "missing-footer",
+    "missing-vpid",
+    "noncanonical-uint-string",
+    "numeric-overflow",
+    "optional-state-absent",
+    "out-of-topology",
+    "partial",
+    "reordered-whitespace",
+    "restart-expected-mismatch",
+    "retry-after-rate-limit",
+    "reused-sequence",
+    "rounded-number",
+    "second-scan-clears-old-pages",
+    "terminal-busy",
+    "terminal-identity-oversized",
+    "terminal-incarnation-changed",
+    "terminal-version-unsupported",
+    "too-few-slots",
+    "too-many-slots",
+    "unexpected-request",
+    "unfinished-frame",
+    "unknown-fields",
+    "unknown-frame",
+    "unknown-outside-scan",
+    "unsupported-negotiation",
+    "wrong-count",
+    "wrong-incarnation",
+    "wrong-sequence"
+  ],
+  "open": [
+    "Independent develop persistent disk corpus is absent; scope clarification pending before generation and browser integration.",
+    "Windows and other Unix execution; Release/OptDebug configurations remain unproven."
+  ],
+  "local_verify": {
+    "command": "just verify",
+    "exit_code": 0,
+    "log": "verify.log.gz",
+    "generated_screenshots": "verify-screenshots.tar.gz"
+  },
+  "aligned_debug": {
+    "exit_code": 0,
+    "stats": {
+      "startTime": "2026-09-11T06:50:53.993Z",
+      "duration": 45702.725,
+      "expected": 12,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "runtime": "aligned-debug-runtime.json"
+  },
+  "aligned_release_failed": {
+    "exit_code": 1,
+    "browser_cases_executed": 0,
+    "reason": "Volmap bind 127.0.0.1:47622 returned Address in use; post-teardown standalone bind succeeded. Port owner at failure was not captured; transient collision cause unproven."
+  },
+  "aligned_release": {
+    "exit_code": 0,
+    "stats": {
+      "startTime": "2026-09-11T06:52:52.652Z",
+      "duration": 45580.876,
+      "expected": 12,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "runtime": "aligned-release-runtime.json"
+  }
+}

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="test_pgbuf_inspector" errors="0" failures="0" tests="1256" hostname="tbd" time="0.008697" timestamp="2026-09-11T06:47:38Z">
+    <properties>
+      <property name="filters" value="[corpus]"/>
+    </properties>
+    <testcase classname="test_pgbuf_inspector.global" name="SHA-256 matches the FIPS 180 known answers" time="0.00003"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Every generated corpus stream is exactly what the serializer produces from its semantic input" time="0.000198"/>
+    <testcase classname="test_pgbuf_inspector.global" name="The checksum file lists every corpus file with its digest, and the manifest pins the checksum file" time="0.000131"/>
+    <testcase classname="test_pgbuf_inspector.global" name="The checksum file lists every corpus file with its digest, and the manifest pins the checksum file/every listed digest matches the file, in the format sha256sum reads" time="0.004598"/>
+    <testcase classname="test_pgbuf_inspector.global" name="The checksum file lists every corpus file with its digest, and the manifest pins the checksum file/the manifest carries the contract version, a positive revision and the aggregate hash" time="0.000092"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Every expected outcome agrees with the stream it describes" time="0.0002"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Independent exchange corpus agrees with canonical encoding and incremental validation" time="0.003469"/>
+    <system-out/>
+    <system-err/>
+  </testsuite>
+</testsuites>

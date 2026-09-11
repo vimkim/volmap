@@ -1,0 +1,98 @@
+[
+  {
+    "path": "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc/bin/pgbuf_inspector_fixture",
+    "expected": "280647853db1721f1b422013b40a8e7d7df05c7c708a94768c5be242d36bdcd4",
+    "actual": "280647853db1721f1b422013b40a8e7d7df05c7c708a94768c5be242d36bdcd4",
+    "match": true
+  },
+  {
+    "path": "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc/bin/cub_server",
+    "expected": "911e4902c6d5d1b723e83f4080b9f1f625f5096e4416e2145a1edb5f47d516b7",
+    "actual": "911e4902c6d5d1b723e83f4080b9f1f625f5096e4416e2145a1edb5f47d516b7",
+    "match": true
+  },
+  {
+    "path": "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc/cubrid/libcubrid.so",
+    "expected": "3d6e60dd91024cd51115b2db90823bf32c4a7055dac67016d70b5282de664449",
+    "actual": "3d6e60dd91024cd51115b2db90823bf32c4a7055dac67016d70b5282de664449",
+    "match": true
+  },
+  {
+    "path": "/tmp/producer06-install/debug/bin/cub_server",
+    "expected": "0bc4b40f07e058d86005998591f3eb960e9cf93a8eac3e1614435b0207adc2a8",
+    "actual": "0bc4b40f07e058d86005998591f3eb960e9cf93a8eac3e1614435b0207adc2a8",
+    "match": true
+  },
+  {
+    "path": "/tmp/producer06-install/debug/lib/libcubrid.so",
+    "expected": "02d5d1c49e6ac00331f980a7e77cf7022900dc4cc302096947a0be3445691bef",
+    "actual": "02d5d1c49e6ac00331f980a7e77cf7022900dc4cc302096947a0be3445691bef",
+    "match": true
+  },
+  {
+    "path": "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/volmap_observation.py",
+    "expected": "42c7a86801c52b0e68aac4af5ebdb82b98b852a9d4d0d92ab9f08b1865d0c421",
+    "actual": "42c7a86801c52b0e68aac4af5ebdb82b98b852a9d4d0d92ab9f08b1865d0c421",
+    "match": true
+  },
+  {
+    "path": "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/controlled_observation.py",
+    "expected": "71ee62a16251f618f8431a9dd3e0b0a2461e8a3147e9ffcd4c0a69785cf6b837",
+    "actual": "71ee62a16251f618f8431a9dd3e0b0a2461e8a3147e9ffcd4c0a69785cf6b837",
+    "match": true
+  },
+  {
+    "path": "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/pgbuf_inspector_fixture.cpp",
+    "expected": "a657f6307fc8392a2ff387493517075ece41bbf0b346b0b9cd4cea403663db82",
+    "actual": "a657f6307fc8392a2ff387493517075ece41bbf0b346b0b9cd4cea403663db82",
+    "match": true
+  },
+  {
+    "path": "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/bin/pgbuf_inspector_fixture",
+    "expected": "d9adf8f5dd4f839e0856d373a65d33fb5d5995d2210bf77d357309056bcd01f5",
+    "actual": "d9adf8f5dd4f839e0856d373a65d33fb5d5995d2210bf77d357309056bcd01f5",
+    "match": true
+  },
+  {
+    "path": "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/bin/cub_server",
+    "expected": "0216833ed0a546f80da64dd543c7aa2890f89d649a8ff18a9f100f9f74a5caf6",
+    "actual": "0216833ed0a546f80da64dd543c7aa2890f89d649a8ff18a9f100f9f74a5caf6",
+    "match": true
+  },
+  {
+    "path": "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/cubrid/libcubrid.so",
+    "expected": "24fb49c24546555573e1d9e6418f20ce611da910701889a0c03230539ff8b1f8",
+    "actual": "24fb49c24546555573e1d9e6418f20ce611da910701889a0c03230539ff8b1f8",
+    "match": true
+  },
+  {
+    "path": "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_server",
+    "expected": "3e65212cdd338f29a84aa9de6d5e1a53d158ad1ba9a8eb2336d074a9d0cc6cec",
+    "actual": "3e65212cdd338f29a84aa9de6d5e1a53d158ad1ba9a8eb2336d074a9d0cc6cec",
+    "match": true
+  },
+  {
+    "path": "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcubrid.so",
+    "expected": "0aeaeee76c0d977f85eb8d8adf014bb9f9a4a9ffb6714b08cbd4cde789ba27c0",
+    "actual": "0aeaeee76c0d977f85eb8d8adf014bb9f9a4a9ffb6714b08cbd4cde789ba27c0",
+    "match": true
+  },
+  {
+    "path": "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/volmap_observation.py",
+    "expected": "42c7a86801c52b0e68aac4af5ebdb82b98b852a9d4d0d92ab9f08b1865d0c421",
+    "actual": "42c7a86801c52b0e68aac4af5ebdb82b98b852a9d4d0d92ab9f08b1865d0c421",
+    "match": true
+  },
+  {
+    "path": "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/controlled_observation.py",
+    "expected": "71ee62a16251f618f8431a9dd3e0b0a2461e8a3147e9ffcd4c0a69785cf6b837",
+    "actual": "71ee62a16251f618f8431a9dd3e0b0a2461e8a3147e9ffcd4c0a69785cf6b837",
+    "match": true
+  },
+  {
+    "path": "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/pgbuf_inspector_fixture.cpp",
+    "expected": "a657f6307fc8392a2ff387493517075ece41bbf0b346b0b9cd4cea403663db82",
+    "actual": "a657f6307fc8392a2ff387493517075ece41bbf0b346b0b9cd4cea403663db82",
+    "match": true
+  }
+]

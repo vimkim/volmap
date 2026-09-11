@@ -91,3 +91,22 @@ wire or startup-fixture checks does not establish broad develop disk-format
 support. Select the explicit persistent profile specified by ADR 0007 and retain
 the independent format corpus evidence. Ticket 07 stays open while any required
 cross-repo invariant or external build/test evidence is missing.
+
+## Develop delivery checkpoint
+
+The develop producer is now delivered at `48a3e87e3`, based on `8cb558b3b`,
+with Debug and RelWithDebInfo native, socket, credential, lifecycle and external
+CTP evidence. The [resumed ticket 07 ledger](../.scratch/pgbuf-overlay-implementation/verification/07-develop/README.md)
+records the independently repeated corpus checks and exact input revalidation.
+
+Volmap's explicit `develop` profile still pins `cd593bc`, and the committed disk
+fixtures cover only `e1e651de`/`feat-oos`. Establish an independent develop disk
+corpus and its source-layout compatibility before accepting develop browser
+integration. Selecting `develop` in the run JSON is necessary but is not that
+proof. The producer's native `--volmap-run` path still requires `feat-oos`.
+
+The delivered producer06 evidence also supplies a controlled permanent VPID
+`1:577` through actual Volmap HTTP at consumer `5dacafb`, with independent
+clean/dirty/eviction acknowledgements. This supplements the temporary VPID
+qualification above; it does not turn this browser suite's startup-page and
+LRU smoke checks into controlled-state browser evidence.

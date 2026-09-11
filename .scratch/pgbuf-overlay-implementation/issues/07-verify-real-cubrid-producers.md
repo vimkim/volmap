@@ -43,3 +43,19 @@ successful caller checks. It passed 500 consecutive focused executions. See
 This supersedes the unresolved HTTP-test qualification above; the external
 producer and integration gaps remain open.
 The full `just verify` gate also passed after this repair (47 browser passes, one existing skip).
+
+2026-09-11 — Resumed work item 126 from producer `48a3e87e3` handoff.
+Develop source/build/installation hashes and both producer07 and retained
+producer06 evidence sets revalidate. Fresh independent corpus executions pass
+on both develop builds and current consumer `7c6e7e9`; full local verification
+passes (74 frontend unit tests, 65 browser passes, one existing skip). Fresh
+format-aligned Debug and RelWithDebInfo browser runs each pass 12 cases; retain
+the first release attempt's transient bind failure separately. Producer06 now
+supplies controlled permanent-VPID evidence through actual HTTP at consumer
+`5dacafb`; it is not controlled-state browser evidence.
+
+The external develop producer is delivered, superseding the earlier missing
+producer note. Independent develop disk corpus and source-layout compatibility
+remain unproven, so develop browser integration and ticket completion stay open.
+See [the resumed ledger](../verification/07-develop/README.md) for exact inputs,
+counts, raw evidence, failed attempt and remaining platform qualifications.
