@@ -3042,29 +3042,33 @@ mod tests {
                 ),
             )
         };
-        let clients: Vec<_> = (0..8).map(|epoch| {
+        let (completed, completion) = std::sync::mpsc::channel();
+        let clients: Vec<_> = (0..9).map(|epoch| {
+            let completed = completed.clone();
             let body = serde_json::json!({"pages":[{"volid":0,"pageid":7},{"volid":0,"pageid":epoch + 8},{"volid":1,"pageid":7}],"epoch":epoch.to_string(),"generation":generation,"cadence_ms":if epoch % 2 == 0 {500} else {2000}}).to_string();
-            std::thread::spawn(move || post(&body))
+            std::thread::spawn(move || {
+                let response = post(&body);
+                completed.send((epoch, response.0)).unwrap();
+                response
+            })
         }).collect();
-        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
-        loop {
-            let (status, _) = post("{}");
-            if status == 429 {
-                break;
-            }
-            assert_eq!(status, 400);
-            assert!(
-                std::time::Instant::now() < deadline,
-                "eight HTTP waiters must occupy admission"
-            );
-            std::thread::yield_now();
-        }
+        // Eight requests hold admission while the producer is gated. The ninth
+        // must finish with overload. An extra polling request could steal a
+        // permit and reject one of the eight waiters it was trying to count.
+        let (refused_epoch, status) = completion
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .expect("the ninth HTTP request must be refused while eight waiters hold admission");
+        assert_eq!(status, 429);
         assert_eq!(get(address, "/api/v1/session").0, 200);
         assert_eq!(get(address, "/api/v1/volumes").0, 200);
         assert_eq!(get(address, "/api/v1/runtime/capabilities").0, 200);
         release.send(()).unwrap();
         for (epoch, client) in clients.into_iter().enumerate() {
             let (status, body) = client.join().unwrap();
+            if epoch == refused_epoch {
+                assert_eq!(status, 429, "{body}");
+                continue;
+            }
             assert_eq!(status, 200, "{body}");
             let value: serde_json::Value = serde_json::from_str(&body).unwrap();
             assert_eq!(value["epoch"], epoch.to_string());

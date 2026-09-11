@@ -34,3 +34,12 @@ full platform/build evidence and the remaining cross-repo invariant qualificatio
 are open. See the [requirement ledger and raw evidence](../verification/07-real-journey/README.md)
 and [reproduction instructions](../../../docs/runtime-overlay-verification.md).
 No release completion is claimed.
+
+2026-09-11 — Follow-up reproduced the historical HTTP admission failure and
+identified an intrusive polling-request race in the test. The repaired test
+requires one refusal among nine valid concurrent callers and preserves all eight
+successful caller checks. It passed 500 consecutive focused executions. See
+[the causal diagnosis and raw evidence](../verification/07-http-admission/README.md).
+This supersedes the unresolved HTTP-test qualification above; the external
+producer and integration gaps remain open.
+The full `just verify` gate also passed after this repair (47 browser passes, one existing skip).
