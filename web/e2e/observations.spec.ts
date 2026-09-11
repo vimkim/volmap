@@ -3,7 +3,8 @@ import { expect, test } from "@playwright/test";
 // Firefox can keep document readiness pending alongside the live watch.
 // Wait for navigation commit, then assert rendered controls and observations.
 
-test("selected-page observation uses the real producer, HTTP boundary and non-color detail", async ({ page, browserName }) => {
+// Port 41741 uses producer-fixture.py, not an actual CUBRID server.
+test("selected-page observation uses a scripted socket producer, real HTTP and non-color detail", async ({ page, browserName }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("http://127.0.0.1:41741/page/0/10", { waitUntil: "commit" });
@@ -55,7 +56,9 @@ test("automatic polling, paused offers, hidden silence, resume and expiry preser
   const pausedRequests = observations;
   const beforeMetadata = metadata;
   const other = await context.newPage();
-  await other.goto("http://127.0.0.1:41741/page/0/10", { waitUntil: "commit" });
+  // Firefox can render this page while goto still waits on the live watch.
+  // Navigate in the document and let the bounded UI assertions prove readiness.
+  await other.evaluate(() => { window.location.href = "http://127.0.0.1:41741/page/0/10"; });
   const otherSource = other.getByRole("region", { name: "CUBRID page-buffer observation" });
   await otherSource.getByRole("button", { name: "Enable observations" }).click();
   await expect(other.getByRole("region", { name: "Selected-page buffer observation" })).toContainText("Observed resident");

@@ -1,0 +1,169 @@
+{
+  "status": "incomplete",
+  "producer_commit": "f8c068f771ccd141a3c2f08541fe75c84e41ce53",
+  "consumer_base": "15c3b584fd77fd2e01d65f10185b33efea2e917d",
+  "testcase_commit": "a648d78f599504fe0c916628ea51ea3f2b5f7ca7",
+  "runs": {
+    "debug": {
+      "server_pass_lines": [
+        "PASS default-off server serves SQL without inspector directory",
+        "PASS real resident scan {\"type\": \"scan_footer\", \"incarnation\": \"b8800ea545bbf75cd69306e6695c1531\", \"scan_seq\": \"1\", \"end_time_us\": \"1789099469659143\", \"record_count\": 58, \"visited_slots\": 4096, \"truncated\": false} framed_bytes 22788",
+        "PASS enabled identity matches physical persistent volume {\"type\": \"server_hello\", \"protocol_major\": 1, \"protocol_minor\": 0, \"incarnation\": \"b8800ea545bbf75cd69306e6695c1531\", \"database_creation\": \"1789099460\", \"volumes\": [{\"volid\": 0, \"volume_creation\": \"1789099460\", \"device\": \"64768\", \"inode\": \"67997197\"}, {\"volid\": 1, \"volume_creation\": \"1789099461\", \"device\": \"64768\", \"inode\": \"67997198\"}], \"shared_lru_count\": 4, \"private_lru_count\": 152}",
+        "PASS committed SQL while stalled scan and two-client admission overload {\"baseline_bytes\": 157952, \"baseline_records\": 435, \"stalled_clients\": 2, \"busy_refusals\": 13, \"committed_workers\": 1, \"overlap_seconds\": 0.19525321399851236, \"saturation_before\": [{\"send_queue\": 9728, \"charged\": 9728, \"budget\": 8192}, {\"send_queue\": 9216, \"charged\": 9216, \"budget\": 8192}], \"saturation_after\": [{\"send_queue\": 9728, \"charged\": 9728, \"budget\": 8192}, {\"send_queue\": 9216, \"charged\": 9216, \"budget\": 8192}]}",
+        "PASS real resident scan {\"type\": \"scan_footer\", \"incarnation\": \"69d5c2a53ba92215ff62bb452172db69\", \"scan_seq\": \"1\", \"end_time_us\": \"1789099473940523\", \"record_count\": 58, \"visited_slots\": 4096, \"truncated\": false} framed_bytes 22787",
+        "PASS restart changes incarnation and preserves persistent identity",
+        "PASS shutdown preserves socket pathname replacement",
+        "PASS real resident scan {\"type\": \"scan_footer\", \"incarnation\": \"b379d18cff055a7a12f3d32f1b2645c4\", \"scan_seq\": \"1\", \"end_time_us\": \"1789099478455451\", \"record_count\": 58, \"visited_slots\": 4096, \"truncated\": false} framed_bytes 21300",
+        "PASS copied database has distinct physical identity",
+        "PASS activation failure preserves conflicting entry and SQL service",
+        "PASS removed conflict does not trigger a background activation retry"
+      ],
+      "credentials": {
+        "cases": [
+          "Peer credentials reject another effective UID before any reply",
+          "Root receives no exception to exact effective UID authentication",
+          "An existing socket owned by another account is preserved",
+          "Wrong-owner private directories are preserved"
+        ],
+        "assertions": 41,
+        "failed_assertions": 0
+      },
+      "binary_and_script_sha256_match_prior_ctp": {
+        "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/debug_gcc/bin/cub_server": "0bc4b40f07e058d86005998591f3eb960e9cf93a8eac3e1614435b0207adc2a8",
+        "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/debug_gcc/lib/libcubrid.so": "02d5d1c49e6ac00331f980a7e77cf7022900dc4cc302096947a0be3445691bef",
+        "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc/bin/pgbuf_inspector_fixture": "44480675bd97f72deabfa8e156282b55edb0c96b157ef6a5d26aac16bfaf33fe",
+        "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/controlled_observation.py": "780ea18060ee2bc4fddf81b766fff0aa62722fa1d38d29d8409d6ece2e4fd5a6",
+        "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/server_attachment.py": "fe54b20f572b7d3761bfdd9127afb280c0ed67d5079ed04db2f7c287a3be5f1f"
+      },
+      "previous_ctp": {
+        "executed": 1,
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0,
+        "execution_date": "2026-09-09",
+        "evidence_origin": ".scratch/pgbuf-producer-implementation/verification/05/ctp-debug-final-case",
+        "rerun": false
+      },
+      "isolation": {
+        "baseline_bytes": 157952,
+        "baseline_records": 435,
+        "stalled_clients": 2,
+        "busy_refusals": 13,
+        "committed_workers": 1,
+        "overlap_seconds": 0.19525321399851236,
+        "saturation_before": [
+          {
+            "send_queue": 9728,
+            "charged": 9728,
+            "budget": 8192
+          },
+          {
+            "send_queue": 9216,
+            "charged": 9216,
+            "budget": 8192
+          }
+        ],
+        "saturation_after": [
+          {
+            "send_queue": 9728,
+            "charged": 9728,
+            "budget": 8192
+          },
+          {
+            "send_queue": 9216,
+            "charged": 9216,
+            "budget": 8192
+          }
+        ]
+      },
+      "commands": [
+        "unshare --map-auto --map-root-user /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc/bin/test_pgbuf_inspector \"[.credential]\" -r xml",
+        "env CUBRID=/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/debug_gcc PATH=/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/debug_gcc/bin:$PATH LD_LIBRARY_PATH=/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/debug_gcc/lib:/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/debug_gcc/cci/lib TMPDIR=/tmp timeout 180 python3 /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/server_attachment.py --scan --isolation"
+      ]
+    },
+    "release": {
+      "server_pass_lines": [
+        "PASS default-off server serves SQL without inspector directory",
+        "PASS real resident scan {\"type\": \"scan_footer\", \"incarnation\": \"28403d698301a0c1d3aa342b2494ff81\", \"scan_seq\": \"1\", \"end_time_us\": \"1789099503395097\", \"record_count\": 58, \"visited_slots\": 4096, \"truncated\": false} framed_bytes 22772",
+        "PASS enabled identity matches physical persistent volume {\"type\": \"server_hello\", \"protocol_major\": 1, \"protocol_minor\": 0, \"incarnation\": \"28403d698301a0c1d3aa342b2494ff81\", \"database_creation\": \"1789099494\", \"volumes\": [{\"volid\": 0, \"volume_creation\": \"1789099495\", \"device\": \"64768\", \"inode\": \"204848618\"}, {\"volid\": 1, \"volume_creation\": \"1789099496\", \"device\": \"64768\", \"inode\": \"204848620\"}], \"shared_lru_count\": 4, \"private_lru_count\": 152}",
+        "PASS committed SQL while stalled scan and two-client admission overload {\"baseline_bytes\": 215082, \"baseline_records\": 596, \"stalled_clients\": 2, \"busy_refusals\": 5, \"committed_workers\": 1, \"overlap_seconds\": 0.1533588879974559, \"saturation_before\": [{\"send_queue\": 9728, \"charged\": 9728, \"budget\": 8192}, {\"send_queue\": 9728, \"charged\": 9728, \"budget\": 8192}], \"saturation_after\": [{\"send_queue\": 9728, \"charged\": 9728, \"budget\": 8192}, {\"send_queue\": 9728, \"charged\": 9728, \"budget\": 8192}]}",
+        "PASS real resident scan {\"type\": \"scan_footer\", \"incarnation\": \"269d8a2826a4dd493c82ce743fcc25fc\", \"scan_seq\": \"1\", \"end_time_us\": \"1789099507091060\", \"record_count\": 58, \"visited_slots\": 4096, \"truncated\": false} framed_bytes 22771",
+        "PASS restart changes incarnation and preserves persistent identity",
+        "PASS shutdown preserves socket pathname replacement",
+        "PASS real resident scan {\"type\": \"scan_footer\", \"incarnation\": \"00027ef4e30a0e09cb7e6177c0294f62\", \"scan_seq\": \"1\", \"end_time_us\": \"1789099511231018\", \"record_count\": 58, \"visited_slots\": 4096, \"truncated\": false} framed_bytes 21300",
+        "PASS copied database has distinct physical identity",
+        "PASS activation failure preserves conflicting entry and SQL service",
+        "PASS removed conflict does not trigger a background activation retry"
+      ],
+      "credentials": {
+        "cases": [
+          "Peer credentials reject another effective UID before any reply",
+          "Root receives no exception to exact effective UID authentication",
+          "An existing socket owned by another account is preserved",
+          "Wrong-owner private directories are preserved"
+        ],
+        "assertions": 41,
+        "failed_assertions": 0
+      },
+      "binary_and_script_sha256_match_prior_ctp": {
+        "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_server": "3e65212cdd338f29a84aa9de6d5e1a53d158ad1ba9a8eb2336d074a9d0cc6cec",
+        "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcubrid.so": "0aeaeee76c0d977f85eb8d8adf014bb9f9a4a9ffb6714b08cbd4cde789ba27c0",
+        "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/bin/pgbuf_inspector_fixture": "bb1fa1f8a6a273194b55a839a1ad87fa0a63ee904aefa6b12f769ba34009d769",
+        "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/controlled_observation.py": "780ea18060ee2bc4fddf81b766fff0aa62722fa1d38d29d8409d6ece2e4fd5a6",
+        "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/server_attachment.py": "fe54b20f572b7d3761bfdd9127afb280c0ed67d5079ed04db2f7c287a3be5f1f"
+      },
+      "previous_ctp": {
+        "executed": 1,
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0,
+        "execution_date": "2026-09-09",
+        "evidence_origin": ".scratch/pgbuf-producer-implementation/verification/05/ctp-release-final-case",
+        "rerun": false
+      },
+      "isolation": {
+        "baseline_bytes": 215082,
+        "baseline_records": 596,
+        "stalled_clients": 2,
+        "busy_refusals": 5,
+        "committed_workers": 1,
+        "overlap_seconds": 0.1533588879974559,
+        "saturation_before": [
+          {
+            "send_queue": 9728,
+            "charged": 9728,
+            "budget": 8192
+          },
+          {
+            "send_queue": 9728,
+            "charged": 9728,
+            "budget": 8192
+          }
+        ],
+        "saturation_after": [
+          {
+            "send_queue": 9728,
+            "charged": 9728,
+            "budget": 8192
+          },
+          {
+            "send_queue": 9728,
+            "charged": 9728,
+            "budget": 8192
+          }
+        ]
+      },
+      "commands": [
+        "unshare --map-auto --map-root-user /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/bin/test_pgbuf_inspector \"[.credential]\" -r xml",
+        "env CUBRID=/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc PATH=/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin:$PATH LD_LIBRARY_PATH=/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib:/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/cci/lib TMPDIR=/tmp timeout 180 python3 /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/server_attachment.py --scan --isolation"
+      ]
+    }
+  },
+  "consumer_checks": {
+    "typecheck": "passed",
+    "focused_lifecycle": "2 passed: Chromium and Firefox",
+    "full_verify": "passed; 47 browser cases passed, 1 existing skip",
+    "earlier_http_admission_failure": "retained and unresolved",
+    "review": "Standards: no findings. Spec: no incorrect behavior/pass claims; disclosed missing gates remain."
+  }
+}
