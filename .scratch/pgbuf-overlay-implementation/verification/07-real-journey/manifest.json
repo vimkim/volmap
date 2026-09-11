@@ -1,0 +1,177 @@
+{
+  "status": "incomplete",
+  "producer_matrix": {
+    "debug": {
+      "stats": {
+        "startTime": "2026-09-11T04:30:02.060Z",
+        "duration": 44868.913,
+        "expected": 12,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "cases": [
+        {
+          "name": "an installed CUBRID producer attaches through HTTP and renders selected-page evidence",
+          "browser": "chromium"
+        },
+        {
+          "name": "copied permanent volumes refuse the real producer while disk navigation remains available",
+          "browser": "chromium"
+        },
+        {
+          "name": "a real producer restart while paused revokes its incarnation and explicit retry recovers",
+          "browser": "chromium"
+        },
+        {
+          "name": "volume/0 renders actual resident marks and incarnation-local LRU topology",
+          "browser": "chromium"
+        },
+        {
+          "name": "sector/0/0 renders actual resident marks and incarnation-local LRU topology",
+          "browser": "chromium"
+        },
+        {
+          "name": "real observations in another tab do not resume a paused tab",
+          "browser": "chromium"
+        },
+        {
+          "name": "an installed CUBRID producer attaches through HTTP and renders selected-page evidence",
+          "browser": "firefox"
+        },
+        {
+          "name": "copied permanent volumes refuse the real producer while disk navigation remains available",
+          "browser": "firefox"
+        },
+        {
+          "name": "a real producer restart while paused revokes its incarnation and explicit retry recovers",
+          "browser": "firefox"
+        },
+        {
+          "name": "volume/0 renders actual resident marks and incarnation-local LRU topology",
+          "browser": "firefox"
+        },
+        {
+          "name": "sector/0/0 renders actual resident marks and incarnation-local LRU topology",
+          "browser": "firefox"
+        },
+        {
+          "name": "real observations in another tab do not resume a paused tab",
+          "browser": "firefox"
+        }
+      ],
+      "input_metadata": "debug-accepted/runtime.json",
+      "producer_commit": "f8c068f771ccd141a3c2f08541fe75c84e41ce53",
+      "consumer_base_commit": "646e38253760b7e8e1c9dfa217c992c3ff3495ce",
+      "format_profile": "feat-oos",
+      "producer_build_type": [
+        "CMAKE_BUILD_TYPE:STRING=Debug"
+      ],
+      "corpus_sha256": "11dbecc72e4b9dd78e22080f138c801c189c7e047c0db23af8233f44a804d5ce",
+      "binary_sha256": {
+        "/home/vimkim/temp/volmap/target/x86_64-unknown-linux-musl/debug/volmap": "829976568a3c4a233bd743a189a033c0258afa69eff6454b140ecc87c5de9e04",
+        "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/debug_gcc/bin/cub_server": "0bc4b40f07e058d86005998591f3eb960e9cf93a8eac3e1614435b0207adc2a8",
+        "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/debug_gcc/lib/libcubrid.so": "02d5d1c49e6ac00331f980a7e77cf7022900dc4cc302096947a0be3445691bef"
+      },
+      "harness_sha256": {
+        "web/../tools/serve-real-producer.py": "d81afd03632b199cdc30e4259002112622af5b8af058c870a5f384ce94e6ea15",
+        "web/e2e/real-producer.spec.ts": "23e9a59c4b44cd598db44430f1fa440c3bbfa4703af5515bd679a1f4417e022f",
+        "web/playwright.producer.config.ts": "446f4797555520dffe741d4c0a8ae0b8e97ba6c587ecb47932aaa4404e4bf5ca"
+      },
+      "command": "VOLMAP_PRODUCER_RUN=/home/vimkim/temp/volmap/.scratch/pgbuf-overlay-implementation/verification/07-real-journey/debug-accepted-config.json mise x node@24.19.0 -- corepack pnpm --dir web exec playwright test --config playwright.producer.config.ts"
+    },
+    "release": {
+      "stats": {
+        "startTime": "2026-09-11T04:28:06.676Z",
+        "duration": 42882.707,
+        "expected": 12,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "cases": [
+        {
+          "name": "an installed CUBRID producer attaches through HTTP and renders selected-page evidence",
+          "browser": "chromium"
+        },
+        {
+          "name": "copied permanent volumes refuse the real producer while disk navigation remains available",
+          "browser": "chromium"
+        },
+        {
+          "name": "a real producer restart while paused revokes its incarnation and explicit retry recovers",
+          "browser": "chromium"
+        },
+        {
+          "name": "volume/0 renders actual resident marks and incarnation-local LRU topology",
+          "browser": "chromium"
+        },
+        {
+          "name": "sector/0/0 renders actual resident marks and incarnation-local LRU topology",
+          "browser": "chromium"
+        },
+        {
+          "name": "real observations in another tab do not resume a paused tab",
+          "browser": "chromium"
+        },
+        {
+          "name": "an installed CUBRID producer attaches through HTTP and renders selected-page evidence",
+          "browser": "firefox"
+        },
+        {
+          "name": "copied permanent volumes refuse the real producer while disk navigation remains available",
+          "browser": "firefox"
+        },
+        {
+          "name": "a real producer restart while paused revokes its incarnation and explicit retry recovers",
+          "browser": "firefox"
+        },
+        {
+          "name": "volume/0 renders actual resident marks and incarnation-local LRU topology",
+          "browser": "firefox"
+        },
+        {
+          "name": "sector/0/0 renders actual resident marks and incarnation-local LRU topology",
+          "browser": "firefox"
+        },
+        {
+          "name": "real observations in another tab do not resume a paused tab",
+          "browser": "firefox"
+        }
+      ],
+      "input_metadata": "release-accepted/runtime.json",
+      "producer_commit": "f8c068f771ccd141a3c2f08541fe75c84e41ce53",
+      "consumer_base_commit": "646e38253760b7e8e1c9dfa217c992c3ff3495ce",
+      "format_profile": "feat-oos",
+      "producer_build_type": [
+        "CMAKE_BUILD_TYPE:STRING=RelWithDebInfo"
+      ],
+      "corpus_sha256": "11dbecc72e4b9dd78e22080f138c801c189c7e047c0db23af8233f44a804d5ce",
+      "binary_sha256": {
+        "/home/vimkim/temp/volmap/target/x86_64-unknown-linux-musl/release/volmap": "5a9b2b6f432783f94346c8673a5ca3bc10e83c9744c6cce2bcb0991063df9649",
+        "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_server": "3e65212cdd338f29a84aa9de6d5e1a53d158ad1ba9a8eb2336d074a9d0cc6cec",
+        "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcubrid.so": "0aeaeee76c0d977f85eb8d8adf014bb9f9a4a9ffb6714b08cbd4cde789ba27c0"
+      },
+      "harness_sha256": {
+        "web/../tools/serve-real-producer.py": "d81afd03632b199cdc30e4259002112622af5b8af058c870a5f384ce94e6ea15",
+        "web/e2e/real-producer.spec.ts": "23e9a59c4b44cd598db44430f1fa440c3bbfa4703af5515bd679a1f4417e022f",
+        "web/playwright.producer.config.ts": "446f4797555520dffe741d4c0a8ae0b8e97ba6c587ecb47932aaa4404e4bf5ca"
+      },
+      "command": "VOLMAP_PRODUCER_RUN=/home/vimkim/temp/volmap/.scratch/pgbuf-overlay-implementation/verification/07-real-journey/release-accepted-config.json mise x node@24.19.0 -- corepack pnpm --dir web exec playwright test --config playwright.producer.config.ts"
+    }
+  },
+  "review": {
+    "standards_findings": 0,
+    "spec_implementation_findings": 0,
+    "qualification": "LRU cases are rendering smoke checks, not independent native tuple proof."
+  },
+  "remaining": [
+    "develop producer debug/release delivery and execution",
+    "complete cross-repository invariant mapping",
+    "independent known-page state through consumer rendering",
+    "full platform/build provenance evidence",
+    "original HTTP admission test failure root cause"
+  ],
+  "owned_fixture_processes_after_runs": [],
+  "full_verify": "passed: Rust, Clippy, static musl, frontend types/unit/artifacts, 47 browser passes and 1 existing skip"
+}

@@ -1,0 +1,32 @@
+{
+  "producer_source": "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract",
+  "producer_install": "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/debug_gcc",
+  "consumer_binary": "/home/vimkim/temp/volmap/target/x86_64-unknown-linux-musl/debug/volmap",
+  "format_profile": "feat-oos",
+  "listen_port": 41205,
+  "copy_listen_port": 53045,
+  "output_directory": "/home/vimkim/temp/volmap/.scratch/pgbuf-overlay-implementation/verification/07-real-journey/debug-final",
+  "producer_build": "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc",
+  "database_root": "/tmp/volmap-real-lth_kq5u",
+  "socket": "/tmp/volmap-real-lth_kq5u/pgbuf-inspector/d9ab6d61e108f4c33ab7817268071bbc.sock",
+  "copy_origin": "http://127.0.0.1:53045",
+  "producer_commit": "f8c068f771ccd141a3c2f08541fe75c84e41ce53",
+  "binary_sha256": {
+    "/home/vimkim/temp/volmap/target/x86_64-unknown-linux-musl/debug/volmap": "829976568a3c4a233bd743a189a033c0258afa69eff6454b140ecc87c5de9e04",
+    "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/debug_gcc/bin/cub_server": "0bc4b40f07e058d86005998591f3eb960e9cf93a8eac3e1614435b0207adc2a8",
+    "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/debug_gcc/lib/libcubrid.so": "02d5d1c49e6ac00331f980a7e77cf7022900dc4cc302096947a0be3445691bef"
+  },
+  "producer_worktree_status": " m cubrid-cci\n?? demodb_loaddb.log\n",
+  "consumer_commit": "646e38253760b7e8e1c9dfa217c992c3ff3495ce",
+  "consumer_worktree_status": " M .scratch/pgbuf-overlay/issues/04-define-gating-matrix.md\n M .scratch/pgbuf-overlay/issues/05-define-wire-contract-v1.md\n M .scratch/pgbuf-overlay/issues/06-name-domain-terms-and-adr.md\n M .scratch/pgbuf-overlay/issues/07-decide-tui-parity-treatment.md\n M .scratch/pgbuf-overlay/issues/08-set-security-posture.md\n M .scratch/pgbuf-overlay/issues/09-prototype-heatmap-encoding.md\n M .scratch/pgbuf-overlay/issues/10-define-volmap-overlay-architecture.md\n M .scratch/pgbuf-overlay/issues/11-define-verification-strategy.md\n M .scratch/pgbuf-overlay/issues/12-assemble-cross-repo-handoff.md\n M .scratch/pgbuf-overlay/map.md\n M .scratch/volmap-live-web-runtime/implementation-spec.md\n M .scratch/volmap-live-web-runtime/issues/06-add-loopback-runtime-broker.md\n M .scratch/volmap-live-web-runtime/issues/08-consume-cubrid-state-observations.md\n M .scratch/volmap-live-web-runtime/issues/10-close-runtime-scheduling-accessibility.md\n M AGENTS.md\n M CONTEXT.md\n M README.md\n M user.just\n M web/playwright.config.ts\n?? .scratch/pgbuf-inspector-contract/\n?? .scratch/pgbuf-overlay-implementation/issues/07-verify-real-cubrid-producers.md\n?? .scratch/pgbuf-overlay-implementation/issues/08-establish-release-readiness.md\n?? .scratch/pgbuf-overlay-implementation/spec.md\n?? .scratch/pgbuf-overlay-implementation/verification/07-real-journey/\n?? .scratch/pgbuf-overlay/handoff/\n?? .scratch/pgbuf-overlay/issues/13-choose-consistency-inspection-boundary.md\n?? .scratch/pgbuf-overlay/issues/14-expose-exact-lru-list-membership.md\n?? .scratch/pgbuf-overlay/issues/15-set-overlay-resource-budgets.md\n?? .scratch/pgbuf-overlay/issues/16-decide-aout-overlay-scope.md\n?? .scratch/pgbuf-overlay/issues/17-decide-transition-changefeed-scope.md\n?? .scratch/pgbuf-producer-implementation/\n?? docs/agents/\n?? tools/check-overlay.py\n?? tools/serve-real-producer.py\n?? tools/test_check_overlay.py\n?? web/e2e/real-producer.spec.ts\n?? web/playwright.producer.config.ts\n",
+  "producer_build_type": [
+    "CMAKE_BUILD_TYPE:STRING=Debug"
+  ],
+  "corpus": {
+    "contract_version": "1.0",
+    "corpus_revision": 2,
+    "corpus_sha256": "11dbecc72e4b9dd78e22080f138c801c189c7e047c0db23af8233f44a804d5ce"
+  },
+  "corpus_identical_files": 109,
+  "corpus_sha256": "11dbecc72e4b9dd78e22080f138c801c189c7e047c0db23af8233f44a804d5ce"
+}

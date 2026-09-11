@@ -1,0 +1,8 @@
+{
+  "producer_source": "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract",
+  "producer_install": "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/debug_gcc",
+  "consumer_binary": "/home/vimkim/temp/volmap/target/x86_64-unknown-linux-musl/debug/volmap",
+  "format_profile": "feat-oos",
+  "output_directory": "/home/vimkim/temp/volmap/.scratch/pgbuf-overlay-implementation/verification/07-real-journey/debug-lifecycle-fixed",
+  "listen_port": 37671
+}
