@@ -62,7 +62,9 @@ for (const scale of ["volume/0", "sector/0/0"]) {
           body.capture = null;
           body.producer_complete = null;
           body.evaluated_count = 0;
-          body.observations = body.pages.map((vpid: { volid: number; pageid: number }) => ({ ...vpid, state: "unavailable", reason: "no-usable-observation", evidence: null }));
+          const observations = (body.slots ?? body.pages).map((vpid: { volid: number; pageid: number } | null) => vpid === null ? null : ({ ...vpid, state: "unavailable", reason: "no-usable-observation", evidence: null }));
+          if (body.slots) body.slots = observations;
+          else body.observations = observations;
           await route.fulfill({ response, json: body });
         });
       }

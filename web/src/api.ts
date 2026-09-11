@@ -1,4 +1,4 @@
-import { decodeObservation, decodeCapabilityMetadata, ObservationProtocolError } from "./observations";
+import { decodeObservation, decodeCapabilityMetadata, sameObservationScope, ObservationProtocolError } from "./observations";
 export type JsonObject = Record<string, unknown>;
 
 export interface Snapshot {
@@ -552,8 +552,12 @@ export function createHttpApi(fetcher: typeof fetch = globalThis.fetch.bind(glob
 
   return {
     observePageBuffer: async (request, signal) => {
-      const value = await json("/api/v1/runtime/page-buffer/observe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request), signal });
-      try { return decodeObservation(value); }
+      const value = await json("/api/v1/runtime/page-buffer/observe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request.scope === undefined ? request : { ...request, pages: undefined }), signal });
+      try {
+        const batch = decodeObservation(value);
+        if (!sameObservationScope(batch.scope, request.scope)) throw new Error("observation scope mismatch");
+        return batch;
+      }
       catch { throw new ObservationProtocolError("Incompatible observation response"); }
     },
     runtimeCapabilities: async (signal) => {

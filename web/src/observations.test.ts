@@ -304,3 +304,20 @@ test("visible-page cadence is two seconds with explicit below, at and above-cap 
     expect(state.observation.message).toBe("Visible-page observations available");
   }
 });
+
+
+test("scoped detail preserves fixed slot addresses across absent physical slots", () => {
+  const { pages: _pages, observations: _observations, ...metadata } = viewportEnvelope();
+  const slots: unknown[] = Array.from({ length: 64 }, () => null);
+  slots[0] = { volid: 2, pageid: 64, state: "unknown", reason: "partial-omission", evidence: null };
+  slots[62] = { volid: 2, pageid: 126, state: "unknown", reason: "duplicate-vpid", evidence: null };
+  const envelope = { ...metadata, schema: "volmap.runtime.page-buffer.scoped", variant: "sector-detail",
+    scope: { kind: "sector", volid: 2, sectorid: 1 }, slots };
+  const decoded = decodeObservation(envelope);
+  expect(decoded.pages).toEqual([{ volid: 2, pageid: 64 }, { volid: 2, pageid: 126 }]);
+  expect(decoded.rows.map((row) => row.reason)).toEqual(["partial-omission", "duplicate-vpid"]);
+  expect(decoded.requested).toBe(2);
+  expect(decoded.evaluated).toBe(2);
+  expect(decoded.complete).toBe(false);
+  expect(() => decodeObservation({ ...envelope, slots: slots.filter((slot) => slot !== null) })).toThrow();
+});

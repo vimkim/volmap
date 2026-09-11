@@ -1,0 +1,237 @@
+just vite::frontend-check
+mise x node@24.19.0 -- corepack pnpm --dir web install --frozen-lockfile --ignore-scripts
+Already up to date
+Done in 454ms using pnpm v11.24.0
+mise x node@24.19.0 -- release/check-frontend.sh
+Already up to date
+Done in 422ms using pnpm v11.24.0
+$ tsc --noEmit
+$ vitest run src
+
+ RUN  v4.1.11 /home/vimkim/temp/volmap/web
+
+
+ Test Files  8 passed (8)
+      Tests  73 passed (73)
+   Start at  15:37:34
+   Duration  439ms (transform 672ms, setup 0ms, import 1.07s, tests 187ms, environment 1ms)
+
+$ vite build
+vite v8.2.2 building client environment for production...
+transforming...
+✓ 25 modules transformed.
+rendering chunks...
+computing gzip size...
+../../../../../tmp/volmap-frontend-check.4FaAq6/generated/manifest.json            0.21 kB │ gzip:  0.12 kB
+../../../../../tmp/volmap-frontend-check.4FaAq6/generated/runtime-packages.json    0.62 kB │ gzip:  0.22 kB
+../../../../../tmp/volmap-frontend-check.4FaAq6/generated/frontend.css            16.25 kB │ gzip:  4.26 kB
+../../../../../tmp/volmap-frontend-check.4FaAq6/generated/frontend.js            270.55 kB │ gzip: 81.35 kB
+
+✓ built in 150ms
+No known vulnerabilities found
+$ playwright test --project=chromium --project=firefox
+[WebServer]     Blocking waiting for file lock on build directory
+
+[WebServer]    Compiling volmap v0.0.0 (/home/vimkim/temp/volmap)
+
+[WebServer]     Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.85s
+
+[WebServer] Bound to 127.0.0.1:41739
+[WebServer] Available at (non-exhaustive list):
+[WebServer]     http://127.0.0.1:41739
+[WebServer] Holding one immutable reading; a changed input invalidates this session.
+
+[WebServer]     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.06s
+
+[WebServer] Bound to 127.0.0.1:41740
+[WebServer] Available at (non-exhaustive list):
+[WebServer]     http://127.0.0.1:41740
+[WebServer] Holding one immutable reading; a changed input invalidates this session.
+
+[WebServer]     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.06s
+
+[WebServer] Bound to 127.0.0.1:41741
+[WebServer] Available at (non-exhaustive list):
+[WebServer]     http://127.0.0.1:41741
+
+[WebServer] Following the input every 500 ms; a change publishes a new generation.
+
+
+Running 66 tests using 1 worker
+
+(node:1892996) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/66] [chromium] › e2e/current-viewer.spec.ts:3:1 › optional runtime capability stays separate from working disk inspection
+[2/66] [chromium] › e2e/current-viewer.spec.ts:22:1 › the embedded live viewer boots from the real server and supports a direct entity route
+[3/66] [chromium] › e2e/current-viewer.spec.ts:51:1 › the React viewer preserves drilldown, semantic history, and license reachability
+[4/66] [chromium] › e2e/observations.spec.ts:7:1 › selected-page observation uses a scripted socket producer, real HTTP and non-color detail
+[5/66] [chromium] › e2e/observations.spec.ts:38:1 › automatic polling, paused offers, hidden silence, resume and expiry preserve disk navigation
+[6/66] [chromium] › e2e/observations.spec.ts:97:1 › Page producer restart while paused clears evidence and requires an explicit retry
+[7/66] [chromium] › e2e/observations.spec.ts:97:1 › Sector producer restart while paused clears evidence and requires an explicit retry
+[8/66] [chromium] › e2e/observations.spec.ts:119:1 › transient browser retries back off and protocol incompatibility waits for explicit retry
+[9/66] [chromium] › e2e/observations.spec.ts:147:1 › Volume and Sector show bounded coverage, semantic rows and independent cadences across tabs
+[10/66] [chromium] › e2e/observations.spec.ts:180:1 › viewport overflow rotates explicitly; scrolling revokes scope and HTTP overload keeps disk usable
+[11/66] [chromium] › e2e/observations.spec.ts:207:3 › volume/0 composes state marks and switches to explicitly labelled LRU colors
+[12/66] [chromium] › e2e/observations.spec.ts:207:3 › sector/0/0 composes state marks and switches to explicitly labelled LRU colors
+[13/66] [chromium] › e2e/observations.spec.ts:248:3 › volume/0 separates partial unknowns, duplicate ambiguity, nonresidency and expired evidence
+[14/66] [chromium] › e2e/observations.spec.ts:248:3 › sector/0/0 separates partial unknowns, duplicate ambiguity, nonresidency and expired evidence
+[15/66] [chromium] › e2e/observations.spec.ts:322:1 › selected detail exposes exact membership and null meanings; inconsistent topology is refused
+[16/66] [chromium] › e2e/observations.spec.ts:352:3 › volume/0 source failure hides marks and paused incarnation change revokes every list
+[17/66] [chromium] › e2e/observations.spec.ts:352:3 › sector/0/0 source failure hides marks and paused incarnation change revokes every list
+[18/66] [chromium] › e2e/observations.spec.ts:385:1 › cached unavailable metadata does not turn a pending first capture into page failures
+[19/66] [chromium] › e2e/observations.spec.ts:423:1 › enabling Volume observations keeps the map in place and the legend available
+[20/66] [chromium] › e2e/observations.spec.ts:438:1 › Volume nonresident markers share an image and retain a forced-color glyph
+[21/66] [chromium] › e2e/observations.spec.ts:466:1 › Volume nonresident circles preserve known and unknown occupancy backgrounds
+[22/66] [chromium] › e2e/observations.spec.ts:512:3 › Sector refuses malformed schema response without losing disk navigation
+[23/66] [chromium] › e2e/observations.spec.ts:512:3 › Sector refuses malformed variant response without losing disk navigation
+[24/66] [chromium] › e2e/observations.spec.ts:512:3 › Sector refuses malformed scope response without losing disk navigation
+[25/66] [chromium] › e2e/observations.spec.ts:512:3 › Sector refuses malformed slot-order response without losing disk navigation
+[26/66] [chromium] › e2e/observations.spec.ts:512:3 › Sector refuses malformed slot-count response without losing disk navigation
+[27/66] [chromium] › e2e/observations.spec.ts:512:3 › Sector refuses malformed epoch response without losing disk navigation
+[28/66] [chromium] › e2e/observations.spec.ts:512:3 › Sector refuses malformed generation response without losing disk navigation
+[29/66] [chromium] › e2e/observations.spec.ts:534:1 › Sector pause rejects a delayed response and resume starts fresh scope demand
+[30/66] [chromium] › e2e/overlay-accessibility.spec.ts:5:3 › volume/0 keyboard focus survives quiet polling and age updates
+[31/66] [chromium] › e2e/overlay-accessibility.spec.ts:5:3 › sector/0/0 keyboard focus survives quiet polling and age updates
+[32/66] [chromium] › e2e/overlay-accessibility.spec.ts:54:3 › volume/0 absent and refused sources retain named disk navigation without absence marks
+[33/66] [chromium] › e2e/overlay-accessibility.spec.ts:54:3 › sector/0/0 absent and refused sources retain named disk navigation without absence marks
+  1) [chromium] › e2e/overlay-accessibility.spec.ts:54:3 › sector/0/0 absent and refused sources retain named disk navigation without absence marks
+
+    TypeError: Cannot read properties of undefined (reading 'map')
+
+      63 |           body.producer_complete = null;
+      64 |           body.evaluated_count = 0;
+    > 65 |           body.observations = body.pages.map((vpid: { volid: number; pageid: number }) => ({ ...vpid, state: "unavailable", reason: "no-usable-observation", evidence: null }));
+         |                                          ^
+      66 |           await route.fulfill({ response, json: body });
+      67 |         });
+      68 |       }
+        at /home/vimkim/temp/volmap/web/e2e/overlay-accessibility.spec.ts:65:42
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByRole('region', { name: 'CUBRID page-buffer observation' })
+    Expected substring: "Observation source: refused"
+    Received string:    "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsObserving visible pages…Observation source: active"
+
+    Call log:
+      - Expect "toContainText" with timeout 5000ms
+      - waiting for getByRole('region', { name: 'CUBRID page-buffer observation' })
+        2 × locator resolved to <section class="observation-controls" aria-label="CUBRID page-buffer observation">…</section>
+          - unexpected value "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsObserving visible pages…Observation source: active"
+      - Test ended.
+
+
+      70 |       await page.getByRole("button", { name: "Enable observations" }).click();
+      71 |       const source = page.getByRole("region", { name: "CUBRID page-buffer observation" });
+    > 72 |       await expect(source).toContainText(`Observation source: ${refused ? "refused" : "unavailable"}`);
+         |                            ^
+      73 |       const cell = page.locator('[data-observation-page="0:10"]');
+      74 |       await expect(cell).toHaveAttribute("title", /No usable observation/);
+      75 |       await expect(cell).not.toHaveAttribute("title", /Observed not resident/);
+        at /home/vimkim/temp/volmap/web/e2e/overlay-accessibility.spec.ts:72:28
+
+    Error Context: test-results/overlay-accessibility-sect-3517e-ation-without-absence-marks-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/overlay-accessibility-sect-3517e-ation-without-absence-marks-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/overlay-accessibility-sect-3517e-ation-without-absence-marks-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+(node:1894814) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[34/66] [firefox] › e2e/current-viewer.spec.ts:3:1 › optional runtime capability stays separate from working disk inspection
+[35/66] [firefox] › e2e/current-viewer.spec.ts:22:1 › the embedded live viewer boots from the real server and supports a direct entity route
+[36/66] [firefox] › e2e/current-viewer.spec.ts:51:1 › the React viewer preserves drilldown, semantic history, and license reachability
+[37/66] [firefox] › e2e/observations.spec.ts:7:1 › selected-page observation uses a scripted socket producer, real HTTP and non-color detail
+[38/66] [firefox] › e2e/observations.spec.ts:38:1 › automatic polling, paused offers, hidden silence, resume and expiry preserve disk navigation
+[39/66] [firefox] › e2e/observations.spec.ts:97:1 › Page producer restart while paused clears evidence and requires an explicit retry
+[40/66] [firefox] › e2e/observations.spec.ts:97:1 › Sector producer restart while paused clears evidence and requires an explicit retry
+[41/66] [firefox] › e2e/observations.spec.ts:119:1 › transient browser retries back off and protocol incompatibility waits for explicit retry
+[42/66] [firefox] › e2e/observations.spec.ts:147:1 › Volume and Sector show bounded coverage, semantic rows and independent cadences across tabs
+[43/66] [firefox] › e2e/observations.spec.ts:180:1 › viewport overflow rotates explicitly; scrolling revokes scope and HTTP overload keeps disk usable
+[44/66] [firefox] › e2e/observations.spec.ts:207:3 › volume/0 composes state marks and switches to explicitly labelled LRU colors
+[45/66] [firefox] › e2e/observations.spec.ts:207:3 › sector/0/0 composes state marks and switches to explicitly labelled LRU colors
+[46/66] [firefox] › e2e/observations.spec.ts:248:3 › volume/0 separates partial unknowns, duplicate ambiguity, nonresidency and expired evidence
+[47/66] [firefox] › e2e/observations.spec.ts:248:3 › sector/0/0 separates partial unknowns, duplicate ambiguity, nonresidency and expired evidence
+[48/66] [firefox] › e2e/observations.spec.ts:322:1 › selected detail exposes exact membership and null meanings; inconsistent topology is refused
+[49/66] [firefox] › e2e/observations.spec.ts:352:3 › volume/0 source failure hides marks and paused incarnation change revokes every list
+[50/66] [firefox] › e2e/observations.spec.ts:352:3 › sector/0/0 source failure hides marks and paused incarnation change revokes every list
+[51/66] [firefox] › e2e/observations.spec.ts:385:1 › cached unavailable metadata does not turn a pending first capture into page failures
+[52/66] [firefox] › e2e/observations.spec.ts:423:1 › enabling Volume observations keeps the map in place and the legend available
+[53/66] [firefox] › e2e/observations.spec.ts:438:1 › Volume nonresident markers share an image and retain a forced-color glyph
+[54/66] [firefox] › e2e/observations.spec.ts:466:1 › Volume nonresident circles preserve known and unknown occupancy backgrounds
+[55/66] [firefox] › e2e/observations.spec.ts:512:3 › Sector refuses malformed schema response without losing disk navigation
+[56/66] [firefox] › e2e/observations.spec.ts:512:3 › Sector refuses malformed variant response without losing disk navigation
+[57/66] [firefox] › e2e/observations.spec.ts:512:3 › Sector refuses malformed scope response without losing disk navigation
+[58/66] [firefox] › e2e/observations.spec.ts:512:3 › Sector refuses malformed slot-order response without losing disk navigation
+[59/66] [firefox] › e2e/observations.spec.ts:512:3 › Sector refuses malformed slot-count response without losing disk navigation
+[60/66] [firefox] › e2e/observations.spec.ts:512:3 › Sector refuses malformed epoch response without losing disk navigation
+[61/66] [firefox] › e2e/observations.spec.ts:512:3 › Sector refuses malformed generation response without losing disk navigation
+[62/66] [firefox] › e2e/observations.spec.ts:534:1 › Sector pause rejects a delayed response and resume starts fresh scope demand
+[63/66] [firefox] › e2e/overlay-accessibility.spec.ts:5:3 › volume/0 keyboard focus survives quiet polling and age updates
+[64/66] [firefox] › e2e/overlay-accessibility.spec.ts:5:3 › sector/0/0 keyboard focus survives quiet polling and age updates
+[65/66] [firefox] › e2e/overlay-accessibility.spec.ts:54:3 › volume/0 absent and refused sources retain named disk navigation without absence marks
+[66/66] [firefox] › e2e/overlay-accessibility.spec.ts:54:3 › sector/0/0 absent and refused sources retain named disk navigation without absence marks
+  2) [firefox] › e2e/overlay-accessibility.spec.ts:54:3 › sector/0/0 absent and refused sources retain named disk navigation without absence marks
+
+    TypeError: Cannot read properties of undefined (reading 'map')
+
+      63 |           body.producer_complete = null;
+      64 |           body.evaluated_count = 0;
+    > 65 |           body.observations = body.pages.map((vpid: { volid: number; pageid: number }) => ({ ...vpid, state: "unavailable", reason: "no-usable-observation", evidence: null }));
+         |                                          ^
+      66 |           await route.fulfill({ response, json: body });
+      67 |         });
+      68 |       }
+        at /home/vimkim/temp/volmap/web/e2e/overlay-accessibility.spec.ts:65:42
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: getByRole('region', { name: 'CUBRID page-buffer observation' })
+    Expected substring: "Observation source: refused"
+    Received string:    "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsObserving visible pages…Observation source: active"
+
+    Call log:
+      - Expect "toContainText" with timeout 5000ms
+      - waiting for getByRole('region', { name: 'CUBRID page-buffer observation' })
+        2 × locator resolved to <section class="observation-controls" aria-label="CUBRID page-buffer observation">…</section>
+          - unexpected value "CUBRID page-buffer observationDisable observationsRuntime color modeState marksLRU topologyRefresh visible-page observationsObserving visible pages…Observation source: active"
+      -
+
+
+      70 |       await page.getByRole("button", { name: "Enable observations" }).click();
+      71 |       const source = page.getByRole("region", { name: "CUBRID page-buffer observation" });
+    > 72 |       await expect(source).toContainText(`Observation source: ${refused ? "refused" : "unavailable"}`);
+         |                            ^
+      73 |       const cell = page.locator('[data-observation-page="0:10"]');
+      74 |       await expect(cell).toHaveAttribute("title", /No usable observation/);
+      75 |       await expect(cell).not.toHaveAttribute("title", /Observed not resident/);
+        at /home/vimkim/temp/volmap/web/e2e/overlay-accessibility.spec.ts:72:28
+
+    Error Context: test-results/overlay-accessibility-sect-3517e-ation-without-absence-marks-firefox/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/overlay-accessibility-sect-3517e-ation-without-absence-marks-firefox/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/overlay-accessibility-sect-3517e-ation-without-absence-marks-firefox/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+  2 failed
+    [chromium] › e2e/overlay-accessibility.spec.ts:54:3 › sector/0/0 absent and refused sources retain named disk navigation without absence marks
+    [firefox] › e2e/overlay-accessibility.spec.ts:54:3 › sector/0/0 absent and refused sources retain named disk navigation without absence marks
+  1 skipped
+  63 passed (1.4m)
+[ELIFECYCLE] Command failed with exit code 1.
+error: recipe `frontend-check` failed on line 19 with exit code 1
+error: recipe `frontend-check` failed on line 112 with exit code 1

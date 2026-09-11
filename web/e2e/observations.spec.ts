@@ -93,26 +93,28 @@ test("automatic polling, paused offers, hidden silence, resume and expiry preser
   await page.screenshot({ path: `../.scratch/pgbuf-overlay-implementation/verification/lifecycle-expired-${browserName}.png`, fullPage: true });
 });
 
-test("producer restart while paused clears evidence and requires an explicit retry", async ({ page }) => {
+for (const sector of [false, true]) {
+test(`${sector ? "Sector" : "Page"} producer restart while paused clears evidence and requires an explicit retry`, async ({ page }) => {
   const { readFile } = await import("node:fs/promises");
   await page.clock.install();
-  await page.goto("http://127.0.0.1:41741/page/0/10", { waitUntil: "commit" });
+  await page.goto(`http://127.0.0.1:41741/${sector ? "sector/0/0" : "page/0/10"}`, { waitUntil: "commit" });
   const source = page.getByRole("region", { name: "CUBRID page-buffer observation" });
-  const detail = page.getByRole("region", { name: "Selected-page buffer observation" });
+  const detail = page.getByRole("region", { name: sector ? "Visible-page buffer observations" : "Selected-page buffer observation" });
   await source.getByRole("button", { name: "Enable observations" }).click();
-  await expect(detail).toContainText("Observed resident");
+  await expect(detail).toContainText(/observed resident/i);
   await page.getByRole("button", { name: "Pause", exact: true }).click();
   const pid = Number((await readFile("/tmp/volmap-browser-producer-41741.pid", "utf8")).trim());
   process.kill(pid, "SIGHUP");
   await page.clock.runFor(5000);
   await expect(source).toContainText("incarnation-changed");
-  await expect(detail).not.toContainText("Observed resident");
+  await expect(detail).not.toContainText(/observed resident/i);
   await page.getByRole("button", { name: "Resume", exact: true }).click();
   await expect(source).toContainText("Automatic retry stopped");
-  await source.getByRole("button", { name: "Refresh selected-page observation" }).click();
-  await expect(detail).toContainText("Observed resident");
-  await expect(page.getByRole("heading", { name: "Page facts" })).toBeVisible();
+  await source.getByRole("button", { name: sector ? "Refresh visible-page observations" : "Refresh selected-page observation" }).click();
+  await expect(detail).toContainText(/observed resident/i);
+  await expect(page.getByRole("heading", { name: sector ? "Sector 0" : "Page facts", exact: true })).toBeVisible();
 });
+}
 
 test("transient browser retries back off and protocol incompatibility waits for explicit retry", async ({ page }) => {
   await page.addInitScript(() => { Math.random = () => 0.5; });
@@ -162,7 +164,11 @@ test("Volume and Sector show bounded coverage, semantic rows and independent cad
   await page.bringToFront();
   await expect(coverage).toContainText("Evaluated 512 / requested 512");
   await page.screenshot({ path: `../.scratch/pgbuf-overlay-implementation/verification/visible-volume-${browserName}.png` });
+  const sectorRequest = page.waitForRequest((request) => request.url().endsWith("/page-buffer/observe") && request.postDataJSON().scope?.kind === "sector");
   await page.getByRole("button", { name: /^Sector 0,/ }).click();
+  const sectorBody = (await sectorRequest).postDataJSON();
+  expect(sectorBody.scope).toEqual({ kind: "sector", volid: 0, sectorid: 0 });
+  expect(sectorBody.pages).toBeUndefined();
   await expect(page.getByRole("heading", { name: "Sector 0", exact: true })).toBeVisible();
   await expect(coverage).toContainText("Evaluated 64 / requested 64");
   await expect(page.getByRole("gridcell", { name: /^Page 10,/ })).toContainText("Observed resident");
@@ -189,7 +195,11 @@ test("viewport overflow rotates explicitly; scrolling revokes scope and HTTP ove
   await page.route("**/runtime/page-buffer/observe", (route) => route.fulfill({ status: 429, json: { code: "runtime-admission-refused" } }));
   await page.evaluate(() => window.scrollTo(0, 0));
   await expect(page.getByRole("region", { name: "CUBRID page-buffer observation" })).toContainText("Observation overloaded (HTTP 429)");
+  const sectorRequest = page.waitForRequest((request) => request.url().endsWith("/page-buffer/observe") && request.postDataJSON().scope?.kind === "sector");
   await page.getByRole("button", { name: /^Sector 0,/ }).click();
+  const sectorBody = (await sectorRequest).postDataJSON();
+  expect(sectorBody.scope).toEqual({ kind: "sector", volid: 0, sectorid: 0 });
+  expect(sectorBody.pages).toBeUndefined();
   await expect(page.getByRole("heading", { name: "Sector 0", exact: true })).toBeVisible();
 });
 
@@ -242,16 +252,20 @@ for (const scale of ["volume/0", "sector/0/0"]) {
     await page.route("**/runtime/page-buffer/observe", async (route) => {
       const response = await route.fetch();
       const body = await response.json();
-      const resident = body.observations.find((row: { state: string }) => row.state === "resident");
+      const observations = body.slots ?? body.observations;
+      const resident = observations.find((row: { state: string } | null) => row?.state === "resident");
       // Retain the real normalized capture envelope and request echo. Only the
       // semantic row scenarios vary, through the production decoder/effects.
       if (resident) {
         body.producer_complete = complete;
-        body.observations = body.pages.map((vpid: { volid: number; pageid: number }) => {
+        const rows = observations.map((vpid: { volid: number; pageid: number } | null) => {
+          if (vpid === null) return null;
           if (!complete && [10, 11].includes(vpid.pageid)) return { ...vpid, state: "resident", reason: "observed-resident", evidence: { ...resident.evidence, ...vpid, flushing: true, lru_zone: "lru2", lru_list_kind: vpid.pageid === 10 ? "private" : "shared", lru_list_index: vpid.pageid === 10 ? 1 : 0 } };
           return { ...vpid, state: complete ? "not-resident" : "unknown", reason: complete ? "observed-not-resident" : vpid.pageid === 12 ? "duplicate-vpid" : vpid.pageid === 13 ? "unevaluated" : "partial-omission", evidence: null };
         });
-        body.evaluated_count = body.observations.filter((row: { reason: string }) => row.reason !== "unevaluated").length;
+        if (body.slots) body.slots = rows;
+        else body.observations = rows;
+        body.evaluated_count = rows.filter((row: { reason: string } | null) => row !== null && row.reason !== "unevaluated").length;
       }
       await route.fulfill({ response, json: body });
     });
@@ -492,4 +506,60 @@ test("Volume nonresident circles preserve known and unknown occupancy background
     await expect(cell).toHaveCSS("background-image", storage[index]!);
     await expect(cell).toHaveCSS("background-size", "auto");
   }
+});
+
+for (const malformed of ["schema", "variant", "scope", "slot-order", "slot-count", "epoch", "generation"]) {
+  test(`Sector refuses malformed ${malformed} response without losing disk navigation`, async ({ page }) => {
+    await page.route("**/runtime/page-buffer/observe", async (route) => {
+      const response = await route.fetch();
+      const body = await response.json();
+      if (malformed === "schema") body.schema_version = 2;
+      if (malformed === "variant") body.variant = "volume-residency";
+      if (malformed === "scope") body.scope.sectorid = 1;
+      if (malformed === "slot-order") [body.slots[0], body.slots[1]] = [body.slots[1], body.slots[0]];
+      if (malformed === "slot-count") body.slots.pop();
+      if (malformed === "epoch") body.epoch = "99999";
+      if (malformed === "generation") body.generation = "99999";
+      await route.fulfill({ response, json: body });
+    });
+    await page.goto("http://127.0.0.1:41741/sector/0/0", { waitUntil: "commit" });
+    await page.getByRole("button", { name: "Enable observations" }).click();
+    await expect(page.getByRole("region", { name: "CUBRID page-buffer observation" })).toContainText("Incompatible observation response");
+    await expect(page.locator('[data-observation-page="0:10"]')).not.toHaveClass(/runtime-resident/);
+    await page.getByRole("gridcell", { name: /^Page 10,/ }).click();
+    await expect(page.getByRole("heading", { name: "Page facts" })).toBeVisible();
+  });
+}
+
+test("Sector pause rejects a delayed response and resume starts fresh scope demand", async ({ page }) => {
+  await page.clock.install();
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => { release = resolve; });
+  let arrived!: () => void;
+  const captured = new Promise<void>((resolve) => { arrived = resolve; });
+  let first = true;
+  await page.route("**/runtime/page-buffer/observe", async (route) => {
+    if (!first) { await route.continue(); return; }
+    first = false;
+    const response = await route.fetch();
+    arrived();
+    await held;
+    await route.fulfill({ response }).catch(() => {});
+  });
+  await page.goto("http://127.0.0.1:41741/sector/0/0", { waitUntil: "commit" });
+  await page.getByRole("button", { name: "Enable observations" }).click();
+  await captured;
+  await page.getByRole("button", { name: "Pause", exact: true }).click();
+  release();
+  await page.clock.runFor(5000);
+  const cell = page.locator('[data-observation-page="0:10"]');
+  await expect(cell).not.toHaveClass(/runtime-resident/);
+  const resumed = page.waitForRequest((request) => request.url().endsWith("/page-buffer/observe"));
+  await page.getByRole("button", { name: "Resume", exact: true }).click();
+  expect((await resumed).postDataJSON()).toMatchObject({ scope: { kind: "sector", volid: 0, sectorid: 0 }, after_request: true });
+  await expect(cell).toHaveAttribute("data-runtime-state", "resident");
+  await page.getByRole("button", { name: "Pause", exact: true }).click();
+  await page.clock.runFor(31000);
+  await expect(cell).toHaveAttribute("data-runtime-state", "expired");
+  await expect(page.getByRole("heading", { name: "Sector 0", exact: true })).toBeVisible();
 });

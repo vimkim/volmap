@@ -3,7 +3,14 @@ import type { UiState, RuntimeCapabilityState } from "./model";
 
 export class ObservationProtocolError extends Error {}
 
+export interface SectorObservationScope {
+  readonly kind: "sector";
+  readonly volid: number;
+  readonly sectorid: number;
+}
+
 export interface ObservationRequest {
+  readonly scope?: SectorObservationScope;
   readonly pages: readonly { readonly volid: number; readonly pageid: number }[];
   readonly epoch: string;
   readonly generation: string;
@@ -37,6 +44,7 @@ function validObservationState(value: { state: string; reason: string }): value 
 }
 
 export interface ObservationBatch {
+  readonly scope?: SectorObservationScope;
   readonly topology?: { readonly shared: number; readonly private: number };
   readonly rows: readonly ObservationRow[];
   readonly capability: RuntimeCapabilityState;
@@ -130,11 +138,15 @@ export function observationAction(state: UiState, action: ObservationAction): Ui
     const capacity = 512 - (selected === null ? 0 : 1);
     const rotated = remainder.length > capacity;
     const offset = rotated ? previous.rotation % remainder.length : 0;
-    const pages = selected === null ? [] : [selected];
+    let pages = selected === null ? [] : [selected];
     for (let index = 0; index < Math.min(capacity, remainder.length); index += 1) pages.push(remainder[(offset + index) % remainder.length]!);
+    if (state.route.kind === "sector") {
+      if (state.view?.kind !== "sector" || state.view.sector.vol_id !== state.route.vol || state.view.sector.sector_id !== state.route.sector) return scheduleObservation(state, observationInterval(state));
+      pages = state.view.sector.pages.map((page) => ({ volid: page.vol_id, pageid: page.page_id })).sort((a, b) => a.pageid - b.pageid);
+    }
     if (pages.length === 0) return scheduleObservation(state, observationInterval(state));
-    const request: ObservationRequest = { pages, epoch: String(epoch), generation: state.snapshot.generation ?? "0", retry: action.kind === "refresh-observation", cadence_ms: observationInterval(state), after_request: previous.resumeRequired };
-    return { ...state, observation: { ...previous, epoch, loading: true, stopped: false, viewportCount: remainder.length + (selected === null ? 0 : 1), rotation: rotated ? (offset + capacity) % remainder.length : 0, message: selected === null ? "Observing visible pages" : "Observing selected page" }, nextEffectId: state.nextEffectId + 1,
+    const request: ObservationRequest = { pages, ...(state.route.kind === "sector" ? { scope: { kind: "sector" as const, volid: state.route.vol, sectorid: state.route.sector } } : {}), epoch: String(epoch), generation: state.snapshot.generation ?? "0", retry: action.kind === "refresh-observation", cadence_ms: observationInterval(state), after_request: previous.resumeRequired };
+    return { ...state, observation: { ...previous, epoch, loading: true, stopped: false, viewportCount: state.route.kind === "sector" ? pages.length : remainder.length + (selected === null ? 0 : 1), rotation: rotated ? (offset + capacity) % remainder.length : 0, message: selected === null ? "Observing visible pages" : "Observing selected page" }, nextEffectId: state.nextEffectId + 1,
       effects: [...state.effects, { kind: "read-observation", id: state.nextEffectId, scope: state.scope, request }] };
   }
   if (action.kind === "observation-loaded") {
@@ -142,7 +154,7 @@ export function observationAction(state: UiState, action: ObservationAction): Ui
         action.request.epoch !== String(previous.epoch) || action.request.generation !== (state.snapshot?.generation ?? "0")) return state;
     const batch = action.batch;
     if (batch !== null && (batch.epoch !== action.request.epoch || batch.generation !== action.request.generation ||
-        batch.pages.length !== action.request.pages.length || batch.pages.some((page, index) =>
+        !sameObservationScope(batch.scope, action.request.scope) || batch.pages.length !== action.request.pages.length || batch.pages.some((page, index) =>
           page.volid !== action.request.pages[index]?.volid || page.pageid !== action.request.pages[index]?.pageid))) {
       return stopObservation(state, "incompatible", "Incompatible observation response");
     }
@@ -276,7 +288,29 @@ export function decodeCapability(value: unknown): RuntimeCapabilityState {
 }
 
 export function decodeObservation(value: unknown): ObservationBatch {
-  const data = objectData(value);
+  const envelope = objectData(value);
+  let scope: SectorObservationScope | undefined;
+  let data = envelope;
+  if (envelope.schema === "volmap.runtime.page-buffer.scoped") {
+    if (envelope.schema_version !== 1 || envelope.variant !== "sector-detail" ||
+        !Array.isArray(envelope.slots) || envelope.slots.length !== 64 ||
+        envelope.pages !== undefined || envelope.observations !== undefined) throw new Error("invalid scoped observation envelope");
+    const address = objectData(envelope.scope);
+    if (address.kind !== "sector") throw new Error("invalid observation scope");
+    scope = { kind: "sector", volid: count(address.volid, 32767), sectorid: count(address.sectorid, 33554431) };
+    const volid = scope.volid;
+    const firstPage = scope.sectorid * 64;
+    const pages: { volid: number; pageid: number }[] = [];
+    const observations: unknown[] = [];
+    envelope.slots.forEach((slot, index) => {
+      if (slot === null) return;
+      pages.push({ volid, pageid: firstPage + index });
+      observations.push(slot);
+    });
+    data = { ...envelope, schema: "volmap.runtime.page-buffer", pages, observations };
+  } else if (envelope.scope !== undefined || envelope.variant !== undefined || envelope.slots !== undefined) {
+    throw new Error("invalid legacy observation envelope");
+  }
   if (data.schema !== "volmap.runtime.page-buffer" || data.schema_version !== 1 ||
       !Array.isArray(data.pages) || data.pages.length > 512 || !Array.isArray(data.observations) || data.observations.length !== data.pages.length) throw new Error("invalid observation envelope");
   const pages = data.pages.map((page) => { const entry = objectData(page); return { volid: count(entry.volid, 32767), pageid: count(entry.pageid, 2147483647) }; });
@@ -293,7 +327,7 @@ export function decodeObservation(value: unknown): ObservationBatch {
   const row = rows[0];
   if (!Array.isArray(data.limitations) || data.limitations.length > 16) throw new Error("invalid limitations");
   if (data.producer_complete !== null && typeof data.producer_complete !== "boolean") throw new Error("invalid completeness");
-  return { capability: capabilityState, pages, epoch: text(data.epoch), generation: text(data.generation), state: row?.state ?? "unknown", reason: capabilityState !== "active" ? text(capability.reason) : row?.reason ?? "unevaluated",
+  return { scope, capability: capabilityState, pages, epoch: text(data.epoch), generation: text(data.generation), state: row?.state ?? "unknown", reason: capabilityState !== "active" ? text(capability.reason) : row?.reason ?? "unevaluated",
     upperAgeMs: capture === null ? null : count(capture.upper_age_ms, Number.MAX_SAFE_INTEGER),
     incarnation: capture === null ? null : text(capture.incarnation_binding),
     captureIdentity: capture === null ? undefined : text(capture.identity),
@@ -306,6 +340,10 @@ export function decodeObservation(value: unknown): ObservationBatch {
 export const selectedObservationIntervalMs = 500;
 export function observationIsFresh(age: number | null, interval = selectedObservationIntervalMs): boolean {
   return age !== null && age >= 0 && age <= 2 * interval;
+}
+
+export function sameObservationScope(left: SectorObservationScope | undefined, right: SectorObservationScope | undefined): boolean {
+  return left?.kind === right?.kind && left?.volid === right?.volid && left?.sectorid === right?.sectorid;
 }
 
 function samePages(left: ObservationRequest["pages"], right: ObservationRequest["pages"]): boolean {

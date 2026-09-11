@@ -283,7 +283,8 @@ async fn shutdown_signal() {
 
 #[derive(Deserialize)]
 struct ObservationRequest {
-    pages: Vec<ObservationPage>,
+    pages: Option<Vec<ObservationPage>>,
+    scope: Option<observations::SectorScope>,
     epoch: String,
     generation: String,
     #[serde(default)]
@@ -311,7 +312,13 @@ async fn runtime_observations(
     let Ok(Json(request)) = request else {
         return error_response(StatusCode::BAD_REQUEST, "invalid-observation-request");
     };
-    if request.pages.len() > 512 || request.epoch.len() > 20 || request.generation.len() > 20 {
+    if request
+        .pages
+        .as_ref()
+        .is_some_and(|pages| pages.len() > 512)
+        || request.epoch.len() > 20
+        || request.generation.len() > 20
+    {
         return error_response(StatusCode::BAD_REQUEST, "invalid-observation-scope");
     }
     let Ok(epoch) = request.epoch.parse::<u64>() else {
@@ -323,21 +330,28 @@ async fn runtime_observations(
     if request.generation != reading.generation.to_string() {
         return error_response(StatusCode::CONFLICT, "runtime-generation-changed");
     }
-    let pages = request
-        .pages
-        .iter()
-        .map(|page| {
-            Some(Vpid::new(
-                VolId::new(page.volid).ok()?,
-                PageId::new(page.pageid).ok()?,
-            ))
-        })
-        .collect::<Option<Vec<_>>>();
-    let Some(pages) = pages else {
-        return error_response(StatusCode::BAD_REQUEST, "invalid-observation-scope");
+    let scope = match (request.pages, request.scope) {
+        (Some(pages), None) => {
+            let pages = pages
+                .iter()
+                .map(|page| {
+                    Some(Vpid::new(
+                        VolId::new(page.volid).ok()?,
+                        PageId::new(page.pageid).ok()?,
+                    ))
+                })
+                .collect::<Option<Vec<_>>>();
+            pages
+                .ok_or(observations::ScopeError::InvalidAddressing)
+                .and_then(|pages| observations::ValidatedScope::new(&pages, epoch))
+        }
+        (None, Some(sector)) => {
+            observations::ValidatedScope::for_sector(sector, &reading.view, epoch)
+        }
+        _ => Err(observations::ScopeError::InvalidAddressing),
     };
-    let Ok(scope) = observations::ValidatedScope::new(&pages, epoch)
-        .and_then(|scope| scope.with_demand(request.cadence_ms, request.after_request))
+    let Ok(scope) =
+        scope.and_then(|scope| scope.with_demand(request.cadence_ms, request.after_request))
     else {
         return error_response(StatusCode::BAD_REQUEST, "invalid-observation-scope");
     };
@@ -3016,16 +3030,112 @@ mod tests {
                 assert_eq!(value["evaluated_count"], 0);
             }
         }
-        for bytes in [65_535, 65_536, 65_537] {
-            let mut body =
-                serde_json::json!({"pages":[],"epoch":"8","generation":generation}).to_string();
-            body.extend(std::iter::repeat_n(' ', bytes - body.len()));
-            assert_eq!(post(&body).0, if bytes <= 65_536 { 200 } else { 400 });
+        for address in [
+            serde_json::json!({"pages":[]}),
+            serde_json::json!({"scope":{"kind":"sector","volid":0,"sectorid":0}}),
+        ] {
+            for bytes in [65_535, 65_536, 65_537] {
+                let mut request = address.clone();
+                request["epoch"] = "8".into();
+                request["generation"] = generation.clone().into();
+                let mut body = request.to_string();
+                body.extend(std::iter::repeat_n(' ', bytes - body.len()));
+                assert_eq!(post(&body).0, if bytes <= 65_536 { 200 } else { 400 });
+            }
         }
+        assert_eq!(post(&serde_json::json!({"pages":[],"scope":{"kind":"sector","volid":0,"sectorid":0},"epoch":"8","generation":generation}).to_string()).0, 400);
+    }
+
+    #[test]
+    fn sector_observation_http_validates_scope_and_returns_fixed_detail_slots() {
+        let server = boot_runtime(
+            None,
+            false,
+            observations::Broker::new(Some("/missing/producer.sock".into())),
+        );
+        let generation = server.source.current().unwrap().generation.to_string();
+        let post = |scope: serde_json::Value, generation: &str| {
+            let body =
+                serde_json::json!({"scope":scope,"epoch":"9","generation":generation}).to_string();
+            exchange_raw(
+                server.address,
+                &format!(
+                    "POST /api/v1/runtime/page-buffer/observe HTTP/1.1\r\nHost: {}\r\nOrigin: http://{}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    server.address,
+                    server.address,
+                    body.len()
+                ),
+            )
+        };
+        let scope = serde_json::json!({"kind":"sector","volid":0,"sectorid":1});
+        let (status, body) = post(scope.clone(), &generation);
+        assert_eq!(status, 200, "{body}");
+        let response: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(response["schema"], "volmap.runtime.page-buffer.scoped");
+        assert_eq!(response["variant"], "sector-detail");
+        assert_eq!(response["scope"], scope);
+        assert_eq!(response["requested_count"], 64);
+        assert_eq!(response["evaluated_count"], 0);
+        assert_eq!(response["slots"].as_array().unwrap().len(), 64);
+        assert_eq!(response["slots"][0]["pageid"], 64);
+        assert_eq!(response["slots"][63]["pageid"], 127);
+        assert_eq!(response["slots"][0]["state"], "unavailable");
+        for invalid in [
+            serde_json::json!({"kind":"sector","volid":-1,"sectorid":0}),
+            serde_json::json!({"kind":"sector","volid":1,"sectorid":0}),
+            serde_json::json!({"kind":"sector","volid":0,"sectorid":-1}),
+            serde_json::json!({"kind":"sector","volid":0,"sectorid":2_147_483_647}),
+            serde_json::json!({"kind":"sector","volid":0,"sectorid":4_294_967_296_u64}),
+            serde_json::json!({"kind":"volume","volid":0,"sectorid":0}),
+        ] {
+            assert_eq!(post(invalid, &generation).0, 400);
+        }
+        assert_eq!(post(scope, "999999").0, 409);
+    }
+
+    #[test]
+    fn short_sector_input_is_rejected_before_runtime_scope_can_invent_pages() {
+        let directory = FixtureDirectory::new();
+        let volume = directory.path().join("short");
+        let vinf = directory.path().join("short_vinf");
+        fixture_write_volume(&volume, 0, &[]);
+        std::fs::OpenOptions::new()
+            .write(true)
+            .open(&volume)
+            .unwrap()
+            .set_len(4095 * crate::format::IO_PAGE_SIZE as u64)
+            .unwrap();
+        std::fs::write(&vinf, format!("0 {}\n", volume.display())).unwrap();
+        let request = OpenRequest {
+            input: crate::source::InputSpec::Vinf {
+                path: vinf,
+                volume_root: None,
+            },
+            tde_keys_file: None,
+            spill_directory: None,
+        };
+        let policy =
+            ResourcePolicy::new(8 * 1024 * 1024, 1024 * 1024, 1, 64, 8 * 1024 * 1024).unwrap();
+        let result =
+            crate::inspection::Inspection::open(&request, policy, &CancelToken::new(), None);
+        assert!(
+            matches!(result, Err(crate::inspection::OpenFailure::Format(error))
+            if error.rule() == "volume.header.file_length")
+        );
     }
 
     #[test]
     fn concurrent_http_scopes_share_scan_but_keep_coverage_and_disk_admission_independent() {
+        for (partial, duplicate) in [(false, false), (true, false), (true, true)] {
+            concurrent_http_capture(partial, duplicate);
+        }
+    }
+
+    #[expect(
+        clippy::too_many_lines,
+        reason = "One gated capture proves mixed HTTP scope coverage and independent admission"
+    )]
+    fn concurrent_http_capture(partial: bool, duplicate: bool) {
         use std::io::{BufRead as _, Write as _};
         use std::os::unix::{fs::PermissionsExt as _, net::UnixListener};
         let directory = FixtureDirectory::new();
@@ -3063,12 +3173,17 @@ mod tests {
                 "../fixtures/pgbuf-inspector/v1/corpus/exchanges/complete/stream.jsonl"
             );
             for line in transcript.lines().skip(3) {
-                writeln!(
-                    stream,
-                    "{}",
-                    line.replace("\"truncated\":false", "\"truncated\":true")
-                )
-                .unwrap();
+                let mut frame: serde_json::Value = serde_json::from_str(line).unwrap();
+                if frame["type"] == "scan_footer" {
+                    frame["truncated"] = partial.into();
+                    if duplicate {
+                        frame["record_count"] = 2.into();
+                    }
+                }
+                writeln!(stream, "{frame}").unwrap();
+                if duplicate && frame["type"] == "page" {
+                    writeln!(stream, "{frame}").unwrap();
+                }
             }
             // Only one capture is supplied; extra scans would fail the waiters.
         });
@@ -3086,7 +3201,13 @@ mod tests {
         let (completed, completion) = std::sync::mpsc::channel();
         let clients: Vec<_> = (0..9).map(|epoch| {
             let completed = completed.clone();
-            let body = serde_json::json!({"pages":[{"volid":0,"pageid":7},{"volid":0,"pageid":epoch + 8},{"volid":1,"pageid":7}],"epoch":epoch.to_string(),"generation":generation,"cadence_ms":if epoch % 2 == 0 {500} else {2000}}).to_string();
+            let mut body = serde_json::json!({"epoch":epoch.to_string(),"generation":generation,"cadence_ms":if epoch % 2 == 0 {500} else {2000}});
+            if epoch % 2 == 0 {
+                body["pages"] = serde_json::json!([{"volid":0,"pageid":7},{"volid":0,"pageid":epoch + 8},{"volid":1,"pageid":7}]);
+            } else {
+                body["scope"] = serde_json::json!({"kind":"sector","volid":0,"sectorid":0});
+            }
+            let body = body.to_string();
             std::thread::spawn(move || {
                 let response = post(&body);
                 completed.send((epoch, response.0)).unwrap();
@@ -3114,12 +3235,50 @@ mod tests {
             let value: serde_json::Value = serde_json::from_str(&body).unwrap();
             assert_eq!(value["epoch"], epoch.to_string());
             assert_eq!(value["capture"]["sequence"], "1");
+            if epoch % 2 == 1 {
+                assert_eq!(value["variant"], "sector-detail");
+                assert_eq!(value["requested_count"], 64);
+                assert_eq!(value["evaluated_count"], 64);
+                assert_eq!(value["producer_complete"], !partial);
+                assert_eq!(
+                    value["slots"][8]["reason"],
+                    if partial {
+                        "partial-omission"
+                    } else {
+                        "observed-not-resident"
+                    }
+                );
+                if duplicate {
+                    assert_eq!(value["slots"][7]["reason"], "duplicate-vpid");
+                    continue;
+                }
+                assert_eq!(value["slots"][7]["state"], "resident");
+                assert_eq!(value["slots"][7]["evidence"]["dirty"], true);
+                assert_eq!(value["slots"][7]["evidence"]["flushing"], false);
+                assert_eq!(value["slots"][7]["evidence"]["fix_count"], 2);
+                assert_eq!(value["slots"][7]["evidence"]["lru_list_index"], 1);
+                continue;
+            }
             assert_eq!(value["pages"][1]["pageid"], epoch + 8);
             assert_eq!(value["requested_count"], 3);
             assert_eq!(value["evaluated_count"], 2);
-            assert_eq!(value["producer_complete"], false);
-            assert_eq!(value["observations"][0]["state"], "resident");
-            assert_eq!(value["observations"][1]["reason"], "partial-omission");
+            assert_eq!(value["producer_complete"], !partial);
+            assert_eq!(
+                value["observations"][0]["reason"],
+                if duplicate {
+                    "duplicate-vpid"
+                } else {
+                    "observed-resident"
+                }
+            );
+            assert_eq!(
+                value["observations"][1]["reason"],
+                if partial {
+                    "partial-omission"
+                } else {
+                    "observed-not-resident"
+                }
+            );
             assert_eq!(value["observations"][2]["reason"], "unevaluated");
         }
         producer.join().unwrap();
@@ -3138,10 +3297,11 @@ mod tests {
             .block_on(async {
                 let request = || {
                     Ok(Json(ObservationRequest {
-                        pages: vec![ObservationPage {
+                        scope: None,
+                        pages: Some(vec![ObservationPage {
                             volid: 0,
                             pageid: 7,
-                        }],
+                        }]),
                         epoch: "1".into(),
                         generation: state.source.current().unwrap().generation.to_string(),
                         retry: false,

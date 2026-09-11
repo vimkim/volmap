@@ -50,6 +50,20 @@ pub(super) struct Session {
     observers: Arc<Observers>,
     sleep: super::Scheduler,
 }
+#[derive(Serialize)]
+#[serde(untagged)]
+enum ResponsePayload<'a> {
+    Legacy {
+        pages: Vec<PageKey>,
+        observations: Vec<Row<'a>>,
+    },
+    Sector {
+        variant: &'static str,
+        scope: super::SectorScope,
+        slots: Vec<Option<Row<'a>>>,
+    },
+}
+
 impl Session {
     pub(super) fn new(sleep: super::Scheduler) -> Self {
         let session = Self::with_scheduler(
@@ -179,14 +193,14 @@ struct Response<'a> {
     schema: &'static str,
     schema_version: u8,
     capability: Capability,
-    pages: Vec<PageKey>,
+    #[serde(flatten)]
+    payload: ResponsePayload<'a>,
     epoch: String,
     generation: &'a str,
     requested_count: usize,
     evaluated_count: usize,
     producer_complete: Option<bool>,
     capture: Option<CaptureMetadata<'a>>,
-    observations: Vec<Row<'a>>,
     limitations: &'static [&'static str],
 }
 
@@ -559,18 +573,35 @@ impl Inner {
                 private_lru_count: hello.private,
             }
         });
+        let (schema, payload) = if let Some(sector) = scope.sector {
+            (
+                "volmap.runtime.page-buffer.scoped",
+                ResponsePayload::Sector {
+                    variant: "sector-detail",
+                    scope: sector,
+                    slots: rows.into_iter().map(Some).collect(),
+                },
+            )
+        } else {
+            (
+                "volmap.runtime.page-buffer",
+                ResponsePayload::Legacy {
+                    pages,
+                    observations: rows,
+                },
+            )
+        };
         let response = Response {
-            schema: "volmap.runtime.page-buffer",
+            schema,
             schema_version: 1,
             capability: self.capability(),
-            pages,
+            payload,
             epoch: scope.epoch().to_string(),
             generation,
             requested_count: scope.pages().len(),
             evaluated_count: evaluated,
             producer_complete: latest.map(|latest| !latest.capture.truncated),
             capture: metadata,
-            observations: rows,
             limitations: &[
                 "Capture interval, not a page timestamp.",
                 "Latch and LRU tuples are individually coherent; records and scans are not atomic.",

@@ -24,12 +24,20 @@ pub(super) struct ValidatedScope {
     epoch: u64,
     cadence: Duration,
     after_request: bool,
+    sector: Option<SectorScope>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
+pub(super) enum SectorScope {
+    Sector { volid: i16, sectorid: i32 },
 }
 
 #[derive(Debug, Eq, PartialEq)]
 pub(super) enum ScopeError {
     TooManyPages,
     InvalidCadence,
+    InvalidAddressing,
 }
 
 impl ValidatedScope {
@@ -42,7 +50,26 @@ impl ValidatedScope {
             epoch,
             cadence: Duration::from_millis(500),
             after_request: false,
+            sector: None,
         })
+    }
+
+    pub(super) fn for_sector(
+        sector: SectorScope,
+        view: &crate::inspection::GraphView,
+        epoch: u64,
+    ) -> Result<Self, ScopeError> {
+        let SectorScope::Sector { volid, sectorid } = sector;
+        let volid = crate::model::VolId::new(volid).map_err(|_| ScopeError::InvalidAddressing)?;
+        let sectorid =
+            crate::model::SectorId::new(sectorid).map_err(|_| ScopeError::InvalidAddressing)?;
+        let projection = view
+            .sector(volid, sectorid)
+            .map_err(|_| ScopeError::InvalidAddressing)?;
+        let pages: Vec<_> = projection.pages.iter().map(|page| page.vpid).collect();
+        let mut scope = Self::new(&pages, epoch)?;
+        scope.sector = Some(sector);
+        Ok(scope)
     }
 
     pub(super) fn with_demand(

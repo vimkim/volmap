@@ -5,7 +5,7 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** complete
 
 ## Context
 
@@ -16,19 +16,19 @@ scope discriminator와 decoder-envelope 계약을 사용한다.
 
 ## Acceptance criteria
 
-- [ ] Sector 요청이 volume ID와 sector ID 하나로 표현되고 generation의 inspection
+- [x] Sector 요청이 volume ID와 sector ID 하나로 표현되고 generation의 inspection
   projection으로 검증된다. 실제64페이지 상세 결과가 UI에 표시된다.
-- [ ] 기존 dirty/flushing 및 runtime 상세 필드, legend/table/tooltip과 capture
+- [x] 기존 dirty/flushing 및 runtime 상세 필드, legend/table/tooltip과 capture
   metadata가 보존된다. 새 payload의 schema/variant와 scope echo를 검증한다.
-- [ ] 주소는 sector/page slot으로 정확히 복원된다. 음수/overflow/없는 sector,
+- [x] 주소는 sector/page slot으로 정확히 복원된다. 음수/overflow/없는 sector,
   generation mismatch를 거부하고 짧은 마지막 sector의 없는 page를 만들지 않는다.
-- [ ] Partial omission/duplicate는 unknown이고 complete 누락만 not-resident다.
+- [x] Partial omission/duplicate는 unknown이고 complete 누락만 not-resident다.
   Requested/evaluated와 producer completeness를 독립적으로 표시한다.
-- [ ] 기본 pause/resume/expiry/restart 및 지연 응답 거부를 새 요청 경로에서
+- [x] 기본 pause/resume/expiry/restart 및 지연 응답 거부를 새 요청 경로에서
   회귀 시험한다. 상세 Page와 기존 명시적 VPID 요청의 허용 범위도 유지한다.
-- [ ] 기존64KiB request/1MiB response cap 및 runtime admission을 유지한다.
+- [x] 기존64KiB request/1MiB response cap 및 runtime admission을 유지한다.
   실제 HTTP의 유효·잘못된 scope와 browser의 상세 표시를 검증한다.
-- [ ] 실행 가능한 fixture와 검증 결과, 현재 source baseline을 남긴다. Frontend
+- [x] 실행 가능한 fixture와 검증 결과, 현재 source baseline을 남긴다. Frontend
   artifacts를 재생성하고 변경 범위의 Rust/frontend 검사와 repository 검증을 통과한다.
 
 ## Verification and handoff
@@ -44,3 +44,19 @@ selected-page 회귀를 우선 사용한다. 완료 시 새 Sector request/respo
 첫 수직 slice다. 내부 구조 정리가 필요하면 이 완전한 동작을 유지하며 국소적으로 수행한다.
 
 2026-09-11 — 사용자 확인 후 로컬 트래커에 게시. 이 상태는 실행 준비를 뜻하며 구현 완료를 뜻하지 않는다.
+
+
+2026-09-11 — 구현 완료. 새 `scope: {kind: "sector", volid, sectorid}` 요청과
+`volmap.runtime.page-buffer.scoped` / `sector-detail` 응답을 실제 HTTP→browser로
+연결했다. 기존 Page/명시적 VPID 경로, 상세 evidence, 공유 capture와 budget을 유지한다.
+`just verify` 통과: Rust 310개, Vitest 74개, browser 65개 통과·기존1개 skip.
+Standards의 사소한 오류명1건 수정, Spec 구현 결함0건.
+
+짧은 마지막 sector는 현재 volume format validator가 inspection 시작 전에
+`volume.header.file_length`로 거부한다. 이 기존 계약을 유지하며4,095페이지 입력의
+거부와 null slot 이후 주소가 당겨지지 않는 decoder를 검증했다. 짧은 volume을
+HTTP로 수용하는 기능은 구현/검증했다고 주장하지 않는다.
+
+기준 commit은 `eb909cf`다. 요청/응답 계약, fixture, raw log, browser capture 및
+두 축 review는 [검증 및 handoff](../verification/01-sector-scope/README.md)에 기록했다.
+다음 실행 frontier는 ticket02이며4,096페이지 표시와 성능 gate는 이 완료 범위가 아니다.
