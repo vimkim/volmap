@@ -1,6 +1,6 @@
 # Volmap interactive live web implementation specification
 
-Status: implementation-ready
+Status: state-only page-buffer planning handoff reviewed; implementation and release gates unexecuted
 
 Source baseline: `893bfd9` (`docs: add TUI parity implementation tickets`)
 
@@ -9,6 +9,39 @@ Prototype evidence: `f42c790` on `prototype/runtime-observation-ui` (design evid
 CUBRID producer dependency: work-tracker item `27` and its reviewed cross-repository handoff. That effort owns the CUBRID branch, gate, wire, socket, and producer-test contract. This specification owns Volmap's consumer boundary and browser behavior.
 
 ## How to use this specification
+
+For state-only page-buffer integration, the 2026-09-08
+[Define the volmap overlay architecture](../pgbuf-overlay/issues/10-define-volmap-overlay-architecture.md)
+resolution is authoritative where this earlier specification differs. It
+settles the shared bulk-scan broker, scan-interval timing, partial versus broken
+scans, separate scope coverage, demand-driven sampling and pause/retry/restart
+policy. The resolved
+[Set overlay resource budgets and measurement gates](../pgbuf-overlay/issues/15-set-overlay-resource-budgets.md)
+is authoritative for this source's numerical caps, admission, retry ceilings,
+conservative age and expiry (including while paused), and unexecuted
+performance gates. These override earlier generic wording below.
+[Define the cross-repo verification strategy](../pgbuf-overlay/issues/11-define-verification-strategy.md)
+now owns this source's required test layers, conformance corpus, debug/release
+integration, browser responsiveness/accessibility gates and exact-commit
+evidence. The reviewed
+[CBRD-27398 cross-repo handoff](../pgbuf-overlay/handoff/README.md) now supplies
+the focused implementation entry and producer/delivery plan. No gate execution
+is claimed. Other
+runtime sources keep their own contracts. Resident-page inspection belongs to
+the later effort established by
+[Choose the consistency-inspection boundary](../pgbuf-overlay/issues/13-choose-consistency-inspection-boundary.md).
+
+[Decide whether AOUT history belongs in this overlay](../pgbuf-overlay/issues/16-decide-aout-overlay-scope.md)
+excludes AOUT collection, wire fields, history visualization and engine
+re-enablement from this handoff. Do not infer eviction events from partial
+scan differences. The accepted resident-state overlay and budgets are unchanged.
+
+[Decide whether flush-transition events belong in this overlay](../pgbuf-overlay/issues/17-decide-transition-changefeed-scope.md)
+likewise excludes event hooks, changefeed endpoints, event buffers/replay and
+causal timelines. Retain sampled dirty/flushing/async-flush-requested state
+and its static visual mark; do not infer flush start/end, duration, counts,
+cause or durability from scan differences. No event-specific delivery gate
+is added, and the accepted state-only gates remain required.
 
 This file is the implementation index and delivery plan for replacing only the live browser viewer with a pinned React/TypeScript application, adding evidence-backed attribute byte selection, and adding optional runtime observations from the Linux page cache and a cooperating `cub_server`.
 
@@ -200,7 +233,7 @@ POST /api/v1/runtime/page-buffer/inspect
 POST /api/v1/runtime/kernel-cache/observe
 ```
 
-All requests are bounded and identity-bound. Observation requests name an ordered VPID set, selected VPID, request epoch, and scope digest. The server enforces its own smaller hard cap even if the browser asks for more. Responses echo the accepted scope, report requested/evaluated counts and a rotation continuation, and carry source capture time, method, limitations, and per-page semantic states.
+All requests are bounded and identity-bound. Observation requests name an ordered VPID set, selected VPID, request epoch, and scope digest. The server enforces its own smaller hard cap even if the browser asks for more. Responses echo the accepted scope, report requested/evaluated counts and a rotation continuation, and carry source capture time or interval, method, limitations, and per-page semantic states. For page-buffer observations, this bounded HTTP scope is served from the shared bulk-scan cache; it does not create producer point requests. Producer scan completeness is reported separately from HTTP scope coverage, as defined by the architecture resolution above.
 
 `page-buffer/observe` is state-only: it must not load a missing page, copy page content, hash images, perform disk I/O, or wait unboundedly for page protection. Its normalized per-page result can express residency, fixed/unfixed state, semantic latch state, dirty, flushing, page LSA, capture token, and individual limitations, subject to the finalized item-27 wire contract.
 
@@ -226,7 +259,7 @@ HTTP error mapping preserves semantic distinctions: disabled, unavailable socket
 - Visible-sector/page state cadence defaults to 2 s.
 - Kernel-cache observations default to the visible cadence; the selected page remains first in every request.
 - Hidden documents stop scheduling. Paused displays stop adoption and do not build an unbounded queue; at most the latest offer per source is retained.
-- Failures use capped exponential backoff with jitter and reset after a successful handshake/sample. Capability age still advances while backing off.
+- Transient failures use capped exponential backoff with jitter and reset after a successful handshake/sample. Capability age still advances while backing off. For page-buffer attachment, peer/identity refusal and protocol incompatibility clear evidence and require explicit retry, as defined by the architecture resolution.
 - The illustrative and production version-one browser request cap is 512 pages. The server may enforce a lower cap based on byte/time budgets.
 - Ordering is selected page first, then pages in visible sectors nearest the selected page, then remaining visible pages in physical order.
 - When requested pages exceed admission, UI and response show exact requested/evaluated counts. Subsequent polls rotate the non-selected portion; sampling is never silent.
@@ -367,7 +400,7 @@ Completion: all `WEB-*` gates and existing Rust/release/distribution gates pass 
 
 ## Handoff audit
 
-- All product, source-ownership, interaction, security, freshness, pause, resource, disclosure, accessibility, migration, and verification decisions required for Volmap implementation are resolved.
+- State-only page-buffer resource limits and measurement gates remain a blocking decision in the pgbuf-overlay map; the architecture resolution above supersedes the earlier blanket implementation-readiness claim for that integration.
 - The exact CUBRID wire and producer implementation remain intentionally owned by tracker item 27. W7 begins only from its reviewed handoff; that is a dependency, not an unresolved Volmap decision.
 - The prototype is disposable interaction evidence and must not be merged into production.
 - HTML export and TUI runtime-overlay parity are explicitly out of scope for version one.

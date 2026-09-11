@@ -22,6 +22,14 @@ The design reference's consistency classifications (`SYNCHRONIZED_WITH_MAIN_VOLU
 
 2026-08-21, hard constraint from ticket 01 ([Branch exposure parity](../research/branch-exposure-parity.md)): the wire contract must never carry raw `ptype` values — OOS inserts `PAGE_OOS` mid-enum (`storage_common.h:159`), shifting raw values ≥ 8 by +1 between branches. The producer maps `PAGE_TYPE` to a wire-owned semantic page-kind vocabulary via a per-branch table, including an `oos` kind that develop never emits.
 
+2026-09-04, follow-up from [Define the gating matrix](04-define-gating-matrix.md): the startup-only parameter creates no daemon or socket when off. Therefore the v1 producer does not emit `parameter-off`; socket absence represents disabled/unavailable attachment. Clients may continue accepting the code defensively for forward compatibility.
+
+2026-09-05, follow-up from [Expose exact LRU-list membership in wire
+v1](14-expose-exact-lru-list-membership.md): the earlier list-index exclusion is
+superseded. Wire v1 exposes semantic shared/private membership and a kind-local
+index decoded from the same BCB flags sample as `lru_zone`; it still excludes
+the packed global index and native LRU-list telemetry.
+
 ## Answer
 
 Resolved with the user, 2026-08-26. Wire contract v1, on the ticket-03
@@ -31,10 +39,12 @@ framing (AF_UNIX `SOCK_STREAM`, versioned JSON-lines):
   (`volid`, `pageid`); `latch_mode` (`none|read|write|flush`),
   `waiter_present`, `fix_count` — the three decoded from one coherent atomic
   load; `dirty`; `flushing`; `async_flush_requested`; `to_vacuum`;
-  `lru_zone` (`lru1|lru2|lru3|void|invalid`); `page_lsa`;
-  `oldest_unflush_lsa`; `page_kind` (semantic vocabulary, never raw
-  `ptype`). The LRU *list index* is excluded as engine-internal quota detail.
-  All fields are optional on read for additive evolution.
+  `lru_zone` (`lru1|lru2|lru3|void|invalid`); `lru_list_kind`
+  (`shared|private|none|invalid`); `lru_list_index` (kind-local for shared or
+  private, otherwise `null`); `page_lsa`; `oldest_unflush_lsa`; `page_kind`
+  (semantic vocabulary, never raw `ptype`). The packed global LRU index and
+  raw flag bits are never exposed. All fields are optional on read for
+  additive evolution.
 - **Operations: bulk resident-set scan only.** `NOT_RESIDENT` is expressed by
   omission, so payloads are pool-sized. No point `InspectPage(VPID)` in v1 —
   volmap's page view joins against the latest cached scan so staleness stays
@@ -44,11 +54,19 @@ framing (AF_UNIX `SOCK_STREAM`, versioned JSON-lines):
   The point op returns in the digest phase, where per-page capture
   bracketing belongs.
 - **Capture semantics:** the handshake carries protocol version, database
-  identity, and a server-incarnation id; on incarnation change the client
-  drops everything. Each scan is bracketed: a header line (monotonic
+  identity, server-incarnation id, `shared_lru_count`, and
+  `private_lru_count`; on incarnation change the client drops everything.
+  LRU-list indices are scoped to that incarnation and topology, not stable
+  identities. `lru_zone`, `lru_list_kind`, and `lru_list_index` are decoded
+  from one load of a BCB's flags word and are coherent within that load but
+  immediately volatile. Each scan is bracketed: a header line (monotonic
   `scan_seq` per incarnation, start time), the record lines, a footer line
   (end time, record count, truncation flag). No per-record timestamps. The
   spec states plainly that a pool traversal is not an atomic snapshot.
+- **LRU-list summaries:** volmap derives observed per-list counts by grouping
+  emitted records; counts from a truncated scan are explicitly partial. Wire
+  v1 does not expose native live-list counters, quotas, thresholds, ticks, or
+  list pointers because they do not share the scan's synchronization model.
 - **Conventions:** snake_case field names; enums as lowercase strings;
   additive-only evolution within a major version; unknown fields ignored on
   both sides.
@@ -56,5 +74,6 @@ framing (AF_UNIX `SOCK_STREAM`, versioned JSON-lines):
   debug session); a server-side minimum scan interval of 100 ms; bounded
   write buffer with disconnect-on-stall so the inspector daemon never
   blocks; refusals are JSON error objects with stable lowercase codes:
-  `parameter-off`, `version-unsupported`, `busy`, `rate-limited`,
-  `incarnation-changed`.
+  `version-unsupported`, `busy`, `rate-limited`, and `incarnation-changed`.
+  Clients may accept the non-emitted `parameter-off` code defensively for
+  forward compatibility.

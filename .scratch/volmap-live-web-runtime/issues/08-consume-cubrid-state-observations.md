@@ -6,6 +6,24 @@
 
 **Status:** ready-for-agent
 
+Follow the accepted
+[Define the volmap overlay architecture](../../pgbuf-overlay/issues/10-define-volmap-overlay-architecture.md)
+resolution: consume bulk scans through one coalescing broker, publish valid
+truncated captures with unknown gaps, discard broken streams, preserve source
+scan intervals, and keep incarnation-bound evidence separate from disk state.
+Numerical limits and future measurement gates are settled by
+[Set overlay resource budgets and measurement gates](../../pgbuf-overlay/issues/15-set-overlay-resource-budgets.md).
+The reviewed planning dependency is now available in the
+[CBRD-27398 handoff](../../pgbuf-overlay/handoff/README.md). Actual producer
+implementation, corpus and integration evidence remain downstream work;
+reviewed planning does not mean a working producer is available.
+
+Use the pinned producer-owned conformance corpus and controlled debug/release
+integration gates in
+[Define the cross-repo verification strategy](../../pgbuf-overlay/issues/11-define-verification-strategy.md).
+Timing guesses, empty test runs and skipped external cases are not passing
+evidence; the delivery manifest binds results to both repos' exact commits.
+
 - [ ] The exact producer protocol/version, CUBRID landing branch, compile/runtime gates, socket permissions, peer policy, limits, and test fixtures come only from item 27's final handoff.
 - [ ] The handshake proves database and volume identity plus one producer incarnation before observations become active.
 - [ ] State-only batch requests do not load missing pages, copy/hash page images, perform disk I/O, or wait without producer/Volmap deadlines.

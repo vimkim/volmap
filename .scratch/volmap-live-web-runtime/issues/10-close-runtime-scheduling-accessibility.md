@@ -6,6 +6,24 @@
 
 **Status:** ready-for-agent
 
+For state-only page-buffer scheduling, follow
+[Define the volmap overlay architecture](../../pgbuf-overlay/issues/10-define-volmap-overlay-architecture.md):
+500 ms/2 s browser defaults are confirmed by
+[Set overlay resource budgets and measurement gates](../../pgbuf-overlay/issues/15-set-overlay-resource-budgets.md);
+the broker coalesces demand, hidden tabs stop requests, and paused tabs request
+capability metadata only. Refusal/incompatibility requires explicit retry.
+The budget resolution also specifies the scan-start floor, retry/timeout
+ceilings, conservative age and expiry even while paused, plus future gates.
+These rules supersede broader generic polling/backoff wording below for this
+source. The selected encoding is recorded in
+[Prototype the heatmap visual encoding](../../pgbuf-overlay/issues/09-prototype-heatmap-encoding.md).
+
+[Define the cross-repo verification strategy](../../pgbuf-overlay/issues/11-define-verification-strategy.md)
+adds required Chromium/Firefox semantic and density checks, the 100 ms p95
+input-to-visible-update gate, and manual screen-reader/visual review evidence.
+The 10,000-page case must document rendered density, not only modeled size;
+screenshots supplement rather than replace semantic/accessibility assertions.
+
 - [ ] Selected-page page-buffer cadence defaults to 500 ms and visible-page/kernel cadence to 2 s under a controlled scheduler.
 - [ ] Hidden documents stop new runtime work; paused displays retain only the latest offer per source; visible/resume schedules fresh coherent adoption.
 - [ ] Failed requests use bounded exponential backoff with jitter and recover without hiding explicit source age/capability.

@@ -28,3 +28,19 @@ Add focused Rust integration tests as `tests/<feature>.rs` with descriptive `#[t
 ## Commit & Pull Request Guidelines
 
 Recent history favors imperative Conventional Commit subjects such as `feat:`, `feat(tui):`, `docs:`, `build:`, and `web:`. Keep each commit scoped and explain behavioral or contract changes in its body. Pull requests should state purpose and verification, link the relevant issue or ADR, call out generated artifacts, and include screenshots for visible TUI or web changes. Run `just verify` before requesting review.
+
+## Agent skills
+
+### Issue tracker
+
+Before working with issues or specs, read `docs/agents/issue-tracker.md`.
+This repository uses local Markdown tickets.
+
+### Triage labels
+
+Before assigning triage status, read `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Before exploring or designing, read `docs/agents/domain.md`.
+This repository uses one root CONTEXT.md and docs/adr/.

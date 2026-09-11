@@ -225,7 +225,7 @@ _Avoid_: OOS chain page
 ## Distribution
 
 **Live inspection session**:
-One foreground `serve` process, its private cursor-integrity key, the snapshot generations it currently retains with their inspection revisions, cursors, and browser/API locations. Publishing a generation replaces the one on display; evicted generation state is discarded. The HTTP interface is unauthenticated; remote exposure requires an explicit IPv4 wildcard listener. All process state expires together when the process ends and is never reused as a persistent inspection index.
+One foreground `serve` process, its private cursor-integrity key, the snapshot generations it currently retains with their inspection revisions, cursors, and browser/API locations. Publishing a generation replaces the one on display; evicted generation state is discarded. The HTTP interface is unauthenticated; remote exposure uses an IPv4 listener; runtime observations require a specific address rather than a wildcard. All process state expires together when the process ends and is never reused as a persistent inspection index.
 _Avoid_: Web deployment, daemon, saved report
 
 **Source mode**:
@@ -261,11 +261,11 @@ What Volmap reports: the bytes present in the data volume files at the moment th
 _Avoid_: Database state, committed state, current data, what the database contains
 
 **Runtime page observation**:
-One optional, timestamped diagnostic reading about a physical page from a running system. It is independently captured per page, does not revise the inspection graph, and never implies a database-wide atomic view.
+One optional diagnostic reading about a physical page from a running system, with the capture time or enclosing capture interval actually supplied by its source. It does not revise the inspection graph, imply an exact per-page timestamp when unavailable, or imply a database-wide atomic view.
 _Avoid_: Live page state, page status, snapshot generation
 
 **Runtime observation overlay**:
-An optional presentation layer over observed disk state that displays bounded runtime page observations without changing inspection facts. Pausing the display freezes adoption of both newer disk generations and newer runtime observations while still allowing their availability to be reported.
+An optional presentation layer over observed disk state that displays bounded runtime page observations without changing inspection facts. Pausing freezes adoption of newer disk generations and runtime observations, but does not prevent evidence expiry or identity invalidation; newer availability can still be reported.
 _Avoid_: Live follow, inspection revision, page status color
 
 **Runtime capability state**:
@@ -273,16 +273,20 @@ The availability of one optional runtime observation source to the live viewer: 
 _Avoid_: Inspection outcome, diagnostic severity, connection error
 
 **Observation freshness**:
-The age of a runtime page observation relative to its requested sampling cadence. It is `fresh` through two expected intervals and `stale` afterward; freshness never implies source coherence or currentness at display time.
+The age of a runtime page observation relative to its requested sampling cadence. It is `fresh` only when its known age or conservative upper bound is within two expected intervals; older or uncertain evidence is not fresh, and freshness never implies source coherence or currentness at display time.
 _Avoid_: Current state, valid observation, snapshot age
 
 **Observation batch**:
-A bounded request or response covering the selected page and pages in currently visible sectors. Its members retain their own capture times and do not form an atomic buffer-pool or operating-system snapshot.
+A bounded request or response covering the selected page and pages in currently visible sectors. Its members retain the source's capture times or enclosing capture interval and do not form an atomic buffer-pool or operating-system snapshot.
 _Avoid_: Runtime snapshot, buffer-pool snapshot, volume observation
 
 **Observation coverage**:
 The evaluated and requested page counts for one bounded observation scope, including any resource-stopped remainder. It describes an ephemeral overlay request and never changes Inspection coverage.
 _Avoid_: Inspection coverage, silent sampling, buffer-pool coverage
+
+**Observation scope**:
+The bounded set of physical pages targeted by a runtime observation, identified through a volume's selected sectors, one sector, or one selected page. Its membership is independent of whether the source supplies usable evidence for those pages.
+_Avoid_: Producer scan coverage, whole-volume capture
 
 **Page-buffer observation**:
 A runtime page observation describing a cooperating `cub_server`'s semantic buffer-frame evidence, such as residency, fix or latch state, dirty state, and transition limitations. It is distinct from both the persistent page image and operating-system cache residency.
