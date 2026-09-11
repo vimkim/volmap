@@ -44,3 +44,13 @@ findings for the preparation scope; see [verification and reviews](../verificati
 Only the operator/limitation documentation items are closed. Measurement,
 manual accessibility, candidate reruns and final named invariant mapping remain
 open. No release approval or external publication follows from this commit.
+
+2026-09-11 — Current-source density rerun on `cab4a9b` provides new non-passing
+evidence: Chromium LRU incremental sampled RSS is 34.54 MiB against 32 MiB;
+Firefox and both browsers' timing pass. Two predetermined Chromium-only repeats
+pass at 27.26/26.16 MiB LRU increments, establishing variability rather than a
+repair or a specific regression cause. All four browser executions retain the
+original 12,288-cell / 40-input-per-arm workload. See [raw attempts and diagnosis
+boundary](../verification/08-candidate-density/README.md). The candidate-density
+gate is now explicitly failed; historical 06 acceptance is preserved. No runtime
+code or threshold changed. Manual and dedicated-host gates remain open.

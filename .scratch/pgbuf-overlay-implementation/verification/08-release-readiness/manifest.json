@@ -378,6 +378,14 @@
           ]
         }
       ]
+    },
+    "candidate_density": {
+      "manifest": ".scratch/pgbuf-overlay-implementation/verification/08-candidate-density/manifest.json",
+      "sha256": "3fd001ab12e9e34a946a08e2b3c55bc88d82721d7b9a336127b7b805c7b3fc75",
+      "consumer_commit": "cab4a9bc6542453df61831c5d3b24441d789fe96",
+      "result": "non-passing: Chromium RSS verdict varies across unchanged-source executions; initial failure retained",
+      "executed_count": 4,
+      "scope": "Existing local sampled density gate; not dedicated-host matrix; synthetic producer"
     }
   },
   "evidence_inventory": ".scratch/pgbuf-overlay-implementation/verification/08-release-readiness/evidence-inventory.json",
@@ -555,11 +563,13 @@
       "owner": "Release maintainer + CUBRID/Volmap measurement owners",
       "test": "docs/runtime-overlay-release.md",
       "requirement": "At least 10000 actual laid-out cells; Chromium and Firefox each p95 <=100 ms and incremental peak browser RSS <=32 MiB/tab",
-      "status": "rerun-required",
+      "status": "failed",
       "evidence": [
-        "density"
+        "density",
+        "candidate_density"
       ],
-      "executed_here": 0
+      "executed_here": 4,
+      "result": "Chromium memory failure in original two-browser run; two follow-up passes do not supersede failure"
     },
     {
       "id": "candidate-exact-commit",
