@@ -160,7 +160,7 @@ export function observationAction(state: UiState, action: ObservationAction): Ui
       ? { kind: "volume", volid: state.route.vol, sectorids: [...new Set(pages.map((page) => Math.floor(page.pageid / 64)))] }
       : state.route.kind === "sector" ? { kind: "sector", volid: state.route.vol, sectorid: state.route.sector } : undefined;
     const request: ObservationRequest = { pages, scope, epoch: String(epoch), generation: state.snapshot.generation ?? "0", retry: action.kind === "refresh-observation", cadence_ms: observationInterval(state), after_request: previous.resumeRequired };
-    return { ...state, observation: { ...previous, epoch, loading: true, stopped: false, viewportCount: state.route.kind === "volume" ? previous.viewportCount : state.route.kind === "sector" ? pages.length : remainder.length + (selected === null ? 0 : 1), rotation: rotated ? (offset + capacity) % remainder.length : 0, message: selected === null ? "Observing visible pages" : "Observing selected page" }, nextEffectId: state.nextEffectId + 1,
+    return { ...state, observation: { ...previous, epoch, loading: true, stopped: false, viewportCount: state.route.kind === "volume" ? previous.viewportCount : state.route.kind === "sector" ? pages.length : remainder.length + (selected === null ? 0 : 1), rotation: rotated ? (offset + capacity) % remainder.length : 0, message: previous.batch !== null ? previous.message : selected === null ? "Observing visible pages" : "Observing selected page" }, nextEffectId: state.nextEffectId + 1,
       effects: [...state.effects, { kind: "read-observation", id: state.nextEffectId, scope: state.scope, request }] };
   }
   if (action.kind === "observation-loaded") {

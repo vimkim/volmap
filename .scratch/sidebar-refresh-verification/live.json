@@ -1,0 +1,21 @@
+{
+  "samples": 60,
+  "captures": 3,
+  "sidebarPositions": [
+    1563.140625
+  ],
+  "statuses": [
+    "Visible-page observations available"
+  ],
+  "busyStates": [
+    "false",
+    "true"
+  ],
+  "appearances": [
+    "rgb(7, 16, 20)|rgb(104, 216, 208)|none"
+  ],
+  "glyphExamples": [
+    "S1",
+    "P3"
+  ]
+}

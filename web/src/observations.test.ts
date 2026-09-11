@@ -305,7 +305,6 @@ test("visible-page cadence is two seconds with explicit below, at and above-cap 
   }
 });
 
-
 test("scoped detail preserves fixed slot addresses across absent physical slots", () => {
   const { pages: _pages, observations: _observations, ...metadata } = viewportEnvelope();
   const slots: unknown[] = Array.from({ length: 64 }, () => null);
@@ -348,7 +347,6 @@ test("Volume accepts one 4096-slot lightweight capture and preserves unknown, nu
     { ...envelope, scope: { ...envelope.scope, sectorids: [...envelope.scope.sectorids].reverse() } },
   ]) expect(() => decodeObservation(malformed)).toThrow();
 });
-
 
 test("Volume holds the canonical nearest 64-sector set without rotation and rejects late scope batches", () => {
   const base = requested().state;
@@ -426,10 +424,19 @@ import { runtimePage } from "./observation-view";
 test("LRU glyphs identify private and shared membership without inferring unknown membership", () => {
   const { state, effect } = requested();
   const observed = reduce(state, loaded(effect));
-  for (const [kind, suffix] of [["private", "P"], ["shared", "S"], ["unknown", ""]] as const) {
+  for (const [kind, prefix] of [["private", "P"], ["shared", "S"], ["unknown", ""]] as const) {
     const row = { volid: 0, pageid: 7, state: "resident" as const, reason: "observed-resident" as const, evidence: { lru_zone: "lru2", lru_list_kind: kind, dirty: "true", flushing: "true" } };
     const topology = { ...observed, observation: { ...observed.observation, colorMode: "lru" as const } };
-    expect(runtimePage(topology, row).glyph).toBe(`2${suffix}DF`);
+    expect(runtimePage(topology, row).glyph).toBe(`${prefix}2DF`);
     expect(runtimePage(observed, row).glyph).toBe("◉DF");
   }
+});
+
+test("refresh retains the displayed observation status while the current capture is usable", () => {
+  const { state, effect } = requested();
+  const observed = reduce(state, loaded(effect));
+  const refreshing = reduce(observed, { kind: "refresh-observation" });
+  expect(refreshing.observation.loading).toBe(true);
+  expect(refreshing.observation.batch).toBe(observed.observation.batch);
+  expect(refreshing.observation.message).toBe(observed.observation.message);
 });

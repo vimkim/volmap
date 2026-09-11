@@ -178,7 +178,6 @@ test("Volume and Sector show bounded coverage, semantic rows and independent cad
   await selected.close();
 });
 
-
 test("viewport selection stays fixed; scrolling revokes scope and HTTP overload keeps disk usable", async ({ page }) => {
   await page.goto("http://127.0.0.1:41741/volume/0", { waitUntil: "commit" });
   const pending = page.waitForRequest((request) => request.url().endsWith("/page-buffer/observe"));
@@ -225,7 +224,7 @@ for (const scale of ["volume/0", "sector/0/0"]) {
     await page.keyboard.press("Tab");
     await expect(mode).toHaveValue("lru");
     await expect(cell).toHaveClass(/runtime-lru/);
-    await expect(cell.locator(".runtime-glyph")).toHaveText(scale.startsWith("volume") ? "2P" : "2PD");
+    await expect(cell.locator(".runtime-glyph")).toHaveText(scale.startsWith("volume") ? "P2" : "P2D");
     if (unadmitted) {
       await expect(unadmitted).toHaveCSS("background-color", "rgb(55, 65, 81)");
       await expect(unadmitted).toHaveAttribute("title", /^Page \d+:/);
@@ -305,7 +304,7 @@ for (const scale of ["volume/0", "sector/0/0"]) {
     await page.getByRole("combobox", { name: "Runtime color mode" }).selectOption("lru");
     await expect(cell(10)).toHaveClass(/lru-private/);
     await page.emulateMedia({ forcedColors: "active" });
-    await expect(cell(10).locator(".runtime-glyph")).toHaveText(scale.startsWith("volume") ? "2" : "2DF");
+    await expect(cell(10).locator(".runtime-glyph")).toHaveText(scale.startsWith("volume") ? "P2" : "P2DF");
     expect(await cell(10).evaluate((element) => getComputedStyle(element, "::before").borderStyle)).toBe("dashed");
     await page.emulateMedia({ forcedColors: "none" });
     await page.screenshot({ path: `../.scratch/pgbuf-overlay-implementation/verification/05-${scale.split("/")[0]}-${browserName}.png` });
@@ -569,3 +568,36 @@ test(`${scale} pause rejects a delayed response and resume starts fresh scope de
 });
 
 }
+
+test("sidebar stays in place while a retained observation refreshes", async ({ page }) => {
+  await page.goto("http://127.0.0.1:41741/volume/0", { waitUntil: "commit" });
+  await page.getByRole("button", { name: "Enable observations", exact: true }).click();
+  const coverage = page.getByRole("region", { name: "Visible-page buffer observations" });
+  await expect(coverage).toContainText("Visible-page observations available");
+  const refresh = page.getByRole("button", { name: "Refresh visible-page observations", exact: true });
+  await expect(refresh).toBeEnabled();
+  const before = await page.locator("#volumes").boundingBox();
+  const status = await page.locator(".observation-controls p").first().textContent();
+  const appearance = await refresh.evaluate((button) => ({ color: getComputedStyle(button).color, background: getComputedStyle(button).backgroundColor, outline: getComputedStyle(button).outlineStyle }));
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => { release = resolve; });
+  let refreshing = false;
+  await page.route("**/runtime/page-buffer/observe", async (route) => {
+    refreshing = true;
+    await held;
+    await route.continue();
+  });
+  try {
+    // Let automatic refresh start; keep its response pending for the layout check.
+    await expect.poll(() => refreshing).toBe(true);
+    await expect(refresh).toBeDisabled();
+    await expect(page.locator(".observation-controls p").first()).toHaveText(status!);
+    const during = await page.locator("#volumes").boundingBox();
+    expect(during?.y).toBe(before?.y);
+    expect(await refresh.evaluate((button) => ({ color: getComputedStyle(button).color, background: getComputedStyle(button).backgroundColor, outline: getComputedStyle(button).outlineStyle }))).toEqual(appearance);
+  } finally {
+    release();
+  }
+  await expect(refresh).toBeEnabled();
+  await expect(coverage).toContainText("Visible-page observations available");
+});

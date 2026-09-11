@@ -134,7 +134,7 @@ export function runtimePage(state: UiState, row: ObservationRow | undefined) {
   return {
     className: ` runtime-resident${dirty ? " runtime-dirty" : ""}${flushing ? " runtime-flushing" : ""}${stale ? " runtime-stale" : ""}${topology ? ` runtime-lru zone-${knownZone ? zone : "unknown"}${kind === "private" ? " lru-private" : ""}` : ""}`,
     label: `${label}${state.route.kind === "volume" ? "" : ` · dirty ${evidence.dirty ?? "unknown"} · flushing ${evidence.flushing ?? "unknown"}`}${topology || state.route.kind === "volume" ? ` · ${zone ?? "unknown"} · ${kind ?? "unknown"} membership · index ${evidence.lru_list_index ?? "unknown"}` : ""}${stale ? " · stale" : ""}`,
-    glyph: `${topology ? ({ lru1: "1", lru2: "2", lru3: "3", void: "V", invalid: "!" }[zone ?? ""] ?? "?") : "◉"}${topology ? kind === "private" ? "P" : kind === "shared" ? "S" : "" : ""}${dirty ? "D" : ""}${flushing ? "F" : ""}`,
+    glyph: `${topology ? kind === "private" ? "P" : kind === "shared" ? "S" : "" : ""}${topology ? ({ lru1: "1", lru2: "2", lru3: "3", void: "V", invalid: "!" }[zone ?? ""] ?? "?") : "◉"}${dirty ? "D" : ""}${flushing ? "F" : ""}`,
     state: "resident",
   };
 }

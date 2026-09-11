@@ -1,7 +1,7 @@
 .observation-controls { padding: 14px; }
 .observation-controls h2 { padding: 0 0 8px; border: 0; }
 .observation-controls button { width: 100%; margin-top: 8px; padding: 8px; font-size: 12px; }
-.observation-controls button:disabled { color: var(--muted); background: var(--panel); outline: 1px dashed var(--muted); outline-offset: -2px; cursor: not-allowed; }
+.observation-controls button:disabled:not([aria-busy="true"]) { color: var(--muted); background: var(--panel); outline: 1px dashed var(--muted); outline-offset: -2px; cursor: not-allowed; }
 .observation-controls p { margin-top: 8px; font-size: 12px; line-height: 1.4; }
 .with-observation > .panel { align-self: start; }
 .observation-detail { overflow-wrap: anywhere; }
@@ -15,7 +15,7 @@
 .observation-detail details p { margin-top: 8px; }
 @media (forced-colors: active) {
   .observation-resident { border-color: Highlight; }
-  .observation-controls button:disabled { color: GrayText; background: Canvas; outline-color: GrayText; }
+  .observation-controls button:disabled:not([aria-busy="true"]) { color: GrayText; background: Canvas; outline-color: GrayText; }
 }
 .runtime-mode { display: block; margin-top: 12px; font-size: 12px; }
 .runtime-mode select { display: block; width: 100%; margin-top: 5px; padding: 6px; color: var(--text); background: var(--panel); border: 1px solid var(--line); }

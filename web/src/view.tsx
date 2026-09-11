@@ -832,9 +832,10 @@ export function Viewer({ state, dispatch, nowUnixSeconds }: ViewerProps) {
                   <option value="state">State marks</option><option value="lru">LRU topology</option>
                 </select>
               </label>
-              <button type="button" disabled={state.follow.paused || !state.visible || state.observation.loading || state.route.kind === "root"}
+              <button type="button" aria-busy={state.observation.loading && state.observation.batch !== null && !state.follow.paused && state.visible}
+                disabled={state.follow.paused || !state.visible || state.observation.loading || state.route.kind === "root"}
                 onClick={() => dispatch({ kind: "refresh-observation" })}>{"page" in state.route ? "Refresh selected-page observation" : "Refresh visible-page observations"}</button>
-              <p>{state.observation.loading ? (state.follow.paused ? "Checking observation availability…" : ("page" in state.route ? "Observing selected page…" : "Observing visible pages…")) : state.observation.message}</p>
+              <p>{state.observation.loading && state.observation.batch === null ? (state.follow.paused ? "Checking observation availability…" : ("page" in state.route ? "Observing selected page…" : "Observing visible pages…")) : state.observation.message}</p>
               {state.observation.stopped ? <p>Automatic retry stopped · Refresh explicitly to retry attachment.</p> : null}
               {state.follow.paused && state.observation.newerAvailable ? <p>Newer observation available · Resume to request a new capture.</p> : null}
 

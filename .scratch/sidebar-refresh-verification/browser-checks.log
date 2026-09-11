@@ -1,0 +1,100 @@
+[WebServer]    Compiling volmap v0.0.0 (/home/vimkim/temp/volmap)
+
+[WebServer]     Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.42s
+
+[WebServer] Bound to 127.0.0.1:41739
+[WebServer] Available at (non-exhaustive list):
+
+[WebServer]     http://127.0.0.1:41739
+[WebServer] Holding one immutable reading; a changed input invalidates this session.
+
+[WebServer]     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.06s
+
+[WebServer] Bound to 127.0.0.1:41740
+[WebServer] Available at (non-exhaustive list):
+
+[WebServer]     http://127.0.0.1:41740
+[WebServer] Holding one immutable reading; a changed input invalidates this session.
+
+[WebServer]     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.06s
+
+[WebServer] Bound to 127.0.0.1:41741
+[WebServer] Available at (non-exhaustive list):
+[WebServer]     http://127.0.0.1:41741
+[WebServer] Following the input every 500 ms; a change publishes a new generation.
+
+[WebServer]     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.06s
+
+[WebServer] Bound to 127.0.0.1:41743
+[WebServer] Available at (non-exhaustive list):
+[WebServer]     http://127.0.0.1:41743
+[WebServer] Following the input every 500 ms; a change publishes a new generation.
+
+
+Running 56 tests using 1 worker
+
+(node:3182950) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/56] [chromium] › e2e/observations.spec.ts:7:1 › selected-page observation uses a scripted socket producer, real HTTP and non-color detail
+[2/56] [chromium] › e2e/observations.spec.ts:38:1 › automatic polling, paused offers, hidden silence, resume and expiry preserve disk navigation
+[3/56] [chromium] › e2e/observations.spec.ts:97:1 › Page producer restart while paused clears evidence and requires an explicit retry
+[4/56] [chromium] › e2e/observations.spec.ts:97:1 › Sector producer restart while paused clears evidence and requires an explicit retry
+[5/56] [chromium] › e2e/observations.spec.ts:119:1 › transient browser retries back off and protocol incompatibility waits for explicit retry
+[6/56] [chromium] › e2e/observations.spec.ts:147:1 › Volume and Sector show bounded coverage, semantic rows and independent cadences across tabs
+[7/56] [chromium] › e2e/observations.spec.ts:182:1 › viewport selection stays fixed; scrolling revokes scope and HTTP overload keeps disk usable
+[8/56] [chromium] › e2e/observations.spec.ts:208:3 › volume/0 composes state marks and switches to explicitly labelled LRU colors
+[9/56] [chromium] › e2e/observations.spec.ts:208:3 › sector/0/0 composes state marks and switches to explicitly labelled LRU colors
+[10/56] [chromium] › e2e/observations.spec.ts:250:3 › volume/0 separates partial unknowns, duplicate ambiguity, nonresidency and expired evidence
+[11/56] [chromium] › e2e/observations.spec.ts:250:3 › sector/0/0 separates partial unknowns, duplicate ambiguity, nonresidency and expired evidence
+[12/56] [chromium] › e2e/observations.spec.ts:325:1 › selected detail exposes exact membership and null meanings; inconsistent topology is refused
+[13/56] [chromium] › e2e/observations.spec.ts:355:3 › volume/0 source failure hides marks and paused incarnation change revokes every list
+[14/56] [chromium] › e2e/observations.spec.ts:355:3 › sector/0/0 source failure hides marks and paused incarnation change revokes every list
+[15/56] [chromium] › e2e/observations.spec.ts:388:1 › cached unavailable metadata does not turn a pending first capture into page failures
+[16/56] [chromium] › e2e/observations.spec.ts:426:1 › enabling Volume observations keeps the map in place and the legend available
+[17/56] [chromium] › e2e/observations.spec.ts:441:1 › Volume nonresident markers share an image and retain a forced-color glyph
+[18/56] [chromium] › e2e/observations.spec.ts:469:1 › Volume nonresident circles preserve known and unknown occupancy backgrounds
+[19/56] [chromium] › e2e/observations.spec.ts:515:3 › Sector refuses malformed schema response without losing disk navigation
+[20/56] [chromium] › e2e/observations.spec.ts:515:3 › Sector refuses malformed variant response without losing disk navigation
+[21/56] [chromium] › e2e/observations.spec.ts:515:3 › Sector refuses malformed scope response without losing disk navigation
+[22/56] [chromium] › e2e/observations.spec.ts:515:3 › Sector refuses malformed slot-order response without losing disk navigation
+[23/56] [chromium] › e2e/observations.spec.ts:515:3 › Sector refuses malformed slot-count response without losing disk navigation
+[24/56] [chromium] › e2e/observations.spec.ts:515:3 › Sector refuses malformed epoch response without losing disk navigation
+[25/56] [chromium] › e2e/observations.spec.ts:515:3 › Sector refuses malformed generation response without losing disk navigation
+[26/56] [chromium] › e2e/observations.spec.ts:538:1 › volume/0 pause rejects a delayed response and resume starts fresh scope demand
+[27/56] [chromium] › e2e/observations.spec.ts:538:1 › sector/0/0 pause rejects a delayed response and resume starts fresh scope demand
+[28/56] [chromium] › e2e/observations.spec.ts:574:1 › sidebar stays in place while a retained observation refreshes
+(node:3184501) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[29/56] [firefox] › e2e/observations.spec.ts:7:1 › selected-page observation uses a scripted socket producer, real HTTP and non-color detail
+[30/56] [firefox] › e2e/observations.spec.ts:38:1 › automatic polling, paused offers, hidden silence, resume and expiry preserve disk navigation
+[31/56] [firefox] › e2e/observations.spec.ts:97:1 › Page producer restart while paused clears evidence and requires an explicit retry
+[32/56] [firefox] › e2e/observations.spec.ts:97:1 › Sector producer restart while paused clears evidence and requires an explicit retry
+[33/56] [firefox] › e2e/observations.spec.ts:119:1 › transient browser retries back off and protocol incompatibility waits for explicit retry
+[34/56] [firefox] › e2e/observations.spec.ts:147:1 › Volume and Sector show bounded coverage, semantic rows and independent cadences across tabs
+[35/56] [firefox] › e2e/observations.spec.ts:182:1 › viewport selection stays fixed; scrolling revokes scope and HTTP overload keeps disk usable
+[36/56] [firefox] › e2e/observations.spec.ts:208:3 › volume/0 composes state marks and switches to explicitly labelled LRU colors
+[37/56] [firefox] › e2e/observations.spec.ts:208:3 › sector/0/0 composes state marks and switches to explicitly labelled LRU colors
+[38/56] [firefox] › e2e/observations.spec.ts:250:3 › volume/0 separates partial unknowns, duplicate ambiguity, nonresidency and expired evidence
+[39/56] [firefox] › e2e/observations.spec.ts:250:3 › sector/0/0 separates partial unknowns, duplicate ambiguity, nonresidency and expired evidence
+[40/56] [firefox] › e2e/observations.spec.ts:325:1 › selected detail exposes exact membership and null meanings; inconsistent topology is refused
+[41/56] [firefox] › e2e/observations.spec.ts:355:3 › volume/0 source failure hides marks and paused incarnation change revokes every list
+[42/56] [firefox] › e2e/observations.spec.ts:355:3 › sector/0/0 source failure hides marks and paused incarnation change revokes every list
+[43/56] [firefox] › e2e/observations.spec.ts:388:1 › cached unavailable metadata does not turn a pending first capture into page failures
+[44/56] [firefox] › e2e/observations.spec.ts:426:1 › enabling Volume observations keeps the map in place and the legend available
+[45/56] [firefox] › e2e/observations.spec.ts:441:1 › Volume nonresident markers share an image and retain a forced-color glyph
+[46/56] [firefox] › e2e/observations.spec.ts:469:1 › Volume nonresident circles preserve known and unknown occupancy backgrounds
+[47/56] [firefox] › e2e/observations.spec.ts:515:3 › Sector refuses malformed schema response without losing disk navigation
+[48/56] [firefox] › e2e/observations.spec.ts:515:3 › Sector refuses malformed variant response without losing disk navigation
+[49/56] [firefox] › e2e/observations.spec.ts:515:3 › Sector refuses malformed scope response without losing disk navigation
+[50/56] [firefox] › e2e/observations.spec.ts:515:3 › Sector refuses malformed slot-order response without losing disk navigation
+[51/56] [firefox] › e2e/observations.spec.ts:515:3 › Sector refuses malformed slot-count response without losing disk navigation
+[52/56] [firefox] › e2e/observations.spec.ts:515:3 › Sector refuses malformed epoch response without losing disk navigation
+[53/56] [firefox] › e2e/observations.spec.ts:515:3 › Sector refuses malformed generation response without losing disk navigation
+[54/56] [firefox] › e2e/observations.spec.ts:538:1 › volume/0 pause rejects a delayed response and resume starts fresh scope demand
+[55/56] [firefox] › e2e/observations.spec.ts:538:1 › sector/0/0 pause rejects a delayed response and resume starts fresh scope demand
+[56/56] [firefox] › e2e/observations.spec.ts:574:1 › sidebar stays in place while a retained observation refreshes
+  56 passed (1.2m)

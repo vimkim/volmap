@@ -1,0 +1,46 @@
+
+ RUN  v4.1.11 /home/vimkim/temp/volmap/web
+
+ ❯ src/observations.test.ts (28 tests | 2 failed) 51ms
+   × LRU glyphs identify private and shared membership without inferring unknown membership 7ms
+   × refresh retains the displayed observation status while the current capture is usable 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/observations.test.ts > LRU glyphs identify private and shared membership without inferring unknown membership
+AssertionError: expected '2PDF' to be 'P2DF' // Object.is equality
+
+Expected: "P2DF"
+Received: "2PDF"
+
+ ❯ src/observations.test.ts:432:46
+    430|     const row = { volid: 0, pageid: 7, state: "resident" as const, rea…
+    431|     const topology = { ...observed, observation: { ...observed.observa…
+    432|     expect(runtimePage(topology, row).glyph).toBe(`${prefix}2DF`);
+       |                                              ^
+    433|     expect(runtimePage(observed, row).glyph).toBe("◉DF");
+    434|   }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/observations.test.ts > refresh retains the displayed observation status while the current capture is usable
+AssertionError: expected 'Observing selected page' to be 'resident' // Object.is equality
+
+Expected: "resident"
+Received: "Observing selected page"
+
+ ❯ src/observations.test.ts:444:42
+    442|   expect(refreshing.observation.loading).toBe(true);
+    443|   expect(refreshing.observation.batch).toBe(observed.observation.batch…
+    444|   expect(refreshing.observation.message).toBe(observed.observation.mes…
+       |                                          ^
+    445| });
+    446|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 26 passed (28)
+   Start at  21:13:49
+   Duration  369ms (transform 132ms, setup 0ms, import 163ms, tests 51ms, environment 0ms)

@@ -1,0 +1,37 @@
+mise x node@24.19.0 -- corepack pnpm --dir web install --frozen-lockfile --ignore-scripts
+Already up to date
+Done in 439ms using pnpm v11.24.0
+mise x node@24.19.0 -- release/regenerate-frontend.sh
+Already up to date
+Done in 442ms using pnpm v11.24.0
+$ tsc --noEmit
+$ vitest run src
+
+ RUN  v4.1.11 /home/vimkim/temp/volmap/web
+
+
+ Test Files  8 passed (8)
+      Tests  82 passed (82)
+   Start at  21:15:01
+   Duration  468ms (transform 809ms, setup 0ms, import 1.28s, tests 238ms, environment 1ms)
+
+$ vite build
+vite v8.2.2 building client environment for production...
+transforming...
+✓ 25 modules transformed.
+rendering chunks...
+computing gzip size...
+../src/web/generated/manifest.json            0.21 kB │ gzip:  0.12 kB
+../src/web/generated/runtime-packages.json    0.62 kB │ gzip:  0.22 kB
+../src/web/generated/frontend.css            16.30 kB │ gzip:  4.28 kB
+../src/web/generated/frontend.js            273.14 kB │ gzip: 82.09 kB
+
+✓ built in 143ms
+209a89101553fe420a367652392e4084807d3e9e73da4fcfa7dcf987b51e39b5  web/pnpm-lock.yaml
+af890c271be24f7836b24db5676d8c25f60699079609fa09bd4ce41310ad5ade  src/web/generated/frontend.js
+e97d68d0a5650dce905135fba19f75a12f2520a32332a0e39327e235a7807cb4  src/web/generated/frontend.css
+0a5b016a3fb6144bbe4e0f1c998dc36d7162a0149e1e944140b673d40829afb6  src/web/generated/manifest.json
+af34c4e594d88fbb8e4d5e247019ae5fa7e49c8ce9b8a6b5ecf5cf8e6e2dd7b1  src/web/generated/runtime-packages.json
+b5bfa2935d6b0425d8264a3cfede523d7a2ac027672a9da7897ee6cd50679fea  release/frontend/THIRD_PARTY_NOTICES.txt
+b51e40b268504ec8d58e94bfbbeddf56d1403c6cabcbb5332987fd3768b8265d  release/frontend/SBOM.cdx.json
+b5fe2b0ad4cef8c8b1b47cec37f407a8d5bc6aa5deaf0c3ceaa21e494b13f9be  release/frontend/BUILD_PROVENANCE.json
