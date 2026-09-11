@@ -22,7 +22,7 @@ RSS, with a fresh one-tab browser per arm. Input p95 must remain ≤100 ms.
 Only the ceiling/report field changed; no runtime optimization was made.
 
 The consumer checkout was `75e6bb75155ed6ea61f7340ccdb2285768866bc2` plus the
-retained [test patch](density-test.patch). The [manifest](manifest.json) pins
+retained [test patch](density-test.patch.gz). The [manifest](manifest.json) pins
 87 source/test inputs; only the density test differs from the preceding memory
 growth evidence. Browser versions, host, corpus hash, build and per-arm raw
 samples are in [the raw archive](density-raw.tar.gz) and browser JSON reports.

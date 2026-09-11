@@ -132,7 +132,7 @@
     "density-raw.tar.gz": "5d55be8f9b7bcc2624fd2f8e5f241a33341dd320b2cd3c3f0935c56f53465361",
     "density-chromium.json": "d097a49076474e8181e4c2ab4b4e72caeef88868650f46af29852e45ad2ce15a",
     "density-firefox.json": "ec6e70b8b10a932a075c7a1ede095889cf3d2358ec761002a44cc1b996c8c97b",
-    "density-test.patch": "9fc6647dd2b16bdbe0547010e5d958103e8ed7e4b98fe1a8853bf07d963b072c",
-    "density.log.gz": "ed1d34ee399d64675178455c6b7b717cbd4572442411e82425658c07692be959"
+    "density.log.gz": "ed1d34ee399d64675178455c6b7b717cbd4572442411e82425658c07692be959",
+    "density-test.patch.gz": "a38ee36327c5e9f8d2c972d7a60dff51bc32405f95c5c23514830dd70c2a1f21"
   }
 }
