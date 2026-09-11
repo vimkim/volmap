@@ -284,7 +284,7 @@ async fn shutdown_signal() {
 #[derive(Deserialize)]
 struct ObservationRequest {
     pages: Option<Vec<ObservationPage>>,
-    scope: Option<observations::SectorScope>,
+    scope: Option<observations::ViewScope>,
     epoch: String,
     generation: String,
     #[serde(default)]
@@ -346,7 +346,7 @@ async fn runtime_observations(
                 .and_then(|pages| observations::ValidatedScope::new(&pages, epoch))
         }
         (None, Some(sector)) => {
-            observations::ValidatedScope::for_sector(sector, &reading.view, epoch)
+            observations::ValidatedScope::for_view_scope(sector, &reading.view, epoch)
         }
         _ => Err(observations::ScopeError::InvalidAddressing),
     };
@@ -3033,6 +3033,7 @@ mod tests {
         for address in [
             serde_json::json!({"pages":[]}),
             serde_json::json!({"scope":{"kind":"sector","volid":0,"sectorid":0}}),
+            serde_json::json!({"scope":{"kind":"volume","volid":0,"sectorids":(0..64).collect::<Vec<_>>()}}),
         ] {
             for bytes in [65_535, 65_536, 65_537] {
                 let mut request = address.clone();
@@ -3091,6 +3092,203 @@ mod tests {
             assert_eq!(post(invalid, &generation).0, 400);
         }
         assert_eq!(post(scope, "999999").0, 409);
+    }
+
+    #[test]
+    fn volume_observation_http_bounds_and_canonical_slots() {
+        let server = boot_runtime(
+            None,
+            false,
+            observations::Broker::new(Some("/missing/producer.sock".into())),
+        );
+        let generation = server.source.current().unwrap().generation.to_string();
+        let post = |ids: serde_json::Value| {
+            let body = serde_json::json!({"scope":{"kind":"volume","volid":0,"sectorids":ids},
+                "epoch":"18446744073709551615","generation":generation})
+            .to_string();
+            assert!(body.len() <= 65_536);
+            exchange_raw(
+                server.address,
+                &format!(
+                    "POST /api/v1/runtime/page-buffer/observe HTTP/1.1\r\nHost: {}\r\nOrigin: http://{}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    server.address,
+                    server.address,
+                    body.len()
+                ),
+            )
+        };
+        for count in [0, 1, 63, 64, 65] {
+            let (status, body) = post(serde_json::json!((0..count).rev().collect::<Vec<_>>()));
+            assert_eq!(status, if count <= 64 { 200 } else { 400 }, "{body}");
+            if count > 64 {
+                continue;
+            }
+            assert!(body.len() <= 1_048_576);
+            let value: serde_json::Value = serde_json::from_str(&body).unwrap();
+            assert_eq!(value["variant"], "volume-residency-lru");
+            assert_eq!(
+                value["scope"]["sectorids"],
+                serde_json::json!((0..count).collect::<Vec<_>>())
+            );
+            assert_eq!(value["requested_count"], count * 64);
+            assert_eq!(value["evaluated_count"], 0);
+            assert_eq!(value["slots"].as_array().unwrap().len(), count * 64);
+            for slot in value["slots"].as_array().unwrap() {
+                assert_eq!(
+                    slot,
+                    &serde_json::json!({"state":"unavailable","reason":"no-usable-observation","evidence":null})
+                );
+            }
+        }
+        assert_eq!(post(serde_json::json!([63, 1, 0])).0, 200);
+        for ids in [
+            serde_json::json!([0, 0]),
+            serde_json::json!([-1]),
+            serde_json::json!([64]),
+            serde_json::json!([33_554_431]),
+            serde_json::json!([2_147_483_647]),
+            serde_json::json!([4_294_967_296_u64]),
+        ] {
+            assert_eq!(post(ids).0, 400);
+        }
+    }
+
+    #[test]
+    fn volume_observation_http_serializes_4096_resident_results_from_one_capture() {
+        for mixed in [false, true] {
+            volume_http_capture(mixed);
+        }
+    }
+
+    #[expect(
+        clippy::too_many_lines,
+        reason = "One public HTTP exchange proves actual full-cap serialization"
+    )]
+    fn volume_http_capture(mixed: bool) {
+        use std::io::{BufRead as _, Write as _};
+        use std::os::unix::{fs::PermissionsExt as _, net::UnixListener};
+        let directory = FixtureDirectory::new();
+        std::fs::set_permissions(directory.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
+        let path = directory.path().join("producer.sock");
+        let listener = UnixListener::bind(&path).unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+        let server = boot_runtime(None, false, observations::Broker::new(Some(path)));
+        let identity = server
+            .source
+            .current()
+            .unwrap()
+            .view
+            .runtime_identity()
+            .unwrap();
+        let producer = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut reader = std::io::BufReader::new(stream.try_clone().unwrap());
+            let mut request = String::new();
+            reader.read_line(&mut request).unwrap();
+            let transcript = include_str!(
+                "../fixtures/pgbuf-inspector/v1/corpus/exchanges/complete/stream.jsonl"
+            );
+            let mut frames: Vec<serde_json::Value> = transcript
+                .lines()
+                .map(|line| serde_json::from_str(line).unwrap())
+                .collect();
+            let hello = &mut frames[1];
+            hello["database_creation"] = identity.database_creation.to_string().into();
+            hello["volumes"] = serde_json::json!(identity.volumes.iter().map(|v| serde_json::json!({"volid":v.volid,
+                "volume_creation":v.volume_creation.to_string(),"device":v.device.to_string(),"inode":v.inode.to_string()})).collect::<Vec<_>>());
+            hello["shared_lru_count"] = 2_147_483_647.into();
+            hello["private_lru_count"] = 2_147_483_647.into();
+            writeln!(stream, "{hello}").unwrap();
+            request.clear();
+            reader.read_line(&mut request).unwrap();
+            assert!(request.contains("scan_request"));
+            let mut header = frames
+                .iter()
+                .find(|f| f["type"] == "scan_header")
+                .unwrap()
+                .clone();
+            header["scan_seq"] = u64::MAX.to_string().into();
+            header["start_time_us"] = u64::MAX.to_string().into();
+            writeln!(stream, "{header}").unwrap();
+            let mut record = frames.iter().find(|f| f["type"] == "page").unwrap().clone();
+            for pageid in 0..4096 {
+                record["scan_seq"] = u64::MAX.to_string().into();
+                record["pageid"] = pageid.into();
+                record["lru_zone"] = "lru3".into();
+                record["lru_list_kind"] = "private".into();
+                record["lru_list_index"] = 2_147_483_646.into();
+                if mixed && pageid == 4093 {
+                    for key in ["lru_zone", "lru_list_kind", "lru_list_index"] {
+                        record.as_object_mut().unwrap().remove(key);
+                    }
+                } else if mixed && pageid == 4094 {
+                    record["lru_zone"] = "void".into();
+                    record["lru_list_kind"] = "none".into();
+                    record["lru_list_index"] = serde_json::Value::Null;
+                } else if mixed && pageid == 4095 {
+                    record["lru_list_index"] = 0.into();
+                }
+                writeln!(stream, "{record}").unwrap();
+            }
+            let mut footer = frames
+                .iter()
+                .find(|f| f["type"] == "scan_footer")
+                .unwrap()
+                .clone();
+            footer["scan_seq"] = u64::MAX.to_string().into();
+            footer["end_time_us"] = u64::MAX.to_string().into();
+            footer["record_count"] = 4096.into();
+            footer["visited_slots"] = 4096.into();
+            writeln!(stream, "{footer}").unwrap();
+        });
+        let generation = server.source.current().unwrap().generation.to_string();
+        let body = serde_json::json!({"scope":{"kind":"volume","volid":0,"sectorids":(0..64).collect::<Vec<_>>()},
+            "epoch":"18446744073709551615","generation":generation,"cadence_ms":2000}).to_string();
+        let (status, response) = exchange_raw(
+            server.address,
+            &format!(
+                "POST /api/v1/runtime/page-buffer/observe HTTP/1.1\r\nHost: {}\r\nOrigin: http://{}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                server.address,
+                server.address,
+                body.len()
+            ),
+        );
+        assert_eq!(status, 200, "{response}");
+        assert!(body.len() <= 65_536);
+        assert!(response.len() <= 1_048_576);
+        eprintln!(
+            "4096 resident HTTP fixture: request={} response={} bytes",
+            body.len(),
+            response.len()
+        );
+        let value: serde_json::Value = serde_json::from_str(&response).unwrap();
+        assert_eq!(value["capture"]["sequence"], u64::MAX.to_string());
+        assert_eq!(value["requested_count"], 4096);
+        assert_eq!(value["evaluated_count"], 4096);
+        assert_eq!(value["producer_complete"], true);
+        let rows = value["slots"].as_array().unwrap();
+        assert_eq!(rows.len(), 4096);
+        for (index, row) in rows.iter().enumerate() {
+            if mixed && index >= 4093 {
+                continue;
+            }
+            assert_eq!(
+                row,
+                &serde_json::json!({"state":"resident","reason":"observed-resident",
+                "evidence":{"lru_zone":"lru3","lru_list_kind":"private","lru_list_index":2_147_483_646}})
+            );
+        }
+        if mixed {
+            assert_eq!(rows[4093]["evidence"], serde_json::json!({}));
+            assert_eq!(rows[4093]["state"], "resident");
+            assert_eq!(
+                rows[4094]["evidence"]["lru_list_index"],
+                serde_json::Value::Null
+            );
+            assert_eq!(rows[4094]["evidence"]["lru_list_kind"], "none");
+            assert_eq!(rows[4095]["evidence"]["lru_list_index"], 0);
+        }
+        producer.join().unwrap();
     }
 
     #[test]
@@ -3205,7 +3403,9 @@ mod tests {
             if epoch % 2 == 0 {
                 body["pages"] = serde_json::json!([{"volid":0,"pageid":7},{"volid":0,"pageid":epoch + 8},{"volid":1,"pageid":7}]);
             } else {
-                body["scope"] = serde_json::json!({"kind":"sector","volid":0,"sectorid":0});
+                body["scope"] = if epoch % 4 == 3 {
+                    serde_json::json!({"kind":"volume","volid":0,"sectorids":(0..64).collect::<Vec<_>>()})
+                } else { serde_json::json!({"kind":"sector","volid":0,"sectorid":0}) };
             }
             let body = body.to_string();
             std::thread::spawn(move || {
@@ -3236,9 +3436,17 @@ mod tests {
             assert_eq!(value["epoch"], epoch.to_string());
             assert_eq!(value["capture"]["sequence"], "1");
             if epoch % 2 == 1 {
-                assert_eq!(value["variant"], "sector-detail");
-                assert_eq!(value["requested_count"], 64);
-                assert_eq!(value["evaluated_count"], 64);
+                assert_eq!(
+                    value["variant"],
+                    if epoch % 4 == 3 {
+                        "volume-residency-lru"
+                    } else {
+                        "sector-detail"
+                    }
+                );
+                let count = if epoch % 4 == 3 { 4096 } else { 64 };
+                assert_eq!(value["requested_count"], count);
+                assert_eq!(value["evaluated_count"], count);
                 assert_eq!(value["producer_complete"], !partial);
                 assert_eq!(
                     value["slots"][8]["reason"],
@@ -3253,9 +3461,13 @@ mod tests {
                     continue;
                 }
                 assert_eq!(value["slots"][7]["state"], "resident");
-                assert_eq!(value["slots"][7]["evidence"]["dirty"], true);
-                assert_eq!(value["slots"][7]["evidence"]["flushing"], false);
-                assert_eq!(value["slots"][7]["evidence"]["fix_count"], 2);
+                if epoch % 4 == 1 {
+                    assert_eq!(value["slots"][7]["evidence"]["dirty"], true);
+                    assert_eq!(value["slots"][7]["evidence"]["flushing"], false);
+                    assert_eq!(value["slots"][7]["evidence"]["fix_count"], 2);
+                } else {
+                    assert!(value["slots"][7]["evidence"].get("dirty").is_none());
+                }
                 assert_eq!(value["slots"][7]["evidence"]["lru_list_index"], 1);
                 continue;
             }

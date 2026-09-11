@@ -32,7 +32,7 @@ pub(super) enum Field<T> {
     Known(T),
 }
 impl<T> Field<T> {
-    fn is_unknown(&self) -> bool {
+    pub(super) fn is_unknown(&self) -> bool {
         matches!(self, Self::Unknown)
     }
 }

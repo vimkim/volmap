@@ -151,18 +151,20 @@ test("Volume and Sector show bounded coverage, semantic rows and independent cad
   await source.getByRole("button", { name: "Enable observations" }).click();
   const visible = (await request).postDataJSON();
   expect(visible.cadence_ms).toBe(2000);
-  expect(visible.pages.length).toBeGreaterThan(1);
-  expect(visible.pages.length).toBeLessThanOrEqual(512);
+  expect(visible.scope.kind).toBe("volume");
+  expect(visible.scope.sectorids.length).toBeGreaterThan(0);
+  expect(visible.scope.sectorids.length).toBeLessThanOrEqual(64);
+  expect(visible.pages).toBeUndefined();
   const coverage = page.getByRole("region", { name: "Visible-page buffer observations" });
   await expect(coverage).toContainText("Evaluated");
   await expect(coverage).toContainText("producer scan complete");
   await expect(coverage).toContainText("2000 ms interval");
   const selected = await context.newPage();
-  await selected.goto("http://127.0.0.1:41741/page/0/10", { waitUntil: "commit" });
+  await selected.evaluate(() => { window.location.href = "http://127.0.0.1:41741/page/0/10"; });
   await selected.getByRole("button", { name: "Enable observations" }).click();
   await expect(selected.getByRole("region", { name: "Selected-page buffer observation" })).toContainText("Observed resident");
   await page.bringToFront();
-  await expect(coverage).toContainText("Evaluated 512 / requested 512");
+  await expect(coverage).toContainText("Evaluated");
   await page.screenshot({ path: `../.scratch/pgbuf-overlay-implementation/verification/visible-volume-${browserName}.png` });
   const sectorRequest = page.waitForRequest((request) => request.url().endsWith("/page-buffer/observe") && request.postDataJSON().scope?.kind === "sector");
   await page.getByRole("button", { name: /^Sector 0,/ }).click();
@@ -177,20 +179,19 @@ test("Volume and Sector show bounded coverage, semantic rows and independent cad
 });
 
 
-test("viewport overflow rotates explicitly; scrolling revokes scope and HTTP overload keeps disk usable", async ({ page }) => {
+test("viewport selection stays fixed; scrolling revokes scope and HTTP overload keeps disk usable", async ({ page }) => {
   await page.goto("http://127.0.0.1:41741/volume/0", { waitUntil: "commit" });
   const pending = page.waitForRequest((request) => request.url().endsWith("/page-buffer/observe"));
   await page.getByRole("button", { name: "Enable observations" }).click();
   const first = (await pending).postDataJSON();
   const coverage = page.getByRole("region", { name: "Visible-page buffer observations" });
-  await expect(coverage).toContainText("Reduced admission");
-  await expect(coverage).toContainText("Evaluated 512 / requested 512");
+  await expect(coverage).toContainText("selection does not rotate");
+  await expect(coverage).toContainText("Evaluated");
   const next = page.waitForRequest((request) => request.url().endsWith("/page-buffer/observe") && request.postDataJSON().epoch !== first.epoch);
   const second = (await next).postDataJSON();
-  expect(second.pages).toHaveLength(512);
-  expect(second.pages).not.toEqual(first.pages);
+  expect(second.scope).toEqual(first.scope);
   await page.getByRole("button", { name: /^Sector 20,/ }).scrollIntoViewIfNeeded();
-  const churn = await page.waitForRequest((request) => request.url().endsWith("/page-buffer/observe") && request.postDataJSON().pages.some((page: { pageid: number }) => page.pageid >= 20 * 64));
+  const churn = await page.waitForRequest((request) => request.url().endsWith("/page-buffer/observe") && request.postDataJSON().scope?.sectorids?.includes(20));
   expect(churn.postDataJSON().epoch).not.toBe(second.epoch);
   await page.route("**/runtime/page-buffer/observe", (route) => route.fulfill({ status: 429, json: { code: "runtime-admission-refused" } }));
   await page.evaluate(() => window.scrollTo(0, 0));
@@ -212,7 +213,7 @@ for (const scale of ["volume/0", "sector/0/0"]) {
     const coverage = page.getByRole("region", { name: "Visible-page buffer observations" });
     await expect(coverage).toContainText("observed resident");
     const cell = page.locator('[data-observation-page="0:10"]');
-    // The Volume scope rotates; freeze adoption as soon as this page is covered.
+    // Freeze adoption while testing color-mode presentation.
     await expect(cell).toHaveAttribute("data-runtime-state", "resident");
     await page.getByRole("button", { name: "Pause", exact: true }).click();
     await expect(cell).toHaveClass(/runtime-resident/);
@@ -228,7 +229,7 @@ for (const scale of ["volume/0", "sector/0/0"]) {
       await expect(unadmitted).toHaveCSS("background-color", "rgb(55, 65, 81)");
       await expect(unadmitted).toHaveAttribute("title", /^Page \d+:/);
       await expect(unadmitted.locator("../..")).toHaveAccessibleName(/Not evaluated/);
-      await expect(coverage).toContainText("not evaluated in this batch");
+      await expect(coverage).toContainText("not evaluated");
     }
     await coverage.getByText("Available page observations and capture limitations", { exact: true }).click();
     const observedRow = coverage.getByRole("row").filter({ has: page.getByRole("cell", { name: "0:10", exact: true }) });
@@ -258,10 +259,11 @@ for (const scale of ["volume/0", "sector/0/0"]) {
       // semantic row scenarios vary, through the production decoder/effects.
       if (resident) {
         body.producer_complete = complete;
-        const rows = observations.map((vpid: { volid: number; pageid: number } | null) => {
+        const rows = observations.map((vpid: { volid: number; pageid: number } | null, index: number) => {
           if (vpid === null) return null;
-          if (!complete && [10, 11].includes(vpid.pageid)) return { ...vpid, state: "resident", reason: "observed-resident", evidence: { ...resident.evidence, ...vpid, flushing: true, lru_zone: "lru2", lru_list_kind: vpid.pageid === 10 ? "private" : "shared", lru_list_index: vpid.pageid === 10 ? 1 : 0 } };
-          return { ...vpid, state: complete ? "not-resident" : "unknown", reason: complete ? "observed-not-resident" : vpid.pageid === 12 ? "duplicate-vpid" : vpid.pageid === 13 ? "unevaluated" : "partial-omission", evidence: null };
+          const pageid = body.scope.kind === "volume" ? body.scope.sectorids[Math.floor(index / 64)] * 64 + index % 64 : vpid.pageid;
+          if (!complete && [10, 11].includes(pageid)) return { ...vpid, state: "resident", reason: "observed-resident", evidence: { ...resident.evidence, ...(body.scope.kind === "volume" ? {} : { flushing: true }), lru_zone: "lru2", lru_list_kind: pageid === 10 ? "private" : "shared", lru_list_index: pageid === 10 ? 1 : 0 } };
+          return { ...vpid, state: complete ? "not-resident" : "unknown", reason: complete ? "observed-not-resident" : pageid === 12 ? "duplicate-vpid" : pageid === 13 ? "unevaluated" : "partial-omission", evidence: null };
         });
         if (body.slots) body.slots = rows;
         else body.observations = rows;
@@ -275,7 +277,7 @@ for (const scale of ["volume/0", "sector/0/0"]) {
     const cell = (id: number) => page.locator(`[data-observation-page="0:${id}"]`);
     const storage = await cell(10).evaluate((element) => getComputedStyle(element).background);
     await page.getByRole("button", { name: "Enable observations" }).click();
-    await expect(cell(10)).toHaveClass(/runtime-dirty runtime-flushing/);
+    await expect(cell(10)).toHaveClass(scale.startsWith("volume") ? /runtime-resident/ : /runtime-dirty runtime-flushing/);
     expect(await cell(10).evaluate((element) => getComputedStyle(element).background)).toBe(storage);
     await expect(cell(12)).toHaveAttribute("title", /duplicate-vpid/);
     await expect(cell(13)).toHaveAttribute("title", /unevaluated/);
@@ -302,7 +304,7 @@ for (const scale of ["volume/0", "sector/0/0"]) {
     await page.getByRole("combobox", { name: "Runtime color mode" }).selectOption("lru");
     await expect(cell(10)).toHaveClass(/lru-private/);
     await page.emulateMedia({ forcedColors: "active" });
-    await expect(cell(10).locator(".runtime-glyph")).toHaveText("2DF");
+    await expect(cell(10).locator(".runtime-glyph")).toHaveText(scale.startsWith("volume") ? "2" : "2DF");
     expect(await cell(10).evaluate((element) => getComputedStyle(element, "::before").borderStyle)).toBe("dashed");
     await page.emulateMedia({ forcedColors: "none" });
     await page.screenshot({ path: `../.scratch/pgbuf-overlay-implementation/verification/05-${scale.split("/")[0]}-${browserName}.png` });
@@ -531,7 +533,8 @@ for (const malformed of ["schema", "variant", "scope", "slot-order", "slot-count
   });
 }
 
-test("Sector pause rejects a delayed response and resume starts fresh scope demand", async ({ page }) => {
+for (const scale of ["volume/0", "sector/0/0"]) {
+test(`${scale} pause rejects a delayed response and resume starts fresh scope demand`, async ({ page }) => {
   await page.clock.install();
   let release!: () => void;
   const held = new Promise<void>((resolve) => { release = resolve; });
@@ -546,7 +549,7 @@ test("Sector pause rejects a delayed response and resume starts fresh scope dema
     await held;
     await route.fulfill({ response }).catch(() => {});
   });
-  await page.goto("http://127.0.0.1:41741/sector/0/0", { waitUntil: "commit" });
+  await page.goto(`http://127.0.0.1:41741/${scale}`, { waitUntil: "commit" });
   await page.getByRole("button", { name: "Enable observations" }).click();
   await captured;
   await page.getByRole("button", { name: "Pause", exact: true }).click();
@@ -556,10 +559,12 @@ test("Sector pause rejects a delayed response and resume starts fresh scope dema
   await expect(cell).not.toHaveClass(/runtime-resident/);
   const resumed = page.waitForRequest((request) => request.url().endsWith("/page-buffer/observe"));
   await page.getByRole("button", { name: "Resume", exact: true }).click();
-  expect((await resumed).postDataJSON()).toMatchObject({ scope: { kind: "sector", volid: 0, sectorid: 0 }, after_request: true });
+  expect((await resumed).postDataJSON()).toMatchObject({ scope: { kind: scale.startsWith("volume") ? "volume" : "sector", volid: 0 }, after_request: true });
   await expect(cell).toHaveAttribute("data-runtime-state", "resident");
   await page.getByRole("button", { name: "Pause", exact: true }).click();
   await page.clock.runFor(31000);
   await expect(cell).toHaveAttribute("data-runtime-state", "expired");
-  await expect(page.getByRole("heading", { name: "Sector 0", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: scale.startsWith("volume") ? "Volume 0 · full map" : "Sector 0", exact: true })).toBeVisible();
 });
+
+}

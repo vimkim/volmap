@@ -59,9 +59,77 @@ enum ResponsePayload<'a> {
     },
     Sector {
         variant: &'static str,
-        scope: super::SectorScope,
+        scope: &'a super::ViewScope,
         slots: Vec<Option<Row<'a>>>,
     },
+    Volume {
+        variant: &'static str,
+        scope: &'a super::ViewScope,
+        slots: Vec<Option<VolumeRow<'a>>>,
+    },
+}
+
+impl<'a> ResponsePayload<'a> {
+    fn for_scope(
+        scope: &'a ValidatedScope,
+        pages: Vec<PageKey>,
+        rows: Vec<Row<'a>>,
+    ) -> Result<(&'static str, Self), &'static str> {
+        Ok(match &scope.view_scope {
+            Some(address) => {
+                let sectorids = match address {
+                    super::ViewScope::Sector { sectorid, .. } => std::slice::from_ref(sectorid),
+                    super::ViewScope::Volume { sectorids, .. } => sectorids.as_slice(),
+                };
+                let mut rows = rows.into_iter().peekable();
+                let mut slots = Vec::with_capacity(sectorids.len() * 64);
+                for &sectorid in sectorids {
+                    for offset in 0..64 {
+                        let pageid =
+                            u32::try_from(sectorid).map_err(|_| "invalid-scope")? * 64 + offset;
+                        slots.push(if rows.peek().is_some_and(|row| row.pageid == pageid) {
+                            rows.next()
+                        } else {
+                            None
+                        });
+                    }
+                }
+                let payload = match address {
+                    super::ViewScope::Sector { .. } => Self::Sector {
+                        variant: "sector-detail",
+                        scope: address,
+                        slots,
+                    },
+                    super::ViewScope::Volume { .. } => Self::Volume {
+                        variant: "volume-residency-lru",
+                        scope: address,
+                        slots: slots
+                            .into_iter()
+                            .map(|row| {
+                                row.map(|row| VolumeRow {
+                                    state: row.state,
+                                    reason: row.reason,
+                                    evidence: row.evidence.map(|record| LruEvidence {
+                                        zone: record.lru_zone,
+                                        list_kind: record.lru_list_kind,
+                                        list_index: &record.lru_list_index,
+                                    }),
+                                })
+                            })
+                            .collect(),
+                    },
+                };
+                ("volmap.runtime.page-buffer.scoped", payload)
+            }
+            None => (
+                "volmap.runtime.page-buffer",
+                Self::Legacy {
+                    pages,
+                    observations: rows,
+                },
+            ),
+        })
+    }
 }
 
 impl Session {
@@ -170,6 +238,26 @@ struct Row<'a> {
     state: &'static str,
     reason: &'static str,
     evidence: Option<&'a Record>,
+}
+
+// Volume slots carry no repeated address or selected-page evidence.
+#[derive(Serialize)]
+struct VolumeRow<'a> {
+    state: &'static str,
+    reason: &'static str,
+    evidence: Option<LruEvidence<'a>>,
+}
+#[derive(Serialize)]
+struct LruEvidence<'a> {
+    #[serde(rename = "lru_zone", skip_serializing_if = "Option::is_none")]
+    zone: Option<&'static str>,
+    #[serde(rename = "lru_list_kind", skip_serializing_if = "Option::is_none")]
+    list_kind: Option<&'static str>,
+    #[serde(
+        rename = "lru_list_index",
+        skip_serializing_if = "super::wire::Field::is_unknown"
+    )]
+    list_index: &'a super::wire::Field<u32>,
 }
 
 #[derive(Serialize)]
@@ -573,24 +661,7 @@ impl Inner {
                 private_lru_count: hello.private,
             }
         });
-        let (schema, payload) = if let Some(sector) = scope.sector {
-            (
-                "volmap.runtime.page-buffer.scoped",
-                ResponsePayload::Sector {
-                    variant: "sector-detail",
-                    scope: sector,
-                    slots: rows.into_iter().map(Some).collect(),
-                },
-            )
-        } else {
-            (
-                "volmap.runtime.page-buffer",
-                ResponsePayload::Legacy {
-                    pages,
-                    observations: rows,
-                },
-            )
-        };
+        let (schema, payload) = ResponsePayload::for_scope(scope, pages, rows)?;
         let response = Response {
             schema,
             schema_version: 1,
@@ -699,6 +770,27 @@ impl std::io::Write for LimitedWriter {
 mod response_tests {
     use super::LimitedWriter;
     use std::io::Write as _;
+
+    #[test]
+    fn volume_projection_capacities_fit_the_existing_request_reservation() {
+        use super::{LruEvidence, PageKey, Row, VolumeRow};
+        use std::mem::size_of;
+        // Sum even mutually exclusive lifetimes: original rows, fixed slots,
+        // compact slots, addresses, scope, and the bounded serializer output.
+        // Include request/body parsing and metadata slack separately.
+        let vectors = 4096
+            * (size_of::<Row<'_>>()
+                + size_of::<Option<Row<'_>>>()
+                + size_of::<Option<VolumeRow<'_>>>()
+                + size_of::<PageKey>()
+                + size_of::<crate::model::Vpid>());
+        let maximum = vectors + 64 * size_of::<i32>() + 1_048_576 + 65_536 + 16_384;
+        eprintln!(
+            "Volume reservation: vectors={vectors}, conservative peak={maximum}, LRU evidence={}",
+            size_of::<LruEvidence<'_>>()
+        );
+        assert!(maximum <= 2 * super::MIB);
+    }
 
     #[test]
     fn normalized_response_cap_includes_all_serialized_bytes_without_growing_past_it() {

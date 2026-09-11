@@ -306,3 +306,10 @@ test("the Page API retains every shared association state without adapter infere
     expect(result.data.page.file_association).toEqual(association);
   }
 });
+
+test("runtime HTTP bodies fail boundedly above 1 MiB even without a Content-Length", async () => {
+  const fetcher: typeof fetch = async () => new Response(" ".repeat(1_048_577), { status: 200 });
+  await expect(createHttpApi(fetcher).observePageBuffer({
+    scope: { kind: "volume", volid: 0, sectorids: [] }, pages: [], epoch: "1", generation: "1", retry: false,
+  })).rejects.toThrow("Observation response exceeds 1 MiB");
+});

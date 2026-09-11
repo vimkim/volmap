@@ -66,13 +66,32 @@ only to detect clock discontinuity or suspension. Discontinuities can expire
 evidence early; wall time cannot renew it or bypass the scan-start floor.
 Reusing a capture cannot lower its previously established conservative age.
 
+## View-scoped observations
+
+Volume selects up to 64 visible sectors nearest the viewport centre, with sector
+ID as the distance tie-breaker. The selected IDs are sorted before requesting;
+reordering the same set keeps the retained batch. There is no timer rotation or
+nonvisible fill. Scroll and resize reselect; excess visible sectors are explicitly
+not evaluated. An empty physical-page selection sends no observation request.
+
+Volume sends `scope: {kind: "volume", volid, sectorids}` and receives the scoped
+`volume-residency-lru` variant. Its fixed sector/page-slot order carries only
+residency state/reason and optional LRU zone, kind and kind-local index. Unknown,
+null and index zero stay distinct. Capture identity and metadata occur once;
+one entire validated batch is adopted, without combining captures. Volume omits
+dirty/flushing detail. Sector uses `scope: {kind: "sector", volid, sectorid}` with
+the existing detailed `sector-detail` projection; Page retains its detail request.
+See [the implemented contract and evidence](../.scratch/volume-overlay-64-sectors-implementation/verification/02-volume-scope/README.md).
+
 ## Bounds and ownership
 
 One session owns one connection, one latest capture, and at most one unfinished
 scan. Scan starts are separated by at least 500 ms. Eight requests, including
 waiters and response bytes still held by HTTP, have admission slots; there is
-no additional observation queue. HTTP bodies are at most 64 KiB, scopes at most
-512 ordered VPIDs, and serialized responses at most 1 MiB. Observation work has
+no additional observation queue. HTTP bodies are at most 64 KiB and serialized
+responses at most 1 MiB. Legacy explicit scopes retain at most 512 ordered VPIDs.
+A Volume scope identifies up to 64 unique sectors (at most 4,096 physical pages);
+a Sector scope identifies one sector. Observation work has
 a 2.5-second deadline, attachment 500 ms, and a scan exchange two seconds.
 
 The decoder processes individual bounded JSON lines. Frames include their LF:
@@ -90,7 +109,7 @@ objects. A shared atomic budget refuses reservations exceeding 128 MiB:
 | Session | 8 MiB | bounded expected identities, paths, request parsing, scope copies, metadata and expiry tasks |
 | Connection decoder | 16 MiB | 64 KiB frame capacity, bounded JSON DOM and transient normalization |
 | Each capture | 32 MiB | fixed record slab, capture/handshake metadata and sorting workspace |
-| Each admitted response | 2 MiB | selected-row projection and 1 MiB serialization capacity |
+| Each admitted response | 2 MiB | bounded scope/row/slot projections and 1 MiB serialization capacity |
 
 Records contain scalars, static vocabulary and inline nullable LSAs; they have
 no per-record heap allocations. A compile-time bound limits each record to

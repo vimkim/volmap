@@ -20,7 +20,7 @@ export function useObservationViewport(state: UiState, dispatch: Dispatch<Action
       const sectors = view.sectors.flatMap((sector) => {
         const rect = document.getElementById(`sector-${sector.sector_id}`)?.getBoundingClientRect();
         if (!rect || rect.bottom <= 0 || rect.top >= window.innerHeight || rect.right <= 0 || rect.left >= window.innerWidth) return [];
-        return [{ sector, distance: Math.abs((rect.top + rect.bottom) / 2 - window.innerHeight / 2) }];
+        return [{ sector, distance: Math.hypot((rect.top + rect.bottom) / 2 - window.innerHeight / 2, (rect.left + rect.right) / 2 - window.innerWidth / 2) }];
       });
       sectors.sort((a, b) => a.distance - b.distance || a.sector.sector_id - b.sector.sector_id);
       dispatch({ kind: "observation-viewport", scope, pages: sectors.flatMap(({ sector }) =>
@@ -75,15 +75,16 @@ export function VisibleObservations({ state }: { readonly state: UiState }) {
   const observation = state.observation;
   if (!observation.enabled || (state.route.kind !== "volume" && state.route.kind !== "sector")) return null;
   const batch = observation.batch;
+  const volume = state.route.kind === "volume";
   return <section className="panel observation-detail" aria-label="Visible-page buffer observations">
     <h2>Visible-page buffer observations</h2>
     <p>{observation.message}</p>
     <p>{batch?.requested ?? 0} admitted / {observation.viewportCount} visible pages.
-      {observation.viewportCount > 512 ? " Reduced admission: non-selected pages rotate at the 512-VPID limit. Other pages are not evaluated in this batch." : ""}</p>
+      {volume ? " Up to 64 visible sectors nearest the viewport centre are queried. Other sectors are not evaluated; the selection does not rotate." : ""}</p>
     <LruSummary state={state} />
     {batch !== null ? <ObservationMetadata state={state} summary="Available page observations and capture limitations" detail={() =>
-        <table><thead><tr><th>VPID</th><th>Observation</th><th>Dirty</th><th>Flushing</th><th>LRU zone</th><th>List kind</th></tr></thead>
-          <tbody>{batch.rows.map((row) => <tr key={`${row.volid}:${row.pageid}`}><td>{row.volid}:{row.pageid}</td><td>{observationLabel(row)}</td><td>{row.evidence.dirty ?? "unknown"}</td><td>{row.evidence.flushing ?? "unknown"}</td><td>{row.evidence.lru_zone ?? "unknown"}</td><td>{row.evidence.lru_list_kind ?? "unknown"}</td></tr>)}</tbody>
+        <table><thead><tr><th>VPID</th><th>Observation</th>{volume ? null : <><th>Dirty</th><th>Flushing</th></>}<th>LRU zone</th><th>List kind</th><th>List index</th></tr></thead>
+          <tbody>{batch.rows.map((row) => <tr key={`${row.volid}:${row.pageid}`}><td>{row.volid}:{row.pageid}</td><td>{observationLabel(row)}</td>{volume ? null : <><td>{row.evidence.dirty ?? "unknown"}</td><td>{row.evidence.flushing ?? "unknown"}</td></>}<td>{row.evidence.lru_zone ?? "unknown"}</td><td>{row.evidence.lru_list_kind ?? "unknown"}</td><td>{row.evidence.lru_list_index ?? "unknown"}</td></tr>)}</tbody>
         </table>
     }>
       <p>{batch.rows.filter((row) => row.state === "resident").length} observed resident · {batch.rows.filter((row) => row.state === "not-resident").length} observed not resident · {batch.rows.filter((row) => row.state === "unknown").length} unknown.</p>
@@ -132,7 +133,7 @@ export function runtimePage(state: UiState, row: ObservationRow | undefined) {
   const stale = !observationIsFresh(observation.age, observationInterval(state));
   return {
     className: ` runtime-resident${dirty ? " runtime-dirty" : ""}${flushing ? " runtime-flushing" : ""}${stale ? " runtime-stale" : ""}${topology ? ` runtime-lru zone-${knownZone ? zone : "unknown"}${kind === "private" ? " lru-private" : ""}` : ""}`,
-    label: `${label} · dirty ${evidence.dirty} · flushing ${evidence.flushing}${topology ? ` · ${zone} · ${kind} membership` : ""}${stale ? " · stale" : ""}`,
+    label: `${label}${state.route.kind === "volume" ? "" : ` · dirty ${evidence.dirty ?? "unknown"} · flushing ${evidence.flushing ?? "unknown"}`}${topology || state.route.kind === "volume" ? ` · ${zone ?? "unknown"} · ${kind ?? "unknown"} membership · index ${evidence.lru_list_index ?? "unknown"}` : ""}${stale ? " · stale" : ""}`,
     glyph: `${topology ? ({ lru1: "1", lru2: "2", lru3: "3", void: "V", invalid: "!" }[zone ?? ""] ?? "?") : "◉"}${dirty ? "D" : ""}${flushing ? "F" : ""}`,
     state: "resident",
   };
@@ -141,7 +142,7 @@ export function runtimePage(state: UiState, row: ObservationRow | undefined) {
 export function ObservationLegend({ state }: { readonly state: UiState }) {
   if (!state.observation.enabled) return null;
   return <section className="runtime-legend" aria-label="Runtime overlay legend">
-    <p>{state.observation.colorMode === "lru" ? "LRU topology colors replace storage colors: 1 lru1 · 2 lru2 · 3 lru3 · V void · ! invalid · ? unknown. Private membership has a dashed edge." : "Storage colors retained. ◉ cyan inset: observed resident · D amber corner: dirty · F static magenta edge: flushing."}</p>
+    <p>{state.observation.colorMode === "lru" ? "LRU topology colors replace storage colors: 1 lru1 · 2 lru2 · 3 lru3 · V void · ! invalid · ? unknown. Private membership has a dashed edge." : state.route.kind === "volume" ? "Storage colors retained. ◉ cyan inset: observed resident. Volume observes residency and LRU membership only." : "Storage colors retained. ◉ cyan inset: observed resident · D amber corner: dirty · F static magenta edge: flushing."}</p>
     <p>○ observed not resident · ? unknown / not evaluated · ≠ duplicate ambiguity. Pages outside this batch have no runtime glyph. No usable source or expired evidence: storage colors only, no runtime marks. Sampled states, not events or durability evidence.</p>
     <ObservationAge state={state} />
     <p>Source: {state.runtimeCapability ?? "connecting"} · {state.follow.paused ? "Paused adoption" : "Adopting observations"} · {state.observation.message}</p>

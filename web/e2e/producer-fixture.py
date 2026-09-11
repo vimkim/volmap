@@ -20,6 +20,7 @@ server.bind(socket_path)
 os.chmod(socket_path, 0o600)
 server.listen(1)
 print("ready", flush=True)
+dense = os.environ.get("VOLMAP_BROWSER_DENSE") == "1"
 sequence = 0
 active_connection = None
 
@@ -34,20 +35,37 @@ signal.signal(signal.SIGHUP, restart)
 while True:
     connection, _ = server.accept()
     active_connection = connection
-    with connection, connection.makefile("rb") as reader:
-        if not reader.readline():
-            continue
-        connection.sendall((json.dumps(hello) + "\n").encode())
-        while reader.readline():
-            sequence += 1
-            for source in frames:
-                if source["type"] not in ("scan_header", "page", "scan_footer"):
-                    continue
-                frame = dict(source, scan_seq=str(sequence), incarnation=hello["incarnation"])
-                if frame["type"] == "page":
-                    frame["pageid"] = 10
-                # Deliberate coalescing/format independence: ordinary JSON,
-                # retaining the pinned semantic values and real wire framing.
-                connection.sendall((json.dumps(frame) + "\n").encode())
+    try:
+        with connection, connection.makefile("rb") as reader:
+            if not reader.readline():
+                continue
+            connection.sendall((json.dumps(hello) + "\n").encode())
+            while reader.readline():
+                sequence += 1
+                for source in frames:
+                    if source["type"] not in ("scan_header", "page", "scan_footer"):
+                        continue
+                    frame = dict(source, scan_seq=str(sequence), incarnation=hello["incarnation"])
+                    if dense and frame["type"] == "page":
+                        # Every physical page in the 192-sector fixture is resident;
+                        # all LRU zones change per capture. No UI/API interception.
+                        rows = []
+                        for pageid in range(12288):
+                            row = dict(type="page", incarnation=hello["incarnation"], scan_seq=str(sequence),
+                                volid=0, pageid=pageid, lru_zone=f"lru{1 + sequence % 3}",
+                                lru_list_kind="private" if pageid % 2 else "shared", lru_list_index=pageid % 2)
+                            rows.append(json.dumps(row, separators=(",", ":")) + "\n")
+                        connection.sendall("".join(rows).encode())
+                        continue
+                    if frame["type"] == "page":
+                        frame["pageid"] = 10
+                    if dense and frame["type"] == "scan_footer":
+                        frame.update(record_count=12288, visited_slots=12288)
+                    # Ordinary JSON retaining real wire framing and authentication.
+                    connection.sendall((json.dumps(frame) + "\n").encode())
+    except (BrokenPipeError, ConnectionResetError):
+        # Scope/visibility changes cancel the last observer mid-scan.
+        # A fixture connection ends; the producer remains available.
+        pass
 
     active_connection = None

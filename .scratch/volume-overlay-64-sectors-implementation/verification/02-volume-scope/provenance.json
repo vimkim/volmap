@@ -1,0 +1,12 @@
+{
+  "baseline": "6f90d05c696ed21e8b93398e9aa957d76dd00f93",
+  "date": "2026-09-11",
+  "host": "dev2",
+  "kernel": "5.14.0-570.30.1.el9_6.x86_64",
+  "architecture": "x86_64",
+  "rust": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "browser_project": "Chromium and Firefox pinned by web/toolchain.json",
+  "fixture": "tools/create-smoke-fixture.rs --dense; web/e2e/producer-fixture.py with VOLMAP_BROWSER_DENSE=1",
+  "build": "debug browser server; static-musl release checked by just verify",
+  "performance_qualification": false
+}

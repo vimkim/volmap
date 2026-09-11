@@ -520,14 +520,38 @@ export class ApiError extends Error {
   }
 }
 
+async function observationJson(response: Response): Promise<unknown> {
+  const limit = 1_048_576;
+  const reader = response.body?.getReader();
+  if (!reader) return null;
+  const decoder = new TextDecoder();
+  let bytes = 0;
+  let body = "";
+  try {
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      bytes += chunk.value.byteLength;
+      if (bytes > limit) {
+        await reader.cancel();
+        throw new ObservationProtocolError("Observation response exceeds 1 MiB");
+      }
+      body += decoder.decode(chunk.value, { stream: true });
+    }
+    body += decoder.decode();
+  } finally { reader.releaseLock(); }
+  try { return JSON.parse(body); }
+  catch { return null; }
+}
+
 export function createHttpApi(fetcher: typeof fetch = globalThis.fetch.bind(globalThis)): InspectorApi {
-  async function json(path: string, init: RequestInit = {}): Promise<unknown> {
+  async function json(path: string, init: RequestInit = {}, boundedObservation = false): Promise<unknown> {
     const response = await fetcher(path, {
       ...init,
       cache: "no-store",
       credentials: "same-origin",
     });
-    const value: unknown = await response.json().catch(() => null);
+    const value: unknown = boundedObservation ? await observationJson(response) : await response.json().catch(() => null);
     if (!response.ok) {
       const root = value === null ? null : objectData(value, "error response");
       const detail = root?.error === undefined ? null : objectData(root.error, "error");
@@ -552,7 +576,7 @@ export function createHttpApi(fetcher: typeof fetch = globalThis.fetch.bind(glob
 
   return {
     observePageBuffer: async (request, signal) => {
-      const value = await json("/api/v1/runtime/page-buffer/observe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request.scope === undefined ? request : { ...request, pages: undefined }), signal });
+      const value = await json("/api/v1/runtime/page-buffer/observe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request.scope === undefined ? request : { ...request, pages: undefined }), signal }, true);
       try {
         const batch = decodeObservation(value);
         if (!sameObservationScope(batch.scope, request.scope)) throw new Error("observation scope mismatch");

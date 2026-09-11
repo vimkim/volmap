@@ -1,0 +1,722 @@
+cargo +1.97.1 fmt --all -- --check
+cargo +1.97.1 test --locked
+   Compiling volmap v0.0.0 (/home/vimkim/temp/volmap)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.06s
+     Running unittests src/lib.rs (target/x86_64-unknown-linux-musl/debug/deps/volmap-68b3ced4833fdf20)
+
+running 154 tests
+test follow::tests::a_cheap_read_still_respects_the_idle_floor ... ok
+test follow::tests::a_never_quiet_input_is_still_read_at_the_staleness_ceiling ... ok
+test follow::tests::no_pending_change_never_rescans ... ok
+test follow::tests::a_still_unsettled_change_waits_for_the_quiet_period ... ok
+test follow::tests::the_gap_between_reads_is_at_least_the_last_read_cost ... ok
+test inspection::tests::a_mid_scan_change_is_fatal_offline_but_torn_when_following ... ok
+test inspection::tests::class_identifier_decoding_rejects_invalid_sequences_and_bounds ... ok
+test inspection::tests::ehash_slotted_layout_requires_bucket_file_ownership ... ok
+test export::tests::frozen_renderer_script_matches_its_content_security_policy_hash ... ok
+test inspection::tests::database_codeset_validation_fails_closed_for_untrusted_inventory ... ok
+test inspection::tests::complete_volume_evidence_accepts_each_supported_database_codeset ... ok
+test inspection::tests::class_identifier_decoding_is_strict_for_every_supported_codeset ... ok
+test inspection::tests::overflow_capture_accounts_for_actual_encrypted_page_residency ... ok
+test projection::tests::valid_cross_page_relocation_uses_only_the_target_outcome ... ok
+test inspection::tests::packed_page_fact_is_exact_and_round_trips_canonical_fields ... ok
+test tde::tests::aria_256_ctr_matches_openssl_vector ... ok
+test tde::tests::aes_256_ctr_matches_nist_sp_800_38a_vector ... ok
+test tde::tests::matching_native_key_file_unwraps_only_the_permanent_key ... ok
+test tde::tests::key_file_and_key_info_fail_closed_without_disclosing_path ... ok
+test tde::tests::key_file_must_be_regular_and_layout_exact ... ok
+test tui::focused::tests::every_sector_card_retains_physical_page_order_and_distinct_facts ... ok
+test tui::focused::tests::occupancy_vocabulary_is_exhaustive_and_stable ... ok
+test tui::focused::tests::print_interpretation_mode_preview ... ignored, manual interpretation-renderer preview
+test tui::focused::tests::print_page_mode_preview ... ignored, manual Page-renderer preview
+test notices::tests::canonical_notice_covers_project_authority_and_release_graph ... ok
+test tui::focused::tests::volume_buckets_and_sector_percentages_share_one_exact_occupancy_fact ... ok
+test web::assets::tests::browser_renders_structured_errors ... ok
+test web::assets::tests::browser_contract_follows_generations_without_rewriting_history ... ok
+test web::assets::tests::browser_starts_directly_without_a_credential_gate ... ok
+test web::assets::tests::generated_frontend_assets_are_ready_for_the_react_cutover ... ok
+test web::assets::tests::browser_contract_renders_record_interpretation_states ... ok
+test web::assets::tests::browser_contract_reestablishes_generation_local_views ... ok
+test web::assets::tests::browser_contract_renders_complete_slotted_page_distribution ... ok
+test web::assets::tests::browser_contract_exposes_full_volume_sector_mosaic ... ok
+test web::assets::tests::browser_contract_uses_live_entity_canonical_history ... ok
+test web::assets::tests::browser_contract_replaces_workspace_for_sector_and_page_drilldown ... ok
+test web::observations::memory::tests::aggregate_boundary_counts_retained_inflight_and_response_owners_until_last_drop ... ok
+test web::observations::session::response_tests::volume_projection_capacities_fit_the_existing_request_reservation ... ok
+test web::observations::session::response_tests::normalized_response_cap_includes_all_serialized_bytes_without_growing_past_it ... ok
+test web::observations::tests::configured_and_disabled_brokers_accept_an_injected_scheduler ... ok
+test web::observations::tests::observation_scope_enforces_the_bound_before_copying_and_keeps_order ... ok
+test web::assets::tests::handlers_serve_the_embedded_assets_with_browser_media_types ... ok
+test web::observations::tests::injected_scheduler_controls_capability_deadline_boundaries ... ok
+test tde::tests::page_decryption_uses_stored_nonce_for_aes_and_aria ... ok
+test web::observations::wire_tests::additive_unknown_numbers_do_not_require_machine_numeric_range ... ok
+test web::observations::memory::capture_tests::actual_decoders_cannot_admit_object_caps_that_exceed_the_shared_total ... ok
+test web::observations::wire_tests::complete_producer_scan_publishes_only_after_the_footer ... ok
+test web::observations::wire_tests::actual_private_socket_accepts_chunked_producer_and_rejects_unsafe_mode ... ok
+test web::tests::concrete_and_ipv6_listener_urls_use_clickable_socket_syntax ... ok
+test tui::focused::tests::focused_terminal_real_pty_restores_raw_mode ... ok
+test web::tests::http_accepts_loopback_and_ipv4_listeners ... ok
+test web::tests::malformed_record_selectors_are_refused ... ok
+test web::tests::conflict_errors_preserve_the_structured_reason ... ok
+test web::observations::wire_tests::producer_duplicate_members_and_excessive_depth_are_rejected ... ok
+test web::observations::lifecycle_tests::metadata_preserves_matching_disk_identity_and_invalidates_a_changed_volume ... ok
+test web::observations::lifecycle_tests::metadata_offers_capture_identity_without_scanning_and_expires_while_paused ... ok
+test web::tests::api_requests_are_unauthenticated ... ok
+test tui::focused::tests::scripted_host_refuses_non_ttys_and_unwinds_every_partial_entry ... ok
+test web::observations::wire_tests::wire_frame_limits_include_newline_at_below_and_above_boundaries ... ok
+test web::tests::runtime_attachment_accepts_explicit_ipv4_and_loopback_listeners ... ok
+test web::tests::collection_cursor_is_opaque_session_keyed_and_generation_carrying ... ok
+test web::observations::lifecycle_tests::resume_obeys_the_independent_broker_scan_start_floor_with_a_virtual_scheduler ... ok
+test web::observations::lifecycle_tests::cancellation_preserves_other_callers_and_last_observer_closes_unfinished_scan ... ok
+test web::tests::sector_collection_window_is_bounded_and_complete ... ok
+test web::observations::lifecycle_tests::a_pre_resume_inflight_capture_cannot_fulfill_resumed_demand ... ok
+test web::tests::superseded_standing_annotates_a_reading_once_without_failing_it ... ok
+test tui::focused::tests::terminal_text_is_control_safe_grapheme_safe_and_display_width_bounded ... ok
+test web::observations::lifecycle_tests::wall_clock_steps_and_suspension_revoke_broker_cache_age_authority ... ok
+test web::tests::lan_runtime_requests_require_matching_host_and_origin ... ok
+test web::tests::the_record_selector_targets_the_page_holding_one_slot ... ok
+test web::tests::unsupported_format_profile_error_explains_the_profile_constraint ... ok
+test web::observations::lifecycle_tests::producer_errors_have_stable_normalized_reasons_and_only_refusals_stop_retry ... ok
+test web::tests::request_bounds_and_security_headers_fail_closed ... ok
+test web::tests::short_sector_input_is_rejected_before_runtime_scope_can_invent_pages ... ok
+test web::tests::wildcard_listener_urls_are_sorted_deduplicated_and_family_matched ... ok
+test web::tests::slotted_page_distribution_covers_records_free_space_and_directory_entries ... ok
+test web::tests::collection_projection_enforces_limits_and_continuation ... ok
+test web::observations::wire_tests::peer_credentials_reject_another_effective_uid_without_a_root_exception ... ok
+test web::tests::a_cursor_outlives_its_generation_only_while_that_generation_is_retained ... ok
+test tui::focused::tests::explicit_record_action_projects_typed_values_and_schema_into_the_page_scene ... ok
+test web::tests::unsupported_methods_are_rejected_before_routing ... ok
+test tui::focused::tests::interpretation_navigation_scrolls_attributes_without_losing_the_record_anchor ... ok
+test web::tests::post_requires_exact_json_origin_and_same_site_context ... ok
+test web::tests::held_http_response_bodies_keep_admission_until_released ... ok
+test web::tests::a_followed_session_reports_its_follow_state_and_observation_time ... ok
+test web::observations::wire_tests::broker_refuses_each_identity_component_and_incomplete_volume_sets_before_scanning ... ok
+test web::tests::wildcard_listener_accepts_any_valid_host_while_loopback_stays_exact ... ok
+test web::tests::a_live_reading_with_a_stale_manifest_schedules_another_scan ... ok
+test web::observations::lifecycle_tests::caller_cadence_controls_cache_reuse_and_resume_requires_a_later_scan ... ok
+test web::tests::an_immutable_session_still_reports_when_its_input_was_written ... ok
+test web::observations::lifecycle_tests::rotating_truncated_captures_never_accumulate_absence_or_hide_duplicate_ambiguity ... ok
+test web::observations::wire_tests::eight_inflight_callers_share_one_slow_capture_and_reject_a_ninth ... ok
+test web::observations::wire_tests::broker_shares_capture_charges_held_responses_retains_original_age_and_expires ... ok
+test web::tests::configured_runtime_is_unavailable_unverified_and_sanitized_over_http ... ok
+test web::tests::a_page_that_cannot_be_interpreted_states_its_reason_in_the_panel ... ok
+test web::tests::a_generation_three_entity_url_still_resolves_at_generation_forty ... ok
+test web::tests::runtime_capabilities_are_independent_of_disk_inspection_over_http ... ok
+test web::tests::page_handler_preserves_top_level_slots_and_shared_distribution_shape ... ok
+test tui::focused::tests::renderer_exposes_the_format_profile_retry_hint ... ok
+test web::tests::without_follow_a_changed_input_still_reaches_the_invalidated_snapshot ... ok
+test web::tests::the_envelope_separates_the_disk_time_from_the_read_time ... ok
+test web::tests::runtime_capability_admission_is_bounded_and_independent_over_http ... ok
+test tui::focused::tests::maximum_slot_directory_retains_every_row_but_formats_only_the_compact_window ... ok
+test web::tests::sector_observation_http_validates_scope_and_returns_fixed_detail_slots ... ok
+test web::tests::clicking_a_record_enriches_its_page_and_returns_interpreted_values ... ok
+test tui::focused::tests::a_sibling_page_replaces_the_request_and_rejects_the_old_result ... ok
+test tui::focused::tests::quit_cancels_active_record_interpretation_before_exiting ... ok
+test tui::focused::tests::unsupported_and_non_record_rows_open_no_enrichment_work ... ok
+test tui::focused::tests::page_descent_requests_one_bounded_revision_and_adopts_its_distribution ... ok
+test web::observations::wire_tests::canonical_exchange_corpus_validates_all_server_stream_outcomes ... ok
+test tui::focused::tests::renderer_exposes_complete_visible_cards_and_semantic_hit_regions ... ok
+test tui::focused::tests::scripted_host_enters_once_draws_only_on_change_and_cleans_up_in_reverse ... ok
+test tui::focused::tests::page_resource_failure_keeps_the_old_revision_and_invalid_decode_adopts_a_diagnostic ... ok
+test web::observations::lifecycle_tests::paused_metadata_detects_replaced_producer_and_refuses_until_explicit_retry ... ok
+test tui::focused::tests::interpretation_renderer_names_one_hop_relocation_origin_and_target ... ok
+test tui::focused::tests::bigone_record_opens_a_typed_limitation_without_worker_or_revision ... ok
+test tui::focused::tests::page_pointer_selection_and_scroll_use_the_same_semantic_actions_as_keys ... ok
+test tui::focused::tests::enter_on_a_live_record_loads_page_local_interpretation_and_escape_closes_it ... ok
+test tui::focused::tests::page_enrichment_cancellation_and_late_completion_never_adopt ... ok
+test tui::focused::tests::generation_stamped_pointer_rejects_a_stale_layout ... ok
+test tui::focused::tests::mouse_and_wheel_translate_to_the_same_semantic_actions_as_keyboard ... ok
+test tui::focused::tests::failed_present_does_not_commit_the_prepared_generation ... ok
+test web::tests::selected_page_observation_crosses_real_socket_and_http_with_bound_identity ... ok
+test tui::focused::tests::page_renderer_keeps_the_old_revision_visible_for_loading_failure_and_unsupported_pages ... ok
+test tui::focused::tests::every_distribution_row_is_reachable_and_only_live_records_are_interpretation_eligible ... ok
+test tui::focused::tests::sector_goldens_are_stable_at_all_required_sizes_and_profiles ... ok
+test tui::focused::tests::sector_renderer_keeps_all_pages_exact_and_exposes_compact_context ... ok
+test tui::focused::tests::record_interpretation_cancel_and_stale_completion_never_adopt ... ok
+test tui::focused::tests::page_goldens_are_stable_at_all_required_sizes_and_profiles ... ok
+test tui::focused::tests::volume_goldens_are_stable_at_all_required_sizes_and_profiles ... ok
+test tui::focused::tests::page_renderer_draws_proportional_geometry_and_formats_only_a_bounded_row_window ... ok
+test tui::focused::tests::interpretation_goldens_are_stable_at_all_required_sizes_and_profiles ... ok
+test tui::focused::tests::contextual_help_has_escape_precedence_and_disables_background_hits ... ok
+test tui::focused::tests::interpretation_renderer_shows_typed_facts_layout_and_bounded_attributes ... ok
+test tui::focused::tests::interpretation_renderer_preserves_typed_edge_record_and_attribute_limitations ... ok
+test tui::focused::tests::resize_bursts_coalesce_without_dropping_interleaved_keyboard_input ... ok
+test tui::focused::tests::input_precedes_a_ready_completion_and_the_cancelled_result_never_adopts ... ok
+test tui::focused::tests::session_navigation_is_grid_clamped_and_projection_is_viewport_bounded ... ok
+test tui::focused::tests::sector_descent_rover_resize_siblings_and_ascent_preserve_structural_state ... ok
+test web::tests::a_write_to_a_followed_input_advances_the_generation_and_keeps_urls_live ... ok
+test tui::focused::tests::presentation_and_cleanup_failures_still_attempt_the_complete_unwind ... ok
+test tui::focused::tests::page_view_consumes_every_shared_association_state_without_inference ... ok
+test tui::focused::tests::fallback_profile_and_maximum_logical_surface_are_bounded_and_semantic ... ok
+test web::tests::observation_http_bounds_ordered_scopes_and_request_bytes ... ok
+test web::tests::every_address_the_browser_builds_resolves ... ok
+test tui::focused::tests::too_small_resize_round_trip_restores_selected_record_and_interpretation ... ok
+test web::tests::volume_observation_http_bounds_and_canonical_slots ... ok
+test tui::focused::tests::runtime_retains_one_capped_frame_independent_of_navigation_count ... ok
+test web::tests::concurrent_http_scopes_share_scan_but_keep_coverage_and_disk_admission_independent ... ok
+test web::tests::runtime_capability_deadline_releases_its_slot_over_http ... ok
+test web::observations::wire_tests::actual_io_deadlines_bound_stalled_handshake_and_scan ... ok
+test web::tests::observation_http_deadline_includes_stalled_request_body ... ok
+test web::tests::volume_observation_http_serializes_4096_resident_results_from_one_capture ... ok
+test web::observations::wire_tests::raw_record_slot_and_framed_scan_limits_are_checked_before_deduplication ... ok
+
+test result: ok. 152 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 10.19s
+
+     Running unittests src/main.rs (target/x86_64-unknown-linux-musl/debug/deps/volmap-d465fe0749c861d2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/btree_pages.rs (target/x86_64-unknown-linux-musl/debug/deps/btree_pages-246a7289399bdb92)
+
+running 2 tests
+test btree_decoder_rejects_forged_root_flags_children_and_roles ... ok
+test btree_root_leaf_nonleaf_and_oid_overflow_roles_are_structural ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/byte_access.rs (target/x86_64-unknown-linux-musl/debug/deps/byte_access-321e242f8f9db8ab)
+
+running 5 tests
+test bounded_view_reads_explicit_big_endian_values ... ok
+test bounded_view_reads_explicit_little_endian_values ... ok
+test bounded_view_rejects_a_range_past_its_container ... ok
+test bounded_view_rejects_absolute_offset_overflow ... ok
+test disk_derived_arithmetic_rejects_negative_overflow_and_invalid_alignment ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/catalog_pages.rs (target/x86_64-unknown-linux-musl/debug/deps/catalog_pages-128b7e763389af64)
+
+running 5 tests
+test caller_proven_catalog_records_decode_directory_and_representation_prefixes ... ok
+test caller_proven_class_info_links_heap_and_representation_directory ... ok
+test catalog_primary_and_overflow_pages_expose_only_structure ... ok
+test catalog_record_decoders_reject_unproven_shapes_and_hostile_counts ... ok
+test catalog_decoder_rejects_forged_headers_counts_and_record_types ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/class_name.rs (target/x86_64-unknown-linux-musl/debug/deps/class_name-e53a27097c763116)
+
+running 4 tests
+test class_name_decoder_matches_a_pinned_engine_class_record ... ok
+test class_name_decoder_handles_short_long_and_compressed_varchars ... ok
+test class_name_decoder_rejects_hostile_offsets_lengths_and_terminators ... ok
+test class_name_decoder_rejects_corrupt_long_varchar_length_pairs ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/class_name_resolution.rs (target/x86_64-unknown-linux-musl/debug/deps/class_name_resolution-07bad5a3543a01dc)
+
+running 12 tests
+test absent_file_header_publishes_no_partial_file_or_class_association ... ok
+test conflicting_page_owners_publish_no_partial_file_or_class_association ... ok
+test selective_file_enrichment_does_not_promote_class_evidence_from_incomplete_inventory ... ok
+test complete_inventory_joins_every_scoped_file_family_through_one_shared_class_resolution ... ok
+test unresolved_class_name_retains_the_original_numeric_oid ... ok
+test inspection_resolves_a_bigone_class_record_from_its_owned_overflow_file ... ok
+test page_association_keeps_nonapplicability_reservation_and_ownership_distinct ... ok
+test inspection_resolves_home_newhome_and_relocated_class_records ... ok
+test inspection_decodes_every_supported_database_codeset ... ok
+test every_failed_resolution_keeps_the_exact_descriptor_oid ... ok
+test html_export_retains_numeric_class_identity_when_name_resolution_fails ... ok
+test html_export_escapes_a_resolved_class_name_without_changing_its_json_value ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+
+     Running tests/cli_contract.rs (target/x86_64-unknown-linux-musl/debug/deps/cli_contract-ed8a9f9e5a69a38f)
+
+running 8 tests
+test json_document_is_revision_pinned_and_path_free ... ok
+test cli_defaults_to_develop_and_accepts_an_explicit_feat_oos_profile ... ok
+test schema_one_page_json_adds_the_tagged_association_without_changing_prior_fields ... ok
+test help_and_usage_are_stable_and_do_not_scan ... ok
+test absent_entities_use_machine_command_error_documents ... ok
+test jsonl_has_typed_ordered_records_and_a_completion_frame ... ok
+test runtime_attachment_requires_explicit_pair_and_non_wildcard_listener ... ok
+test broken_stdout_pipe_is_quiet_and_uses_shell_status ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/coverage.rs (target/x86_64-unknown-linux-musl/debug/deps/coverage-546b87c43134544f)
+
+running 4 tests
+test complete_coverage_requires_a_trusted_fully_conclusive_total ... ok
+test occurrence_classification_comes_from_the_catalog ... ok
+test partial_coverage_names_its_stopped_boundary_reason_and_remainder ... ok
+test partial_coverage_rejects_contradictory_remainders_and_unlinked_resource_limits ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/develop_fixture_corpus.rs (target/x86_64-unknown-linux-musl/debug/deps/develop_fixture_corpus-f35ce05e506254ce)
+
+running 6 tests
+test real_develop_heap_header_uses_its_persistent_layout ... ok
+test real_develop_overflow_chain_preserves_all_links_and_total_length ... ok
+test wrong_profile_cannot_silently_accept_develop_heap_and_file_headers ... ok
+test real_develop_heap_chains_and_shifted_structural_page_families_decode ... ok
+test real_develop_volume_geometry_bitmaps_and_file_headers_decode ... ok
+test pinned_real_develop_pages_match_native_identities_types_and_hashes ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/diagnostics.rs (target/x86_64-unknown-linux-musl/debug/deps/diagnostics-bd46d98fa68836b0)
+
+running 3 tests
+test catalog_fixes_severity_anomaly_and_containment_in_the_core ... ok
+test outcome_precedence_is_fixed_without_assigning_cli_exit_integers ... ok
+test v1_catalog_contains_every_mandatory_unique_namespaced_code ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/file_table.rs (target/x86_64-unknown-linux-musl/debug/deps/file_table-1a4a5e35d1aeadae)
+
+running 12 tests
+test allocation_items_decode_ids_bitmaps_and_marked_user_pages_without_payloads ... ok
+test every_scoped_descriptor_rejects_short_and_malformed_input ... ok
+test descriptors_type_non_class_and_deferred_oos_associations ... ok
+test file_header_rejects_forged_self_and_counter_totals ... ok
+test extdata_rejects_untrusted_item_width_and_count_arithmetic ... ok
+test file_header_validates_identity_accounting_and_table_boundaries ... ok
+test heap_file_descriptor_pins_the_header_page_role ... ok
+test overflow_file_descriptor_pins_its_related_heap ... ok
+test scoped_descriptors_distinguish_null_and_system_class_oids ... ok
+test scoped_descriptors_decode_source_traced_class_offsets_and_related_facts ... ok
+test selected_format_profile_decodes_ambiguous_file_type_ordinal ... ok
+test tracker_items_decode_typed_file_identity_and_constrained_metadata ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/heap_pages.rs (target/x86_64-unknown-linux-musl/debug/deps/heap_pages-500b556c4bbb2dcb)
+
+running 5 tests
+test heap_decoder_rejects_role_confusion_and_invalid_vacuum_flags ... ok
+test heap_record_envelope_distinguishes_non_mvcc_and_rejects_ambiguous_shapes ... ok
+test heap_record_envelope_decodes_mvcc_structure_without_value_bytes ... ok
+test heap_record_envelope_rejects_truncated_optional_header ... ok
+test role_gated_heap_header_and_chain_decode_structural_metadata ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/inspection_model.rs (target/x86_64-unknown-linux-musl/debug/deps/inspection_model-c2a8a60aef0bfdb8)
+
+running 6 tests
+test evidence_ranges_and_revisions_reject_overflow ... ok
+test evidence_records_safe_locators_and_provenance_without_source_bytes ... ok
+test negative_physical_identifiers_are_rejected_before_conversion ... ok
+test oid_and_vfid_use_validated_pinned_width_identifiers ... ok
+test orthogonal_inspection_axes_remain_distinct_types ... ok
+test physical_identity_is_always_scoped_by_the_snapshot ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/inspection_scan.rs (target/x86_64-unknown-linux-musl/debug/deps/inspection_scan-a1045146d98172d8)
+
+running 15 tests
+test resource_refusal_publishes_partial_coverage_without_silent_sampling ... ok
+test exhausted_spill_budget_publishes_an_explicit_partial_prefix ... ok
+test develop_profile_rejects_oos_only_enrichment ... ok
+test oos_enrichment_validates_a_chain_and_retains_no_payload_bytes ... ok
+test corruption_heavy_scan_stops_at_the_resident_diagnostic_boundary ... ok
+test contradictory_profile_evidence_suggests_an_explicit_retry_without_switching ... ok
+test oos_enrichment_publishes_a_validated_prefix_at_the_chain_budget ... ok
+test deep_page_enrichment_publishes_a_new_revision_without_rewriting_the_old_view ... ok
+test stable_projection_omits_manifest_and_volume_paths ... ok
+test one_selected_format_profile_governs_the_snapshot ... ok
+test worker_counts_merge_to_the_same_canonical_snapshot ... ok
+test packed_facts_spill_privately_and_preserve_the_graph_projection ... ok
+test source_mutation_terminally_invalidates_new_work_without_rewriting_old_view ... ok
+test inspection_opens_sparse_volume_and_scans_only_reserved_sector_envelopes ... ok
+test html_export_is_deterministic_private_atomic_and_path_free ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+
+     Running tests/mutation_tool.rs (target/x86_64-unknown-linux-musl/debug/deps/mutation_tool-bdc742f5da327f4f)
+
+running 2 tests
+test mutation_tool_fails_closed_on_wrong_base_or_range ... ok
+test mutation_tool_changes_exactly_one_verified_range_and_refuses_overwrite ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+     Running tests/overflow_inspection.rs (target/x86_64-unknown-linux-musl/debug/deps/overflow_inspection-a07d5e6e5c03a348)
+
+running 5 tests
+test bigone_enrichment_validates_typed_ownership_and_payload_extents ... ok
+test relocation_enrichment_rejects_a_target_that_is_not_newhome ... ok
+test relocation_enrichment_publishes_only_a_validated_same_heap_edge ... ok
+test selected_relocation_recipe_keeps_one_hop_evidence_and_bigone_is_typed_unsupported ... ok
+test bigone_enrichment_publishes_corrupt_and_resource_limited_prefixes ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/overflow_pages.rs (target/x86_64-unknown-linux-musl/debug/deps/overflow_pages-df578889834b39cb)
+
+running 4 tests
+test bigone_slot_decodes_only_an_exact_null_slot_overflow_target ... ok
+test overflow_pages_decode_exact_payload_extents_without_retaining_bytes ... ok
+test overflow_pages_reject_invalid_lengths_and_chain_shapes ... ok
+test relocation_slot_decodes_an_exact_required_oid_target ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/page_association_contract.rs (target/x86_64-unknown-linux-musl/debug/deps/page_association_contract-4522dcc252c4b56e)
+
+running 2 tests
+test tagged_association_states_omit_inapplicable_members ... ok
+test schema_one_page_association_is_one_deterministic_additive_field ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/page_distribution.rs (target/x86_64-unknown-linux-musl/debug/deps/page_distribution-0d3a699028dac0ff)
+
+running 1 test
+test shared_distribution_exhaustively_projects_validated_slotted_geometry ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/page_envelope.rs (target/x86_64-unknown-linux-musl/debug/deps/page_envelope-7ca9ab59ee475e1d)
+
+running 7 tests
+test decrypted_envelope_preserves_algorithm_and_exposes_only_supplied_plaintext ... ok
+test encrypted_envelope_never_exposes_its_ciphertext_region ... ok
+test corrupt_envelopes_fail_closed_before_body_parsing ... ok
+test fast_envelope_decoder_needs_only_prefix_and_watermark ... ok
+test physical_page_size_is_exact ... ok
+test valid_plaintext_envelope_reports_plaintext_without_exposing_body_bytes ... ok
+test selected_format_profile_decodes_ambiguous_page_ordinal ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/pgbuf_corpus.rs (target/x86_64-unknown-linux-musl/debug/deps/pgbuf_corpus-2878f61a320d865c)
+
+running 1 test
+test vendored_producer_revision_and_every_corpus_byte_match_the_pin ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/pinned_fixture_corpus.rs (target/x86_64-unknown-linux-musl/debug/deps/pinned_fixture_corpus-5e72ddc78990ba5f)
+
+running 6 tests
+test file_headers_preserve_fixture_ownership_graph ... ok
+test oos_single_and_multichunk_values_decode_without_payload_exposure ... ok
+test overflow_head_and_continuation_form_a_complete_engine_chain ... ok
+test volume_geometry_and_bitmaps_decode_from_engine_pages ... ok
+test heap_btree_catalog_hash_and_vacuum_families_decode ... ok
+test pinned_pages_match_manifest_hashes_identities_and_types ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/property_hostile.rs (target/x86_64-unknown-linux-musl/debug/deps/property_hostile-8635fc72b7a226fe)
+
+running 5 tests
+test metamorphic_record_payload_never_changes_or_exposes_structural_facts ... ok
+test property_resource_policy_accepts_exactly_all_nonzero_components ... ok
+test property_byte_views_match_checked_slice_geometry ... ok
+test property_envelope_decoder_is_deterministic_for_hostile_parts ... ok
+test property_slotted_decoder_is_deterministic_and_bounded_for_hostile_pages ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+     Running tests/record_interpretation.rs (target/x86_64-unknown-linux-musl/debug/deps/record_interpretation-00a3f37377b44fcb)
+
+running 17 tests
+test a_class_record_offset_width_other_than_four_is_refused ... ok
+test a_numeric_at_the_engines_widest_stored_size_decodes ... ok
+test a_bound_object_column_decodes_to_the_oid_it_references ... ok
+test an_unknown_representation_id_is_rejected_rather_than_guessed ... ok
+test a_records_regions_account_for_every_byte_it_occupies ... ok
+test an_out_of_row_attribute_reports_its_chain_head_and_full_length ... ok
+test a_row_written_before_an_alter_interprets_against_its_own_old_representation ... ok
+test a_compressed_varchar_decodes_through_the_lz4_prefix ... ok
+test class_records_yield_their_names_and_attribute_layout ... ok
+test types_version_one_refuses_to_decode_render_typed_placeholders_without_bytes ... ok
+test unset_attributes_report_null_from_bound_bits_and_empty_extents ... ok
+test every_supported_type_decodes_to_the_value_the_engine_stored ... ok
+test system_classes_parse_from_the_same_class_record_layout ... ok
+test corpus_pages_match_their_manifest_digests ... ok
+test arbitrary_bytes_never_panic_in_either_decoder ... ok
+test corrupting_any_single_byte_of_a_record_never_panics_or_invents_a_value ... ok
+test a_truncated_class_record_is_rejected_at_every_length ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/record_interpretation_graph.rs (target/x86_64-unknown-linux-musl/debug/deps/record_interpretation_graph-17712e29816b5a7b)
+
+running 10 tests
+test a_page_with_no_class_degrades_with_a_reason_and_keeps_structural_facts ... ok
+test class_representation_enrichment_publishes_schema_evidence_once ... ok
+test an_out_of_row_attribute_is_published_as_a_reference_not_a_value ... ok
+test an_undecodable_attribute_projects_a_reason_and_an_extent_but_no_value ... ok
+test projections_carry_tagged_states_and_never_carry_bytes ... ok
+test a_row_older_than_its_class_resolves_through_its_own_representation ... ok
+test a_second_page_of_the_same_sector_reuses_the_cached_class ... ok
+test selected_record_enrichment_establishes_structure_and_interpretation ... ok
+test a_page_enrichment_interprets_every_home_record_in_one_revision ... ok
+test selected_record_projection_bundles_slot_schema_and_interpretation ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/resource_benchmark.rs (target/x86_64-unknown-linux-musl/debug/deps/resource_benchmark-23791a7835ffefec)
+
+running 1 test
+test representative_resource_matrix ... ignored, manual resource benchmark matrix
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/sector_bitmap.rs (target/x86_64-unknown-linux-musl/debug/deps/sector_bitmap-c3cad98c3af993a6)
+
+running 2 tests
+test bitmap_reads_little_endian_words_lsb_first_without_allocating_from_disk_counts ... ok
+test bitmap_rejects_wrong_pages_and_out_of_coverage_queries ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/slotted_oos.rs (target/x86_64-unknown-linux-musl/debug/deps/slotted_oos-f0cad15160a27f63)
+
+running 4 tests
+test common_slot_geometry_decodes_without_exposing_record_bytes ... ok
+test oos_chunk_rejects_partial_null_links_and_empty_payloads ... ok
+test oos_chunk_reports_only_header_and_payload_extent ... ok
+test overlapping_records_and_forged_counts_fail_closed ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/smoke_fixture_tool.rs (target/x86_64-unknown-linux-musl/debug/deps/smoke_fixture_tool-a3b6f69af6a2c7ce)
+
+running 1 test
+test distribution_smoke_fixture_is_sparse_and_inspectable ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests/tde_inspection.rs (target/x86_64-unknown-linux-musl/debug/deps/tde_inspection-3c2d15196af11839)
+
+running 5 tests
+test key_failures_do_not_disclose_the_explicit_path ... ok
+test insecure_key_permissions_are_reported_without_disclosing_the_path ... ok
+test explicit_key_file_bootstraps_and_enriches_an_encrypted_page ... ok
+test invalid_decrypted_structure_is_not_retried_as_ciphertext ... ok
+test live_tde_state_change_is_admitted_from_current_bytes_before_decryption ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/vacuum_pages.rs (target/x86_64-unknown-linux-musl/debug/deps/vacuum_pages-e6b51a9c3edc610a)
+
+running 3 tests
+test dropped_page_decodes_structural_file_lifecycle_entries ... ok
+test raw_page_decoders_reject_hostile_counts_and_reserved_status ... ok
+test vacuum_page_decodes_queue_indices_and_masked_block_metadata ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/volume_header.rs (target/x86_64-unknown-linux-musl/debug/deps/volume_header-1e7bf9272362b001)
+
+running 5 tests
+test valid_volume_header_decodes_pinned_geometry_and_bounded_strings ... ok
+test volume_header_never_parses_an_encrypted_user_region ... ok
+test volume_header_rejects_bitmap_pages_beyond_the_physical_volume ... ok
+test invalid_volume_header_fields_are_rejected_without_clamping ... ok
+test volume_header_rejects_truncated_physical_volume ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests volmap
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+cargo +1.97.1 clippy --all-targets --all-features --locked -- -D warnings
+    Checking volmap v0.0.0 (/home/vimkim/temp/volmap)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.77s
+cargo +1.97.1 build --release --locked --target x86_64-unknown-linux-musl
+   Compiling volmap v0.0.0 (/home/vimkim/temp/volmap)
+    Finished `release` profile [optimized] target(s) in 52.07s
+file target/x86_64-unknown-linux-musl/release/volmap
+target/x86_64-unknown-linux-musl/release/volmap: ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), static-pie linked, BuildID[sha1]=127bf4a4322ee46116a992ade642985fd0b1cfed, stripped
+! readelf -l target/x86_64-unknown-linux-musl/release/volmap | rg -q 'INTERP'
+! readelf -d target/x86_64-unknown-linux-musl/release/volmap | rg -q 'NEEDED'
+! readelf -V target/x86_64-unknown-linux-musl/release/volmap | rg -q 'GLIBC_'
+ldd target/x86_64-unknown-linux-musl/release/volmap 2>&1 | rg -q 'statically linked|not a dynamic executable'
+just vite::frontend-check
+mise x node@24.19.0 -- corepack pnpm --dir web install --frozen-lockfile --ignore-scripts
+Already up to date
+Done in 410ms using pnpm v11.24.0
+mise x node@24.19.0 -- release/check-frontend.sh
+Already up to date
+Done in 408ms using pnpm v11.24.0
+$ tsc --noEmit
+$ vitest run src
+
+ RUN  v4.1.11 /home/vimkim/temp/volmap/web
+
+
+ Test Files  8 passed (8)
+      Tests  78 passed (78)
+   Start at  19:50:32
+   Duration  421ms (transform 714ms, setup 0ms, import 1.10s, tests 221ms, environment 1ms)
+
+$ vite build
+vite v8.2.2 building client environment for production...
+transforming...
+✓ 25 modules transformed.
+rendering chunks...
+computing gzip size...
+../../../../../tmp/volmap-frontend-check.vY9q5q/generated/manifest.json            0.21 kB │ gzip:  0.12 kB
+../../../../../tmp/volmap-frontend-check.vY9q5q/generated/runtime-packages.json    0.62 kB │ gzip:  0.22 kB
+../../../../../tmp/volmap-frontend-check.vY9q5q/generated/frontend.css            16.25 kB │ gzip:  4.26 kB
+../../../../../tmp/volmap-frontend-check.vY9q5q/generated/frontend.js            272.92 kB │ gzip: 82.03 kB
+
+✓ built in 122ms
+No known vulnerabilities found
+$ playwright test --project=chromium --project=firefox
+[WebServer]     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.05s
+
+[WebServer] Bound to 127.0.0.1:41739
+[WebServer] Available at (non-exhaustive list):
+[WebServer]     http://127.0.0.1:41739
+[WebServer] Holding one immutable reading; a changed input invalidates this session.
+
+[WebServer]     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.05s
+
+[WebServer] Bound to 127.0.0.1:41740
+[WebServer] Available at (non-exhaustive list):
+[WebServer]     http://127.0.0.1:41740
+
+[WebServer] Holding one immutable reading; a changed input invalidates this session.
+
+[WebServer]     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.05s
+
+[WebServer] Bound to 127.0.0.1:41741
+[WebServer] Available at (non-exhaustive list):
+[WebServer]     http://127.0.0.1:41741
+[WebServer] Following the input every 500 ms; a change publishes a new generation.
+
+[WebServer]     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.05s
+
+[WebServer] Bound to 127.0.0.1:41743
+[WebServer] Available at (non-exhaustive list):
+[WebServer]     http://127.0.0.1:41743
+[WebServer] Following the input every 500 ms; a change publishes a new generation.
+
+
+Running 84 tests using 1 worker
+
+(node:2881373) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/84] [chromium] › e2e/current-viewer.spec.ts:3:1 › optional runtime capability stays separate from working disk inspection
+[2/84] [chromium] › e2e/current-viewer.spec.ts:22:1 › the embedded live viewer boots from the real server and supports a direct entity route
+[3/84] [chromium] › e2e/current-viewer.spec.ts:51:1 › the React viewer preserves drilldown, semantic history, and license reachability
+[4/84] [chromium] › e2e/observations.spec.ts:7:1 › selected-page observation uses a scripted socket producer, real HTTP and non-color detail
+[5/84] [chromium] › e2e/observations.spec.ts:38:1 › automatic polling, paused offers, hidden silence, resume and expiry preserve disk navigation
+[6/84] [chromium] › e2e/observations.spec.ts:97:1 › Page producer restart while paused clears evidence and requires an explicit retry
+[7/84] [chromium] › e2e/observations.spec.ts:97:1 › Sector producer restart while paused clears evidence and requires an explicit retry
+[8/84] [chromium] › e2e/observations.spec.ts:119:1 › transient browser retries back off and protocol incompatibility waits for explicit retry
+[9/84] [chromium] › e2e/observations.spec.ts:147:1 › Volume and Sector show bounded coverage, semantic rows and independent cadences across tabs
+[10/84] [chromium] › e2e/observations.spec.ts:182:1 › viewport selection stays fixed; scrolling revokes scope and HTTP overload keeps disk usable
+[11/84] [chromium] › e2e/observations.spec.ts:208:3 › volume/0 composes state marks and switches to explicitly labelled LRU colors
+[12/84] [chromium] › e2e/observations.spec.ts:208:3 › sector/0/0 composes state marks and switches to explicitly labelled LRU colors
+[13/84] [chromium] › e2e/observations.spec.ts:249:3 › volume/0 separates partial unknowns, duplicate ambiguity, nonresidency and expired evidence
+[14/84] [chromium] › e2e/observations.spec.ts:249:3 › sector/0/0 separates partial unknowns, duplicate ambiguity, nonresidency and expired evidence
+[15/84] [chromium] › e2e/observations.spec.ts:324:1 › selected detail exposes exact membership and null meanings; inconsistent topology is refused
+[16/84] [chromium] › e2e/observations.spec.ts:354:3 › volume/0 source failure hides marks and paused incarnation change revokes every list
+[17/84] [chromium] › e2e/observations.spec.ts:354:3 › sector/0/0 source failure hides marks and paused incarnation change revokes every list
+[18/84] [chromium] › e2e/observations.spec.ts:387:1 › cached unavailable metadata does not turn a pending first capture into page failures
+[19/84] [chromium] › e2e/observations.spec.ts:425:1 › enabling Volume observations keeps the map in place and the legend available
+[20/84] [chromium] › e2e/observations.spec.ts:440:1 › Volume nonresident markers share an image and retain a forced-color glyph
+[21/84] [chromium] › e2e/observations.spec.ts:468:1 › Volume nonresident circles preserve known and unknown occupancy backgrounds
+[22/84] [chromium] › e2e/observations.spec.ts:514:3 › Sector refuses malformed schema response without losing disk navigation
+[23/84] [chromium] › e2e/observations.spec.ts:514:3 › Sector refuses malformed variant response without losing disk navigation
+[24/84] [chromium] › e2e/observations.spec.ts:514:3 › Sector refuses malformed scope response without losing disk navigation
+[25/84] [chromium] › e2e/observations.spec.ts:514:3 › Sector refuses malformed slot-order response without losing disk navigation
+[26/84] [chromium] › e2e/observations.spec.ts:514:3 › Sector refuses malformed slot-count response without losing disk navigation
+[27/84] [chromium] › e2e/observations.spec.ts:514:3 › Sector refuses malformed epoch response without losing disk navigation
+[28/84] [chromium] › e2e/observations.spec.ts:514:3 › Sector refuses malformed generation response without losing disk navigation
+[29/84] [chromium] › e2e/observations.spec.ts:537:1 › volume/0 pause rejects a delayed response and resume starts fresh scope demand
+[30/84] [chromium] › e2e/observations.spec.ts:537:1 › sector/0/0 pause rejects a delayed response and resume starts fresh scope demand
+[31/84] [chromium] › e2e/overlay-accessibility.spec.ts:5:3 › volume/0 keyboard focus survives quiet polling and age updates
+[32/84] [chromium] › e2e/overlay-accessibility.spec.ts:5:3 › sector/0/0 keyboard focus survives quiet polling and age updates
+[33/84] [chromium] › e2e/overlay-accessibility.spec.ts:54:3 › volume/0 absent and refused sources retain named disk navigation without absence marks
+[34/84] [chromium] › e2e/overlay-accessibility.spec.ts:54:3 › sector/0/0 absent and refused sources retain named disk navigation without absence marks
+[35/84] [chromium] › e2e/volume-observations.spec.ts:14:1 › 12288 rendered cells adopt 4096 changing results from one capture with fixed central selection
+[36/84] [chromium] › e2e/volume-observations.spec.ts:96:3 › Volume refuses malformed scope response as a whole
+[37/84] [chromium] › e2e/volume-observations.spec.ts:96:3 › Volume refuses malformed sector-order response as a whole
+[38/84] [chromium] › e2e/volume-observations.spec.ts:96:3 › Volume refuses malformed slot-count response as a whole
+[39/84] [chromium] › e2e/volume-observations.spec.ts:96:3 › Volume refuses malformed epoch response as a whole
+[40/84] [chromium] › e2e/volume-observations.spec.ts:96:3 › Volume refuses malformed generation response as a whole
+[41/84] [chromium] › e2e/volume-observations.spec.ts:96:3 › Volume refuses malformed detail-evidence response as a whole
+[42/84] [chromium] › e2e/volume-observations.spec.ts:96:3 › Volume refuses malformed oversized-body response as a whole
+(node:2886318) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[43/84] [firefox] › e2e/current-viewer.spec.ts:3:1 › optional runtime capability stays separate from working disk inspection
+[44/84] [firefox] › e2e/current-viewer.spec.ts:22:1 › the embedded live viewer boots from the real server and supports a direct entity route
+[45/84] [firefox] › e2e/current-viewer.spec.ts:51:1 › the React viewer preserves drilldown, semantic history, and license reachability
+[46/84] [firefox] › e2e/observations.spec.ts:7:1 › selected-page observation uses a scripted socket producer, real HTTP and non-color detail
+[47/84] [firefox] › e2e/observations.spec.ts:38:1 › automatic polling, paused offers, hidden silence, resume and expiry preserve disk navigation
+[48/84] [firefox] › e2e/observations.spec.ts:97:1 › Page producer restart while paused clears evidence and requires an explicit retry
+[49/84] [firefox] › e2e/observations.spec.ts:97:1 › Sector producer restart while paused clears evidence and requires an explicit retry
+[50/84] [firefox] › e2e/observations.spec.ts:119:1 › transient browser retries back off and protocol incompatibility waits for explicit retry
+[51/84] [firefox] › e2e/observations.spec.ts:147:1 › Volume and Sector show bounded coverage, semantic rows and independent cadences across tabs
+[52/84] [firefox] › e2e/observations.spec.ts:182:1 › viewport selection stays fixed; scrolling revokes scope and HTTP overload keeps disk usable
+[53/84] [firefox] › e2e/observations.spec.ts:208:3 › volume/0 composes state marks and switches to explicitly labelled LRU colors
+[54/84] [firefox] › e2e/observations.spec.ts:208:3 › sector/0/0 composes state marks and switches to explicitly labelled LRU colors
+[55/84] [firefox] › e2e/observations.spec.ts:249:3 › volume/0 separates partial unknowns, duplicate ambiguity, nonresidency and expired evidence
+[56/84] [firefox] › e2e/observations.spec.ts:249:3 › sector/0/0 separates partial unknowns, duplicate ambiguity, nonresidency and expired evidence
+[57/84] [firefox] › e2e/observations.spec.ts:324:1 › selected detail exposes exact membership and null meanings; inconsistent topology is refused
+[58/84] [firefox] › e2e/observations.spec.ts:354:3 › volume/0 source failure hides marks and paused incarnation change revokes every list
+[59/84] [firefox] › e2e/observations.spec.ts:354:3 › sector/0/0 source failure hides marks and paused incarnation change revokes every list
+[60/84] [firefox] › e2e/observations.spec.ts:387:1 › cached unavailable metadata does not turn a pending first capture into page failures
+[61/84] [firefox] › e2e/observations.spec.ts:425:1 › enabling Volume observations keeps the map in place and the legend available
+[62/84] [firefox] › e2e/observations.spec.ts:440:1 › Volume nonresident markers share an image and retain a forced-color glyph
+[63/84] [firefox] › e2e/observations.spec.ts:468:1 › Volume nonresident circles preserve known and unknown occupancy backgrounds
+[64/84] [firefox] › e2e/observations.spec.ts:514:3 › Sector refuses malformed schema response without losing disk navigation
+[65/84] [firefox] › e2e/observations.spec.ts:514:3 › Sector refuses malformed variant response without losing disk navigation
+[66/84] [firefox] › e2e/observations.spec.ts:514:3 › Sector refuses malformed scope response without losing disk navigation
+[67/84] [firefox] › e2e/observations.spec.ts:514:3 › Sector refuses malformed slot-order response without losing disk navigation
+[68/84] [firefox] › e2e/observations.spec.ts:514:3 › Sector refuses malformed slot-count response without losing disk navigation
+[69/84] [firefox] › e2e/observations.spec.ts:514:3 › Sector refuses malformed epoch response without losing disk navigation
+[70/84] [firefox] › e2e/observations.spec.ts:514:3 › Sector refuses malformed generation response without losing disk navigation
+[71/84] [firefox] › e2e/observations.spec.ts:537:1 › volume/0 pause rejects a delayed response and resume starts fresh scope demand
+[72/84] [firefox] › e2e/observations.spec.ts:537:1 › sector/0/0 pause rejects a delayed response and resume starts fresh scope demand
+[73/84] [firefox] › e2e/overlay-accessibility.spec.ts:5:3 › volume/0 keyboard focus survives quiet polling and age updates
+[74/84] [firefox] › e2e/overlay-accessibility.spec.ts:5:3 › sector/0/0 keyboard focus survives quiet polling and age updates
+[75/84] [firefox] › e2e/overlay-accessibility.spec.ts:54:3 › volume/0 absent and refused sources retain named disk navigation without absence marks
+[76/84] [firefox] › e2e/overlay-accessibility.spec.ts:54:3 › sector/0/0 absent and refused sources retain named disk navigation without absence marks
+[77/84] [firefox] › e2e/volume-observations.spec.ts:14:1 › 12288 rendered cells adopt 4096 changing results from one capture with fixed central selection
+[78/84] [firefox] › e2e/volume-observations.spec.ts:96:3 › Volume refuses malformed scope response as a whole
+[79/84] [firefox] › e2e/volume-observations.spec.ts:96:3 › Volume refuses malformed sector-order response as a whole
+[80/84] [firefox] › e2e/volume-observations.spec.ts:96:3 › Volume refuses malformed slot-count response as a whole
+[81/84] [firefox] › e2e/volume-observations.spec.ts:96:3 › Volume refuses malformed epoch response as a whole
+[82/84] [firefox] › e2e/volume-observations.spec.ts:96:3 › Volume refuses malformed generation response as a whole
+[83/84] [firefox] › e2e/volume-observations.spec.ts:96:3 › Volume refuses malformed detail-evidence response as a whole
+[84/84] [firefox] › e2e/volume-observations.spec.ts:96:3 › Volume refuses malformed oversized-body response as a whole
+  1 skipped
+  83 passed (2.1m)
+    Checking volmap v0.0.0 (/home/vimkim/temp/volmap)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.70s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.05s
+     Running unittests src/lib.rs (target/x86_64-unknown-linux-musl/debug/deps/volmap-68b3ced4833fdf20)
+
+running 1 test
+test web::assets::tests::generated_frontend_assets_are_ready_for_the_react_cutover ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 153 filtered out; finished in 0.00s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.05s
+     Running unittests src/lib.rs (target/x86_64-unknown-linux-musl/debug/deps/volmap-68b3ced4833fdf20)
+
+running 1 test
+test notices::tests::canonical_notice_covers_project_authority_and_release_graph ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 153 filtered out; finished in 0.00s
+
+frontend toolchain and generated assets passed
+cargo +1.97.1 metadata --locked --format-version 1 >/dev/null
+! rg -n 'path\+file:|download_url=file:|/home/|/tmp/' THIRD_PARTY_NOTICES.txt SBOM.cdx.json
+git diff --check

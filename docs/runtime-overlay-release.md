@@ -149,8 +149,8 @@ The ticket's older loopback wording is superseded by accepted
 IPv4 listeners also work, with unauthenticated plain HTTP and exact Host/Origin
 checks. Loopback plus SSH remains the operational example. No new transport is
 introduced here. [ADR 0008](adr/0008-scope-runtime-projections-to-view-level.md)
-also defines a future 64-sector Volume scope without timer rotation. Its design
-is not proof that all of that implementation or its expanded density gates have
-shipped. Measure the selected candidate's actual scope and keep producer scan
+defines the 64-sector Volume scope without timer rotation. The
+[Volume implementation evidence](../.scratch/volume-overlay-64-sectors-implementation/verification/02-volume-scope/README.md)
+records functional delivery; expanded performance qualification remains separate. Measure the selected candidate's actual scope and keep producer scan
 rotation distinct from viewport selection. This handoff edits neither decision
 nor the completed planning map or parent specification.

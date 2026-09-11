@@ -296,10 +296,10 @@ test("visible-page cadence is two seconds with explicit below, at and above-cap 
     const effect = state.effects.at(-1);
     if (effect?.kind !== "read-observation") throw new Error("missing visible scope");
     expect(effect.request.cadence_ms).toBe(2000);
-    expect(effect.request.pages).toHaveLength(Math.min(count, 512));
+    expect(effect.request.pages).toHaveLength(count);
     expect(state.observation.viewportCount).toBe(count);
-    expect(state.observation.rotation).toBe(count > 512 ? 512 : 0);
-    state = reduce(state, loaded(effect, { ...batch(effect), requested: Math.min(count, 512), evaluated: Math.min(count, 512) }));
+    expect(state.observation.rotation).toBe(0);
+    state = reduce(state, loaded(effect, { ...batch(effect), scope: effect.request.scope, requested: count, evaluated: count }));
     expect(state.effects.at(-1)).toMatchObject({ kind: "delay-observation", milliseconds: 2000 });
     expect(state.observation.message).toBe("Visible-page observations available");
   }
@@ -320,4 +320,64 @@ test("scoped detail preserves fixed slot addresses across absent physical slots"
   expect(decoded.evaluated).toBe(2);
   expect(decoded.complete).toBe(false);
   expect(() => decodeObservation({ ...envelope, slots: slots.filter((slot) => slot !== null) })).toThrow();
+});
+
+test("Volume accepts one 4096-slot lightweight capture and preserves unknown, null and zero LRU indices", () => {
+  const { pages: _pages, observations: _observations, ...metadata } = viewportEnvelope();
+  const slots: unknown[] = Array.from({ length: 4096 }, () => ({ state: "resident", reason: "observed-resident", evidence: { lru_zone: "lru1", lru_list_kind: "shared", lru_list_index: 0 } }));
+  slots[1] = { state: "resident", reason: "observed-resident", evidence: {} };
+  slots[2] = { state: "resident", reason: "observed-resident", evidence: { lru_zone: "void", lru_list_kind: "none", lru_list_index: null } };
+  const envelope = { ...metadata, schema: "volmap.runtime.page-buffer.scoped", variant: "volume-residency-lru",
+    scope: { kind: "volume", volid: 32767, sectorids: Array.from({ length: 64 }, (_, i) => 33554368 + i) },
+    capture: { ...metadata.capture, shared_lru_count: 2147483647, private_lru_count: 2147483647 },
+    requested_count: 4096, evaluated_count: 4096, slots };
+  const decoded = decodeObservation(envelope);
+  expect(decoded.rows).toHaveLength(4096);
+  expect(decoded.pages.at(-1)).toEqual({ volid: 32767, pageid: 2147483647 });
+  expect(decoded.rows[0]?.evidence.lru_list_index).toBe("0");
+  expect(decoded.rows[1]?.evidence.lru_list_index).toBe("unknown");
+  expect(decoded.rows[2]?.evidence.lru_list_index).toBe("none / not applicable");
+  expect(decoded.rows[0]?.evidence).not.toHaveProperty("dirty");
+  slots[4094] = null;
+  const short = decodeObservation({ ...envelope, requested_count: 4095, evaluated_count: 4095 });
+  expect(short.pages.at(-1)?.pageid).toBe(2147483647);
+  for (const malformed of [
+    { ...envelope, slots: [...slots, null] },
+    { ...envelope, scope: { ...envelope.scope, sectorids: [...envelope.scope.sectorids, 0] } },
+    { ...envelope, scope: { ...envelope.scope, sectorids: Array(64).fill(0) } },
+    { ...envelope, scope: { ...envelope.scope, sectorids: [...envelope.scope.sectorids].reverse() } },
+  ]) expect(() => decodeObservation(malformed)).toThrow();
+});
+
+
+test("Volume holds the canonical nearest 64-sector set without rotation and rejects late scope batches", () => {
+  const base = requested().state;
+  let state = reduce(base, { kind: "navigate", route: { kind: "volume", vol: 0 }, history: "push", autoEnrich: false });
+  const pages = Array.from({ length: 65 * 64 }, (_, pageid) => ({ volid: 0, pageid }));
+  state = reduce(state, { kind: "observation-viewport", scope: state.scope, pages });
+  state = reduce(state, { kind: "refresh-observation" });
+  const first = state.effects.at(-1);
+  if (first?.kind !== "read-observation") throw new Error("missing volume request");
+  expect(first.request.pages).toHaveLength(4096);
+  expect(first.request.scope).toEqual({ kind: "volume", volid: 0, sectorids: Array.from({ length: 64 }, (_, i) => i) });
+  state = reduce(state, loaded(first, { ...batch(first), scope: first.request.scope, requested: 4096, evaluated: 4096 }));
+  const retained = state.observation.batch;
+  const reordered = [...pages.slice(0, 4096).reverse(), ...pages.slice(4096)];
+  state = reduce(state, { kind: "observation-viewport", scope: state.scope, pages: reordered });
+  expect(state.observation.batch).toBe(retained);
+  state = reduce(state, { kind: "observation-due", epoch: state.observation.epoch });
+  const second = state.effects.at(-1);
+  if (second?.kind !== "read-observation") throw new Error("missing next request");
+  expect(second.request.scope).toEqual(first.request.scope);
+  state = reduce(state, { kind: "observation-viewport", scope: state.scope, pages: pages.slice(64) });
+  expect(state.observation.batch).toBeNull();
+  expect(reduce(state, loaded(second)).observation.batch).toBeNull();
+});
+
+test("Volume with no visible physical pages schedules no observation HTTP request", () => {
+  const base = requested().state;
+  let state = reduce(base, { kind: "navigate", route: { kind: "volume", vol: 0 }, history: "push", autoEnrich: false });
+  state = reduce(state, { kind: "observation-viewport", scope: state.scope, pages: [] });
+  state = reduce(state, { kind: "refresh-observation" });
+  expect(state.effects.some((effect) => effect.kind === "read-observation")).toBe(false);
 });

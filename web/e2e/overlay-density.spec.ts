@@ -92,7 +92,7 @@ test("12288 rendered page cells: per-browser visible latency and paired RSS", as
         expect(rendered.count).toBe(12288);
         if (enabled) {
           await page.locator(".observation-controls > button[aria-pressed]").click();
-          await expect(page.locator(".observation-detail[aria-label=\"Visible-page buffer observations\"]")).toContainText("Evaluated 512 / requested 512");
+          await expect(page.locator(".observation-detail[aria-label=\"Visible-page buffer observations\"]")).toContainText(/Evaluated ([1-9]\d*) \/ requested \1/);
           await page.locator(".runtime-mode select").selectOption(mode);
         }
         // Same keyboard focus changes, viewport and DOM workload in both arms.

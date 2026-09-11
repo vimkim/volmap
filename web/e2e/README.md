@@ -10,9 +10,17 @@ aids, not acceptance authorities.
 `overlay-accessibility.spec.ts` checks row/gridcell ownership, keyboard activation,
 focus after navigation, compatible focus during polling, quiet live regions and
 forced-color focus in Chromium and Firefox. `observations.spec.ts` supplies the
-integrated lifecycle, partial coverage, shared demand, viewport rotation,
+integrated lifecycle, partial coverage, shared demand, fixed viewport selection,
 restart/expiry and exact LRU detail cases. These are automated semantic checks;
 they do not establish manual screen-reader or visual acceptance.
+
+`volume-observations.spec.ts` adds the real HTTP/socket 64-sector flow on port
+41743: 12,288 rendered cells, 4,096 changing resident/LRU results from one capture,
+canonical central selection, exact capture-to-DOM adoption, focus, disclosure,
+scroll/resize and malformed/oversized-response rejection. The fixture emits one
+full 12,288-record capture with changing LRU zones, independent of the requested
+scope. Its JSON and screenshots are retained under the ticket 02 verification
+folder. This is functional coverage, not formal performance qualification.
 
 Run the separate release-build density diagnostic with the pinned tooling:
 

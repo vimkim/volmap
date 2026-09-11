@@ -24,13 +24,14 @@ pub(super) struct ValidatedScope {
     epoch: u64,
     cadence: Duration,
     after_request: bool,
-    sector: Option<SectorScope>,
+    view_scope: Option<ViewScope>,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
-pub(super) enum SectorScope {
+pub(super) enum ViewScope {
     Sector { volid: i16, sectorid: i32 },
+    Volume { volid: i16, sectorids: Vec<i32> },
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -50,26 +51,51 @@ impl ValidatedScope {
             epoch,
             cadence: Duration::from_millis(500),
             after_request: false,
-            sector: None,
+            view_scope: None,
         })
     }
 
-    pub(super) fn for_sector(
-        sector: SectorScope,
+    pub(super) fn for_view_scope(
+        mut address: ViewScope,
         view: &crate::inspection::GraphView,
         epoch: u64,
     ) -> Result<Self, ScopeError> {
-        let SectorScope::Sector { volid, sectorid } = sector;
+        let (volid, sectorids) = match &mut address {
+            ViewScope::Sector { volid, sectorid } => (*volid, std::slice::from_ref(sectorid)),
+            ViewScope::Volume { volid, sectorids } => {
+                if sectorids.len() > 64 {
+                    return Err(ScopeError::TooManyPages);
+                }
+                sectorids.sort_unstable();
+                if sectorids.windows(2).any(|pair| pair[0] == pair[1]) {
+                    return Err(ScopeError::InvalidAddressing);
+                }
+                (*volid, sectorids.as_slice())
+            }
+        };
         let volid = crate::model::VolId::new(volid).map_err(|_| ScopeError::InvalidAddressing)?;
-        let sectorid =
-            crate::model::SectorId::new(sectorid).map_err(|_| ScopeError::InvalidAddressing)?;
-        let projection = view
-            .sector(volid, sectorid)
+        view.volume(volid)
             .map_err(|_| ScopeError::InvalidAddressing)?;
-        let pages: Vec<_> = projection.pages.iter().map(|page| page.vpid).collect();
-        let mut scope = Self::new(&pages, epoch)?;
-        scope.sector = Some(sector);
-        Ok(scope)
+        let mut pages = Vec::with_capacity(sectorids.len() * 64);
+        for &sectorid in sectorids {
+            sectorid
+                .checked_mul(64)
+                .and_then(|first| first.checked_add(63))
+                .ok_or(ScopeError::InvalidAddressing)?;
+            let sectorid =
+                crate::model::SectorId::new(sectorid).map_err(|_| ScopeError::InvalidAddressing)?;
+            let projection = view
+                .sector(volid, sectorid)
+                .map_err(|_| ScopeError::InvalidAddressing)?;
+            pages.extend(projection.pages.iter().map(|page| page.vpid));
+        }
+        Ok(Self {
+            pages: pages.into_boxed_slice(),
+            epoch,
+            cadence: Duration::from_millis(500),
+            after_request: false,
+            view_scope: Some(address),
+        })
     }
 
     pub(super) fn with_demand(

@@ -9,8 +9,10 @@ export interface SectorObservationScope {
   readonly sectorid: number;
 }
 
+export type ViewObservationScope = SectorObservationScope | { readonly kind: "volume"; readonly volid: number; readonly sectorids: readonly number[] };
+
 export interface ObservationRequest {
-  readonly scope?: SectorObservationScope;
+  readonly scope?: ViewObservationScope;
   readonly pages: readonly { readonly volid: number; readonly pageid: number }[];
   readonly epoch: string;
   readonly generation: string;
@@ -44,7 +46,7 @@ function validObservationState(value: { state: string; reason: string }): value 
 }
 
 export interface ObservationBatch {
-  readonly scope?: SectorObservationScope;
+  readonly scope?: ViewObservationScope;
   readonly topology?: { readonly shared: number; readonly private: number };
   readonly rows: readonly ObservationRow[];
   readonly capability: RuntimeCapabilityState;
@@ -115,13 +117,22 @@ export function observationAction(state: UiState, action: ObservationAction): Ui
   const previous = state.observation;
   if (action.kind === "observation-color-mode") return { ...state, observation: { ...previous, colorMode: action.mode } };
   if (action.kind === "observation-viewport") {
-    if (action.scope !== state.scope || samePages(previous.viewport, action.pages)) return state;
-    return scheduleObservation({ ...state, observation: { ...previous, viewport: action.pages,
-      viewportCount: 0, rotation: 0, batch: null, age: null, loading: false, epoch: previous.epoch + 1 },
+    if (action.scope !== state.scope) return state;
+    let pages = action.pages;
+    if (state.route.kind === "volume") {
+      const sectors = [...new Set(pages.map((page) => Math.floor(page.pageid / 64)))].slice(0, 64);
+      const selected = new Set(sectors);
+      pages = pages.filter((page) => selected.has(Math.floor(page.pageid / 64))).slice().sort((a, b) => a.pageid - b.pageid);
+    }
+    const viewportCount = action.pages.length;
+    if (samePages(previous.viewport, pages)) return viewportCount === previous.viewportCount ? state : { ...state, observation: { ...previous, viewportCount } };
+    return scheduleObservation({ ...state, observation: { ...previous, viewport: pages,
+      viewportCount, rotation: 0, batch: null, age: null, loading: false, epoch: previous.epoch + 1 },
       effects: state.effects.filter((effect) => effect.kind !== "read-observation" && effect.kind !== "delay-observation") }, 0);
   }
+
   if (action.kind === "toggle-observation") {
-    return scheduleObservation({ ...state, observation: { ...initialObservation(), viewport: previous.viewport, enabled: !previous.enabled, epoch: previous.epoch + 1 } }, state.follow.paused ? 5000 : 0);
+    return scheduleObservation({ ...state, observation: { ...initialObservation(), viewport: previous.viewport, viewportCount: previous.viewportCount, enabled: !previous.enabled, epoch: previous.epoch + 1 } }, state.follow.paused ? 5000 : 0);
   }
   if (action.kind === "refresh-observation" || action.kind === "observation-due") {
     if (action.kind === "observation-due") {
@@ -135,7 +146,7 @@ export function observationAction(state: UiState, action: ObservationAction): Ui
     const epoch = previous.epoch + 1;
     const selected = "page" in state.route ? { volid: state.route.vol, pageid: state.route.page } : null;
     const remainder = previous.viewport.filter((page) => page.volid !== selected?.volid || page.pageid !== selected?.pageid);
-    const capacity = 512 - (selected === null ? 0 : 1);
+    const capacity = (state.route.kind === "volume" ? 4096 : 512) - (selected === null ? 0 : 1);
     const rotated = remainder.length > capacity;
     const offset = rotated ? previous.rotation % remainder.length : 0;
     let pages = selected === null ? [] : [selected];
@@ -145,8 +156,11 @@ export function observationAction(state: UiState, action: ObservationAction): Ui
       pages = state.view.sector.pages.map((page) => ({ volid: page.vol_id, pageid: page.page_id })).sort((a, b) => a.pageid - b.pageid);
     }
     if (pages.length === 0) return scheduleObservation(state, observationInterval(state));
-    const request: ObservationRequest = { pages, ...(state.route.kind === "sector" ? { scope: { kind: "sector" as const, volid: state.route.vol, sectorid: state.route.sector } } : {}), epoch: String(epoch), generation: state.snapshot.generation ?? "0", retry: action.kind === "refresh-observation", cadence_ms: observationInterval(state), after_request: previous.resumeRequired };
-    return { ...state, observation: { ...previous, epoch, loading: true, stopped: false, viewportCount: state.route.kind === "sector" ? pages.length : remainder.length + (selected === null ? 0 : 1), rotation: rotated ? (offset + capacity) % remainder.length : 0, message: selected === null ? "Observing visible pages" : "Observing selected page" }, nextEffectId: state.nextEffectId + 1,
+    const scope: ViewObservationScope | undefined = state.route.kind === "volume"
+      ? { kind: "volume", volid: state.route.vol, sectorids: [...new Set(pages.map((page) => Math.floor(page.pageid / 64)))] }
+      : state.route.kind === "sector" ? { kind: "sector", volid: state.route.vol, sectorid: state.route.sector } : undefined;
+    const request: ObservationRequest = { pages, scope, epoch: String(epoch), generation: state.snapshot.generation ?? "0", retry: action.kind === "refresh-observation", cadence_ms: observationInterval(state), after_request: previous.resumeRequired };
+    return { ...state, observation: { ...previous, epoch, loading: true, stopped: false, viewportCount: state.route.kind === "volume" ? previous.viewportCount : state.route.kind === "sector" ? pages.length : remainder.length + (selected === null ? 0 : 1), rotation: rotated ? (offset + capacity) % remainder.length : 0, message: selected === null ? "Observing visible pages" : "Observing selected page" }, nextEffectId: state.nextEffectId + 1,
       effects: [...state.effects, { kind: "read-observation", id: state.nextEffectId, scope: state.scope, request }] };
   }
   if (action.kind === "observation-loaded") {
@@ -289,39 +303,50 @@ export function decodeCapability(value: unknown): RuntimeCapabilityState {
 
 export function decodeObservation(value: unknown): ObservationBatch {
   const envelope = objectData(value);
-  let scope: SectorObservationScope | undefined;
+  let scope: ViewObservationScope | undefined;
   let data = envelope;
   if (envelope.schema === "volmap.runtime.page-buffer.scoped") {
-    if (envelope.schema_version !== 1 || envelope.variant !== "sector-detail" ||
-        !Array.isArray(envelope.slots) || envelope.slots.length !== 64 ||
+    if (envelope.schema_version !== 1 || !Array.isArray(envelope.slots) ||
         envelope.pages !== undefined || envelope.observations !== undefined) throw new Error("invalid scoped observation envelope");
     const address = objectData(envelope.scope);
-    if (address.kind !== "sector") throw new Error("invalid observation scope");
-    scope = { kind: "sector", volid: count(address.volid, 32767), sectorid: count(address.sectorid, 33554431) };
-    const volid = scope.volid;
-    const firstPage = scope.sectorid * 64;
+    const volid = count(address.volid, 32767);
+    let sectorids: number[];
+    if (address.kind === "sector" && envelope.variant === "sector-detail") {
+      scope = { kind: "sector", volid, sectorid: count(address.sectorid, 33554431) };
+      sectorids = [scope.sectorid];
+    } else if (address.kind === "volume" && envelope.variant === "volume-residency-lru" && Array.isArray(address.sectorids) && address.sectorids.length <= 64) {
+      sectorids = address.sectorids.map((id) => count(id, 33554431));
+      if (sectorids.some((id, index) => index > 0 && id <= sectorids[index - 1]!)) throw new Error("noncanonical sectors");
+      scope = { kind: "volume", volid, sectorids };
+    } else throw new Error("invalid observation scope");
+    if (envelope.slots.length !== sectorids.length * 64) throw new Error("invalid slots");
     const pages: { volid: number; pageid: number }[] = [];
     const observations: unknown[] = [];
     envelope.slots.forEach((slot, index) => {
       if (slot === null) return;
-      pages.push({ volid, pageid: firstPage + index });
-      observations.push(slot);
+      const page = { volid, pageid: sectorids[Math.floor(index / 64)]! * 64 + index % 64 };
+      pages.push(page);
+      if (scope?.kind === "volume") {
+        const row = objectData(slot);
+        if (Object.keys(row).some((key) => !["state", "reason", "evidence"].includes(key))) throw new Error("invalid volume row");
+        observations.push({ ...row, ...page });
+      } else observations.push(slot);
     });
     data = { ...envelope, schema: "volmap.runtime.page-buffer", pages, observations };
   } else if (envelope.scope !== undefined || envelope.variant !== undefined || envelope.slots !== undefined) {
     throw new Error("invalid legacy observation envelope");
   }
   if (data.schema !== "volmap.runtime.page-buffer" || data.schema_version !== 1 ||
-      !Array.isArray(data.pages) || data.pages.length > 512 || !Array.isArray(data.observations) || data.observations.length !== data.pages.length) throw new Error("invalid observation envelope");
+      !Array.isArray(data.pages) || data.pages.length > (scope?.kind === "volume" ? 4096 : 512) || !Array.isArray(data.observations) || data.observations.length !== data.pages.length) throw new Error("invalid observation envelope");
   const pages = data.pages.map((page) => { const entry = objectData(page); return { volid: count(entry.volid, 32767), pageid: count(entry.pageid, 2147483647) }; });
   const capability = objectData(data.capability);
   const capabilityState = decodeCapability(capability);
   const capture = data.capture === null ? null : objectData(data.capture);
   if ((capture !== null) !== ["active", "stale"].includes(capabilityState)) throw new Error("inconsistent capture");
   const topology = capture === null || (capture.shared_lru_count === undefined && capture.private_lru_count === undefined) ? undefined : { shared: count(capture.shared_lru_count, 2147483647), private: count(capture.private_lru_count, 2147483647) };
-  const rows = data.observations.map((value, index) => decodeRow(value, pages[index]!, capture !== null, data.producer_complete, topology));
-  const requested = count(data.requested_count);
-  const evaluated = count(data.evaluated_count);
+  const rows = data.observations.map((value, index) => decodeRow(value, pages[index]!, capture !== null, data.producer_complete, topology, scope?.kind === "volume"));
+  const requested = count(data.requested_count, scope?.kind === "volume" ? 4096 : 512);
+  const evaluated = count(data.evaluated_count, scope?.kind === "volume" ? 4096 : 512);
   const evaluatedRows = rows.filter((row) => row.reason !== "unevaluated" && row.state !== "unavailable" && row.state !== "expired").length;
   if (requested !== pages.length || evaluated !== evaluatedRows) throw new Error("inconsistent scope coverage");
   const row = rows[0];
@@ -342,8 +367,11 @@ export function observationIsFresh(age: number | null, interval = selectedObserv
   return age !== null && age >= 0 && age <= 2 * interval;
 }
 
-export function sameObservationScope(left: SectorObservationScope | undefined, right: SectorObservationScope | undefined): boolean {
-  return left?.kind === right?.kind && left?.volid === right?.volid && left?.sectorid === right?.sectorid;
+export function sameObservationScope(left: ViewObservationScope | undefined, right: ViewObservationScope | undefined): boolean {
+  if (left === undefined || right === undefined) return left === right;
+  if (left.volid !== right.volid) return false;
+  if (left.kind === "sector" && right.kind === "sector") return left.sectorid === right.sectorid;
+  return left.kind === "volume" && right.kind === "volume" && left.sectorids.length === right.sectorids.length && left.sectorids.every((id, index) => id === right.sectorids[index]);
 }
 
 function samePages(left: ObservationRequest["pages"], right: ObservationRequest["pages"]): boolean {
@@ -354,7 +382,7 @@ export function observationInterval(state: UiState): number {
   return "page" in state.route ? 500 : 2000;
 }
 
-function decodeRow(value: unknown, page: ObservationRequest["pages"][number], captured: boolean, complete: unknown, topology: ObservationBatch["topology"]): ObservationRow {
+function decodeRow(value: unknown, page: ObservationRequest["pages"][number], captured: boolean, complete: unknown, topology: ObservationBatch["topology"], slim = false): ObservationRow {
   const row = objectData(value);
   const classification = { state: text(row.state), reason: text(row.reason) };
   if (!validObservationState(classification)) throw new Error("invalid observation classification");
@@ -369,7 +397,8 @@ function decodeRow(value: unknown, page: ObservationRequest["pages"][number], ca
   if (row.evidence !== null) {
     const fields = objectData(row.evidence);
     validateLru(fields, topology);
-    for (const field of ["page_kind", "latch_mode", "waiter_present", "fix_count", "dirty", "flushing", "async_flush_requested", "to_vacuum", "lru_zone", "lru_list_kind", "lru_list_index", "page_lsa", "oldest_unflush_lsa"]) {
+    if (slim && Object.keys(fields).some((key) => !["lru_zone", "lru_list_kind", "lru_list_index"].includes(key))) throw new Error("invalid volume evidence");
+    for (const field of slim ? ["lru_zone", "lru_list_kind", "lru_list_index"] : ["page_kind", "latch_mode", "waiter_present", "fix_count", "dirty", "flushing", "async_flush_requested", "to_vacuum", "lru_zone", "lru_list_kind", "lru_list_index", "page_lsa", "oldest_unflush_lsa"]) {
       const item = fields[field];
       if (item === undefined) evidence[field] = "unknown";
       else if (item === null) evidence[field] = "none / not applicable";

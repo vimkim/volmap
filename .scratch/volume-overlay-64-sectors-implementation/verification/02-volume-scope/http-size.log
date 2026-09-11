@@ -1,0 +1,10 @@
+   Compiling volmap v0.0.0 (/home/vimkim/temp/volmap)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.03s
+     Running unittests src/lib.rs (target/x86_64-unknown-linux-musl/debug/deps/volmap-68b3ced4833fdf20)
+
+running 1 test
+4096 resident HTTP fixture: request=299 response=554599 bytes
+4096 resident HTTP fixture: request=299 response=554510 bytes
+test web::tests::volume_observation_http_serializes_4096_resident_results_from_one_capture ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 153 filtered out; finished in 1.66s
