@@ -111,3 +111,6 @@ The gate remains non-passing. The failed original run is still the release
 candidate's density evidence. Neither a diagnostic pass nor an old-bundle failure
 waives the original failure. Further isolated native-allocation investigation,
 manual review and dedicated-host release measurements remain outstanding.
+
+[Verification and independent reviews](review.md) report zero evidence defects;
+they do not convert the recorded measurement failures into acceptance.
