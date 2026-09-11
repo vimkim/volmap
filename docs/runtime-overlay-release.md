@@ -79,9 +79,14 @@ Measure these gates independently; retain a per-case result:
 | Cached HTTP request → completed response p95 | ≤ 25 ms |
 | Concurrent disk-inspection p95 regression | ≤ 5% |
 | Producer / broker CPU at default cadence | ≤ 20% / 50% of one logical core, using CPU-time / wall-time |
-| Incremental peak RSS: producer / broker / browser | ≤ 16 MiB / 192 MiB / 32 MiB per tab |
+| Incremental peak RSS: producer / broker / browser | ≤ 16 MiB / 192 MiB / 64 MiB per tab |
 | Decoded scan / total broker allocation | ≤ 48 MiB / 128 MiB, independent of RSS |
 | Actual rendered density and per-browser visible-update p95 | ≥ 10,000 laid-out page cells; ≤ 100 ms in each browser |
+
+The browser allowance follows the [2026-09-11 budget revision](../.scratch/pgbuf-overlay-implementation/browser-memory-budget-revision.md):
+ordinary developer PCs with 1–8 tabs are the primary usage. The 1/8/32-tab
+matrix remains required; local density checks do not establish multi-tab or
+repeated-use qualification. Historical 32 MiB verdicts remain unchanged.
 
 Do not divide completeness by successful scans only or accept an empty fast scan
 as the loaded reference case. Above the slot cap, show truthful partial coverage;

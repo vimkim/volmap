@@ -1,0 +1,29 @@
+diff --git a/web/e2e/overlay-density.spec.ts b/web/e2e/overlay-density.spec.ts
+index 8bc569f..ae9eec7 100644
+--- a/web/e2e/overlay-density.spec.ts
++++ b/web/e2e/overlay-density.spec.ts
+@@ -8,6 +8,8 @@ import { createHash } from "node:crypto";
+ 
+ // A dedicated browser process tree with one tab. Summed RSS includes shared
+ // pages in each process; this is conservative accounting, not JS heap size.
++// Browser allowance: .scratch/pgbuf-overlay-implementation/browser-memory-budget-revision.md
++const browserMemoryBudgetBytes = 64 * 1024 * 1024;
+ const pageSize = Number(execFileSync("getconf", ["PAGESIZE"], { encoding: "utf8" }).trim());
+ 
+ async function rssTree(root: number): Promise<number> {
+@@ -151,12 +153,13 @@ test("12288 rendered page cells: per-browser visible latency and paired RSS", as
+   const report = {
+     ...provenance,
+     method: "One dedicated browser tree/tab per arm; 50ms sampled summed process RSS from launch through identical 40 Tab interactions. Two order-alternated pairs (state marks, LRU); worst per-arm p95 reported, never averaged across cases. Input keydown to visible outlined focus, bounded by second animation frame. Local diagnostic; manual and dedicated-host qualification remain separate.",
++    browserMemoryBudgetBytes,
+     p95Ms: p95, incrementalPeakRssBytes: increments, runs,
+-    timingPass: p95 <= 100, memoryPass: increments.every((increment) => increment <= 32 * 1024 * 1024),
++    timingPass: p95 <= 100, memoryPass: increments.every((increment) => increment <= browserMemoryBudgetBytes),
+   };
+   const output = testInfo.outputPath(`density-${browserName}.json`);
+   await writeFile(output, JSON.stringify(report, null, 2));
+   await testInfo.attach("density-raw", { path: output, contentType: "application/json" });
+   expect(p95).toBeLessThanOrEqual(100);
+-  for (const increment of increments) expect(increment).toBeLessThanOrEqual(32 * 1024 * 1024);
++  for (const increment of increments) expect(increment).toBeLessThanOrEqual(browserMemoryBudgetBytes);
+ });

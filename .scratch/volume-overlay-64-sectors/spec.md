@@ -134,17 +134,20 @@ pages/rows capacity 등 실제 할당 증명이 필요하다. 2MiB 예약을 그
 동일하다고 단정할 수 없다. `observation-view.tsx:84`의 접힌 상세표는 지연
 생성되지만 펼치면 4,096행과 반복 evidence 문자열 비용이 생긴다.
 
-`web/e2e/overlay-density.spec.ts:41`은 12,288 실제 셀, Chromium/Firefox 각각
-input-to-visible p95 <=100ms, disabled 대비 탭당 RSS 증가 <=32MiB를 시험한다.
+`web/e2e/overlay-density.spec.ts`은 12,288 실제 셀, Chromium/Firefox 각각
+input-to-visible p95 <=100ms, disabled 대비 탭당 RSS 증가 <=64MiB를 시험한다.
 이 기존 시험은 4,096개의 변화하는 runtime 결과 처리 성능을 입증하지 않는다.
 새 범위에서는 수신→decode→채택→paint, mode 전환, scroll/resize,
 상세표 개폐 및 연속 갱신을 별도 측정해야 한다.
 
 기존 예산의 authoritative 결정은
 `../pgbuf-overlay/issues/15-set-overlay-resource-budgets.md`다.
+브라우저 RSS 예산은 [2026-09-11 개정](../pgbuf-overlay-implementation/browser-memory-budget-revision.md)에
+따라 탭당 64MiB다. 일반 개발자 PC의 1–8개 탭이 주 사용 환경이며,
+기존 1/8/32탭 검증 범위와 확장된 4,096페이지 성능 검증은 유지한다.
 512페이지에서4,096페이지로 늘리는 것은 그 계약의 명시적 설계 개정 사항이다.
 선택한 경량 projection에서는 HTTP byte 한도를 유지한다.
-기존 producer cap, broker128MiB, browser32MiB, cached HTTP p95 25ms,
+기존 producer cap, broker128MiB, browser64MiB, cached HTTP p95 25ms,
 refresh p95 250ms, input p95 100ms 등의 gate를 임의로 완화하지 않는다.
 4,096페이지 조건에서 이 gate를 통과했다는 주장은 아직 없다.
 

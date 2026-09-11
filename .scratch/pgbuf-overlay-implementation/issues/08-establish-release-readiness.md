@@ -10,7 +10,7 @@
 - [ ] For each performance case collect ten paired runs, each with 60 seconds warmup and at least five minutes measurement, extending to at least 100,000 transactions where applicable. Paired runs retain identical workload, state, concurrency and build except inspector activity. Preserve raw samples and the confidence method; do not average away failing cases.
 - [ ] The 95% confidence upper bound must meet at most 2% throughput loss and 5% transaction p99 increase. Measure parameter-off versus an unmodified build and enabled-without-demand separately. Inconclusive results are not passing evidence.
 - [ ] For idle/read-heavy 1 GiB reference cases, require at least 99% complete scans. Require p95 refresh demand-to-validated-publication no more than 250 ms, cached HTTP request-to-completed-response p95 no more than 25 ms, and concurrent disk-inspection p95 regression no more than 5%. Record completeness separately so mostly empty fast scans cannot pass. Larger pools require truthful partial coverage, not the reference completeness percentage or expanded resources.
-- [ ] At default cadence, require producer CPU at most 20% and broker CPU at most 50% of one logical core. Incremental peak RSS must stay within producer 16 MiB, broker 192 MiB and browser 32 MiB per tab relative to matched disabled workloads/tab counts. Report CPU-time/wall-time and allocator accounting separately; RSS allowances do not relax 48 MiB decoded-scan or 128 MiB total broker allocation limits.
+- [ ] At default cadence, require producer CPU at most 20% and broker CPU at most 50% of one logical core. Incremental peak RSS must stay within producer 16 MiB, broker 192 MiB and browser 64 MiB per tab relative to matched disabled workloads/tab counts. Report CPU-time/wall-time and allocator accounting separately; RSS allowances do not relax 48 MiB decoded-scan or 128 MiB total broker allocation limits.
 - [ ] Include ticket 06's actual 10,000-rendered-page Chromium and Firefox evidence with p95 input-to-visible update at most 100 ms per browser, manual screen-reader/visual review and lifecycle/coverage accessibility checks. Include ticket 07's real-engine debug/release and develop-versus-format-aligned evidence, not just offline corpus results.
 - [ ] Maintain a delivery gate manifest mapping every invariant and budget to owner/test, exact producer/consumer commits, corpus revision/hash, build mode, environment, testcase revision, preconditions, command, executed count, result and raw artifacts. Manual reviews identify reviewer and assistive technology. Every required missing, skipped, inconclusive or failing result keeps release readiness open; affected evidence reruns after code/corpus changes.
 - [ ] Use established local/release verification tooling. Any contract-preserving tuning needed to meet a gate is reverified; lowering a threshold requires an explicit design revision. Neither this ticket nor a green subset invents hosted CI or claims unexecuted external test results.
@@ -71,3 +71,10 @@ post-GC heap/DOM counts. DOM/listener counts remain stable after cycle5; retaine
 heap and RSS still increase modestly, so neither a leak nor a leak-free plateau
 is established. The prior32MiB failure remains open; GC interventions are not
 acceptance evidence. Production source and normal tests are unchanged.
+
+2026-09-11 — Explicit [browser budget revision](../browser-memory-budget-revision.md):
+64 MiB incremental peak RSS per tab, targeting ordinary developer PCs with 1–8
+tabs. Retain the 1/8/32-tab release matrix. Historical 32 MiB failures are not
+rewritten or relabelled; [new-policy evidence](../verification/08-browser-budget-revision/README.md)
+is separate. Repeated-use memory growth, manual reviews and dedicated-host
+qualification remain open.

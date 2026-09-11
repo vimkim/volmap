@@ -9,10 +9,10 @@
 - [x] Exercise integrated lifecycle and visible-scope rendering at Volume and Sector scales, including state-mark/LRU modes, exact-index detail and fresh/stale/paused/expired/absent/refused states. Assert semantic roles, accessible names, non-color limitations and stable focus through refresh and navigation.
 - [ ] Prove keyboard operation, high-contrast readability, reduced-motion behavior and quiet age/poll updates. Record manual screen-reader and visual reviews with reviewer and assistive technology; screenshots alone cannot establish accessibility.
 - [x] Render 10,000 actual page cells in the measured density case, recording rendered count, viewport, browser versions, reference host and raw interaction samples. A 10,000-entry off-screen model is not sufficient evidence.
-- [x] Measure p95 input-to-visible update at no more than 100 ms independently in Chromium and Firefox, alongside matched-disabled browser memory measurements against the 32 MiB incremental peak RSS per-tab limit. Do not average browsers together or replace visible updates with model-only timing.
+- [x] Measure p95 input-to-visible update at no more than 100 ms independently in Chromium and Firefox, alongside matched-disabled browser memory measurements against the 64 MiB incremental peak RSS per-tab limit. Do not average browsers together or replace visible updates with model-only timing.
 - [x] Include viewport churn, partial coverage, shared demand, pause/resume, hidden tabs and restart/expiry in the integrated browser checks. Any optimization preserves selected priority, explicit rotation, bounded requests, original age and late-response revocation.
 - [x] Run through established local/release browser tooling without inventing hosted CI. Retain exact consumer commit, corpus hash, environment, build, commands, named cases, executed counts and raw artifacts for the delivery manifest. Missing manual review or an inconclusive/failed browser gate remains non-passing.
-- [x] Make only contract-preserving improvements needed to satisfy this user journey; do not weaken density, timing, memory or accessibility thresholds or introduce a frontend rewrite. Runtime evidence remains outside disk inspection facts, TUI and exports.
+- [x] Make only contract-preserving improvements needed to satisfy this user journey; do not weaken density, timing or accessibility thresholds or introduce a frontend rewrite. Apply only the explicit [browser memory budget revision](../browser-memory-budget-revision.md). Runtime evidence remains outside disk inspection facts, TUI and exports.
 
 
 ## Comments
@@ -134,3 +134,10 @@ release matrix, not formal host-designation approval or external measurement
 certification. Those approval requirements are removed; the budget, both-browser
 scope and sampling disclosure are unchanged. Named manual screen-reader and visual
 reviews are explicitly required and still missing, so ticket 06 remains open.
+
+2026-09-11 — The [browser budget revision](../browser-memory-budget-revision.md)
+changes the active browser allowance to 64 MiB for the confirmed developer-PC
+usage profile. Earlier checked automated work and its 32 MiB results remain
+historical evidence; new-policy verification is recorded separately in
+[the revision evidence](../verification/08-browser-budget-revision/README.md).
+Manual acceptance remains open.

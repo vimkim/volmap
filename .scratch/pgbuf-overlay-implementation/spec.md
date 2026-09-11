@@ -390,9 +390,11 @@ export or terminal-parity obligation.
     Measure completeness separately so mostly empty fast scans cannot pass.
 16. At default cadence, producer CPU is at most 20% and broker CPU at most
     50% of one logical core. Incremental peak RSS limits are producer 16 MiB,
-    broker 192 MiB and browser 32 MiB per tab, relative to matched disabled
+    broker 192 MiB and browser 64 MiB per tab, relative to matched disabled
     workloads/tab counts. Report CPU-time/wall-time and allocator accounting
     separately; RSS allowance does not authorize violating allocation caps.
+    Browser allowance follows the [2026-09-11 policy revision](browser-memory-budget-revision.md)
+    for ordinary developer PCs with 1–8 tabs; retain the 1/8/32-tab matrix.
 17. Maintain a delivery gate manifest mapping every invariant and budget to
     its owner/test, exact producer/consumer commits, corpus hash, build mode,
     environment, testcase revision, preconditions, command, executed count,
