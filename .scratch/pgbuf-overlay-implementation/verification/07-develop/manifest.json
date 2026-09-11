@@ -122,5 +122,13 @@
       "flaky": 0
     },
     "runtime": "aligned-release-runtime.json"
+  },
+  "review": {
+    "fixed_point": "7c6e7e9",
+    "reviewed_commit": "c0dec56",
+    "standards_hard": 0,
+    "standards_optional": 0,
+    "spec_actionable": 0,
+    "report": "review.md"
   }
 }
