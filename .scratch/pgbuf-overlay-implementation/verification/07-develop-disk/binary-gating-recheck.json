@@ -1,0 +1,41 @@
+{
+  "command": "nm -D -C --defined-only LIBRARY; match cubpgbuf::inspector",
+  "libraries": [
+    {
+      "mode": "debug",
+      "path": "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-develop/debug_gcc/lib/libcubrid.so",
+      "sha256": "b1061a74545dba0dea1e8481fb5b0f6000de3dd0d4d1b2c1abde4b0a04d8d1aa",
+      "inspector_symbols": 266
+    },
+    {
+      "mode": "debug",
+      "path": "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-develop/debug_gcc/lib/libcubridsa.so",
+      "sha256": "e87ad0b041e40efb8929415e5a2dd38c0af0f727b00ef30f88558410517c2de8",
+      "inspector_symbols": 0
+    },
+    {
+      "mode": "debug",
+      "path": "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-develop/debug_gcc/lib/libcubridcs.so",
+      "sha256": "7394f0da6f76f40cbe7a2bf9e00c8e8c4ee709d3acf11b58f10e998aafd56375",
+      "inspector_symbols": 0
+    },
+    {
+      "mode": "release",
+      "path": "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-develop/release_gcc/lib/libcubrid.so",
+      "sha256": "4f776c4f858741dc004770184fe2d01760462d3ef7b32635348a12d6246e7176",
+      "inspector_symbols": 48
+    },
+    {
+      "mode": "release",
+      "path": "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-develop/release_gcc/lib/libcubridsa.so",
+      "sha256": "313ea51c28b48a8b306610236b7d0dcade41e15652c3050b27f0f773bd70d24b",
+      "inspector_symbols": 0
+    },
+    {
+      "mode": "release",
+      "path": "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-develop/release_gcc/lib/libcubridcs.so",
+      "sha256": "c4e9181acf8f3ffe192f4978bd4511447c1d8537ec448ab1c235910bcf398704",
+      "inspector_symbols": 0
+    }
+  ]
+}

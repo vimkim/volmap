@@ -1,0 +1,243 @@
+{
+  "schema": "volmap.develop-disk-corpus",
+  "revision": 1,
+  "engine_commit": "48a3e87e3d56d3b0c998d286f17fc6674bb5e547",
+  "engine_base": "8cb558b3b264b5ed045ab24fa50b0ef825925349",
+  "format_profile": "develop",
+  "page_size": 16384,
+  "synthetic_content_only": true,
+  "clean_standalone_shutdown": true,
+  "commands": [
+    [
+      "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-develop/debug_gcc/bin/cubrid",
+      "createdb",
+      "--db-page-size=16K",
+      "--db-volume-size=32M",
+      "--log-volume-size=20M",
+      "-F",
+      "/home/vimkim/tmp/volmap126-develop-disk-02",
+      "volmap_develop",
+      "en_US.utf8"
+    ],
+    [
+      "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-develop/debug_gcc/bin/csql",
+      "-S",
+      "-u",
+      "dba",
+      "-i",
+      "/home/vimkim/temp/volmap/fixtures/8cb558b3/generate.sql",
+      "volmap_develop"
+    ]
+  ],
+  "volumes": [
+    {
+      "volid": 0,
+      "path": "/home/vimkim/tmp/volmap126-develop-disk-02/volmap_develop",
+      "size": 67108864,
+      "sha256": "6b7d92dcd025e3fafca37a84a050985eb4828801bb73c168a8dd127c9de49ff6"
+    },
+    {
+      "volid": 1,
+      "path": "/home/vimkim/tmp/volmap126-develop-disk-02/volmap_develop_x001",
+      "size": 134217728,
+      "sha256": "213c39996c1cd8ecbb241ac9020fd561f7ca29500297fb82cfcfea93b344fffd"
+    }
+  ],
+  "pages": [
+    {
+      "file": "pages/vol0-page0.bin",
+      "volid": 0,
+      "pageid": 0,
+      "native_ordinal": 3,
+      "kind": "volume-header",
+      "role": "volume-header",
+      "sha256": "39683c0888f0d977dd42b2bc4110faa06c731024238d80ad969c7e4c9a79c89c"
+    },
+    {
+      "file": "pages/vol0-page1.bin",
+      "volid": 0,
+      "pageid": 1,
+      "native_ordinal": 4,
+      "kind": "volume-bitmap",
+      "role": "volume-bitmap",
+      "sha256": "f968a5af945364a46a2358083bff48d4ce80ac40fede45e4fe1869732134b889"
+    },
+    {
+      "file": "pages/vol0-page64.bin",
+      "volid": 0,
+      "pageid": 64,
+      "native_ordinal": 1,
+      "kind": "file-table",
+      "role": "file-table",
+      "sha256": "9438272dc231223de70792707ba03ee4107eb8d1360632844641d88477465813"
+    },
+    {
+      "file": "pages/vol0-page129.bin",
+      "volid": 0,
+      "pageid": 129,
+      "native_ordinal": 2,
+      "kind": "heap",
+      "role": "heap-header",
+      "sha256": "ccf667b51988e576edf33c15ca528c9aecad1881527ba457b1b38e6305cdac07"
+    },
+    {
+      "file": "pages/vol0-page130.bin",
+      "volid": 0,
+      "pageid": 130,
+      "native_ordinal": 2,
+      "kind": "heap",
+      "role": "heap-chain",
+      "sha256": "e5f60a11650eb6ee556619ac43f845e4180cdf91d33c1f8a42e9715fcdb99e0a"
+    },
+    {
+      "file": "pages/vol0-page321.bin",
+      "volid": 0,
+      "pageid": 321,
+      "native_ordinal": 6,
+      "kind": "extensible-hash",
+      "role": "extensible-hash",
+      "sha256": "56a071d099b5e463bce7b066fa3e68660558873e5fb45dd771a107ee0d95cb4e"
+    },
+    {
+      "file": "pages/vol0-page577.bin",
+      "volid": 0,
+      "pageid": 577,
+      "native_ordinal": 9,
+      "kind": "catalog",
+      "role": "catalog",
+      "sha256": "67744d8db9ced20471300e294b8a2a6addb7434b2afb21e8657a9751d1ed0dca"
+    },
+    {
+      "file": "pages/vol0-page641.bin",
+      "volid": 0,
+      "pageid": 641,
+      "native_ordinal": 13,
+      "kind": "vacuum-data",
+      "role": "vacuum-data",
+      "sha256": "f4db32c3f086d6a707c5c8c8495947a5d8d1fa85e973f5f11395bc132684eeb2"
+    },
+    {
+      "file": "pages/vol0-page705.bin",
+      "volid": 0,
+      "pageid": 705,
+      "native_ordinal": 12,
+      "kind": "dropped-files",
+      "role": "dropped-files",
+      "sha256": "5747115317c139202068a54593e548e0ea51ea8f7385c60845be992f6340c72a"
+    },
+    {
+      "file": "pages/vol0-page897.bin",
+      "volid": 0,
+      "pageid": 897,
+      "native_ordinal": 10,
+      "kind": "btree",
+      "role": "btree",
+      "sha256": "8f23b8539e7aaca57e569fcf11d431bfde6ad1bbdef078df350a8faa9f0f6c08"
+    },
+    {
+      "file": "pages/vol1-page0.bin",
+      "volid": 1,
+      "pageid": 0,
+      "native_ordinal": 3,
+      "kind": "volume-header",
+      "role": "volume-header",
+      "sha256": "94ebc7a11677587961c8fec1cf730936f2e6cd0fa6370a7db35a8902f6063da1"
+    },
+    {
+      "file": "pages/vol1-page1.bin",
+      "volid": 1,
+      "pageid": 1,
+      "native_ordinal": 4,
+      "kind": "volume-bitmap",
+      "role": "volume-bitmap",
+      "sha256": "5acc20122414633c95c28fd67ee118f7bf576f6e097f9d713b1d6426afaec47a"
+    },
+    {
+      "file": "pages/vol1-page64.bin",
+      "volid": 1,
+      "pageid": 64,
+      "native_ordinal": 1,
+      "kind": "file-table",
+      "role": "file-table",
+      "sha256": "0935cc36c97a2f0a06ae1e5a2bb165eb48773eae0bd1847bb46d331e0c5ff1e0"
+    },
+    {
+      "file": "pages/vol1-page65.bin",
+      "volid": 1,
+      "pageid": 65,
+      "native_ordinal": 2,
+      "kind": "heap",
+      "role": "heap-header",
+      "sha256": "257719a9f06607fa58d78f47b0499fa9fb1b31e687d64619e0cf12ea323e41f7"
+    },
+    {
+      "file": "pages/vol1-page66.bin",
+      "volid": 1,
+      "pageid": 66,
+      "native_ordinal": 2,
+      "kind": "heap",
+      "role": "heap-chain",
+      "sha256": "27402b823c3ba825e91cbc1e6cfd46a3ed630779846d248d1e251cff9d056628"
+    },
+    {
+      "file": "pages/vol1-page129.bin",
+      "volid": 1,
+      "pageid": 129,
+      "native_ordinal": 10,
+      "kind": "btree",
+      "role": "btree",
+      "sha256": "b63b7cc23f1a734a3e494223a8f56e05aec9a6f2215052c6ca1469f1429102af"
+    },
+    {
+      "file": "pages/vol1-page769.bin",
+      "volid": 1,
+      "pageid": 769,
+      "native_ordinal": 7,
+      "kind": "overflow",
+      "role": "overflow-769",
+      "sha256": "3e0f4ef8ce67734fd1a9e8f42392b62c0e75b1ea31573f810d31160fd5487f1e"
+    },
+    {
+      "file": "pages/vol1-page770.bin",
+      "volid": 1,
+      "pageid": 770,
+      "native_ordinal": 7,
+      "kind": "overflow",
+      "role": "overflow-770",
+      "sha256": "b76139ab1dc7e27260dfbcb5f894414e5464b66425b38e711762b4316f0b4963"
+    },
+    {
+      "file": "pages/vol1-page771.bin",
+      "volid": 1,
+      "pageid": 771,
+      "native_ordinal": 7,
+      "kind": "overflow",
+      "role": "overflow-771",
+      "sha256": "f42e09f9b007d6f894c0f57561e2bd9408de5ef779ca91ea2542400c4e879234"
+    }
+  ],
+  "native_page_counts": {
+    "volume-header": 2,
+    "volume-bitmap": 2,
+    "file-table": 78,
+    "heap": 118,
+    "extensible-hash": 4,
+    "catalog": 26,
+    "vacuum-data": 1,
+    "dropped-files": 1,
+    "btree": 41,
+    "overflow": 3
+  },
+  "input_sha256": {
+    "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-develop/debug_gcc/bin/cubrid": "2625f76743cdc2ef4bef5f87d05d93013010c5be24753af93e4b7655767388d8",
+    "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-develop/debug_gcc/bin/csql": "94b48cc0d416bdeb9e08c2def545a40f97b7ff4c7310d137c87b2d9044664097",
+    "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-develop/debug_gcc/lib/libcubridsa.so": "e87ad0b041e40efb8929415e5a2dd38c0af0f727b00ef30f88558410517c2de8",
+    "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-develop/src/storage/storage_common.h": "be3e8b309ba294db8f59c3c8e903fb7d072ad91b4890ab3974fd3aab66cf53b6",
+    "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-develop/src/storage/file_io.h": "3bd48b8922d5aa219da72c63a94be9e12e51c4a5e7c759ed87e3dc4944e0b36d",
+    "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-develop/src/storage/heap_file.c": "e8fe2b4dc04ad2654feabbd31e174c68f939a7bfafa429761083ed217f8e0890"
+  },
+  "generator_sha256": {
+    "generate.py": "20fc4099a53ef60c83ef4d543582418d23a8e535c4c98ca6dc9477de227fd0c8",
+    "generate.sql": "47edf1ce7832f6ddcb696db1d2c0b6bc213cb658964aa039fbd8d530d3bcf469"
+  }
+}

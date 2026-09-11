@@ -64,6 +64,10 @@ state, binary hashes, build type, corpus identity, and harness hashes. Adjacent
 selected observations, screenshots and failure traces. Require all 12 cases,
 zero failures and zero skips; a filtered or empty run is not the complete gate.
 The helper shuts down only its own Volmap processes and private CUBRID registry.
+Its disposable database root follows Python's `TMPDIR` convention; set that
+variable for the real-producer run when `/tmp` lacks space. The path must remain
+short enough for Unix sockets. Do not apply a private-home `TMPDIR` to the
+separate credential-isolation suite, whose mapped UIDs need a traversable parent.
 It retains the disposable files for failure investigation. Browser lifecycle
 commands write to files because the daemon inherits stdout; waiting for a pipe's
 EOF would incorrectly wait for the daemon itself to terminate.
@@ -99,11 +103,14 @@ with Debug and RelWithDebInfo native, socket, credential, lifecycle and external
 CTP evidence. The [resumed ticket 07 ledger](../.scratch/pgbuf-overlay-implementation/verification/07-develop/README.md)
 records the independently repeated corpus checks and exact input revalidation.
 
-Volmap's explicit `develop` profile still pins `cd593bc`, and the committed disk
-fixtures cover only `e1e651de`/`feat-oos`. Establish an independent develop disk
-corpus and its source-layout compatibility before accepting develop browser
-integration. Selecting `develop` in the run JSON is necessary but is not that
-proof. The producer's native `--volmap-run` path still requires `feat-oos`.
+Volmap's explicit `develop` profile pins `cd593bc`. The independent
+[develop disk corpus](../fixtures/8cb558b3/README.md) now records real pages from
+the delivered `8cb558b3`-based engine and source-layout compatibility for the
+central structures tested. It exposed and now guards the profile-specific heap
+header size/statistics offsets and file-header boundary. The
+[new disk/integration ledger](../.scratch/pgbuf-overlay-implementation/verification/07-develop-disk/README.md)
+records affected reruns. This bounded corpus does not claim every develop disk
+layout. The producer's native `--volmap-run` path still requires `feat-oos`.
 
 The delivered producer06 evidence also supplies a controlled permanent VPID
 `1:577` through actual Volmap HTTP at consumer `5dacafb`, with independent

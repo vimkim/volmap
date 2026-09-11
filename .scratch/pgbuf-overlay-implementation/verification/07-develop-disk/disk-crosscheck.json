@@ -1,0 +1,31 @@
+{
+  "native_counts": {
+    "volume-header": 2,
+    "volume-bitmap": 2,
+    "file-table": 78,
+    "heap": 118,
+    "extensible-hash": 4,
+    "catalog": 26,
+    "vacuum-data": 1,
+    "dropped-files": 1,
+    "btree": 41,
+    "overflow": 3
+  },
+  "consumer_counts": {
+    "file-table": 78,
+    "heap": 118,
+    "volume-header": 2,
+    "volume-bitmap": 2,
+    "extensible-hash": 4,
+    "overflow": 3,
+    "catalog": 26,
+    "btree": 41,
+    "dropped-files": 1,
+    "vacuum-data": 1
+  },
+  "counts_match": true,
+  "snapshot_valid": true,
+  "diagnostics": [],
+  "summary_outcome": "success-limited",
+  "qualification": "success-limited denotes selective deep enrichment, not full database semantic support"
+}

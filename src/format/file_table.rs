@@ -5,7 +5,6 @@ use super::{
     DB_PAGE_SIZE, DecodeError, DecodeErrorKind, DecodedPageEnvelope, FormatProfile, PageType,
 };
 
-const FILE_HEADER_SIZE: usize = 216;
 const FILE_DESCRIPTOR_OFFSET: usize = 40;
 pub const FILE_DESCRIPTOR_SIZE: usize = 64;
 const EXTDATA_HEADER_SIZE: usize = 16;
@@ -366,6 +365,10 @@ pub fn decode_file_header(envelope: &DecodedPageEnvelope<'_>) -> Result<FileHead
         )
         .map_err(|_| error(DecodeErrorKind::ByteAccess, "file.header.descriptor"))?;
     let descriptor = decode_file_descriptor(descriptor_bytes, file_type, vfid)?;
+    let header_size = match envelope.profile() {
+        FormatProfile::Develop => 200,
+        FormatProfile::FeatOos => 216,
+    };
     Ok(FileHeader {
         vfid,
         file_type,
@@ -379,9 +382,9 @@ pub fn decode_file_header(envelope: &DecodedPageEnvelope<'_>) -> Result<FileHead
         sector_partial,
         sector_full,
         sector_empty,
-        partial_table_offset: table_offset(&view, 150, "file.header.partial_table")?,
-        full_table_offset: table_offset(&view, 152, "file.header.full_table")?,
-        user_table_offset: table_offset(&view, 154, "file.header.user_table")?,
+        partial_table_offset: table_offset(&view, 150, header_size, "file.header.partial_table")?,
+        full_table_offset: table_offset(&view, 152, header_size, "file.header.full_table")?,
+        user_table_offset: table_offset(&view, 154, header_size, "file.header.user_table")?,
         sticky_first: optional_vpid(&view, 156, "file.header.sticky_first")?,
         descriptor,
     })
@@ -707,6 +710,7 @@ fn decode_file_type(value: i32, profile: FormatProfile) -> Result<FileType, Deco
 fn table_offset(
     view: &ByteView<'_>,
     offset: usize,
+    header_size: usize,
     rule: &'static str,
 ) -> Result<Option<u16>, DecodeError> {
     let value = read_i16(view, offset, rule)?;
@@ -714,9 +718,7 @@ fn table_offset(
         return Ok(None);
     }
     let value = non_negative_i16(value, rule)?;
-    if usize::from(value) < FILE_HEADER_SIZE
-        || usize::from(value) + EXTDATA_HEADER_SIZE > DB_PAGE_SIZE
-    {
+    if usize::from(value) < header_size || usize::from(value) + EXTDATA_HEADER_SIZE > DB_PAGE_SIZE {
         return Err(error(DecodeErrorKind::InvalidGeometry, rule));
     }
     Ok(Some(value))

@@ -1,0 +1,151 @@
+{
+  "schema": "volmap.inspection",
+  "schema_version": 1,
+  "document_type": "result",
+  "tool": {
+    "name": "volmap",
+    "version": "0.0.0",
+    "format_profile": "cubrid-develop-linux-x86_64-gcc-cd593bc"
+  },
+  "command": {
+    "name": "inspect",
+    "input_kind": "vinf",
+    "selector": "page:0:64"
+  },
+  "snapshot": {
+    "id": "036c7b30cf6d6700538a1d81992a0a62",
+    "revision": "0",
+    "validity": "valid",
+    "format_profile": "cubrid-develop-linux-x86_64-gcc-cd593bc"
+  },
+  "outcome": "success-limited",
+  "coverage": [
+    {
+      "facet": "volume-topology",
+      "coverage": "complete",
+      "evaluated": "2",
+      "conclusive": "2",
+      "total": {
+        "state": "known",
+        "value": "2"
+      }
+    },
+    {
+      "facet": "sector-reservation",
+      "coverage": "complete",
+      "evaluated": "192",
+      "conclusive": "192",
+      "total": {
+        "state": "known",
+        "value": "192"
+      }
+    },
+    {
+      "facet": "page-envelopes",
+      "coverage": "complete",
+      "evaluated": "5056",
+      "conclusive": "5056",
+      "total": {
+        "state": "known",
+        "value": "5056"
+      }
+    },
+    {
+      "facet": "deep-pages",
+      "coverage": "partial",
+      "evaluated": "77",
+      "conclusive": "77",
+      "total": {
+        "state": "known",
+        "value": "12288"
+      },
+      "stop_reason": "selective-enrichment"
+    },
+    {
+      "facet": "file-inventory",
+      "coverage": "complete",
+      "evaluated": "77",
+      "conclusive": "77",
+      "total": {
+        "state": "known",
+        "value": "77"
+      }
+    }
+  ],
+  "data": {
+    "kind": "inspect-page",
+    "page": {
+      "vol_id": 0,
+      "page_id": 64,
+      "sector_id": 1,
+      "allocation": "allocated",
+      "page_type": {
+        "state": "known",
+        "value": "file-table"
+      },
+      "availability": "available",
+      "tde_state": "not-encrypted",
+      "detail_support": {
+        "state": "known",
+        "value": "semantic"
+      },
+      "occupancy": {
+        "state": "unknown"
+      },
+      "lsa_word": {
+        "state": "known",
+        "value": "472877960873902080"
+      },
+      "diagnostic": {
+        "state": "unknown"
+      },
+      "bytes": {
+        "state": "bytes-withheld"
+      },
+      "file_association": {
+        "state": "allocated",
+        "file": {
+          "vol_id": 0,
+          "file_id": 64,
+          "file_type": {
+            "state": "known",
+            "value": "tracker"
+          },
+          "class_oid": {
+            "state": "absent"
+          },
+          "class_name": {
+            "state": "not-applicable",
+            "reason_code": "class-association.internal-file",
+            "reason": "internal file is not associated with one user class"
+          }
+        }
+      }
+    },
+    "deep": {
+      "state": "file-header",
+      "structure": {
+        "vol_id": 0,
+        "file_id": 64,
+        "file_type": "tracker",
+        "class_oid": {
+          "state": "absent"
+        },
+        "flags": "0",
+        "page_total": "64",
+        "page_user": "1",
+        "page_ftab": "1",
+        "page_free": "62",
+        "page_marked_delete": "0",
+        "sector_total": "1",
+        "sector_partial": "1",
+        "sector_full": "0",
+        "sector_empty": "0",
+        "bytes": {
+          "state": "bytes-withheld"
+        }
+      }
+    }
+  },
+  "diagnostics": []
+}

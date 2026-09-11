@@ -1,9 +1,11 @@
 use crate::bytes::ByteView;
 use crate::model::{FileId, Oid, PageId, SlotId, Vfid, VolId, Vpid};
 
-use super::{DecodeError, DecodeErrorKind, DecodedPageEnvelope, PageType, RecordType, SlottedPage};
+use super::{
+    DecodeError, DecodeErrorKind, DecodedPageEnvelope, FormatProfile, PageType, RecordType,
+    SlottedPage,
+};
 
-const HEAP_HEADER_SIZE: u16 = 1_160;
 const HEAP_CHAIN_SIZE: u16 = 40;
 const HEAP_CHAIN_ALLOWED_FLAGS: u32 = 0xc000_0003;
 const OBJECT_MIN_HEADER_SIZE: u16 = 8;
@@ -359,8 +361,12 @@ pub fn decode_heap_page(
         .first()
         .filter(|slot| slot.slot_id() == 0 && slot.record_type() == RecordType::Home)
         .ok_or_else(|| error(DecodeErrorKind::InvalidGeometry, "heap.page.slot_zero"))?;
+    let (header_size, stats_offset) = match envelope.profile() {
+        FormatProfile::Develop => (1_152, 32),
+        FormatProfile::FeatOos => (1_160, 40),
+    };
     let expected = if is_header {
-        HEAP_HEADER_SIZE
+        header_size
     } else {
         HEAP_CHAIN_SIZE
     };
@@ -374,18 +380,32 @@ pub fn decode_heap_page(
     let base = usize::from(slot.offset());
     if is_header {
         let last = required_vpid(&view, base + 24, "heap.header.last")?;
-        let unfill_space = non_negative_i32(&view, base + 40, "heap.header.unfill_space")?;
-        let estimated_pages = non_negative_i32(&view, base + 44, "heap.header.page_count")?;
+        let unfill_space =
+            non_negative_i32(&view, base + stats_offset, "heap.header.unfill_space")?;
+        let estimated_pages =
+            non_negative_i32(&view, base + stats_offset + 4, "heap.header.page_count")?;
         Ok(HeapPageFact::Header(HeapHeaderFact {
             class_oid: optional_oid(&view, base, "heap.header.class_oid")?,
             overflow_vfid: optional_vfid(&view, base + 8, "heap.header.overflow_vfid")?,
             next: optional_vpid(&view, base + 16, "heap.header.next")?,
             last,
-            oos_vfid: optional_vfid(&view, base + 32, "heap.header.oos_vfid")?,
+            oos_vfid: if envelope.profile().supports_oos() {
+                optional_vfid(&view, base + 32, "heap.header.oos_vfid")?
+            } else {
+                None
+            },
             unfill_space,
             estimated_pages,
-            estimated_records: read_u64(&view, base + 48, "heap.header.record_count")?,
-            estimated_record_bytes: read_u64(&view, base + 56, "heap.header.record_bytes")?,
+            estimated_records: read_u64(
+                &view,
+                base + stats_offset + 8,
+                "heap.header.record_count",
+            )?,
+            estimated_record_bytes: read_u64(
+                &view,
+                base + stats_offset + 16,
+                "heap.header.record_bytes",
+            )?,
         }))
     } else {
         let flags = read_u32(&view, base + 32, "heap.chain.flags")?;

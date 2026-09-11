@@ -1,0 +1,62 @@
+[
+  {
+    "original": "/tmp/volmap-real-p06jzmwo",
+    "retained_at": "/home/vimkim/tmp/retained-volmap-real-p06jzmwo",
+    "file_hashes": {
+      "databases.txt": "564b600f4cc80cd352bc8e20357389e6db74fc3b9f9d62155c34c91ae64a5f81",
+      "cubrid.conf": "46c0f6b6d961189c69e0717e412f952e7b1488c7c9cef40f09c7e4bee7051335",
+      "volmap07_lgat": "0ccb3d2aa89fb3971d246fdae2e5a642d5f68f07f4f63c1ad1b2ed7e3606eb69",
+      "volmap07_vinf": "11e296f58882153692eb93627341d6cb5e9e6d8d9f4d0cffd4785bcbc5432790",
+      "volmap07_lginf": "6e4ff91bb7a08a2f923bc60e019bf36cbe25010d8e36450ce36ba65c2b2ea084",
+      "volmap07": "d655e5aa0efc1ac327a367ca3eda9911ed26a2f0aebd5a0917abbde3632640bb",
+      "volmap07_keys": "879a6abf4d42f478a00fe397d2455f326197a000d118415017ab1c24c08cc4f0",
+      "volmap07_x001": "e8bcfd3bbe22fbece5bb701bb89e8348440e195ec01c8dcf83c1dddcca7b1335",
+      "csql.err": "49ab0ab025534ac453061f764d7cc9b85e471fbb1e52b45fc72c878276d4383d",
+      "volmap07_lgar_t": "1b2ddc4f349a10788c77662dbd24ea7de7b4ea855e9a4bdce3a2ec51fb9175a9",
+      "copy/volmap07": "d655e5aa0efc1ac327a367ca3eda9911ed26a2f0aebd5a0917abbde3632640bb",
+      "copy/volmap07_x001": "e8bcfd3bbe22fbece5bb701bb89e8348440e195ec01c8dcf83c1dddcca7b1335",
+      "copy/volmap07_vinf": "6727764bb56f09aeda7118d9318ed562b1eb20d9882b39540ab2d4956ca905e3"
+    },
+    "stale_socket_paths_not_copied": [
+      "sp_volmap07.sock"
+    ],
+    "lsof_exit": 1
+  },
+  {
+    "original": "/tmp/volmap-real-zw5dax4o",
+    "retained_at": "/home/vimkim/tmp/retained-volmap-real-zw5dax4o",
+    "file_hashes": {
+      "databases.txt": "5881c9a7879a7580610e964aa9ed06c642a470af661d3681d4ad0908ef994194",
+      "cubrid.conf": "88bfe0bb41e915e1c753f1bced103dc9a3ecce9cb4b254f0238ecfcab1615c8b",
+      "volmap07_lgat": "666e8d6c3912d708e037650affada8d066e2d478d0361d8d821623998766e2c4",
+      "volmap07_vinf": "d075af3e51d1e926f197f36e204a3d96fd0d2b2d82aa94026d982f8b04974755",
+      "volmap07_lginf": "830ae16e33debbbab98cfd001f6e63a511dad225b91c095188e3ccb2bb8b8d6e",
+      "volmap07_lgat__lock": "ce8b750ccae209b5b93dab8d4733a731b082fce251c769eb17d2fae1a3cb86da",
+      "volmap07_lgar_t": "007d8170224c9370cc50c51bb3dd7c757c735f797543ca31a183c05d701c7469",
+      "volmap07_dwb": "918e6a89125e81897a0a894906c6c76338fd5651bf4e5e4f4620e46c96bfac7c",
+      "volmap07": "6a36b7e29a428d9c4181e3b734d9fdd34df444dadd0820518b8bd5b58d0926ff",
+      "volmap07_keys": "c8e062673ba22297fa84d5033c5ed4c63d2bac04733c9a8e9007a9bf9fd2e02b"
+    },
+    "stale_socket_paths_not_copied": [],
+    "lsof_exit": 1
+  },
+  {
+    "original": "/tmp/volmap-real-m568l1o6",
+    "retained_at": "/home/vimkim/tmp/retained-volmap-real-m568l1o6",
+    "file_hashes": {
+      "databases.txt": "c3752a2769a5e8109df304690534bf38c4ed5e2dcbcdbaae469fb4b72eed16ed",
+      "cubrid.conf": "ca1c0bdead923aa2216cb47d3103e0509c8db65fe263f581fa1606d508fc49a3",
+      "volmap07_lgat": "97c1bcc54c8423bbafb8b5081d5b84e8d264411e5822ff602e145d23499d4696",
+      "volmap07_vinf": "42fceea68358cd932d9d197d1d7c6662811e7ed87800115233eb6a8e44f96d16",
+      "volmap07_lginf": "bd87fe3831573529aa1f5a24fe43600a434af1aaa2836965c684b16eb568d885",
+      "volmap07_lgat__lock": "cf9c006f8ea123c0a11588f3b18a2fcb81bab55278bdd8d9170885faf42fc3a6",
+      "volmap07_lgar_t": "d545983d15088738fbc17dc0d7d48bb9d694028dede2a48d1b0c0b68728f9424",
+      "volmap07_dwb": "5ac73f60623b0e5ad29892b12a15ebaac68e277b70b0bdea0d3f8d8767f158d6",
+      "volmap07": "e75128cd5510e848b9d2bec4f807b3e6298e9d67dc8ca2d0ee21dc78a0d216ed",
+      "volmap07_keys": "4594530a8227c34b0c93b4234bc5e194f88d3518f2986cefe45204adb273d10a",
+      "core.cub_admin.2077084.dev2.1789110606": "3894309136833863ee32c4c1e1874c998d435eecc9cc3985706c811a0e88065d"
+    },
+    "stale_socket_paths_not_copied": [],
+    "lsof_exit": 1
+  }
+]

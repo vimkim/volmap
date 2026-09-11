@@ -1,0 +1,132 @@
+{
+  "schema": "volmap.inspection",
+  "schema_version": 1,
+  "document_type": "result",
+  "tool": {
+    "name": "volmap",
+    "version": "0.0.0",
+    "format_profile": "cubrid-develop-linux-x86_64-gcc-cd593bc"
+  },
+  "command": {
+    "name": "summary",
+    "input_kind": "vinf"
+  },
+  "snapshot": {
+    "id": "036c7b30cf6d6700538a1d81992a0a62",
+    "revision": "0",
+    "validity": "valid",
+    "format_profile": "cubrid-develop-linux-x86_64-gcc-cd593bc"
+  },
+  "outcome": "success-limited",
+  "coverage": [
+    {
+      "facet": "volume-topology",
+      "coverage": "complete",
+      "evaluated": "2",
+      "conclusive": "2",
+      "total": {
+        "state": "known",
+        "value": "2"
+      }
+    },
+    {
+      "facet": "sector-reservation",
+      "coverage": "complete",
+      "evaluated": "192",
+      "conclusive": "192",
+      "total": {
+        "state": "known",
+        "value": "192"
+      }
+    },
+    {
+      "facet": "page-envelopes",
+      "coverage": "complete",
+      "evaluated": "5056",
+      "conclusive": "5056",
+      "total": {
+        "state": "known",
+        "value": "5056"
+      }
+    },
+    {
+      "facet": "deep-pages",
+      "coverage": "partial",
+      "evaluated": "77",
+      "conclusive": "77",
+      "total": {
+        "state": "known",
+        "value": "12288"
+      },
+      "stop_reason": "selective-enrichment"
+    },
+    {
+      "facet": "file-inventory",
+      "coverage": "complete",
+      "evaluated": "77",
+      "conclusive": "77",
+      "total": {
+        "state": "known",
+        "value": "77"
+      }
+    }
+  ],
+  "data": {
+    "kind": "summary",
+    "overview": {
+      "volume_count": "2",
+      "sector_count": "192",
+      "reserved_sector_count": "79",
+      "physical_page_count": "12288",
+      "inspected_page_envelopes": "5056",
+      "page_type_counts": [
+        {
+          "page_type": "unknown",
+          "count": "4780"
+        },
+        {
+          "page_type": "file-table",
+          "count": "78"
+        },
+        {
+          "page_type": "heap",
+          "count": "118"
+        },
+        {
+          "page_type": "volume-header",
+          "count": "2"
+        },
+        {
+          "page_type": "volume-bitmap",
+          "count": "2"
+        },
+        {
+          "page_type": "extensible-hash",
+          "count": "4"
+        },
+        {
+          "page_type": "overflow",
+          "count": "3"
+        },
+        {
+          "page_type": "catalog",
+          "count": "26"
+        },
+        {
+          "page_type": "btree",
+          "count": "41"
+        },
+        {
+          "page_type": "dropped-files",
+          "count": "1"
+        },
+        {
+          "page_type": "vacuum-data",
+          "count": "1"
+        }
+      ],
+      "tde_opaque_pages": "0"
+    }
+  },
+  "diagnostics": []
+}

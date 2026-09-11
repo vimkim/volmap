@@ -1,0 +1,363 @@
+{
+  "schema": "volmap.inspection",
+  "schema_version": 1,
+  "document_type": "result",
+  "tool": {
+    "name": "volmap",
+    "version": "0.0.0",
+    "format_profile": "cubrid-develop-linux-x86_64-gcc-cd593bc"
+  },
+  "command": {
+    "name": "inspect",
+    "input_kind": "vinf",
+    "selector": "page:0:577"
+  },
+  "snapshot": {
+    "id": "036c7b30cf6d6700538a1d81992a0a62",
+    "revision": "1",
+    "validity": "valid",
+    "format_profile": "cubrid-develop-linux-x86_64-gcc-cd593bc"
+  },
+  "outcome": "success-limited",
+  "coverage": [
+    {
+      "facet": "volume-topology",
+      "coverage": "complete",
+      "evaluated": "2",
+      "conclusive": "2",
+      "total": {
+        "state": "known",
+        "value": "2"
+      }
+    },
+    {
+      "facet": "sector-reservation",
+      "coverage": "complete",
+      "evaluated": "192",
+      "conclusive": "192",
+      "total": {
+        "state": "known",
+        "value": "192"
+      }
+    },
+    {
+      "facet": "page-envelopes",
+      "coverage": "complete",
+      "evaluated": "5056",
+      "conclusive": "5056",
+      "total": {
+        "state": "known",
+        "value": "5056"
+      }
+    },
+    {
+      "facet": "file-inventory",
+      "coverage": "complete",
+      "evaluated": "77",
+      "conclusive": "77",
+      "total": {
+        "state": "known",
+        "value": "77"
+      }
+    },
+    {
+      "facet": "deep-pages",
+      "coverage": "partial",
+      "evaluated": "78",
+      "conclusive": "78",
+      "total": {
+        "state": "known",
+        "value": "12288"
+      },
+      "stop_reason": "selective-enrichment"
+    }
+  ],
+  "data": {
+    "kind": "inspect-page",
+    "page": {
+      "vol_id": 0,
+      "page_id": 577,
+      "sector_id": 9,
+      "allocation": "allocated",
+      "page_type": {
+        "state": "known",
+        "value": "catalog"
+      },
+      "availability": "available",
+      "tde_state": "not-encrypted",
+      "detail_support": {
+        "state": "known",
+        "value": "structural-only"
+      },
+      "occupancy": {
+        "state": "known",
+        "occupied_percent": 13,
+        "free_percent": 87
+      },
+      "lsa_word": {
+        "state": "known",
+        "value": "2055893229894631601"
+      },
+      "diagnostic": {
+        "state": "unknown"
+      },
+      "bytes": {
+        "state": "bytes-withheld"
+      },
+      "file_association": {
+        "state": "allocated",
+        "file": {
+          "vol_id": 0,
+          "file_id": 576,
+          "file_type": {
+            "state": "known",
+            "value": "catalog"
+          },
+          "class_oid": {
+            "state": "absent"
+          },
+          "class_name": {
+            "state": "not-applicable",
+            "reason_code": "class-association.internal-file",
+            "reason": "internal file is not associated with one user class"
+          }
+        }
+      }
+    },
+    "deep": {
+      "state": "catalog",
+      "structure": {
+        "next_overflow": {
+          "state": "terminal"
+        },
+        "directory_count": "7",
+        "role": "primary",
+        "record_count": 17,
+        "record_bytes": "1464",
+        "directories": [
+          {
+            "slot_id": 2,
+            "class_oid": {
+              "state": "present",
+              "oid": {
+                "vol_id": 0,
+                "page_id": 193,
+                "slot_id": 2
+              }
+            },
+            "heap_file": {
+              "state": "present",
+              "vol_id": 0,
+              "file_id": 768
+            },
+            "heap_header": {
+              "state": "link",
+              "vol_id": 0,
+              "page_id": 769
+            },
+            "total_pages": "0",
+            "total_objects": "0",
+            "representations": [
+              {
+                "representation_id": 1,
+                "fixed_count": "1",
+                "fixed_length": "4",
+                "variable_count": "3"
+              }
+            ]
+          },
+          {
+            "slot_id": 5,
+            "class_oid": {
+              "state": "present",
+              "oid": {
+                "vol_id": 0,
+                "page_id": 193,
+                "slot_id": 3
+              }
+            },
+            "heap_file": {
+              "state": "present",
+              "vol_id": 0,
+              "file_id": 832
+            },
+            "heap_header": {
+              "state": "link",
+              "vol_id": 0,
+              "page_id": 833
+            },
+            "total_pages": "1",
+            "total_objects": "3",
+            "representations": [
+              {
+                "representation_id": 1,
+                "fixed_count": "7",
+                "fixed_length": "44",
+                "variable_count": "5"
+              }
+            ]
+          },
+          {
+            "slot_id": 8,
+            "class_oid": {
+              "state": "present",
+              "oid": {
+                "vol_id": 0,
+                "page_id": 193,
+                "slot_id": 4
+              }
+            },
+            "heap_file": {
+              "state": "present",
+              "vol_id": 0,
+              "file_id": 960
+            },
+            "heap_header": {
+              "state": "link",
+              "vol_id": 0,
+              "page_id": 961
+            },
+            "total_pages": "0",
+            "total_objects": "0",
+            "representations": [
+              {
+                "representation_id": 1,
+                "fixed_count": "3",
+                "fixed_length": "24",
+                "variable_count": "1"
+              }
+            ]
+          },
+          {
+            "slot_id": 11,
+            "class_oid": {
+              "state": "present",
+              "oid": {
+                "vol_id": 0,
+                "page_id": 193,
+                "slot_id": 5
+              }
+            },
+            "heap_file": {
+              "state": "present",
+              "vol_id": 0,
+              "file_id": 1024
+            },
+            "heap_header": {
+              "state": "link",
+              "vol_id": 0,
+              "page_id": 1025
+            },
+            "total_pages": "1",
+            "total_objects": "3",
+            "representations": [
+              {
+                "representation_id": 1,
+                "fixed_count": "1",
+                "fixed_length": "8",
+                "variable_count": "1"
+              }
+            ]
+          },
+          {
+            "slot_id": 36,
+            "class_oid": {
+              "state": "present",
+              "oid": {
+                "vol_id": 0,
+                "page_id": 193,
+                "slot_id": 6
+              }
+            },
+            "heap_file": {
+              "state": "present",
+              "vol_id": 0,
+              "file_id": 1280
+            },
+            "heap_header": {
+              "state": "link",
+              "vol_id": 0,
+              "page_id": 1281
+            },
+            "total_pages": "5",
+            "total_objects": "74",
+            "representations": [
+              {
+                "representation_id": 1,
+                "fixed_count": "16",
+                "fixed_length": "84",
+                "variable_count": "14"
+              }
+            ]
+          },
+          {
+            "slot_id": 48,
+            "class_oid": {
+              "state": "present",
+              "oid": {
+                "vol_id": 0,
+                "page_id": 195,
+                "slot_id": 4
+              }
+            },
+            "heap_file": {
+              "state": "present",
+              "vol_id": 1,
+              "file_id": 640
+            },
+            "heap_header": {
+              "state": "link",
+              "vol_id": 1,
+              "page_id": 641
+            },
+            "total_pages": "0",
+            "total_objects": "0",
+            "representations": [
+              {
+                "representation_id": 1,
+                "fixed_count": "1",
+                "fixed_length": "4",
+                "variable_count": "2"
+              }
+            ]
+          },
+          {
+            "slot_id": 54,
+            "class_oid": {
+              "state": "present",
+              "oid": {
+                "vol_id": 0,
+                "page_id": 195,
+                "slot_id": 5
+              }
+            },
+            "heap_file": {
+              "state": "present",
+              "vol_id": 1,
+              "file_id": 896
+            },
+            "heap_header": {
+              "state": "link",
+              "vol_id": 1,
+              "page_id": 897
+            },
+            "total_pages": "0",
+            "total_objects": "0",
+            "representations": [
+              {
+                "representation_id": 1,
+                "fixed_count": "1",
+                "fixed_length": "4",
+                "variable_count": "1"
+              }
+            ]
+          }
+        ],
+        "bytes": {
+          "state": "bytes-withheld"
+        }
+      }
+    }
+  },
+  "diagnostics": []
+}

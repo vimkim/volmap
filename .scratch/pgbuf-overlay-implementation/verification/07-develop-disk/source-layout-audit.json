@@ -1,0 +1,48 @@
+{
+  "profile_source": "cd593bcf2d8643b4698f1cb311c4c23af23a9d57",
+  "producer_base": "8cb558b3b264b5ed045ab24fa50b0ef825925349",
+  "definitions": [
+    {
+      "path": "src/storage/heap_file.c",
+      "struct": "heap_hdr_stats",
+      "identical": true,
+      "old_sha256": "24eaf7af5d3716e2501c30e42643bafd69dfcdf8f17ae5a12a98a1379d2b10c3",
+      "new_sha256": "24eaf7af5d3716e2501c30e42643bafd69dfcdf8f17ae5a12a98a1379d2b10c3"
+    },
+    {
+      "path": "src/storage/heap_file.c",
+      "struct": "heap_chain",
+      "identical": true,
+      "old_sha256": "8461bafd95534b37f4928e7e85c36f99b1e516edc24c4fb74ef3648946f98cb7",
+      "new_sha256": "8461bafd95534b37f4928e7e85c36f99b1e516edc24c4fb74ef3648946f98cb7"
+    },
+    {
+      "path": "src/storage/file_manager.c",
+      "struct": "file_header",
+      "identical": true,
+      "old_sha256": "ac1fe0e81f032f810b44e2037f63d9e3ab2e7746fe6fe787a6ffd3fcb1a3dd79",
+      "new_sha256": "ac1fe0e81f032f810b44e2037f63d9e3ab2e7746fe6fe787a6ffd3fcb1a3dd79"
+    },
+    {
+      "path": "src/storage/file_manager.h",
+      "struct": "file_heap_des",
+      "identical": true,
+      "old_sha256": "3beefa11e0756b728399bc3550a9cc9e9d8237e9f0f474af8750b06305e3e89d",
+      "new_sha256": "3beefa11e0756b728399bc3550a9cc9e9d8237e9f0f474af8750b06305e3e89d"
+    },
+    {
+      "path": "src/storage/file_io.h",
+      "struct": "fileio_page_reserved",
+      "identical": true,
+      "old_sha256": "1667661020d786be69e60d31d840b18bb0804533d62b1957cabed9efbb63f680",
+      "new_sha256": "1667661020d786be69e60d31d840b18bb0804533d62b1957cabed9efbb63f680"
+    },
+    {
+      "path": "src/storage/file_io.h",
+      "struct": "fileio_page_watermark",
+      "identical": true,
+      "old_sha256": "696a21babdc1c653adb22f3152008a5f03fa98bb507729d4a547d33bd30e1958",
+      "new_sha256": "696a21babdc1c653adb22f3152008a5f03fa98bb507729d4a547d33bd30e1958"
+    }
+  ]
+}

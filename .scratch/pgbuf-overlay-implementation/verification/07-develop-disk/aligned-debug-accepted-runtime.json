@@ -1,0 +1,53 @@
+{
+  "producer_source": "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract",
+  "producer_build": "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc",
+  "producer_install": "/tmp/producer06-install/debug",
+  "consumer_source": "/home/vimkim/temp/volmap",
+  "consumer_binary": "/home/vimkim/temp/volmap/target/x86_64-unknown-linux-musl/debug/volmap",
+  "format_profile": "feat-oos",
+  "listen_port": 19820,
+  "output_directory": "/home/vimkim/tmp/volmap126-aligned-debug-final-home",
+  "copy_listen_port": 19821,
+  "database_root": "/home/vimkim/tmp/volmap-real-esn07lq5",
+  "socket": "/home/vimkim/tmp/volmap-real-esn07lq5/pgbuf-inspector/18cd5d3944730e3ca549576a907c0002.sock",
+  "copy_origin": "http://127.0.0.1:19821",
+  "producer_commit": "3a5eb54f0282b74687b4f08684df7d0bfe9f6a0e",
+  "binary_sha256": {
+    "/home/vimkim/temp/volmap/target/x86_64-unknown-linux-musl/debug/volmap": "2850e7074461fcec82432ecd36a1ecad49b3a1a282655e2fff16a03613eb3ef4",
+    "/tmp/producer06-install/debug/bin/cub_server": "0bc4b40f07e058d86005998591f3eb960e9cf93a8eac3e1614435b0207adc2a8",
+    "/tmp/producer06-install/debug/lib/libcubrid.so": "02d5d1c49e6ac00331f980a7e77cf7022900dc4cc302096947a0be3445691bef"
+  },
+  "producer_worktree_status": " m cubrid-cci\n?? demodb_loaddb.log\n?? unit_tests/pgbuf_inspector/__pycache__/\n",
+  "consumer_commit": "15acca53dee39d70b347d4ae4e82b3866cf51fd5",
+  "consumer_worktree_status": " M .scratch/pgbuf-producer-implementation/issues/07-port-and-verify-on-develop.md\n M src/format/file_table.rs\n M src/format/heap.rs\n M tools/serve-real-producer.py\n?? .scratch/pgbuf-overlay-implementation/verification/07-develop-disk/\n?? fixtures/8cb558b3/\n?? tests/develop_fixture_corpus.rs\n?? tools/__pycache__/\n",
+  "producer_build_type": [
+    "CMAKE_BUILD_TYPE:STRING=Debug"
+  ],
+  "corpus": {
+    "contract_version": "1.0",
+    "corpus_revision": 2,
+    "corpus_sha256": "11dbecc72e4b9dd78e22080f138c801c189c7e047c0db23af8233f44a804d5ce"
+  },
+  "corpus_identical_files": 109,
+  "corpus_sha256": "11dbecc72e4b9dd78e22080f138c801c189c7e047c0db23af8233f44a804d5ce",
+  "copied_identities": [
+    {
+      "volid": 0,
+      "original_inode": 7520507333,
+      "copied_inode": 9739510081,
+      "device": 64770
+    },
+    {
+      "volid": 1,
+      "original_inode": 7520507336,
+      "copied_inode": 9739510084,
+      "device": 64770
+    }
+  ],
+  "omitted_parameter_sql_startup": "passed-with-no-inspector-directory",
+  "harness_sha256": {
+    "web/../tools/serve-real-producer.py": "04e1f234dbff76928e3ad73ed5e4a0fa07ac807339ee222855026ddfe3fc5a73",
+    "web/e2e/real-producer.spec.ts": "23e9a59c4b44cd598db44430f1fa440c3bbfa4703af5515bd679a1f4417e022f",
+    "web/playwright.producer.config.ts": "446f4797555520dffe741d4c0a8ae0b8e97ba6c587ecb47932aaa4404e4bf5ca"
+  }
+}

@@ -39,7 +39,7 @@ def main():
         raise ValueError("listen_port and copy_listen_port must be distinct explicit ports from 1 to 65535")
     output = Path(config["output_directory"]).resolve()
     output.mkdir(parents=True, exist_ok=False)
-    root = Path(tempfile.mkdtemp(prefix="volmap-real-", dir="/tmp"))
+    root = Path(tempfile.mkdtemp(prefix="volmap-real-"))
     with socket.socket() as reservation:
         reservation.bind(("127.0.0.1", 0))
         port = reservation.getsockname()[1]

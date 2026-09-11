@@ -1,0 +1,10 @@
+{
+  "producer_source": "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-develop",
+  "producer_build": "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-develop/build_preset_debug_gcc",
+  "producer_install": "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-develop/debug_gcc",
+  "consumer_binary": "/home/vimkim/temp/volmap/target/x86_64-unknown-linux-musl/debug/volmap",
+  "format_profile": "develop",
+  "listen_port": 19720,
+  "copy_listen_port": 19721,
+  "output_directory": "/home/vimkim/tmp/volmap126-develop-debug-01-home"
+}

@@ -1,0 +1,112 @@
+{
+  "status": "completion-audit-pending",
+  "consumer_base": "15acca5",
+  "producer_develop": "48a3e87e3d56d3b0c998d286f17fc6674bb5e547",
+  "disk_corpus": "fixtures/8cb558b3/manifest.json",
+  "disk_corpus_sha256": "92afef7a5d325ed11daf0cbf28a8ac06363f2a04767ee4790256db339f8d69f0",
+  "disk_cases": 6,
+  "aligned_disk_cases": 6,
+  "browser_runs": {
+    "debug": {
+      "config": "debug-home-run.json",
+      "environment": {
+        "TMPDIR": "/home/vimkim/tmp"
+      },
+      "stats": {
+        "startTime": "2026-09-11T07:11:27.679Z",
+        "duration": 45952.274000000005,
+        "expected": 12,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "runtime": "debug-accepted-runtime.json",
+      "report": "debug-accepted-browser-results.json.gz",
+      "exit_code": 0
+    },
+    "release": {
+      "config": "release-home-run.json",
+      "environment": {
+        "TMPDIR": "/home/vimkim/tmp"
+      },
+      "stats": {
+        "startTime": "2026-09-11T07:12:14.715Z",
+        "duration": 43505.14,
+        "expected": 12,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "runtime": "release-accepted-runtime.json",
+      "report": "release-accepted-browser-results.json.gz",
+      "exit_code": 0
+    },
+    "aligned-debug": {
+      "config": "aligned-debug-home-run.json",
+      "environment": {
+        "TMPDIR": "/home/vimkim/tmp"
+      },
+      "stats": {
+        "startTime": "2026-09-11T07:12:59.285Z",
+        "duration": 44305.239,
+        "expected": 12,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "runtime": "aligned-debug-accepted-runtime.json",
+      "report": "aligned-debug-accepted-browser-results.json.gz",
+      "exit_code": 0
+    },
+    "aligned-release": {
+      "config": "aligned-release-home-run.json",
+      "environment": {
+        "TMPDIR": "/home/vimkim/tmp"
+      },
+      "stats": {
+        "startTime": "2026-09-11T07:13:44.724Z",
+        "duration": 42907.346000000005,
+        "expected": 12,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "runtime": "aligned-release-accepted-runtime.json",
+      "report": "aligned-release-accepted-browser-results.json.gz",
+      "exit_code": 0
+    }
+  },
+  "native_runs": {
+    "debug": {
+      "config": "native-debug-run.json",
+      "exit_code": 0,
+      "pass_lines": 11,
+      "raw_root": "/home/vimkim/tmp/pgbuf-native-h_cv2jo7",
+      "http_artifacts": "native-debug-http.tar.gz",
+      "raw_artifacts": "native-debug-raw.tar.gz"
+    },
+    "release": {
+      "config": "native-release-run.json",
+      "exit_code": 0,
+      "pass_lines": 11,
+      "raw_root": "/home/vimkim/tmp/pgbuf-native-_34dw8mf",
+      "http_artifacts": "native-release-http.tar.gz",
+      "raw_artifacts": "native-release-raw.tar.gz"
+    }
+  },
+  "full_verify": {
+    "command": "just verify",
+    "exit_code": 0,
+    "log": "verify-accepted.log.gz",
+    "browser_passes": 65,
+    "browser_skips": 1,
+    "skip_reason": "Firefox parity corpus intentionally owned by Chromium; unrelated to runtime producer gates",
+    "frontend_unit_passes": 74
+  },
+  "source_sha256": {
+    "src/format/heap.rs": "52cc1e2da961b6ad843ed68f90a26608b652346c8dfceeea1223518a0cf63d66",
+    "src/format/file_table.rs": "b248ac301548e94ac23a9c92bea59e6599189ea6af2af08e31d7f98706149caa",
+    "tools/serve-real-producer.py": "04e1f234dbff76928e3ad73ed5e4a0fa07ac807339ee222855026ddfe3fc5a73",
+    "tests/develop_fixture_corpus.rs": "e386f96542c6115db87b281c402e0b8a52f8b1145db4610d6dfb7cea385c854e"
+  }
+}
