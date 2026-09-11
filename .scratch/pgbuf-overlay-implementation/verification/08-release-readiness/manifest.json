@@ -1254,5 +1254,13 @@
     "result": "local-regression-pass; not release-performance/manual evidence",
     "raw_artifact": ".scratch/pgbuf-overlay-implementation/verification/08-release-readiness/local-verify.log.gz",
     "sha256": "d1592cb152c89e55bfdc052b799458a5d57e81f9fbd69f0e450170d130997429"
+  },
+  "preparation_review": {
+    "fixed_point": "08ed9477bd7414c6a320a2c06ee7b439e8685ba5",
+    "reviewed_commit": "86d7f35e59801ba976a4ccafdc540f7819c57961",
+    "standards_findings": 0,
+    "spec_actionable_preparation_findings": 0,
+    "report": ".scratch/pgbuf-overlay-implementation/verification/08-release-readiness/verification.md",
+    "release_approval": false
   }
 }

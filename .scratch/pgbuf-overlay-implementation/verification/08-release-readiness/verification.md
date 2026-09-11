@@ -41,3 +41,30 @@ The browser suite rewrites tracked screenshot evidence as a side effect. Those
 outputs were restored to their pre-run committed bytes, preserving historical
 records; the full raw execution log remains here. The pre-existing producer07
 ticket edit is excluded. `git diff --check` passes.
+
+## Standards
+
+Independent review of `08ed947...86d7f35`: no findings. Local-ticket conventions,
+glossary, read-only guarantees and retained evidence are preserved. ADR 0006's
+revised listener decision and ADR 0008's unverified implementation scope are
+explicit. Manual review, performance execution, candidate reruns and final
+acceptance remain open. Reviewer independently checked all 126 inventory hashes
+and the local browser result. Documented violations: 0; baseline smells: 0.
+
+## Spec
+
+Independent review of the same nonempty one-commit diff: no actionable preparation
+defects. All 126 inventory hashes, both inherited manifest hashes and the four
+accepted 07 reports (12 passing cases each, zero failures/skips) were checked.
+Dirty-base provenance, missing manual reviews and changed-source qualifications
+are retained. Thresholds are unchanged and no measurements are fabricated.
+Operator documentation and existing-ADR disclosure stay within scope.
+
+Dedicated-host measurements, manual reviews, candidate reruns and final named
+per-invariant mapping are expected remaining release requirements, not completed
+by this preparation. Aggregate inherited contract mapping is explicitly
+provisional. Scope creep: 0; actionable incorrect implementation findings: 0.
+
+Standards: 0 findings. Spec: 0 actionable preparation findings; release gates stay
+open. The subsequent documentation-only closeout records this review and marks
+only the two completed operator/limitation documentation checklist items.

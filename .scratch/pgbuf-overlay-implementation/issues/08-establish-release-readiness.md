@@ -14,8 +14,8 @@
 - [ ] Include ticket 06's actual 10,000-rendered-page Chromium and Firefox evidence with p95 input-to-visible update at most 100 ms per browser, manual screen-reader/visual review and lifecycle/coverage accessibility checks. Include ticket 07's real-engine debug/release and develop-versus-format-aligned evidence, not just offline corpus results.
 - [ ] Maintain a delivery gate manifest mapping every invariant and budget to owner/test, exact producer/consumer commits, corpus revision/hash, build mode, environment, testcase revision, preconditions, command, executed count, result and raw artifacts. Manual reviews identify reviewer and assistive technology. Every required missing, skipped, inconclusive or failing result keeps release readiness open; affected evidence reruns after code/corpus changes.
 - [ ] Use established local/release verification tooling. Any contract-preserving tuning needed to meet a gate is reverified; lowering a threshold requires an explicit design revision. Neither this ticket nor a green subset invents hosted CI or claims unexecuted external test results.
-- [ ] Complete operator and maintainer documentation using the accepted glossary and loopback/web-only ADR: explicit enablement/socket configuration, SSH forwarding, verification/refusal, coverage versus completeness, conservative age/expiry, pause/resume, resource limits and producer/corpus compatibility. Preserve existing domain decisions rather than silently redefining them.
-- [ ] Explain that observed disk state and page-buffer observation are independent; neither VPID matching, sequence, recency nor sampled flushing proves currentness, image correspondence, commits or durability. Preserve all exclusions: no resident-page inspection prerequisite, AOUT history, transition events, TUI/export/inspection-graph runtime state, new kernel-cache features, discovery/public transport, engine writes or hot-path instrumentation.
+- [x] Complete operator and maintainer documentation using the accepted glossary and loopback/web-only ADR: explicit enablement/socket configuration, SSH forwarding, verification/refusal, coverage versus completeness, conservative age/expiry, pause/resume, resource limits and producer/corpus compatibility. Preserve existing domain decisions rather than silently redefining them.
+- [x] Explain that observed disk state and page-buffer observation are independent; neither VPID matching, sequence, recency nor sampled flushing proves currentness, image correspondence, commits or durability. Preserve all exclusions: no resident-page inspection prerequisite, AOUT history, transition events, TUI/export/inspection-graph runtime state, new kernel-cache features, discovery/public transport, engine writes or hot-path instrumentation.
 - [ ] Hand off the manifest and documentation without treating the ready-for-agent ticket status as release approval. External JIRA upload, commits/pushes or PR publication require their own authorized workflow; do not alter the parent specification or completed planning map to imply delivery.
 
 
@@ -36,3 +36,11 @@ acceptance is still open. No manual review or performance case ran, no threshold
 changed, and no readiness approval is claimed. The accepted ADR 0006 now permits
 explicit IPv4 listeners as well as loopback; the parent specification and planning
 map are preserved. Work item 140 tracks the remaining campaign.
+
+Preparation validation: `just verify` passes (74 frontend unit cases, 65 browser
+passes and one existing Firefox parity skip, plus Rust/Clippy/static-musl gates).
+Independent Standards and Spec reviews of `08ed947...86d7f35` report zero
+findings for the preparation scope; see [verification and reviews](../verification/08-release-readiness/verification.md).
+Only the operator/limitation documentation items are closed. Measurement,
+manual accessibility, candidate reruns and final named invariant mapping remain
+open. No release approval or external publication follows from this commit.
