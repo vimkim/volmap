@@ -1,0 +1,15 @@
+{
+  "baseline": "86f2f50af2c9206153f123cd638d98b269980403",
+  "host": "Linux-5.14.0-570.30.1.el9_6.x86_64-x86_64-with-glibc2.34",
+  "rust": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+  "node": "24.19.0",
+  "pnpm": "11.24.0",
+  "playwright": "1.62.1",
+  "fixture": "local authenticated socket; small 64-sector smoke volume; resident Page 0:10",
+  "sha256": {
+    "fixtures/pgbuf-inspector/v1/corpus/exchanges/complete/stream.jsonl": "39e8c6b0f102be1abe919059269d097c6a6a19e9ec82a14fedb265b8caf0a96f",
+    "web/e2e/producer-fixture.py": "359cecd186b1b7b43b9e22363287493dd1c96540b006b1cf72038fbda87e3fd8",
+    "web/pnpm-lock.yaml": "209a89101553fe420a367652392e4084807d3e9e73da4fcfa7dcf987b51e39b5",
+    "Cargo.lock": "f41192001ce7b1b007b07496e31e02a7650118f7c743a9866bf7859a5c326c2c"
+  }
+}

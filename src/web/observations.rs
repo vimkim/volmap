@@ -205,7 +205,7 @@ impl Broker {
     }
 
     #[cfg(test)]
-    fn with_clock(socket: PathBuf, now: session::Clock) -> Self {
+    pub(super) fn with_clock(socket: PathBuf, now: session::Clock) -> Self {
         let mut broker = Self::new(Some(socket));
         broker.session = session::Session::with_clock(now);
         broker
@@ -637,7 +637,7 @@ mod wire_tests {
                 count <= 65_536
             );
         }
-        for total in [67_108_863, 67_108_864, 67_108_865] {
+        for total in [1_073_741_823, 1_073_741_824, 1_073_741_825] {
             let mut scan = decoder();
             let end = footer(0, 0);
             let mut remaining = total - header.len() - end.len();
@@ -656,7 +656,7 @@ mod wire_tests {
             }
             assert_eq!(
                 scan.feed(end.as_bytes()).is_ok(),
-                total <= 67_108_864,
+                total <= 1_073_741_824,
                 "framed bytes {total}"
             );
         }

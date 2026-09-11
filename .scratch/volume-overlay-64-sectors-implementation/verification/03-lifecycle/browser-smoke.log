@@ -1,0 +1,167 @@
+[WebServer]     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.05s
+
+[WebServer] Bound to 127.0.0.1:41739
+[WebServer] Available at (non-exhaustive list):
+[WebServer]
+
+[WebServer] http://127.0.0.1:41739
+[WebServer] Holding one immutable reading; a changed input invalidates this session.
+
+[WebServer]     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.05s
+
+[WebServer] Bound to 127.0.0.1:41740
+[WebServer] Available at (non-exhaustive list):
+[WebServer]     http://127.0.0.1:41740
+[WebServer] Holding one immutable reading; a changed input invalidates this session.
+
+[WebServer]     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.05s
+
+[WebServer] Bound to 127.0.0.1:41741
+[WebServer] Available at (non-exhaustive list):
+[WebServer]     http://127.0.0.1:41741
+[WebServer] Following the input every 500 ms; a change publishes a new generation.
+
+[WebServer]     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.06s
+
+[WebServer] Bound to 127.0.0.1:41743
+[WebServer] Available at (non-exhaustive list):
+[WebServer]     http://127.0.0.1:41743
+[WebServer] Following the input every 500 ms; a change publishes a new generation.
+
+
+Running 3 tests using 1 worker
+
+(node:2949551) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/3] [chromium] › e2e/multitab-observations.spec.ts:27:3 › 8 mixed tabs preserve request scope and disk navigation under simultaneous and staggered demand
+[chromium] › e2e/multitab-observations.spec.ts:27:3 › 8 mixed tabs preserve request scope and disk navigation under simultaneous and staggered demand
+demand 8/0 simultaneous volume/0
+
+demand 8/1 simultaneous sector/0/0
+
+demand 8/2 simultaneous page/0/10
+
+demand 8/3 simultaneous volume/0
+
+demand 8/4 simultaneous sector/0/0
+
+demand 8/5 simultaneous page/0/10
+
+demand 8/6 simultaneous volume/0
+
+demand 8/7 simultaneous sector/0/0
+
+response 8/1 simultaneous 200 1
+
+response 8/4 simultaneous 200 1
+
+response 8/7 simultaneous 200 1
+
+response 8/6 simultaneous 200 1
+
+response 8/2 simultaneous 200 1
+
+response 8/5 simultaneous 200 1
+
+response 8/3 simultaneous 200 1
+
+response 8/0 simultaneous 200 1
+
+demand 8/0 staggered volume/0
+
+response 8/0 staggered 200 2
+
+demand 8/1 staggered sector/0/0
+
+response 8/1 staggered 200 3
+
+demand 8/2 staggered page/0/10
+
+response 8/2 staggered 200 4
+
+demand 8/3 staggered volume/0
+
+response 8/3 staggered 200 5
+
+demand 8/4 staggered sector/0/0
+
+response 8/4 staggered 200 6
+
+demand 8/5 staggered page/0/10
+
+response 8/5 staggered 200 7
+
+demand 8/6 staggered volume/0
+
+response 8/6 staggered 200 8
+
+demand 8/7 staggered sector/0/0
+
+response 8/7 staggered 200 9
+
+[2/3] [chromium] › e2e/multitab-observations.spec.ts:89:3 › volume/0 paused evidence only sees other-tab availability and expires while hidden requests stay silent
+  1) [chromium] › e2e/multitab-observations.spec.ts:89:3 › volume/0 paused evidence only sees other-tab availability and expires while hidden requests stay silent
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: "Page 10: ◉ Observed resident · lru2 · private membership · index 1"
+    Received: "Page 10: ◉ Observed resident · lru2 · private membership · index 1 · stale"
+
+      113 |       await expect(page.getByRole("region", { name: "CUBRID page-buffer observation" })).toContainText("Newer observation available");
+      114 |       expect(observations()).toBe(pausedCount);
+    > 115 |       expect(await cell.getAttribute("title")).toBe(pausedTitle);
+          |                                                ^
+      116 |       await page.evaluate(() => {
+      117 |         Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
+      118 |         document.dispatchEvent(new Event("visibilitychange"));
+        at /home/vimkim/temp/volmap/web/e2e/multitab-observations.spec.ts:115:48
+
+    Error Context: test-results/multitab-observations-volu-869b9-hidden-requests-stay-silent-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/multitab-observations-volu-869b9-hidden-requests-stay-silent-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/multitab-observations-volu-869b9-hidden-requests-stay-silent-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+(node:2950436) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[3/3] [chromium] › e2e/multitab-observations.spec.ts:89:3 › sector/0/0 paused evidence only sees other-tab availability and expires while hidden requests stay silent
+  2) [chromium] › e2e/multitab-observations.spec.ts:89:3 › sector/0/0 paused evidence only sees other-tab availability and expires while hidden requests stay silent
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: "◉ Observed resident · dirty true · flushing false"
+    Received: "◉ Observed resident · dirty true · flushing false · stale"
+
+      113 |       await expect(page.getByRole("region", { name: "CUBRID page-buffer observation" })).toContainText("Newer observation available");
+      114 |       expect(observations()).toBe(pausedCount);
+    > 115 |       expect(await cell.getAttribute("title")).toBe(pausedTitle);
+          |                                                ^
+      116 |       await page.evaluate(() => {
+      117 |         Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
+      118 |         document.dispatchEvent(new Event("visibilitychange"));
+        at /home/vimkim/temp/volmap/web/e2e/multitab-observations.spec.ts:115:48
+
+    Error Context: test-results/multitab-observations-sect-59db8-hidden-requests-stay-silent-chromium/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/multitab-observations-sect-59db8-hidden-requests-stay-silent-chromium/trace.zip
+    Usage:
+
+        pnpm exec playwright show-trace test-results/multitab-observations-sect-59db8-hidden-requests-stay-silent-chromium/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+  2 failed
+    [chromium] › e2e/multitab-observations.spec.ts:89:3 › volume/0 paused evidence only sees other-tab availability and expires while hidden requests stay silent
+    [chromium] › e2e/multitab-observations.spec.ts:89:3 › sector/0/0 paused evidence only sees other-tab availability and expires while hidden requests stay silent
+  1 passed (13.6s)

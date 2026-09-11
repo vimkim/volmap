@@ -1,0 +1,35 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running unittests src/lib.rs (target/x86_64-unknown-linux-musl/debug/deps/volmap-68b3ced4833fdf20)
+
+running 29 tests
+test web::observations::memory::tests::aggregate_boundary_counts_retained_inflight_and_response_owners_until_last_drop ... ok
+test web::observations::session::response_tests::volume_projection_capacities_fit_the_existing_request_reservation ... ok
+test web::observations::tests::observation_scope_enforces_the_bound_before_copying_and_keeps_order ... ok
+test web::observations::tests::configured_and_disabled_brokers_accept_an_injected_scheduler ... ok
+test web::observations::tests::injected_scheduler_controls_capability_deadline_boundaries ... ok
+test web::observations::wire_tests::additive_unknown_numbers_do_not_require_machine_numeric_range ... ok
+test web::observations::session::response_tests::normalized_response_cap_includes_all_serialized_bytes_without_growing_past_it ... ok
+test web::observations::wire_tests::complete_producer_scan_publishes_only_after_the_footer ... ok
+test web::observations::memory::capture_tests::actual_decoders_cannot_admit_object_caps_that_exceed_the_shared_total ... ok
+test web::observations::wire_tests::producer_duplicate_members_and_excessive_depth_are_rejected ... ok
+test web::observations::wire_tests::wire_frame_limits_include_newline_at_below_and_above_boundaries ... ok
+test web::observations::wire_tests::actual_private_socket_accepts_chunked_producer_and_rejects_unsafe_mode ... ok
+test web::observations::lifecycle_tests::metadata_offers_capture_identity_without_scanning_and_expires_while_paused ... ok
+test web::observations::lifecycle_tests::metadata_preserves_matching_disk_identity_and_invalidates_a_changed_volume ... ok
+test web::observations::lifecycle_tests::resume_obeys_the_independent_broker_scan_start_floor_with_a_virtual_scheduler ... ok
+test web::observations::lifecycle_tests::cancellation_preserves_other_callers_and_last_observer_closes_unfinished_scan ... ok
+test web::observations::lifecycle_tests::a_pre_resume_inflight_capture_cannot_fulfill_resumed_demand ... ok
+test web::observations::lifecycle_tests::wall_clock_steps_and_suspension_revoke_broker_cache_age_authority ... ok
+test web::observations::lifecycle_tests::producer_errors_have_stable_normalized_reasons_and_only_refusals_stop_retry ... ok
+test web::observations::wire_tests::broker_refuses_each_identity_component_and_incomplete_volume_sets_before_scanning ... ok
+test web::observations::lifecycle_tests::rotating_truncated_captures_never_accumulate_absence_or_hide_duplicate_ambiguity ... ok
+test web::observations::wire_tests::eight_inflight_callers_share_one_slow_capture_and_reject_a_ninth ... ok
+test web::observations::lifecycle_tests::caller_cadence_controls_cache_reuse_and_resume_requires_a_later_scan ... ok
+test web::observations::wire_tests::broker_shares_capture_charges_held_responses_retains_original_age_and_expires ... ok
+test web::observations::wire_tests::canonical_exchange_corpus_validates_all_server_stream_outcomes ... ok
+test web::observations::wire_tests::peer_credentials_reject_another_effective_uid_without_a_root_exception ... ok
+test web::observations::lifecycle_tests::paused_metadata_detects_replaced_producer_and_refuses_until_explicit_retry ... ok
+test web::observations::wire_tests::actual_io_deadlines_bound_stalled_handshake_and_scan ... ok
+test web::observations::wire_tests::raw_record_slot_and_framed_scan_limits_are_checked_before_deduplication ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 126 filtered out; finished in 8.85s

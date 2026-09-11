@@ -1,0 +1,29 @@
+
+ RUN  v4.1.11 /home/vimkim/temp/volmap/web
+
+ ❯ src/observations.test.ts (27 tests | 1 failed) 48ms
+   × LRU glyphs identify private and shared membership without inferring unknown membership 7ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/observations.test.ts > LRU glyphs identify private and shared membership without inferring unknown membership
+AssertionError: expected '2DF' to be '2PDF' // Object.is equality
+
+Expected: "2PDF"
+Received: "2DF"
+
+ ❯ src/observations.test.ts:432:46
+    430|     const row = { volid: 0, pageid: 7, state: "resident" as const, rea…
+    431|     const topology = { ...observed, observation: { ...observed.observa…
+    432|     expect(runtimePage(topology, row).glyph).toBe(`2${suffix}DF`);
+       |                                              ^
+    433|     expect(runtimePage(observed, row).glyph).toBe("◉DF");
+    434|   }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 26 passed (27)
+   Start at  20:47:55
+   Duration  340ms (transform 121ms, setup 0ms, import 151ms, tests 48ms, environment 0ms)

@@ -1,0 +1,11 @@
+   Compiling volmap v0.0.0 (/home/vimkim/temp/volmap)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.20s
+     Running unittests src/lib.rs (target/x86_64-unknown-linux-musl/debug/deps/volmap-68b3ced4833fdf20)
+
+running 1 test
+mixed cadence request={"cadence_ms":2000,"epoch":"100","generation":"0","scope":{"kind":"volume","sectorids":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63],"volid":0}} capture={"database_fingerprint":"ee671148eb0ba92b12939fff14f4ba02d3d03cb7e55e0bb20f182491e64aab8d","end_time_us":"900","identity":"c356cbaed2f99a897958a23567ebe5bcd8a308318464c2bfb0a9853c06377050","incarnation":"0123456789ab","incarnation_binding":"3eb1bd439947eb762998e566ccc2e099c791118b2f40579cc4f7da2b5061b7f9","private_lru_count":3,"protocol_major":1,"protocol_minor":0,"sequence":"1","shared_lru_count":2,"start_time_us":"1000","upper_age_ms":1101}
+mixed cadence request={"cadence_ms":2000,"epoch":"101","generation":"0","scope":{"kind":"sector","sectorid":0,"volid":0}} capture={"database_fingerprint":"ee671148eb0ba92b12939fff14f4ba02d3d03cb7e55e0bb20f182491e64aab8d","end_time_us":"900","identity":"c356cbaed2f99a897958a23567ebe5bcd8a308318464c2bfb0a9853c06377050","incarnation":"0123456789ab","incarnation_binding":"3eb1bd439947eb762998e566ccc2e099c791118b2f40579cc4f7da2b5061b7f9","private_lru_count":3,"protocol_major":1,"protocol_minor":0,"sequence":"1","shared_lru_count":2,"start_time_us":"1000","upper_age_ms":1101}
+mixed cadence request={"cadence_ms":500,"epoch":"102","generation":"0","pages":[{"pageid":7,"volid":0}]} capture={"database_fingerprint":"ee671148eb0ba92b12939fff14f4ba02d3d03cb7e55e0bb20f182491e64aab8d","end_time_us":"900","identity":"bfc405f3e198b3f11193c0139aaefed0bc6f50b9ddb3a2bad439ecd2303232c8","incarnation":"0123456789ab","incarnation_binding":"3eb1bd439947eb762998e566ccc2e099c791118b2f40579cc4f7da2b5061b7f9","private_lru_count":3,"protocol_major":1,"protocol_minor":0,"sequence":"2","shared_lru_count":2,"start_time_us":"1000","upper_age_ms":101}
+test web::tests::thirty_two_http_callers_receive_bounded_overload_without_queuing ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 154 filtered out; finished in 0.13s

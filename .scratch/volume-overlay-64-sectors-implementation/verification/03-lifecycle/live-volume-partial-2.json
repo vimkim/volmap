@@ -1,0 +1,22 @@
+{
+  "requested": 4096,
+  "evaluated": 4096,
+  "producer_complete": false,
+  "capture": {
+    "identity": "942e63b0fd3ec6411014151d9ad4ded5e392899839e603ae5ea2d9ba9e68ecd6",
+    "incarnation_binding": "fdb865ebef6064cec152930c7a9899102b5dd066fd9ac737f5e68c0e0084dc1d",
+    "incarnation": "60c5de83f40f",
+    "protocol_major": 1,
+    "protocol_minor": 0,
+    "database_fingerprint": "c3836adb88d72599c742cb8de3b59f7a470d2d52384514398f3a7b1c3d9e6f53",
+    "sequence": "616",
+    "start_time_us": "1789126867135589",
+    "end_time_us": "1789126867236645",
+    "upper_age_ms": 207,
+    "shared_lru_count": 32,
+    "private_lru_count": 152
+  },
+  "reasons": {
+    "partial-omission": 4096
+  }
+}

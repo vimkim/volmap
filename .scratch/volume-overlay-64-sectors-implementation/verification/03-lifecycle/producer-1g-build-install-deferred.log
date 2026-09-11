@@ -1,0 +1,134 @@
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: debug_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/debug_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: debug_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/debug_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: debug_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/debug_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc
+Using JAVA_HOME JDK: /home/vimkim/.local/share/mise/installs/java/temurin-8.0.462+8
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: debug_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/debug_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc
+Logging build output to: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc/build.log
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: debug_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/debug_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc
+[1/38] Running utility command for pl_install_jdk
+[INFO] Install JDK 8
+[2/38] Performing update step for 'catch2'
+[3/38] No patch step for 'catch2'
+[4/38] Performing configure step for 'catch2'
+loading initial cache file /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc/unit_tests/catch2-prefix/tmp/catch2-cache-Debug.cmake
+-- Configuring done (0.0s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc/unit_tests/catch2-prefix/src/catch2-build
+[5/38] Performing build step for 'catch2'
+ninja: no work to do.
+[6/38] No install step for 'catch2'
+[7/38] Completed 'catch2'
+[8/38] Building CXX object unit_tests/pgbuf_inspector/CMakeFiles/test_pgbuf_inspector.dir/__/__/src/storage/pgbuf_inspector_scan.cpp.o
+[9/38] Building CXX object unit_tests/pgbuf_inspector/CMakeFiles/test_pgbuf_inspector.dir/__/__/src/storage/pgbuf_inspector_socket.cpp.o
+[10/38] Building CXX object cubrid/CMakeFiles/cubrid.dir/__/src/storage/pgbuf_inspector_scan.cpp.o
+[11/38] Building CXX object cubrid/CMakeFiles/cubrid.dir/__/src/storage/pgbuf_inspector_socket.cpp.o
+[12/38] Building CXX object unit_tests/pgbuf_inspector/CMakeFiles/test_pgbuf_inspector.dir/test_pgbuf_inspector_scan.cpp.o
+[13/38] Building CXX object unit_tests/pgbuf_inspector/CMakeFiles/pgbuf_inspector_corpus_generator.dir/__/__/src/storage/pgbuf_inspector_protocol.cpp.o
+[14/38] Linking CXX executable bin/pgbuf_inspector_corpus_generator
+[15/38] Building CXX object unit_tests/pgbuf_inspector/CMakeFiles/test_pgbuf_inspector.dir/__/__/src/storage/pgbuf_inspector_protocol.cpp.o
+[16/38] Building CXX object cubrid/CMakeFiles/cubrid.dir/__/src/storage/pgbuf_inspector.cpp.o
+[17/38] Building CXX object cubrid/CMakeFiles/cubrid.dir/__/src/storage/pgbuf_inspector_protocol.cpp.o
+[18/38] Building CXX object unit_tests/pgbuf_inspector/CMakeFiles/test_pgbuf_inspector.dir/test_pgbuf_inspector_socket.cpp.o
+[19/38] Building CXX object cubrid/CMakeFiles/cubrid.dir/__/src/transaction/boot_sr.c.o
+[20/38] Running utility command for jdbc_build
+-- Found Git: /usr/bin/git (found version "2.47.3")
+[INFO] JDBC VERSION = 11.4.0.0072
+Buildfile: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/cubrid-jdbc/build.xml
+
+clean:
+
+src-jar-cubrid:
+    [mkdir] Created dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/cubrid-jdbc/output/bin-cubrid
+    [mkdir] Created dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/cubrid-jdbc/output/src-cubrid
+     [copy] Copying 1 file to /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/cubrid-jdbc/output/src-cubrid
+     [copy] Copying 99 files to /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/cubrid-jdbc/output/src-cubrid
+      [jar] Building jar: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/cubrid-jdbc/cubrid-jdbc-11.4.0.0072-sources.jar
+
+compile-cubrid:
+    [javac] Compiling 99 source files to /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/cubrid-jdbc/output/bin-cubrid
+
+doc-jar-cubrid:
+  [javadoc] Generating Javadoc
+  [javadoc] Javadoc execution
+  [javadoc] Loading source files for package cubrid.jdbc.driver...
+  [javadoc] Loading source files for package cubrid.jdbc.jci...
+  [javadoc] Loading source files for package cubrid.jdbc.log...
+  [javadoc] Loading source files for package cubrid.jdbc.net...
+  [javadoc] Loading source files for package cubrid.jdbc.util...
+  [javadoc] Loading source files for package cubrid.sql...
+  [javadoc] Constructing Javadoc information...
+  [javadoc] Standard Doclet version 1.8.0_462
+  [javadoc] Building tree for all the packages and classes...
+  [javadoc] Building index for all the packages and classes...
+  [javadoc] Building index for all classes...
+      [jar] Building jar: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/cubrid-jdbc/cubrid-jdbc-11.4.0.0072-javadoc.jar
+
+dist-cubrid:
+      [jar] Building jar: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/cubrid-jdbc/cubrid-jdbc-11.4.0.0072.jar
+
+BUILD SUCCESSFUL
+Total time: 3 seconds
+[INFO] Generating cubrid_jdbc.jar finished
+[21/38] Building CXX object cubrid/CMakeFiles/cubrid.dir/__/src/storage/page_buffer.c.o
+[22/38] Linking CXX shared library cubrid/libcubrid.so.11.5
+[23/38] Creating library symlink cubrid/libcubrid.so
+[24/38] Linking CXX executable bin/pgbuf_inspector_fixture
+[25/38] Linking CXX executable bin/unittests_bit
+[26/38] Linking CXX executable bin/cub_server
+[27/38] Linking CXX executable bin/unittests_lf
+[28/38] Linking CXX executable bin/unittests_area
+[29/38] Linking CXX executable bin/unittests_snapshot
+[30/38] Linking CXX executable bin/test_oos_mock_vacuum_server
+[31/38] Linking CXX executable bin/test_oos_vacuum_server
+[32/38] Linking CXX executable bin/test_oos_remove_file_server
+[33/38] Linking CXX executable bin/test_oos_delete_server
+[34/38] Linking CXX executable bin/test_oos_real_vacuum_server
+[35/38] Linking CXX executable bin/test_oos_server
+[36/38] Running utility command for pl_build
+[INFO] JDBC Driver built at cubrid-jdbc submodule
+> Task :pl_server:generateGrammarSource UP-TO-DATE
+> Task :pl_server:compileJava UP-TO-DATE
+> Task :pl_server:processResources UP-TO-DATE
+> Task :pl_server:classes UP-TO-DATE
+> Task :pl_server:jar
+> Task :pl_server:startScripts UP-TO-DATE
+> Task :pl_server:distTar
+> Task :pl_server:distZip
+> Task :pl_server:assemble
+> Task :pl_server:check
+> Task :pl_server:build
+
+BUILD SUCCESSFUL in 6s
+7 actionable tasks: 3 executed, 4 up-to-date
+[37/38] Building CXX object unit_tests/pgbuf_inspector/CMakeFiles/test_pgbuf_inspector.dir/test_pgbuf_inspector_wire.cpp.o
+[38/38] Linking CXX executable bin/test_pgbuf_inspector
+
+Installation deferred: the target CUBRID environment is busy.
+Environment: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/debug_gcc
+Active processes:
+  PID 2835169  cub_master           /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/debug_gcc/bin/cub_master
+  PID 2936665  cub_server           /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/debug_gcc/bin/cub_server
+  PID 2936669  cub_pl               /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/debug_gcc/bin/cub_pl
+  PID 2938325  csql                 /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/debug_gcc/bin/csql
+No process was stopped. Retry with: just install
+error: recipe `build` failed with exit code 75

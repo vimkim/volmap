@@ -1,0 +1,23 @@
+{
+  "header": {
+    "type": "scan_header",
+    "incarnation": "60c5de83f40fbaa80e8b3b52917d205d",
+    "scan_seq": "618",
+    "start_time_us": "1789126953177941"
+  },
+  "footer_or_error": {
+    "type": "scan_footer",
+    "incarnation": "60c5de83f40fbaa80e8b3b52917d205d",
+    "scan_seq": "618",
+    "end_time_us": "1789126953279144",
+    "record_count": 285,
+    "visited_slots": 30752,
+    "truncated": true
+  },
+  "record_counts_by_volume": {
+    "32766": 150,
+    "0": 52,
+    "1": 83
+  },
+  "framed_bytes": 106974
+}

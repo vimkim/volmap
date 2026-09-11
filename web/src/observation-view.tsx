@@ -134,7 +134,7 @@ export function runtimePage(state: UiState, row: ObservationRow | undefined) {
   return {
     className: ` runtime-resident${dirty ? " runtime-dirty" : ""}${flushing ? " runtime-flushing" : ""}${stale ? " runtime-stale" : ""}${topology ? ` runtime-lru zone-${knownZone ? zone : "unknown"}${kind === "private" ? " lru-private" : ""}` : ""}`,
     label: `${label}${state.route.kind === "volume" ? "" : ` · dirty ${evidence.dirty ?? "unknown"} · flushing ${evidence.flushing ?? "unknown"}`}${topology || state.route.kind === "volume" ? ` · ${zone ?? "unknown"} · ${kind ?? "unknown"} membership · index ${evidence.lru_list_index ?? "unknown"}` : ""}${stale ? " · stale" : ""}`,
-    glyph: `${topology ? ({ lru1: "1", lru2: "2", lru3: "3", void: "V", invalid: "!" }[zone ?? ""] ?? "?") : "◉"}${dirty ? "D" : ""}${flushing ? "F" : ""}`,
+    glyph: `${topology ? ({ lru1: "1", lru2: "2", lru3: "3", void: "V", invalid: "!" }[zone ?? ""] ?? "?") : "◉"}${topology ? kind === "private" ? "P" : kind === "shared" ? "S" : "" : ""}${dirty ? "D" : ""}${flushing ? "F" : ""}`,
     state: "resident",
   };
 }
@@ -142,7 +142,7 @@ export function runtimePage(state: UiState, row: ObservationRow | undefined) {
 export function ObservationLegend({ state }: { readonly state: UiState }) {
   if (!state.observation.enabled) return null;
   return <section className="runtime-legend" aria-label="Runtime overlay legend">
-    <p>{state.observation.colorMode === "lru" ? "LRU topology colors replace storage colors: 1 lru1 · 2 lru2 · 3 lru3 · V void · ! invalid · ? unknown. Private membership has a dashed edge." : state.route.kind === "volume" ? "Storage colors retained. ◉ cyan inset: observed resident. Volume observes residency and LRU membership only." : "Storage colors retained. ◉ cyan inset: observed resident · D amber corner: dirty · F static magenta edge: flushing."}</p>
+    <p>{state.observation.colorMode === "lru" ? "LRU topology colors replace storage colors: 1 lru1 · 2 lru2 · 3 lru3 · V void · ! invalid · ? unknown · P private · S shared. Private membership also has a dashed edge." : state.route.kind === "volume" ? "Storage colors retained. ◉ cyan inset: observed resident. Volume observes residency and LRU membership only." : "Storage colors retained. ◉ cyan inset: observed resident · D amber corner: dirty · F static magenta edge: flushing."}</p>
     <p>○ observed not resident · ? unknown / not evaluated · ≠ duplicate ambiguity. Pages outside this batch have no runtime glyph. No usable source or expired evidence: storage colors only, no runtime marks. Sampled states, not events or durability evidence.</p>
     <ObservationAge state={state} />
     <p>Source: {state.runtimeCapability ?? "connecting"} · {state.follow.paused ? "Paused adoption" : "Adopting observations"} · {state.observation.message}</p>

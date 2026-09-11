@@ -13,7 +13,10 @@ async function completedObservation(response: Response): Promise<boolean> {
 
 test("12288 rendered cells adopt 4096 changing results from one capture with fixed central selection", async ({ page, browserName }) => {
   await page.setViewportSize({ width: 2560, height: 2160 });
-  await page.goto("http://127.0.0.1:41743/volume/0", { waitUntil: "commit" });
+  // Firefox may render the live page while goto waits on its watch stream.
+  // The cell assertions below establish readiness after document navigation.
+  await page.evaluate(() => { window.location.href = "http://127.0.0.1:41743/volume/0"; });
+  await expect(page.getByRole("heading", { name: "Volume 0 · full map", exact: true })).toBeVisible();
   await loadVolumeCells(page, 12288);
   const renderedCells = await page.locator("[data-observation-page]").evaluateAll((elements) => elements.filter((element) => element.getClientRects().length > 0).length);
   expect(renderedCells).toBe(12288);

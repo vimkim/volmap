@@ -3325,15 +3325,20 @@ mod tests {
     #[test]
     fn concurrent_http_scopes_share_scan_but_keep_coverage_and_disk_admission_independent() {
         for (partial, duplicate) in [(false, false), (true, false), (true, true)] {
-            concurrent_http_capture(partial, duplicate);
+            concurrent_http_capture(partial, duplicate, 9);
         }
+    }
+
+    #[test]
+    fn thirty_two_http_callers_receive_bounded_overload_without_queuing() {
+        concurrent_http_capture(false, false, 32);
     }
 
     #[expect(
         clippy::too_many_lines,
         reason = "One gated capture proves mixed HTTP scope coverage and independent admission"
     )]
-    fn concurrent_http_capture(partial: bool, duplicate: bool) {
+    fn concurrent_http_capture(partial: bool, duplicate: bool, callers: usize) {
         use std::io::{BufRead as _, Write as _};
         use std::os::unix::{fs::PermissionsExt as _, net::UnixListener};
         let directory = FixtureDirectory::new();
@@ -3341,7 +3346,19 @@ mod tests {
         let path = directory.path().join("producer.sock");
         let listener = UnixListener::bind(&path).unwrap();
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
-        let server = boot_runtime(None, false, observations::Broker::new(Some(path)));
+        let ticks = Arc::new(std::sync::atomic::AtomicU64::new(0));
+        let clock = ticks.clone();
+        let origin = std::time::Instant::now();
+        let broker = observations::Broker::with_clock(
+            path,
+            Arc::new(move || {
+                origin
+                    + std::time::Duration::from_millis(
+                        clock.load(std::sync::atomic::Ordering::SeqCst),
+                    )
+            }),
+        );
+        let server = boot_runtime(None, false, broker);
         let identity = server
             .source
             .current()
@@ -3370,20 +3387,28 @@ mod tests {
             let transcript = include_str!(
                 "../fixtures/pgbuf-inspector/v1/corpus/exchanges/complete/stream.jsonl"
             );
-            for line in transcript.lines().skip(3) {
-                let mut frame: serde_json::Value = serde_json::from_str(line).unwrap();
-                if frame["type"] == "scan_footer" {
-                    frame["truncated"] = partial.into();
-                    if duplicate {
-                        frame["record_count"] = 2.into();
+            for sequence in 1..=if callers == 32 { 2 } else { 1 } {
+                if sequence == 2 {
+                    request.clear();
+                    reader.read_line(&mut request).unwrap();
+                    assert!(request.contains("scan_request"));
+                }
+                for line in transcript.lines().skip(3) {
+                    let mut frame: serde_json::Value = serde_json::from_str(line).unwrap();
+                    frame["scan_seq"] = sequence.to_string().into();
+                    if frame["type"] == "scan_footer" {
+                        frame["truncated"] = partial.into();
+                        if duplicate {
+                            frame["record_count"] = 2.into();
+                        }
+                    }
+                    writeln!(stream, "{frame}").unwrap();
+                    if duplicate && frame["type"] == "page" {
+                        writeln!(stream, "{frame}").unwrap();
                     }
                 }
-                writeln!(stream, "{frame}").unwrap();
-                if duplicate && frame["type"] == "page" {
-                    writeln!(stream, "{frame}").unwrap();
-                }
             }
-            // Only one capture is supplied; extra scans would fail the waiters.
+            // Initial waiters share scan 1; only the fast-cadence follow-up may request scan 2.
         });
         let address = server.address;
         let generation = server.source.current().unwrap().generation.to_string();
@@ -3397,7 +3422,7 @@ mod tests {
             )
         };
         let (completed, completion) = std::sync::mpsc::channel();
-        let clients: Vec<_> = (0..9).map(|epoch| {
+        let clients: Vec<_> = (0..callers).map(|epoch| {
             let completed = completed.clone();
             let mut body = serde_json::json!({"epoch":epoch.to_string(),"generation":generation,"cadence_ms":if epoch % 2 == 0 {500} else {2000}});
             if epoch % 2 == 0 {
@@ -3414,20 +3439,23 @@ mod tests {
                 response
             })
         }).collect();
-        // Eight requests hold admission while the producer is gated. The ninth
-        // must finish with overload. An extra polling request could steal a
-        // permit and reject one of the eight waiters it was trying to count.
-        let (refused_epoch, status) = completion
-            .recv_timeout(std::time::Duration::from_secs(2))
-            .expect("the ninth HTTP request must be refused while eight waiters hold admission");
-        assert_eq!(status, 429);
+        // Every caller beyond the eight admitted observers must finish before
+        // releasing the producer: queued demand would deadlock this handshake.
+        let mut refused = std::collections::BTreeSet::new();
+        for _ in 8..callers {
+            let (epoch, status) = completion
+                .recv_timeout(std::time::Duration::from_secs(2))
+                .expect("excess HTTP demand must finish while the producer is gated");
+            assert_eq!(status, 429);
+            assert!(refused.insert(epoch));
+        }
         assert_eq!(get(address, "/api/v1/session").0, 200);
         assert_eq!(get(address, "/api/v1/volumes").0, 200);
         assert_eq!(get(address, "/api/v1/runtime/capabilities").0, 200);
         release.send(()).unwrap();
         for (epoch, client) in clients.into_iter().enumerate() {
             let (status, body) = client.join().unwrap();
-            if epoch == refused_epoch {
+            if refused.contains(&epoch) {
                 assert_eq!(status, 429, "{body}");
                 continue;
             }
@@ -3493,69 +3521,137 @@ mod tests {
             );
             assert_eq!(value["observations"][2]["reason"], "unevaluated");
         }
+        if callers == 32 {
+            // One second after publication is still within the Volume/Sector
+            // cadence, but beyond Page cadence. No sleeps select the cache.
+            ticks.store(1000, std::sync::atomic::Ordering::SeqCst);
+            for (epoch, address, cadence, sequence, age) in [
+                (
+                    100,
+                    serde_json::json!({"scope":{"kind":"volume","volid":0,"sectorids":(0..64).collect::<Vec<_>>()}}),
+                    2000,
+                    "1",
+                    1101,
+                ),
+                (
+                    101,
+                    serde_json::json!({"scope":{"kind":"sector","volid":0,"sectorid":0}}),
+                    2000,
+                    "1",
+                    1101,
+                ),
+                (
+                    102,
+                    serde_json::json!({"pages":[{"volid":0,"pageid":7}]}),
+                    500,
+                    "2",
+                    101,
+                ),
+            ] {
+                let mut body = address;
+                body["epoch"] = epoch.to_string().into();
+                body["generation"] = generation.clone().into();
+                body["cadence_ms"] = cadence.into();
+                let (status, response) = post(&body.to_string());
+                assert_eq!(status, 200, "{response}");
+                let response: serde_json::Value = serde_json::from_str(&response).unwrap();
+                assert_eq!(response["epoch"], epoch.to_string());
+                assert_eq!(response["generation"], generation);
+                assert_eq!(response["capture"]["sequence"], sequence);
+                assert_eq!(response["capture"]["upper_age_ms"], age);
+                eprintln!(
+                    "mixed cadence request={body} capture={}",
+                    response["capture"]
+                );
+            }
+        }
         producer.join().unwrap();
     }
 
     #[test]
     fn held_http_response_bodies_keep_admission_until_released() {
-        let (_directory, mut state) = state();
-        state.runtime = Arc::new(observations::Broker::new(Some(
-            "/missing/producer.sock".into(),
-        )));
-        tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap()
-            .block_on(async {
-                let request = || {
-                    Ok(Json(ObservationRequest {
-                        scope: None,
-                        pages: Some(vec![ObservationPage {
-                            volid: 0,
-                            pageid: 7,
-                        }]),
-                        epoch: "1".into(),
-                        generation: state.source.current().unwrap().generation.to_string(),
-                        retry: false,
-                        cadence_ms: 500,
-                        after_request: false,
-                    }))
-                };
-                let mut responses = Vec::new();
-                for _ in 0..8 {
+        for view_scope in [
+            None,
+            Some(observations::ViewScope::Sector {
+                volid: 0,
+                sectorid: 0,
+            }),
+            Some(observations::ViewScope::Volume {
+                volid: 0,
+                sectorids: (0..64).collect(),
+            }),
+        ] {
+            let (_directory, mut state) = state();
+            state.runtime = Arc::new(observations::Broker::new(Some(
+                "/missing/producer.sock".into(),
+            )));
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap()
+                .block_on(async {
+                    let request = || {
+                        Ok(Json(ObservationRequest {
+                            scope: view_scope.clone(),
+                            pages: view_scope.is_none().then(|| {
+                                vec![ObservationPage {
+                                    volid: 0,
+                                    pageid: 7,
+                                }]
+                            }),
+                            epoch: "1".into(),
+                            generation: state.source.current().unwrap().generation.to_string(),
+                            retry: false,
+                            cadence_ms: 500,
+                            after_request: false,
+                        }))
+                    };
+                    let mut responses = Vec::new();
+                    for _ in 0..8 {
+                        let response = runtime_observations(State(state.clone()), request()).await;
+                        assert_eq!(response.status(), StatusCode::OK);
+                        responses.push(response);
+                    }
                     let response = runtime_observations(State(state.clone()), request()).await;
-                    assert_eq!(response.status(), StatusCode::OK);
-                    responses.push(response);
-                }
-                let response = runtime_observations(State(state.clone()), request()).await;
-                assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
-                responses.pop();
-                assert_eq!(
-                    runtime_observations(State(state.clone()), request())
-                        .await
-                        .status(),
-                    StatusCode::OK
-                );
-            });
+                    assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+                    responses.pop();
+                    assert_eq!(
+                        runtime_observations(State(state.clone()), request())
+                            .await
+                            .status(),
+                        StatusCode::OK
+                    );
+                });
+        }
     }
 
     #[test]
     fn observation_http_deadline_includes_stalled_request_body() {
         use std::io::{Read as _, Write as _};
         let server = boot_runtime(None, false, observations::Broker::new(None));
-        let mut stream = std::net::TcpStream::connect(server.address).unwrap();
-        stream
-            .set_read_timeout(Some(std::time::Duration::from_secs(5)))
-            .unwrap();
-        let started = std::time::Instant::now();
-        write!(stream, "POST /api/v1/runtime/page-buffer/observe HTTP/1.1\r\nHost: {}\r\nOrigin: http://{}\r\nContent-Type: application/json\r\nContent-Length: 100\r\nConnection: close\r\n\r\n{{", server.address, server.address).unwrap();
-        let mut response = String::new();
-        stream.read_to_string(&mut response).unwrap();
-        assert!(response.starts_with("HTTP/1.1 504"), "{response}");
-        assert!(response.contains("runtime-deadline-exceeded"));
-        assert!(response.contains("no-store"));
-        assert!(started.elapsed() < std::time::Duration::from_secs(4));
-        assert_eq!(get(server.address, "/api/v1/session").0, 200);
+        // A second saturated wave proves that all eight timed-out body owners
+        // returned their permits, rather than merely leaving seven spare slots.
+        for _ in 0..2 {
+            let started = std::time::Instant::now();
+            let mut streams = Vec::new();
+            for _ in 0..8 {
+                let mut stream = std::net::TcpStream::connect(server.address).unwrap();
+                stream
+                    .set_read_timeout(Some(std::time::Duration::from_secs(5)))
+                    .unwrap();
+                write!(stream, "POST /api/v1/runtime/page-buffer/observe HTTP/1.1\r\nHost: {}\r\nOrigin: http://{}\r\nContent-Type: application/json\r\nContent-Length: 100\r\nConnection: close\r\n\r\n{{", server.address, server.address).unwrap();
+                streams.push(stream);
+            }
+            assert_eq!(get(server.address, "/api/v1/session").0, 200);
+            for mut stream in streams {
+                let mut response = String::new();
+                stream.read_to_string(&mut response).unwrap();
+                assert!(response.starts_with("HTTP/1.1 504"), "{response}");
+                assert!(response.contains("runtime-deadline-exceeded"));
+                assert!(response.contains("no-store"));
+            }
+            assert!(started.elapsed() < std::time::Duration::from_secs(4));
+        }
     }
 
     #[test]

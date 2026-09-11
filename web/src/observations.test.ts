@@ -381,3 +381,55 @@ test("Volume with no visible physical pages schedules no observation HTTP reques
   state = reduce(state, { kind: "refresh-observation" });
   expect(state.effects.some((effect) => effect.kind === "read-observation")).toBe(false);
 });
+
+for (const kind of ["volume", "sector"] as const) {
+  test(`${kind} delayed capture is revoked by pause, overlay, visibility, route and generation changes`, () => {
+    let state = reduce(requested().state, { kind: "navigate", route: kind === "volume" ? { kind, vol: 0 } : { kind, vol: 0, sector: 0 }, history: "push", autoEnrich: false });
+    state = reduce(state, { kind: "observation-viewport", scope: state.scope, pages: Array.from({ length: 64 }, (_, pageid) => ({ volid: 0, pageid })) });
+    if (kind === "sector") state = reduce(state, { kind: "route-loaded", scope: state.scope, result: {
+      route: { kind: "sector", vol: 0, sector: 0 }, snapshot: state.snapshot!, outcome: "success", follow: { state: "following", poll_interval_ms: "1000", retained_generations: "2" },
+      volumes: [{ vol_id: 0, total_sectors: 64 }], view: { kind: "sector", volume: { vol_id: 0, total_sectors: 64 },
+        sector: { vol_id: 0, sector_id: 0, reserved: true, pages: Array.from({ length: 64 }, (_, page_id) => ({
+          vol_id: 0, page_id, sector_id: 0, allocation: "allocated", page_type: { state: "unknown" },
+          availability: "available", tde_state: "not-encrypted", detail_support: { state: "unknown" },
+          occupancy: { state: "unknown" }, diagnostic: { state: "unknown" }, file_association: { state: "none" },
+        })) } },
+    } });
+    state = reduce(state, { kind: "refresh-observation" });
+    const effect = state.effects.at(-1);
+    if (effect?.kind !== "read-observation") throw new Error("missing scoped demand");
+    const response = loaded(effect, { ...batch(effect), scope: effect.request.scope, requested: 64, evaluated: 64 });
+    expect(reduce(state, response).observation.batch).not.toBeNull();
+    const revoked = [
+      reduce(state, { kind: "toggle-pause" }),
+      reduce(state, { kind: "toggle-observation" }),
+      reduce(state, { kind: "visibility-changed", visible: false }),
+      reduce(state, { kind: "navigate", route: { kind: "page", vol: 0, page: 8 }, history: "push", autoEnrich: false }),
+      invalidateObservation(state, { ...state, scope: "generation-2", snapshot: { ...state.snapshot!, generation: "2" } }),
+    ];
+    for (const next of revoked) {
+      expect(reduce(next, response)).toBe(next);
+      expect(next.observation.batch).toBeNull();
+      expect(next.snapshot?.validity).toBe("valid");
+    }
+    const hidden = revoked[2]!;
+    expect(reduce(hidden, { kind: "observation-due", epoch: hidden.observation.epoch })).toBe(hidden);
+    const visible = reduce(hidden, { kind: "visibility-changed", visible: true });
+    const fresh = reduce(visible, { kind: "observation-due", epoch: visible.observation.epoch });
+    expect(fresh.effects.at(-1)).toMatchObject({ kind: "read-observation", request: { after_request: true, cadence_ms: 2000 } });
+    expect(reduce(fresh, response)).toBe(fresh);
+  });
+}
+
+import { runtimePage } from "./observation-view";
+
+test("LRU glyphs identify private and shared membership without inferring unknown membership", () => {
+  const { state, effect } = requested();
+  const observed = reduce(state, loaded(effect));
+  for (const [kind, suffix] of [["private", "P"], ["shared", "S"], ["unknown", ""]] as const) {
+    const row = { volid: 0, pageid: 7, state: "resident" as const, reason: "observed-resident" as const, evidence: { lru_zone: "lru2", lru_list_kind: kind, dirty: "true", flushing: "true" } };
+    const topology = { ...observed, observation: { ...observed.observation, colorMode: "lru" as const } };
+    expect(runtimePage(topology, row).glyph).toBe(`2${suffix}DF`);
+    expect(runtimePage(observed, row).glyph).toBe("◉DF");
+  }
+});

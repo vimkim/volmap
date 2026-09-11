@@ -1,0 +1,31 @@
+{
+  "route": "sector/0/0",
+  "capture": {
+    "identity": "30669397dd0d509f0caf3a86b4cfb250dabb355cac520b634a7964d4435a4f3f",
+    "incarnation_binding": "3eb1bd439947eb762998e566ccc2e099c791118b2f40579cc4f7da2b5061b7f9",
+    "incarnation": "0123456789ab",
+    "protocol_major": 1,
+    "protocol_minor": 0,
+    "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+    "sequence": "51",
+    "start_time_us": "1000",
+    "end_time_us": "900",
+    "upper_age_ms": 101,
+    "shared_lru_count": 2,
+    "private_lru_count": 3
+  },
+  "requests": [
+    "http://127.0.0.1:41741/api/v1/runtime/capabilities",
+    "http://127.0.0.1:41741/api/v1/runtime/page-buffer/observe",
+    "http://127.0.0.1:41741/api/v1/runtime/capabilities",
+    "http://127.0.0.1:41741/api/v1/runtime/page-buffer/observe",
+    "http://127.0.0.1:41741/api/v1/runtime/capabilities",
+    "http://127.0.0.1:41741/api/v1/runtime/capabilities",
+    "http://127.0.0.1:41741/api/v1/runtime/capabilities",
+    "http://127.0.0.1:41741/api/v1/runtime/capabilities",
+    "http://127.0.0.1:41741/api/v1/runtime/capabilities"
+  ],
+  "hiddenCount": 3,
+  "pausedCount": 1,
+  "expired": "expired"
+}

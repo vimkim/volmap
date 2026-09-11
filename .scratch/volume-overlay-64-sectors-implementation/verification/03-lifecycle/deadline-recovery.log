@@ -1,0 +1,8 @@
+   Compiling volmap v0.0.0 (/home/vimkim/temp/volmap)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.20s
+     Running unittests src/lib.rs (target/x86_64-unknown-linux-musl/debug/deps/volmap-68b3ced4833fdf20)
+
+running 1 test
+test web::tests::observation_http_deadline_includes_stalled_request_body ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 154 filtered out; finished in 5.01s

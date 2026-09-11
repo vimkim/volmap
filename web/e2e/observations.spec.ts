@@ -225,6 +225,7 @@ for (const scale of ["volume/0", "sector/0/0"]) {
     await page.keyboard.press("Tab");
     await expect(mode).toHaveValue("lru");
     await expect(cell).toHaveClass(/runtime-lru/);
+    await expect(cell.locator(".runtime-glyph")).toHaveText(scale.startsWith("volume") ? "2P" : "2PD");
     if (unadmitted) {
       await expect(unadmitted).toHaveCSS("background-color", "rgb(55, 65, 81)");
       await expect(unadmitted).toHaveAttribute("title", /^Page \d+:/);

@@ -96,10 +96,16 @@ a 2.5-second deadline, attachment 500 ms, and a scan exchange two seconds.
 
 The decoder processes individual bounded JSON lines. Frames include their LF:
 4 KiB controls/records, 64 KiB handshake, depth 16, 65,536 raw records and
-64 MiB framed scans. Unknown same-major fields and in-scan frame kinds count
+1 GiB framed scans. Unknown same-major fields and in-scan frame kinds count
 against these bounds. Duplicate JSON members are invalid. A missing footer,
 malformed frame or resource refusal discards the unfinished assembly rather
 than publishing its prefix.
+
+The 1 GiB scan-byte limit supersedes the 64 MiB value in the historically
+pinned fixture contract, following the user-requested limit change on
+2026-09-11. The fixture retains its original provenance. This is a streaming
+byte ceiling, not a 1 GiB memory allocation; memory and time limits remain
+independent.
 
 Memory uses conservative reservations, charged before allocating the associated
 objects. A shared atomic budget refuses reservations exceeding 128 MiB:

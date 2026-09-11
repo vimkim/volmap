@@ -4,7 +4,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 const RECORD_LIMIT: usize = 65_536;
-const SCAN_LIMIT: usize = 64 * 1024 * 1024;
+const SCAN_LIMIT: usize = 1024 * 1024 * 1024;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub(super) struct VolumeIdentity {

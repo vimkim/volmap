@@ -1,0 +1,48 @@
+[WebServer]    Compiling volmap v0.0.0 (/home/vimkim/temp/volmap)
+
+[WebServer]     Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.57s
+
+[WebServer] Bound to 127.0.0.1:41739
+[WebServer] Available at (non-exhaustive list):
+[WebServer]     http://127.0.0.1:41739
+[WebServer] Holding one immutable reading; a changed input invalidates this session.
+
+[WebServer]     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.06s
+
+[WebServer] Bound to 127.0.0.1:41740
+[WebServer] Available at (non-exhaustive list):
+[WebServer]
+
+[WebServer] http://127.0.0.1:41740
+[WebServer] Holding one immutable reading; a changed input invalidates this session.
+
+[WebServer]     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.06s
+
+[WebServer] Bound to 127.0.0.1:41741
+[WebServer] Available at (non-exhaustive list):
+[WebServer]     http://127.0.0.1:41741
+[WebServer] Following the input every 500 ms; a change publishes a new generation.
+
+[WebServer]     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.05s
+
+[WebServer] Bound to 127.0.0.1:41743
+[WebServer] Available at (non-exhaustive list):
+[WebServer]     http://127.0.0.1:41743
+[WebServer] Following the input every 500 ms; a change publishes a new generation.
+
+
+Running 4 tests using 1 worker
+
+(node:3035098) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/4] [chromium] › e2e/observations.spec.ts:208:3 › volume/0 composes state marks and switches to explicitly labelled LRU colors
+[2/4] [chromium] › e2e/observations.spec.ts:208:3 › sector/0/0 composes state marks and switches to explicitly labelled LRU colors
+(node:3035755) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[3/4] [firefox] › e2e/observations.spec.ts:208:3 › volume/0 composes state marks and switches to explicitly labelled LRU colors
+[4/4] [firefox] › e2e/observations.spec.ts:208:3 › sector/0/0 composes state marks and switches to explicitly labelled LRU colors
+  4 passed (15.9s)

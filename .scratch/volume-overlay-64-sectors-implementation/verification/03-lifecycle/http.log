@@ -1,0 +1,16 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running unittests src/lib.rs (target/x86_64-unknown-linux-musl/debug/deps/volmap-68b3ced4833fdf20)
+
+running 10 tests
+test web::tests::http_accepts_loopback_and_ipv4_listeners ... ok
+test web::tests::sector_observation_http_validates_scope_and_returns_fixed_detail_slots ... ok
+test web::tests::thirty_two_http_callers_receive_bounded_overload_without_queuing ... ok
+test web::tests::observation_http_bounds_ordered_scopes_and_request_bytes ... ok
+test web::tests::volume_observation_http_bounds_and_canonical_slots ... ok
+test web::tests::concurrent_http_scopes_share_scan_but_keep_coverage_and_disk_admission_independent ... ok
+test web::tests::held_http_response_bodies_keep_admission_until_released ... ok
+test web::tests::selected_page_observation_crosses_real_socket_and_http_with_bound_identity ... ok
+test web::tests::volume_observation_http_serializes_4096_resident_results_from_one_capture ... ok
+test web::tests::observation_http_deadline_includes_stalled_request_body ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 145 filtered out; finished in 2.53s

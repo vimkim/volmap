@@ -1,0 +1,38 @@
+[WebServer]     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.06s
+
+[WebServer] Bound to 127.0.0.1:41739
+[WebServer] Available at (non-exhaustive list):
+[WebServer]     http://127.0.0.1:41739
+[WebServer] Holding one immutable reading; a changed input invalidates this session.
+
+[WebServer]     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.05s
+
+[WebServer] Bound to 127.0.0.1:41740
+[WebServer] Available at (non-exhaustive list):
+
+[WebServer]     http://127.0.0.1:41740
+[WebServer] Holding one immutable reading; a changed input invalidates this session.
+
+[WebServer]     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.05s
+
+[WebServer] Bound to 127.0.0.1:41741
+[WebServer] Available at (non-exhaustive list):
+[WebServer]     http://127.0.0.1:41741
+[WebServer] Following the input every 500 ms; a change publishes a new generation.
+
+[WebServer]     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.05s
+
+[WebServer] Bound to 127.0.0.1:41743
+[WebServer] Available at (non-exhaustive list):
+[WebServer]     http://127.0.0.1:41743
+[WebServer] Following the input every 500 ms; a change publishes a new generation.
+
+
+Running 1 test using 1 worker
+
+(node:2996872) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/1] [firefox] › e2e/volume-observations.spec.ts:14:1 › 12288 rendered cells adopt 4096 changing results from one capture with fixed central selection
+  1 passed (24.9s)

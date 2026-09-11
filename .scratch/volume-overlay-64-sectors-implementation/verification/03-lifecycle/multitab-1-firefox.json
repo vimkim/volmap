@@ -1,0 +1,102 @@
+[
+  {
+    "phase": "simultaneous",
+    "tab": 0,
+    "route": "volume/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "volume",
+        "volid": 0,
+        "sectorids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ]
+      },
+      "epoch": "4",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "987d4b61841609afe187179b9fa449f5f238bcace9be8bb5ba34c657af2e8daa",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "20",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "staggered",
+    "tab": 0,
+    "route": "volume/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "volume",
+        "volid": 0,
+        "sectorids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ]
+      },
+      "epoch": "8",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "6560d8110c1e0166eb279bb102086a9a75e9396bc5276310fb87425db00f667b",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "21",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  }
+]

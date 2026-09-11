@@ -1,0 +1,2550 @@
+[
+  {
+    "phase": "simultaneous",
+    "tab": 1,
+    "route": "sector/0/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "sector",
+        "volid": 0,
+        "sectorid": 0
+      },
+      "epoch": "4",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "4f0aa128e6ddf107842aaa69fec1110faea651ab5fb2e4b4ad3d11c618f69443",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "31",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 5,
+    "route": "page/0/10",
+    "status": 200,
+    "request": {
+      "pages": [
+        {
+          "volid": 0,
+          "pageid": 10
+        }
+      ],
+      "epoch": "3",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 500,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "4f0aa128e6ddf107842aaa69fec1110faea651ab5fb2e4b4ad3d11c618f69443",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "31",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 397,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 0
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 7,
+    "route": "sector/0/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "sector",
+        "volid": 0,
+        "sectorid": 0
+      },
+      "epoch": "4",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "4f0aa128e6ddf107842aaa69fec1110faea651ab5fb2e4b4ad3d11c618f69443",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "31",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 450,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 11,
+    "route": "page/0/10",
+    "status": 200,
+    "request": {
+      "pages": [
+        {
+          "volid": 0,
+          "pageid": 10
+        }
+      ],
+      "epoch": "3",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 500,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "4e23d42858b4f1fbf407525c052314c2bd34075a58ac6012110bc7cbb92cb92b",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "32",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 106,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 0
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 4,
+    "route": "sector/0/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "sector",
+        "volid": 0,
+        "sectorid": 0
+      },
+      "epoch": "4",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "4f0aa128e6ddf107842aaa69fec1110faea651ab5fb2e4b4ad3d11c618f69443",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "31",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 489,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 2,
+    "route": "page/0/10",
+    "status": 200,
+    "request": {
+      "pages": [
+        {
+          "volid": 0,
+          "pageid": 10
+        }
+      ],
+      "epoch": "3",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 500,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "4e23d42858b4f1fbf407525c052314c2bd34075a58ac6012110bc7cbb92cb92b",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "32",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 0
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 17,
+    "route": "page/0/10",
+    "status": 200,
+    "request": {
+      "pages": [
+        {
+          "volid": 0,
+          "pageid": 10
+        }
+      ],
+      "epoch": "3",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 500,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "4e23d42858b4f1fbf407525c052314c2bd34075a58ac6012110bc7cbb92cb92b",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "32",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 176,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 0
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 23,
+    "route": "page/0/10",
+    "status": 200,
+    "request": {
+      "pages": [
+        {
+          "volid": 0,
+          "pageid": 10
+        }
+      ],
+      "epoch": "3",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 500,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "4e23d42858b4f1fbf407525c052314c2bd34075a58ac6012110bc7cbb92cb92b",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "32",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 213,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 0
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 26,
+    "route": "page/0/10",
+    "status": 200,
+    "request": {
+      "pages": [
+        {
+          "volid": 0,
+          "pageid": 10
+        }
+      ],
+      "epoch": "3",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 500,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "4e23d42858b4f1fbf407525c052314c2bd34075a58ac6012110bc7cbb92cb92b",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "32",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 249,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 0
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 14,
+    "route": "page/0/10",
+    "status": 200,
+    "request": {
+      "pages": [
+        {
+          "volid": 0,
+          "pageid": 10
+        }
+      ],
+      "epoch": "3",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 500,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "4e23d42858b4f1fbf407525c052314c2bd34075a58ac6012110bc7cbb92cb92b",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "32",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 408,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 0
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 13,
+    "route": "sector/0/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "sector",
+        "volid": 0,
+        "sectorid": 0
+      },
+      "epoch": "4",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "4e23d42858b4f1fbf407525c052314c2bd34075a58ac6012110bc7cbb92cb92b",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "32",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 366,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 20,
+    "route": "page/0/10",
+    "status": 200,
+    "request": {
+      "pages": [
+        {
+          "volid": 0,
+          "pageid": 10
+        }
+      ],
+      "epoch": "3",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 500,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "4e23d42858b4f1fbf407525c052314c2bd34075a58ac6012110bc7cbb92cb92b",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "32",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 456,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 0
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 16,
+    "route": "sector/0/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "sector",
+        "volid": 0,
+        "sectorid": 0
+      },
+      "epoch": "4",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "4e23d42858b4f1fbf407525c052314c2bd34075a58ac6012110bc7cbb92cb92b",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "32",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 503,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 29,
+    "route": "page/0/10",
+    "status": 200,
+    "request": {
+      "pages": [
+        {
+          "volid": 0,
+          "pageid": 10
+        }
+      ],
+      "epoch": "3",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 500,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "2e3b12bc22a2cbc07e1f3a8e51d5e8c79db31c1056d25acf8d03e882ae354e6a",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "33",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 0
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 25,
+    "route": "sector/0/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "sector",
+        "volid": 0,
+        "sectorid": 0
+      },
+      "epoch": "4",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "2e3b12bc22a2cbc07e1f3a8e51d5e8c79db31c1056d25acf8d03e882ae354e6a",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "33",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 173,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 22,
+    "route": "sector/0/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "sector",
+        "volid": 0,
+        "sectorid": 0
+      },
+      "epoch": "4",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "2e3b12bc22a2cbc07e1f3a8e51d5e8c79db31c1056d25acf8d03e882ae354e6a",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "33",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 293,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 27,
+    "route": "volume/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "volume",
+        "volid": 0,
+        "sectorids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ]
+      },
+      "epoch": "4",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "2e3b12bc22a2cbc07e1f3a8e51d5e8c79db31c1056d25acf8d03e882ae354e6a",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "33",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 228,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 10,
+    "route": "sector/0/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "sector",
+        "volid": 0,
+        "sectorid": 0
+      },
+      "epoch": "4",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "2e3b12bc22a2cbc07e1f3a8e51d5e8c79db31c1056d25acf8d03e882ae354e6a",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "33",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 408,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 30,
+    "route": "volume/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "volume",
+        "volid": 0,
+        "sectorids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ]
+      },
+      "epoch": "4",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "2e3b12bc22a2cbc07e1f3a8e51d5e8c79db31c1056d25acf8d03e882ae354e6a",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "33",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 499,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 8,
+    "route": "page/0/10",
+    "status": 200,
+    "request": {
+      "pages": [
+        {
+          "volid": 0,
+          "pageid": 10
+        }
+      ],
+      "epoch": "3",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 500,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "f90fc55babde647a103e4fe6e2498a6d657afad04956b2ac68b298f2db667dbf",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "34",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 0
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 28,
+    "route": "sector/0/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "sector",
+        "volid": 0,
+        "sectorid": 0
+      },
+      "epoch": "4",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "f90fc55babde647a103e4fe6e2498a6d657afad04956b2ac68b298f2db667dbf",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "34",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 186,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 21,
+    "route": "volume/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "volume",
+        "volid": 0,
+        "sectorids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ]
+      },
+      "epoch": "4",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "f90fc55babde647a103e4fe6e2498a6d657afad04956b2ac68b298f2db667dbf",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "34",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 284,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 12,
+    "route": "volume/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "volume",
+        "volid": 0,
+        "sectorids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ]
+      },
+      "epoch": "4",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "f90fc55babde647a103e4fe6e2498a6d657afad04956b2ac68b298f2db667dbf",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "34",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 432,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 24,
+    "route": "volume/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "volume",
+        "volid": 0,
+        "sectorids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ]
+      },
+      "epoch": "4",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "b56469982f9c22059ae4b7136e08af259fba61deb00880091736fed2cd24087f",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "35",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 121,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 19,
+    "route": "sector/0/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "sector",
+        "volid": 0,
+        "sectorid": 0
+      },
+      "epoch": "4",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "b56469982f9c22059ae4b7136e08af259fba61deb00880091736fed2cd24087f",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "35",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 320,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 6,
+    "route": "volume/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "volume",
+        "volid": 0,
+        "sectorids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ]
+      },
+      "epoch": "4",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "b56469982f9c22059ae4b7136e08af259fba61deb00880091736fed2cd24087f",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "35",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 554,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 18,
+    "route": "volume/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "volume",
+        "volid": 0,
+        "sectorids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ]
+      },
+      "epoch": "4",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "276dc583963c29bf42cf3a29f03ddf79f9c4d042c8e5de0a681f382bbd942e04",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "36",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 269,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 31,
+    "route": "sector/0/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "sector",
+        "volid": 0,
+        "sectorid": 0
+      },
+      "epoch": "4",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "276dc583963c29bf42cf3a29f03ddf79f9c4d042c8e5de0a681f382bbd942e04",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "36",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 497,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 3,
+    "route": "volume/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "volume",
+        "volid": 0,
+        "sectorids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ]
+      },
+      "epoch": "4",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "5bf7979cdf30393f01daf0de8f60133a111acc699e0503a3165ed2b82aa447dd",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "37",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 289,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 15,
+    "route": "volume/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "volume",
+        "volid": 0,
+        "sectorids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ]
+      },
+      "epoch": "4",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "0df80035b5cc6e2eef3e52a7cfc71ad5d88cbbddcd1815b96c454ed4ada4a7d4",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "38",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 114,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 0,
+    "route": "volume/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "volume",
+        "volid": 0,
+        "sectorids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ]
+      },
+      "epoch": "4",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "0df80035b5cc6e2eef3e52a7cfc71ad5d88cbbddcd1815b96c454ed4ada4a7d4",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "38",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 387,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "simultaneous",
+    "tab": 9,
+    "route": "volume/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "volume",
+        "volid": 0,
+        "sectorids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ]
+      },
+      "epoch": "4",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": false
+    },
+    "capture": {
+      "identity": "0df80035b5cc6e2eef3e52a7cfc71ad5d88cbbddcd1815b96c454ed4ada4a7d4",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "38",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 532,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "staggered",
+    "tab": 0,
+    "route": "volume/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "volume",
+        "volid": 0,
+        "sectorids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ]
+      },
+      "epoch": "9",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "23a5208d2c9ddb2c361d06bc41bab6295a6a34947b6f5236cc19b705583e1db3",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "45",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "staggered",
+    "tab": 1,
+    "route": "sector/0/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "sector",
+        "volid": 0,
+        "sectorid": 0
+      },
+      "epoch": "10",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "bc970c9cc1ce78485e6d6d32bfafa47eee90f5a7148998c118f41541be0bed9a",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "46",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "staggered",
+    "tab": 2,
+    "route": "page/0/10",
+    "status": 200,
+    "request": {
+      "pages": [
+        {
+          "volid": 0,
+          "pageid": 10
+        }
+      ],
+      "epoch": "15",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 500,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "cd69fde5baf0c3b6e7a74feb0af7280b4f995ffdb911c3bc7484a7f9408aea2b",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "47",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 0
+  },
+  {
+    "phase": "staggered",
+    "tab": 3,
+    "route": "volume/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "volume",
+        "volid": 0,
+        "sectorids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ]
+      },
+      "epoch": "10",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "6abad1ab4586404128b9b082971135f4611b4c4ef7896987aa24eccaec308072",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "48",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "staggered",
+    "tab": 4,
+    "route": "sector/0/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "sector",
+        "volid": 0,
+        "sectorid": 0
+      },
+      "epoch": "10",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "0082ede69f79f936f1097713abec32b8b1447ee16cb2f6c0c06846d1a2609ffa",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "49",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "staggered",
+    "tab": 5,
+    "route": "page/0/10",
+    "status": 200,
+    "request": {
+      "pages": [
+        {
+          "volid": 0,
+          "pageid": 10
+        }
+      ],
+      "epoch": "13",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 500,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "cc0109352a5055ec6ca2ef24a60d02ab6ae4ee1fc55b956d5ee86d1b24878dc6",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "50",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 0
+  },
+  {
+    "phase": "staggered",
+    "tab": 6,
+    "route": "volume/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "volume",
+        "volid": 0,
+        "sectorids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ]
+      },
+      "epoch": "10",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "02164702cc21b1905fe30b974f3abd6fbc7b6c3130fe5c930455c3d34ec0e180",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "51",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "staggered",
+    "tab": 7,
+    "route": "sector/0/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "sector",
+        "volid": 0,
+        "sectorid": 0
+      },
+      "epoch": "10",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "b27cc3d7cda9e3fe928a4ed655f7c076769e7c9c2a8485c8efdc435c6d87a15d",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "52",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "staggered",
+    "tab": 8,
+    "route": "page/0/10",
+    "status": 200,
+    "request": {
+      "pages": [
+        {
+          "volid": 0,
+          "pageid": 10
+        }
+      ],
+      "epoch": "16",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 500,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "1bd3e1bf7d6a72078f58b33672037743b9b15450f5a582cceb62cb19c3ac2fb0",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "53",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 0
+  },
+  {
+    "phase": "staggered",
+    "tab": 9,
+    "route": "volume/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "volume",
+        "volid": 0,
+        "sectorids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ]
+      },
+      "epoch": "9",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "864782224999b5c701ceaa6e93bd58a181ea5f829bfcf55e413a3d6a270c245c",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "54",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "staggered",
+    "tab": 10,
+    "route": "sector/0/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "sector",
+        "volid": 0,
+        "sectorid": 0
+      },
+      "epoch": "10",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "26b284c2e4b2e625ef8257cec8a99d7b01040007656034bd4296849550576964",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "55",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "staggered",
+    "tab": 11,
+    "route": "page/0/10",
+    "status": 200,
+    "request": {
+      "pages": [
+        {
+          "volid": 0,
+          "pageid": 10
+        }
+      ],
+      "epoch": "14",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 500,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "9b82ab7928a459cc9181fb275e38304aae3c6a91abb6d5443065736eb15ff2ce",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "56",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 0
+  },
+  {
+    "phase": "staggered",
+    "tab": 12,
+    "route": "volume/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "volume",
+        "volid": 0,
+        "sectorids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ]
+      },
+      "epoch": "10",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "13616c308a74522fcf9c74d3541b5481379da7b5e21a55222b942ba253e55492",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "57",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "staggered",
+    "tab": 13,
+    "route": "sector/0/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "sector",
+        "volid": 0,
+        "sectorid": 0
+      },
+      "epoch": "10",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "1320ab6ec7e0bf3f94a76ac42a0f77226ba0d94c5c42c98e7e16da91b12c593f",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "58",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "staggered",
+    "tab": 14,
+    "route": "page/0/10",
+    "status": 200,
+    "request": {
+      "pages": [
+        {
+          "volid": 0,
+          "pageid": 10
+        }
+      ],
+      "epoch": "16",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 500,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "88d469b99036ea3f470e650e2a467a4567e7f95b7e6153c8392c99548497723e",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "59",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 0
+  },
+  {
+    "phase": "staggered",
+    "tab": 15,
+    "route": "volume/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "volume",
+        "volid": 0,
+        "sectorids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ]
+      },
+      "epoch": "9",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "f46b359ca892b15c0f2f78b627285b34228fb81cedcaabc1ed1fb30ddfe21c36",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "60",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 102,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "staggered",
+    "tab": 16,
+    "route": "sector/0/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "sector",
+        "volid": 0,
+        "sectorid": 0
+      },
+      "epoch": "10",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "f59ea0d0750889dbdaba22b941653547f1756c65512a29c2ee75436370f17a19",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "61",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "staggered",
+    "tab": 17,
+    "route": "page/0/10",
+    "status": 200,
+    "request": {
+      "pages": [
+        {
+          "volid": 0,
+          "pageid": 10
+        }
+      ],
+      "epoch": "15",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 500,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "e3b673d5275f5badc663cbdc90a8f56196941c54382993323fcfcf4e493bdea1",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "62",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 0
+  },
+  {
+    "phase": "staggered",
+    "tab": 18,
+    "route": "volume/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "volume",
+        "volid": 0,
+        "sectorids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ]
+      },
+      "epoch": "10",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "5a3ab7af7b8543c0de61f46d9f25ef256d7fb87809e7df1349b874a4b696e925",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "63",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "staggered",
+    "tab": 19,
+    "route": "sector/0/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "sector",
+        "volid": 0,
+        "sectorid": 0
+      },
+      "epoch": "10",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "bc4349861b1ce0ec3415af3f4fcbd49213704a1203a61a3eb7a6edce0bfe84b8",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "64",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "staggered",
+    "tab": 20,
+    "route": "page/0/10",
+    "status": 200,
+    "request": {
+      "pages": [
+        {
+          "volid": 0,
+          "pageid": 10
+        }
+      ],
+      "epoch": "16",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 500,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "afb73390099a6b4c7fce6fd6af0f27fb7133aaf37378e1948cb662cbbad3a0b0",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "65",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 0
+  },
+  {
+    "phase": "staggered",
+    "tab": 21,
+    "route": "volume/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "volume",
+        "volid": 0,
+        "sectorids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ]
+      },
+      "epoch": "10",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "b33c9c48451a1102f542e197260733e3d7158a31c5b72f5f567a791c43a0e2c6",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "66",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "staggered",
+    "tab": 22,
+    "route": "sector/0/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "sector",
+        "volid": 0,
+        "sectorid": 0
+      },
+      "epoch": "10",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "2f7551309721eee96a9ff412061ba2ec25a22946bd70e017f40a608b3a4e3273",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "67",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "staggered",
+    "tab": 23,
+    "route": "page/0/10",
+    "status": 200,
+    "request": {
+      "pages": [
+        {
+          "volid": 0,
+          "pageid": 10
+        }
+      ],
+      "epoch": "16",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 500,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "6f28f0dd5e5608f140c1e90efc79328b7176e09b1c7480b861f113248ec3f0de",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "68",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 0
+  },
+  {
+    "phase": "staggered",
+    "tab": 24,
+    "route": "volume/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "volume",
+        "volid": 0,
+        "sectorids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ]
+      },
+      "epoch": "10",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "c3c9a3c520f7dcef5b3b7ae4127c99c987fb7209dc774e108259b1efa4c47228",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "69",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 102,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "staggered",
+    "tab": 25,
+    "route": "sector/0/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "sector",
+        "volid": 0,
+        "sectorid": 0
+      },
+      "epoch": "10",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "f45ea5c4373281283646b681c22cf1f0cebbb458ca96733c14b0c4e269e09e7e",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "70",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "staggered",
+    "tab": 26,
+    "route": "page/0/10",
+    "status": 200,
+    "request": {
+      "pages": [
+        {
+          "volid": 0,
+          "pageid": 10
+        }
+      ],
+      "epoch": "16",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 500,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "f61b95ee40408c9c4a77212008b69868c963537abca014404c988904080750d5",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "71",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 0
+  },
+  {
+    "phase": "staggered",
+    "tab": 27,
+    "route": "volume/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "volume",
+        "volid": 0,
+        "sectorids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ]
+      },
+      "epoch": "10",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "3346ee5508704795a38efadb343d5b989b764c4690f2c8a01eefac8511dcbae6",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "72",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "staggered",
+    "tab": 28,
+    "route": "sector/0/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "sector",
+        "volid": 0,
+        "sectorid": 0
+      },
+      "epoch": "10",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "d145add18c8336fb34f94d3ecf46467a86e21ba708c20892fd5b1d01959877c0",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "73",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "staggered",
+    "tab": 29,
+    "route": "page/0/10",
+    "status": 200,
+    "request": {
+      "pages": [
+        {
+          "volid": 0,
+          "pageid": 10
+        }
+      ],
+      "epoch": "16",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 500,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "f497d0956e4c3bf8f849c4a95ef23e7504c9e24302e0221a4eff1d179ba2411b",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "74",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 0
+  },
+  {
+    "phase": "staggered",
+    "tab": 30,
+    "route": "volume/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "volume",
+        "volid": 0,
+        "sectorids": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ]
+      },
+      "epoch": "10",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "6a1f68419a6c5ebed692bf13fff725d4d4f6e247773a63cca2242d6c41db0dc9",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "75",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  },
+  {
+    "phase": "staggered",
+    "tab": 31,
+    "route": "sector/0/0",
+    "status": 200,
+    "request": {
+      "scope": {
+        "kind": "sector",
+        "volid": 0,
+        "sectorid": 0
+      },
+      "epoch": "10",
+      "generation": "0",
+      "retry": false,
+      "cadence_ms": 2000,
+      "after_request": true
+    },
+    "capture": {
+      "identity": "5c91153b083926690ab6e49b0842dda5e0411650e97b2936b0b8af5c58a176a3",
+      "incarnation_binding": "ba7c5824f63f9633f893fb166d7a62d5f3d678d621b3995ba06dfcd55b7da1b0",
+      "incarnation": "9ec580ee7bd3",
+      "protocol_major": 1,
+      "protocol_minor": 0,
+      "database_fingerprint": "eb784ee36671c6de8cc3ebed87caa1f6d13563d969d68f2dcd5165747bf5e0e6",
+      "sequence": "76",
+      "start_time_us": "1000",
+      "end_time_us": "900",
+      "upper_age_ms": 101,
+      "shared_lru_count": 2,
+      "private_lru_count": 3
+    },
+    "diskHeading": "CUBRID page-buffer observation",
+    "resident": 1
+  }
+]
