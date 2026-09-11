@@ -41,3 +41,14 @@ memory growth unresolved. Its roughly 66.66 MiB post-GC control/toggle differenc
 uses a different method and cannot be treated as a peak-RSS gate result.
 Manual accessibility, dedicated-host workload qualification and repeated-use
 investigation remain open. Release readiness is **false**.
+
+## Full local verification
+
+`just verify` passed (exit 0) with the same runtime/test inputs: Rust tests,
+formatting/Clippy, static-musl and frontend artifact/toolchain checks; 74 frontend
+tests and 65 browser tests passed. The existing Firefox parity skip and three
+ignored Rust tests remain. See [the complete log](verify.log.gz). This suite
+excludes the dedicated density test, whose separate execution is recorded above.
+Policy/evidence commits occurred during the run; runtime/test sources did not
+change. Browser tests regenerated tracked screenshots, which were restored to
+preserve their original historical evidence.

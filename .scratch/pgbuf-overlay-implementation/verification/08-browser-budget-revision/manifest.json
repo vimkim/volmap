@@ -133,6 +133,16 @@
     "density-chromium.json": "d097a49076474e8181e4c2ab4b4e72caeef88868650f46af29852e45ad2ce15a",
     "density-firefox.json": "ec6e70b8b10a932a075c7a1ede095889cf3d2358ec761002a44cc1b996c8c97b",
     "density.log.gz": "ed1d34ee399d64675178455c6b7b717cbd4572442411e82425658c07692be959",
-    "density-test.patch.gz": "a38ee36327c5e9f8d2c972d7a60dff51bc32405f95c5c23514830dd70c2a1f21"
+    "density-test.patch.gz": "a38ee36327c5e9f8d2c972d7a60dff51bc32405f95c5c23514830dd70c2a1f21",
+    "verify.log.gz": "3a7baa23c6046f5352f23550cfce431c52873960c09d02f60df047ca0b76cfc3"
+  },
+  "full_verification": {
+    "command": "just verify",
+    "exit_code": 0,
+    "runtime_and_test_inputs": "same 87 source fingerprints as density execution; policy/evidence commits occurred during verification, with no further runtime or test changes",
+    "frontend_tests_passed": 74,
+    "browser_tests_passed": 65,
+    "browser_tests_skipped": 1,
+    "notes": "Existing Rust ignored cases and Firefox parity skip remain; this command excludes the dedicated density test, executed separately above."
   }
 }
