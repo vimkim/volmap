@@ -1,0 +1,9 @@
+Evidence directory: /home/vimkim/temp/pgbuf-server-h5u6kcle
+PASS default-off server serves SQL without inspector directory
+PASS real resident scan {"type": "scan_footer", "incarnation": "97b23ed361afa5fdb3343de3be2c4237", "scan_seq": "1", "end_time_us": "1788948855759661", "record_count": 58, "visited_slots": 4096, "truncated": false} framed_bytes 22788
+PASS enabled identity matches physical persistent volume {"type": "server_hello", "protocol_major": 1, "protocol_minor": 0, "incarnation": "97b23ed361afa5fdb3343de3be2c4237", "database_creation": "1788948842", "volumes": [{"volid": 0, "volume_creation": "1788948842", "device": "64770", "inode": "12904047991"}, {"volid": 1, "volume_creation": "1788948844", "device": "64770", "inode": "12904064606"}], "shared_lru_count": 4, "private_lru_count": 152}
+PASS real resident scan {"type": "scan_footer", "incarnation": "635b5f0957e6e22ef12f0286da43657c", "scan_seq": "1", "end_time_us": "1788948860842957", "record_count": 58, "visited_slots": 4096, "truncated": false} framed_bytes 22788
+PASS restart changes incarnation and preserves persistent identity
+PASS real resident scan {"type": "scan_footer", "incarnation": "2fc2a6f09769dd9159d2fdd47a416a4b", "scan_seq": "1", "end_time_us": "1788948866356904", "record_count": 58, "visited_slots": 4096, "truncated": false} framed_bytes 21300
+PASS copied database has distinct physical identity
+PASS activation failure preserves conflicting entry and SQL service

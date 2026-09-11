@@ -1,0 +1,28 @@
++ printf 'CUBRID=%s\nfixture=%s\nhelpers=%s\n' /mnt/install /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc/bin/pgbuf_inspector_fixture /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector
+CUBRID=/mnt/install
+fixture=/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc/bin/pgbuf_inspector_fixture
+helpers=/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector
++ command -v cubrid
+/mnt/CTP/shell/init_path/cubrid
++ cubrid_rel
+
+CUBRID 11.5.0 (11.5.0.2546-f8c068f) (64bit debug build for Linux) (Sep  9 2026 19:22:46)
+
++ git -C /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector rev-parse HEAD
+f8c068f771ccd141a3c2f08541fe75c84e41ce53
++ git rev-parse HEAD
+a648d78f599504fe0c916628ea51ea3f2b5f7ca7
++ sha256sum /mnt/install/bin/cub_server /mnt/install/lib/libcubrid.so /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc/bin/pgbuf_inspector_fixture /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/controlled_observation.py /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/server_attachment.py
+0bc4b40f07e058d86005998591f3eb960e9cf93a8eac3e1614435b0207adc2a8  /mnt/install/bin/cub_server
+02d5d1c49e6ac00331f980a7e77cf7022900dc4cc302096947a0be3445691bef  /mnt/install/lib/libcubrid.so
+44480675bd97f72deabfa8e156282b55edb0c96b157ef6a5d26aac16bfaf33fe  /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc/bin/pgbuf_inspector_fixture
+780ea18060ee2bc4fddf81b766fff0aa62722fa1d38d29d8409d6ece2e4fd5a6  /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/controlled_observation.py
+fe54b20f572b7d3761bfdd9127afb280c0ed67d5079ed04db2f7c287a3be5f1f  /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/server_attachment.py
++ ldd /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc/bin/pgbuf_inspector_fixture
+	linux-vdso.so.1 (0x00007ffc76bb2000)
+	libcubrid.so.11.5 => /mnt/install/lib/libcubrid.so.11.5 (0x00007fe58c800000)
+	libcascci.so.11.2 => /mnt/install/lib/libcascci.so.11.2 (0x00007fe58c200000)
+	libm.so.6 => /lib64/libm.so.6 (0x00007fe58c125000)
+	libgcc_s.so.1 => /lib64/libgcc_s.so.1 (0x00007fe58e02d000)
+	libc.so.6 => /lib64/libc.so.6 (0x00007fe58be00000)
+	/lib64/ld-linux-x86-64.so.2 (0x00007fe58e077000)

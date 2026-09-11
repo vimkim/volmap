@@ -1,0 +1,131 @@
+$ cubrid createdb --db-volume-size=20M --log-volume-size=20M -F /tmp/pgbuf-server-c2tcdopz inspector02 en_US.utf8
+Creating database with 64.0M size using locale en_US.utf8. The total amount of disk space needed is 104.0M.
+
+CUBRID 11.5.0 (11.5.0.2542) (64 debug build)
+
+$ cubrid server start inspector02
+@ cubrid master start
+++ cubrid master start: success
+@ cubrid server start: inspector02
+
+This may take a long time depending on the amount of recovery works to do.
+
+CUBRID 11.5.0 (11.5.0.2542) (64 debug build)
+
+++ cubrid server start: success
+$ csql -u dba -c select 1; inspector02
+
+=== <Result of SELECT Command in Line 1> ===
+
+            1
+=============
+            1
+
+1 row selected. (0.002000 sec) Committed. (0.000000 sec) 
+$ cubrid server stop inspector02
+@ cubrid server stop: inspector02
+
+Server inspector02 notified of shutdown.
+This may take several minutes. Please wait.
+++ cubrid server stop: success
+$ cubrid server start inspector02
+@ cubrid server start: inspector02
+
+This may take a long time depending on the amount of recovery works to do.
+
+CUBRID 11.5.0 (11.5.0.2542) (64 debug build)
+
+PGBUF_INSPECTOR_READY: /tmp/pgbuf-server-c2tcdopz/pgbuf-inspector/081bacf9519535d323ba543504fb5673.sock
+++ cubrid server start: success
+$ csql -u dba -c select 1; inspector02
+
+=== <Result of SELECT Command in Line 1> ===
+
+            1
+=============
+            1
+
+1 row selected. (0.002000 sec) Committed. (0.000000 sec) 
+$ cubrid server stop inspector02
+@ cubrid server stop: inspector02
+
+Server inspector02 notified of shutdown.
+This may take several minutes. Please wait.
+++ cubrid server stop: success
+$ cubrid server start inspector02
+@ cubrid server start: inspector02
+
+This may take a long time depending on the amount of recovery works to do.
+
+CUBRID 11.5.0 (11.5.0.2542) (64 debug build)
+
+PGBUF_INSPECTOR_READY: /tmp/pgbuf-server-c2tcdopz/pgbuf-inspector/081bacf9519535d323ba543504fb5673.sock
+++ cubrid server start: success
+$ csql -u dba -c select 1; inspector02
+
+=== <Result of SELECT Command in Line 1> ===
+
+            1
+=============
+            1
+
+1 row selected. (0.001000 sec) Committed. (0.000000 sec) 
+$ cubrid server stop inspector02
+@ cubrid server stop: inspector02
+
+Server inspector02 notified of shutdown.
+This may take several minutes. Please wait.
+++ cubrid server stop: success
+$ cubrid copydb -F /tmp/pgbuf-server-c2tcdopz/copied -E /tmp/pgbuf-server-c2tcdopz/copied inspector02 inspector02copy
+$ cubrid server start inspector02copy
+@ cubrid server start: inspector02copy
+
+This may take a long time depending on the amount of recovery works to do.
+
+CUBRID 11.5.0 (11.5.0.2542) (64 debug build)
+
+PGBUF_INSPECTOR_READY: /tmp/pgbuf-server-c2tcdopz/pgbuf-inspector/75e45eb7c21c886e636495156f854696.sock
+++ cubrid server start: success
+$ csql -u dba -c select 1; inspector02copy
+
+=== <Result of SELECT Command in Line 1> ===
+
+            1
+=============
+            1
+
+1 row selected. (0.002000 sec) Committed. (0.000000 sec) 
+$ cubrid server stop inspector02copy
+@ cubrid server stop: inspector02copy
+
+Server inspector02copy notified of shutdown.
+This may take several minutes. Please wait.
+++ cubrid server stop: success
+$ cubrid server start inspector02
+@ cubrid server start: inspector02
+
+This may take a long time depending on the amount of recovery works to do.
+
+CUBRID 11.5.0 (11.5.0.2542) (64 debug build)
+
+PGBUF_INSPECTOR_UNAVAILABLE: startup activation failed; unavailable until server restart
+++ cubrid server start: success
+$ csql -u dba -c select 1; inspector02
+
+=== <Result of SELECT Command in Line 1> ===
+
+            1
+=============
+            1
+
+1 row selected. (0.002000 sec) Committed. (0.000000 sec) 
+$ cubrid server stop inspector02
+@ cubrid server stop: inspector02
+
+Server inspector02 notified of shutdown.
+This may take several minutes. Please wait.
+++ cubrid server stop: success
+$ cubrid server stop inspector02
+@ cubrid server stop: inspector02
+++ cubrid server 'inspector02' is not running.
+$ cub_commdb -A

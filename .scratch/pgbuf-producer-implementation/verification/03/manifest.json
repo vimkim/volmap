@@ -1,0 +1,137 @@
+{
+  "source_commit": "3ae2404dc7832243ca9be7dc160768222d0594b4",
+  "tested_tree": "98cc8b8ed1982cd31c0d5bf2f7a069d211f7d801",
+  "reviewed_tree": "98cc8b8ed1982cd31c0d5bf2f7a069d211f7d801",
+  "contract": {
+    "contract_version": "1.0",
+    "corpus_revision": 2,
+    "corpus_sha256": "11dbecc72e4b9dd78e22080f138c801c189c7e047c0db23af8233f44a804d5ce"
+  },
+  "modes": {
+    "debug": {
+      "cmake_build_type": "Debug",
+      "ctest_passed": 27,
+      "ctest_failed": 0,
+      "inspector_cases": 51,
+      "inspector_assertions": 379461,
+      "credential_cases": 3,
+      "credential_assertions": 32,
+      "logs": {
+        "suite": "/home/vimkim/temp/volmap/.scratch/pgbuf-producer-implementation/verification/03/final-debug-suite.log",
+        "credentials": "/home/vimkim/temp/volmap/.scratch/pgbuf-producer-implementation/verification/03/final-debug-credentials.log",
+        "server": "/home/vimkim/temp/volmap/.scratch/pgbuf-producer-implementation/verification/03/final-debug-server.log"
+      },
+      "real_captures": [
+        {
+          "path": "/home/vimkim/temp/volmap/.scratch/pgbuf-producer-implementation/verification/03/3ec6f35d26917856128a9f0e53131d95-scan.json",
+          "footer": {
+            "type": "scan_footer",
+            "incarnation": "3ec6f35d26917856128a9f0e53131d95",
+            "scan_seq": "1",
+            "end_time_us": "1788943867464123",
+            "record_count": 58,
+            "visited_slots": 4096,
+            "truncated": false
+          }
+        },
+        {
+          "path": "/home/vimkim/temp/volmap/.scratch/pgbuf-producer-implementation/verification/03/9b437c943d5c2309adaa98b5bd7530d4-scan.json",
+          "footer": {
+            "type": "scan_footer",
+            "incarnation": "9b437c943d5c2309adaa98b5bd7530d4",
+            "scan_seq": "1",
+            "end_time_us": "1788943863101847",
+            "record_count": 58,
+            "visited_slots": 4096,
+            "truncated": false
+          }
+        },
+        {
+          "path": "/home/vimkim/temp/volmap/.scratch/pgbuf-producer-implementation/verification/03/c0f8a55a29681ad319ecf1d4f19ae4e1-scan.json",
+          "footer": {
+            "type": "scan_footer",
+            "incarnation": "c0f8a55a29681ad319ecf1d4f19ae4e1",
+            "scan_seq": "1",
+            "end_time_us": "1788943859855440",
+            "record_count": 58,
+            "visited_slots": 4096,
+            "truncated": false
+          }
+        }
+      ],
+      "binary_sha256": {
+        "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc/bin/cub_server": "f66176a4e936becf49fc910ffb227e577edfc9f7fbcb0dec4827ff3d951cfdd9",
+        "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc/bin/test_pgbuf_inspector": "30855e91663d4f4a500715e39860f323a0f3f937b1d7e5dbd13bcc6a9281bad3"
+      }
+    },
+    "release": {
+      "cmake_build_type": "RelWithDebInfo",
+      "ctest_passed": 27,
+      "ctest_failed": 0,
+      "inspector_cases": 51,
+      "inspector_assertions": 379461,
+      "credential_cases": 3,
+      "credential_assertions": 32,
+      "logs": {
+        "suite": "/home/vimkim/temp/volmap/.scratch/pgbuf-producer-implementation/verification/03/final-release-suite.log",
+        "credentials": "/home/vimkim/temp/volmap/.scratch/pgbuf-producer-implementation/verification/03/final-release-credentials.log",
+        "server": "/home/vimkim/temp/volmap/.scratch/pgbuf-producer-implementation/verification/03/final-release-server.log"
+      },
+      "real_captures": [
+        {
+          "path": "/home/vimkim/temp/volmap/.scratch/pgbuf-producer-implementation/verification/03/7506517574a7b38112e47700515f280c-scan.json",
+          "footer": {
+            "type": "scan_footer",
+            "incarnation": "7506517574a7b38112e47700515f280c",
+            "scan_seq": "1",
+            "end_time_us": "1788943689033292",
+            "record_count": 58,
+            "visited_slots": 4096,
+            "truncated": false
+          }
+        },
+        {
+          "path": "/home/vimkim/temp/volmap/.scratch/pgbuf-producer-implementation/verification/03/a3fd7ddddc6be193c95f150efb0e5084-scan.json",
+          "footer": {
+            "type": "scan_footer",
+            "incarnation": "a3fd7ddddc6be193c95f150efb0e5084",
+            "scan_seq": "1",
+            "end_time_us": "1788943681681763",
+            "record_count": 58,
+            "visited_slots": 4096,
+            "truncated": false
+          }
+        },
+        {
+          "path": "/home/vimkim/temp/volmap/.scratch/pgbuf-producer-implementation/verification/03/d8b2877148a80bd8b44f88caa3035698-scan.json",
+          "footer": {
+            "type": "scan_footer",
+            "incarnation": "d8b2877148a80bd8b44f88caa3035698",
+            "scan_seq": "1",
+            "end_time_us": "1788943684870178",
+            "record_count": 58,
+            "visited_slots": 4096,
+            "truncated": false
+          }
+        }
+      ],
+      "binary_sha256": {
+        "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/bin/cub_server": "3f30bcf2b9548cfbd6f2cae6654e1bb1ff495465e3f04fb74fe85542f082364b",
+        "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/bin/test_pgbuf_inspector": "ce1cf229b9d641bded97e5414bcdc5ed3ac9ad4c69fd0c582f9cbeb953fd3195"
+      }
+    }
+  },
+  "reviews": {
+    "standards_remaining": 0,
+    "spec_remaining": 0
+  },
+  "limitations": [
+    "Contended slots yield partial coverage; unsafe header fields are omitted as unknown.",
+    "Controlled dirty/eviction oracles remain ticket 05; no performance release-gate claim."
+  ],
+  "environment_notes": [
+    "Real-server databases use TMPDIR=/home/vimkim/temp because root filesystem lacked database allocation space.",
+    "Release cache was reconfigured and verified as RelWithDebInfo before final validation.",
+    "Binaries were built before commit; committed tree matches tested tree exactly."
+  ]
+}

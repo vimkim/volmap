@@ -1,0 +1,97 @@
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: release_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: release_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: release_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+Using JAVA_HOME JDK: /home/vimkim/.local/share/mise/installs/java/temurin-8.0.462+8
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: release_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+Logging build output to: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/build.log
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: release_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+[1/17] Running utility command for pl_install_jdk
+[INFO] Install JDK 8
+[2/17] Running utility command for pl_build
+> Task :pl_server:generateGrammarSource UP-TO-DATE
+> Task :pl_server:compileJava UP-TO-DATE
+> Task :pl_server:processResources UP-TO-DATE
+> Task :pl_server:classes UP-TO-DATE
+> Task :pl_server:jar UP-TO-DATE
+> Task :pl_server:startScripts UP-TO-DATE
+> Task :pl_server:distTar UP-TO-DATE
+> Task :pl_server:distZip UP-TO-DATE
+> Task :pl_server:assemble UP-TO-DATE
+> Task :pl_server:check
+> Task :pl_server:build
+
+BUILD SUCCESSFUL in 633ms
+7 actionable tasks: 7 up-to-date
+[3/17] Performing download step (git clone) for 'catch2'
+Cloning into 'catch2'...
+HEAD is now at 255aa5f2 v2.11.3
+[4/17] Performing update step for 'catch2'
+[5/17] No patch step for 'catch2'
+[6/17] Performing configure step for 'catch2'
+loading initial cache file /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/unit_tests/catch2-prefix/tmp/catch2-cache-RelWithDebInfo.cmake
+-- The CXX compiler identification is GNU 11.5.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/lib64/ccache/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Configuring done (0.2s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/unit_tests/catch2-prefix/src/catch2-build
+[7/17] Performing build step for 'catch2'
+ninja: no work to do.
+[8/17] No install step for 'catch2'
+[9/17] Completed 'catch2'
+[10/17] Building CXX object unit_tests/pgbuf_inspector/CMakeFiles/test_pgbuf_inspector.dir/sha256.cpp.o
+[11/17] Building CXX object unit_tests/pgbuf_inspector/CMakeFiles/test_pgbuf_inspector.dir/__/__/src/storage/pgbuf_inspector_wire.cpp.o
+[12/17] Building CXX object unit_tests/pgbuf_inspector/CMakeFiles/test_pgbuf_inspector.dir/__/__/src/storage/pgbuf_inspector_socket.cpp.o
+[13/17] Building CXX object unit_tests/pgbuf_inspector/CMakeFiles/test_pgbuf_inspector.dir/test_pgbuf_inspector_socket.cpp.o
+FAILED: unit_tests/pgbuf_inspector/CMakeFiles/test_pgbuf_inspector.dir/test_pgbuf_inspector_socket.cpp.o 
+ccache /usr/lib64/ccache/g++ -DCUBRID_UNIT_TEST_ENABLED -DGCC -DI386 -DLINUX -DMAXPATHLEN=1024 -DPGBUF_INSPECTOR_CONTRACT_DIR=\"/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/docs/pgbuf-inspector/v1\" -DSYSV -DX86 -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE -D_LARGEFILE64_SOURCE -D_REENTRANT -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/include -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/src/api -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/src/base -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/src/broker -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/src/communication -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/src/compat -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/src/connection -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/src/debugging -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/src/executables -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/src/heaplayers -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/src/sp -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/src/loaddb -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/src/method -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/src/monitor -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/src/object -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/src/optimizer -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/src/optimizer/histogram -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/src/parser -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/src/replication -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/src/query -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/src/session -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/src/storage -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/src/thread -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/src/transaction -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/src/xasl -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/src/query/parallel/px_hash_join -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/src/query/parallel/px_scan -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/src/query/parallel/px_scan/index -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/src/query/parallel -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/src/query/parallel/px_query_execute -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/cubrid-cci/src/cci -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/cubrid-cci/src/tools -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/unit_tests/catch2-prefix/src/catch2/single_include -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/3rdparty/include/expat -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/3rdparty/include/jansson -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/3rdparty/include -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/3rdparty/Source/lz4/lib -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/3rdparty/Source/rapidjson/include -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/3rdparty/Source/re2 -I/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/common -fdiagnostics-color=always -Wno-error=maybe-uninitialized -Wall -Werror -Wformat -Wformat-security -Werror=format-security -Wwrite-strings  -Wredundant-decls -Wclobbered -Wextra -Wno-unused -Wno-unused-result -Wno-unused-parameter -pthread -O2 -ggdb3 -DNDEBUG -finline-functions -Wno-error=mismatched-new-delete -Wno-error=enum-conversion -Wno-error=stringop-truncation -Wno-error=format-overflow= -Wno-error=format= -Wno-error=format-truncation -O2 -DNDEBUG -finline-functions -ggdb -fno-omit-frame-pointer -fPIE -std=c++17 -std=gnu++17 -fdiagnostics-color=always -MD -MT unit_tests/pgbuf_inspector/CMakeFiles/test_pgbuf_inspector.dir/test_pgbuf_inspector_socket.cpp.o -MF unit_tests/pgbuf_inspector/CMakeFiles/test_pgbuf_inspector.dir/test_pgbuf_inspector_socket.cpp.o.d -o unit_tests/pgbuf_inspector/CMakeFiles/test_pgbuf_inspector.dir/test_pgbuf_inspector_socket.cpp.o -c /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp
+In file included from /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp:19:
+/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp: In function ‘void ____C_A_T_C_H____T_E_S_T____0()’:
+/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp:56:59: error: comparison of integer expressions of different signedness: ‘ssize_t’ {aka ‘long int’} and ‘std::__cxx11::basic_string<char>::size_type’ {aka ‘long unsigned int’} [-Werror=sign-compare]
+   56 |   REQUIRE (send (fd, request.data (), request.size (), 0) == request.size ());
+      |            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~
+/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp: In member function ‘std::string {anonymous}::socket_fixture::exchange(int, const string&)’:
+/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp:163:74: error: comparison of integer expressions of different signedness: ‘ssize_t’ {aka ‘long int’} and ‘std::__cxx11::basic_string<char>::size_type’ {aka ‘long unsigned int’} [-Werror=sign-compare]
+  163 |       REQUIRE (send (fd, request.data (), request.size (), MSG_NOSIGNAL) == request.size ());
+      |                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~
+/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp: In function ‘void ____C_A_T_C_H____T_E_S_T____26()’:
+/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp:322:61: error: comparison of integer expressions of different signedness: ‘ssize_t’ {aka ‘long int’} and ‘std::__cxx11::basic_string<char>::size_type’ {aka ‘long unsigned int’} [-Werror=sign-compare]
+  322 |   REQUIRE (send (fd, greeting.data (), greeting.size (), 0) == greeting.size ());
+      |            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp: In function ‘void ____C_A_T_C_H____T_E_S_T____28()’:
+/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp:357:61: error: comparison of integer expressions of different signedness: ‘ssize_t’ {aka ‘long int’} and ‘std::__cxx11::basic_string<char>::size_type’ {aka ‘long unsigned int’} [-Werror=sign-compare]
+  357 |   REQUIRE (send (fd, greeting.data (), greeting.size (), 0) == greeting.size ());
+      |            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp: In function ‘void ____C_A_T_C_H____T_E_S_T____30()’:
+/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp:389:61: error: comparison of integer expressions of different signedness: ‘ssize_t’ {aka ‘long int’} and ‘std::__cxx11::basic_string<char>::size_type’ {aka ‘long unsigned int’} [-Werror=sign-compare]
+  389 |   REQUIRE (send (fd, greeting.data (), greeting.size (), 0) == greeting.size ());
+      |            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~
+cc1plus: all warnings being treated as errors
+[14/17] Building CXX object unit_tests/pgbuf_inspector/CMakeFiles/test_pgbuf_inspector.dir/corpus_support.cpp.o
+[15/17] Building CXX object unit_tests/pgbuf_inspector/CMakeFiles/test_pgbuf_inspector.dir/__/__/src/storage/pgbuf_inspector_protocol.cpp.o
+[16/17] Building CXX object unit_tests/pgbuf_inspector/CMakeFiles/test_pgbuf_inspector.dir/test_pgbuf_inspector_wire.cpp.o
+ninja: build stopped: subcommand failed.
+error: recipe `build` failed with exit code 1

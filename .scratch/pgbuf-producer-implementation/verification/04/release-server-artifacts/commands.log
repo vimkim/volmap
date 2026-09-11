@@ -1,0 +1,162 @@
+$ cubrid createdb --db-volume-size=20M --log-volume-size=20M -F /home/vimkim/temp/pgbuf-server-25_49lip inspector02 en_US.utf8
+Creating database with 64.0M size using locale en_US.utf8. The total amount of disk space needed is 104.0M.
+
+CUBRID 11.5.0
+
+$ cubrid server start inspector02
+@ cubrid master start
+++ cubrid master start: success
+@ cubrid server start: inspector02
+
+This may take a long time depending on the amount of recovery works to do.
+
+CUBRID 11.5.0
+
+++ cubrid server start: success
+$ csql -u dba -c select 1; inspector02
+
+=== <Result of SELECT Command in Line 1> ===
+
+            1
+=============
+            1
+
+1 row selected. (0.001000 sec) Committed. (0.000000 sec) 
+$ cubrid server stop inspector02
+@ cubrid server stop: inspector02
+
+Server inspector02 notified of shutdown.
+This may take several minutes. Please wait.
+++ cubrid server stop: success
+$ cubrid server start inspector02
+@ cubrid server start: inspector02
+
+This may take a long time depending on the amount of recovery works to do.
+
+CUBRID 11.5.0
+
+PGBUF_INSPECTOR_READY: /home/vimkim/temp/pgbuf-server-25_49lip/pgbuf-inspector/422c21b11f6b31226413a5c26273ee08.sock
+++ cubrid server start: success
+$ csql -u dba -c select 1; inspector02
+
+=== <Result of SELECT Command in Line 1> ===
+
+            1
+=============
+            1
+
+1 row selected. (0.001000 sec) Committed. (0.000000 sec) 
+$ csql -u dba -c create table isolation_rows (id integer, payload varchar(4000)); insert into isolation_rows select level, repeat('x',3500) from db_root connect by level <= 2000; commit; inspector02
+Execute OK. (0.006000 sec) Committed. (0.006000 sec) 
+2000 rows affected. (0.059001 sec) Committed. (0.048001 sec) 
+Execute OK. (0.000000 sec) 
+$ cubrid server stop inspector02
+@ cubrid server stop: inspector02
+
+Server inspector02 notified of shutdown.
+This may take several minutes. Please wait.
+++ cubrid server stop: success
+$ cubrid server start inspector02
+@ cubrid server start: inspector02
+
+This may take a long time depending on the amount of recovery works to do.
+
+CUBRID 11.5.0
+
+PGBUF_INSPECTOR_READY: /home/vimkim/temp/pgbuf-server-25_49lip/pgbuf-inspector/422c21b11f6b31226413a5c26273ee08.sock
+++ cubrid server start: success
+$ csql -u dba -c select 1; inspector02
+
+=== <Result of SELECT Command in Line 1> ===
+
+            1
+=============
+            1
+
+1 row selected. (0.001000 sec) Committed. (0.000000 sec) 
+$ cubrid server stop inspector02
+@ cubrid server stop: inspector02
+
+Server inspector02 notified of shutdown.
+This may take several minutes. Please wait.
+++ cubrid server stop: success
+$ cubrid copydb -F /home/vimkim/temp/pgbuf-server-25_49lip/copied -E /home/vimkim/temp/pgbuf-server-25_49lip/copied inspector02 inspector02copy
+$ cubrid server start inspector02copy
+@ cubrid server start: inspector02copy
+
+This may take a long time depending on the amount of recovery works to do.
+
+CUBRID 11.5.0
+
+PGBUF_INSPECTOR_READY: /home/vimkim/temp/pgbuf-server-25_49lip/pgbuf-inspector/2e72dc99dcdba20b439dca4b66afeb6b.sock
+++ cubrid server start: success
+$ csql -u dba -c select 1; inspector02copy
+
+=== <Result of SELECT Command in Line 1> ===
+
+            1
+=============
+            1
+
+1 row selected. (0.000000 sec) Committed. (0.000000 sec) 
+$ cubrid server stop inspector02copy
+@ cubrid server stop: inspector02copy
+
+Server inspector02copy notified of shutdown.
+This may take several minutes. Please wait.
+++ cubrid server stop: success
+$ cubrid server start inspector02
+@ cubrid server start: inspector02
+
+This may take a long time depending on the amount of recovery works to do.
+
+CUBRID 11.5.0
+
+PGBUF_INSPECTOR_UNAVAILABLE: startup activation failed; unavailable until server restart
+++ cubrid server start: success
+$ csql -u dba -c select 1; inspector02
+
+=== <Result of SELECT Command in Line 1> ===
+
+            1
+=============
+            1
+
+1 row selected. (0.001000 sec) Committed. (0.000000 sec) 
+$ csql -u dba -c select 1; inspector02
+
+=== <Result of SELECT Command in Line 1> ===
+
+            1
+=============
+            1
+
+1 row selected. (0.000000 sec) Committed. (0.000000 sec) 
+$ csql -u dba -c select 1; inspector02
+
+=== <Result of SELECT Command in Line 1> ===
+
+            1
+=============
+            1
+
+1 row selected. (0.000000 sec) Committed. (0.000000 sec) 
+$ csql -u dba -c select 1; inspector02
+
+=== <Result of SELECT Command in Line 1> ===
+
+            1
+=============
+            1
+
+1 row selected. (0.000000 sec) Committed. (0.000000 sec) 
+$ cubrid server stop inspector02
+@ cubrid server stop: inspector02
+
+Server inspector02 notified of shutdown.
+This may take several minutes. Please wait.
+++ cubrid server stop: success
+$ cubrid server stop inspector02
+@ cubrid server stop: inspector02
+++ cubrid server 'inspector02' is not running.
+$ cub_commdb -A

@@ -1,0 +1,30 @@
+{
+  "ticket": "01",
+  "status": "done",
+  "implementation_commit": "51531be5898e7f0634c313cc5b33ab2c792d3642",
+  "base_commit": "e1e651debf6cc100172bde96603b17424f9c135a",
+  "branch": "CBRD-27398-pgbuf-inspector-contract",
+  "preset": "debug_gcc",
+  "configured_ctest_targets": 27,
+  "configured_ctest_failed": 0,
+  "inspector_test_cases": 25,
+  "inspector_assertions": 50606,
+  "named_junit_entries": 39,
+  "corpus": {
+    "contract_version": "1.0",
+    "corpus_revision": 2,
+    "corpus_sha256": "11dbecc72e4b9dd78e22080f138c801c189c7e047c0db23af8233f44a804d5ce"
+  },
+  "exchange_cases": 39,
+  "corpus_regeneration": "byte-identical; independently hashed",
+  "review": {
+    "standards_remaining": 0,
+    "spec_remaining": 0
+  },
+  "logs": [
+    "configured-suite.log",
+    "inspector.xml",
+    "pre-commit-format.log"
+  ],
+  "scope": "Offline wire contract only. Socket authentication, collection, clock deadlines and consumer delivery remain later tickets."
+}

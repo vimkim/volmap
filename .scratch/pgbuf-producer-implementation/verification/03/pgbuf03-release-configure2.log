@@ -1,0 +1,248 @@
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: release_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: release_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: release_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+Using JAVA_HOME JDK: /home/vimkim/.local/share/mise/installs/java/temurin-8.0.462+8
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: release_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+Preset CMake variables:
+
+  CMAKE_BUILD_TYPE="RelWithDebInfo"
+  CMAKE_COLOR_DIAGNOSTICS="ON"
+  CMAKE_CXX_COMPILER="g++"
+  CMAKE_CXX_COMPILER_LAUNCHER="ccache"
+  CMAKE_CXX_FLAGS="-fdiagnostics-color=always -Wno-error=maybe-uninitialized"
+  CMAKE_CXX_FLAGS_RELWITHDEBINFO="-O2 -ggdb3 -DNDEBUG -finline-functions -Wno-error=mismatched-new-delete -Wno-error=enum-conversion -Wno-error=stringop-truncation -Wno-error=format-overflow= -Wno-error=format= -Wno-error=format-truncation"
+  CMAKE_CXX_STANDARD="17"
+  CMAKE_CXX_STANDARD_REQUIRED="ON"
+  CMAKE_C_COMPILER="gcc"
+  CMAKE_C_COMPILER_LAUNCHER="ccache"
+  CMAKE_C_FLAGS="-fdiagnostics-color=always -Wno-int-conversion -Wno-incompatible-pointer-types -Wno-implicit-function-declaration -Wno-error=maybe-uninitialized"
+  CMAKE_C_FLAGS_RELWITHDEBINFO="-O2 -ggdb3 -DNDEBUG -finline-functions -Wno-error=mismatched-new-delete -Wno-error=enum-conversion -Wno-error=stringop-truncation -Wno-error=format-overflow= -Wno-error=format= -Wno-error=format-truncation"
+  CMAKE_EXPORT_COMPILE_COMMANDS="ON"
+  CMAKE_INSTALL_PREFIX="/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc"
+  CUBVEC_TEAM_BUILD="ON"
+  ENABLE_CUBVEC_LOG="ON"
+  UNIT_TEST_OOS="ON"
+  UNIT_TEST_PAGE_BUFFER="ON"
+  UNIT_TEST_PGBUF_INSPECTOR="ON"
+  UNIT_TEST_SPAGE="ON"
+  VIMKIM_BUILD="ON"
+  WITH_CCI="true"
+
+-- ======== CMakeLists.txt
+--   OS = UNIX
+--   CMAKE_RUNTIME_OUTPUT_DIRECTORY=/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/bin
+    ==== with_unit_tests() = 1
+-- Get version information from VERSION
+-- Build CUBRID 11.5.0.2543-9e942a8 64bit RelWithDebInfo on Linux x86_64
+Including Third Party Libraries
+-- Build with flex and bison library: SYSTEM
+-- Build with expat library: EXTERNAL
+-- Build with jansson library: EXTERNAL
+-- Build with editline library: EXTERNAL
+-- Build with openssl library: EXTERNAL
+-- Build with unixODBC library: EXTERNAL
+-- Build with RE2 library: EXTERNAL
+-- Build with LZ4 library: EXTERNAL
+-- Build with TBB library: EXTERNAL
+CMake Warning (dev) at /usr/share/cmake/Modules/ExternalProject.cmake:3091 (message):
+  The DOWNLOAD_EXTRACT_TIMESTAMP option was not given and policy CMP0135 is
+  not set.  The policy's OLD behavior will be used.  When using a URL
+  download, the timestamps of extracted files should preferably be that of
+  the time of extraction, otherwise code that depends on the extracted
+  contents might not be rebuilt if the URL changes.  The OLD behavior
+  preserves the timestamps from the archive instead, but this is usually not
+  what you want.  Update your project to the NEW behavior or specify the
+  DOWNLOAD_EXTRACT_TIMESTAMP option with a value of true to avoid this
+  robustness issue.
+Call Stack (most recent call first):
+  /usr/share/cmake/Modules/ExternalProject.cmake:4208 (_ep_add_download_command)
+  3rdparty/CMakeLists.txt:201 (externalproject_add)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at /usr/share/cmake/Modules/ExternalProject.cmake:3091 (message):
+  The DOWNLOAD_EXTRACT_TIMESTAMP option was not given and policy CMP0135 is
+  not set.  The policy's OLD behavior will be used.  When using a URL
+  download, the timestamps of extracted files should preferably be that of
+  the time of extraction, otherwise code that depends on the extracted
+  contents might not be rebuilt if the URL changes.  The OLD behavior
+  preserves the timestamps from the archive instead, but this is usually not
+  what you want.  Update your project to the NEW behavior or specify the
+  DOWNLOAD_EXTRACT_TIMESTAMP option with a value of true to avoid this
+  robustness issue.
+Call Stack (most recent call first):
+  /usr/share/cmake/Modules/ExternalProject.cmake:4208 (_ep_add_download_command)
+  3rdparty/CMakeLists.txt:253 (externalproject_add)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at /usr/share/cmake/Modules/ExternalProject.cmake:3091 (message):
+  The DOWNLOAD_EXTRACT_TIMESTAMP option was not given and policy CMP0135 is
+  not set.  The policy's OLD behavior will be used.  When using a URL
+  download, the timestamps of extracted files should preferably be that of
+  the time of extraction, otherwise code that depends on the extracted
+  contents might not be rebuilt if the URL changes.  The OLD behavior
+  preserves the timestamps from the archive instead, but this is usually not
+  what you want.  Update your project to the NEW behavior or specify the
+  DOWNLOAD_EXTRACT_TIMESTAMP option with a value of true to avoid this
+  robustness issue.
+Call Stack (most recent call first):
+  /usr/share/cmake/Modules/ExternalProject.cmake:4208 (_ep_add_download_command)
+  3rdparty/CMakeLists.txt:303 (externalproject_add)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at /usr/share/cmake/Modules/ExternalProject.cmake:3091 (message):
+  The DOWNLOAD_EXTRACT_TIMESTAMP option was not given and policy CMP0135 is
+  not set.  The policy's OLD behavior will be used.  When using a URL
+  download, the timestamps of extracted files should preferably be that of
+  the time of extraction, otherwise code that depends on the extracted
+  contents might not be rebuilt if the URL changes.  The OLD behavior
+  preserves the timestamps from the archive instead, but this is usually not
+  what you want.  Update your project to the NEW behavior or specify the
+  DOWNLOAD_EXTRACT_TIMESTAMP option with a value of true to avoid this
+  robustness issue.
+Call Stack (most recent call first):
+  /usr/share/cmake/Modules/ExternalProject.cmake:4208 (_ep_add_download_command)
+  3rdparty/CMakeLists.txt:346 (externalproject_add)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at /usr/share/cmake/Modules/ExternalProject.cmake:3091 (message):
+  The DOWNLOAD_EXTRACT_TIMESTAMP option was not given and policy CMP0135 is
+  not set.  The policy's OLD behavior will be used.  When using a URL
+  download, the timestamps of extracted files should preferably be that of
+  the time of extraction, otherwise code that depends on the extracted
+  contents might not be rebuilt if the URL changes.  The OLD behavior
+  preserves the timestamps from the archive instead, but this is usually not
+  what you want.  Update your project to the NEW behavior or specify the
+  DOWNLOAD_EXTRACT_TIMESTAMP option with a value of true to avoid this
+  robustness issue.
+Call Stack (most recent call first):
+  /usr/share/cmake/Modules/ExternalProject.cmake:4208 (_ep_add_download_command)
+  3rdparty/CMakeLists.txt:383 (externalproject_add)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at /usr/share/cmake/Modules/ExternalProject.cmake:3091 (message):
+  The DOWNLOAD_EXTRACT_TIMESTAMP option was not given and policy CMP0135 is
+  not set.  The policy's OLD behavior will be used.  When using a URL
+  download, the timestamps of extracted files should preferably be that of
+  the time of extraction, otherwise code that depends on the extracted
+  contents might not be rebuilt if the URL changes.  The OLD behavior
+  preserves the timestamps from the archive instead, but this is usually not
+  what you want.  Update your project to the NEW behavior or specify the
+  DOWNLOAD_EXTRACT_TIMESTAMP option with a value of true to avoid this
+  robustness issue.
+Call Stack (most recent call first):
+  /usr/share/cmake/Modules/ExternalProject.cmake:4208 (_ep_add_download_command)
+  3rdparty/CMakeLists.txt:426 (externalproject_add)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at /usr/share/cmake/Modules/ExternalProject.cmake:3091 (message):
+  The DOWNLOAD_EXTRACT_TIMESTAMP option was not given and policy CMP0135 is
+  not set.  The policy's OLD behavior will be used.  When using a URL
+  download, the timestamps of extracted files should preferably be that of
+  the time of extraction, otherwise code that depends on the extracted
+  contents might not be rebuilt if the URL changes.  The OLD behavior
+  preserves the timestamps from the archive instead, but this is usually not
+  what you want.  Update your project to the NEW behavior or specify the
+  DOWNLOAD_EXTRACT_TIMESTAMP option with a value of true to avoid this
+  robustness issue.
+Call Stack (most recent call first):
+  /usr/share/cmake/Modules/ExternalProject.cmake:4208 (_ep_add_download_command)
+  3rdparty/CMakeLists.txt:452 (externalproject_add)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at /usr/share/cmake/Modules/ExternalProject.cmake:3091 (message):
+  The DOWNLOAD_EXTRACT_TIMESTAMP option was not given and policy CMP0135 is
+  not set.  The policy's OLD behavior will be used.  When using a URL
+  download, the timestamps of extracted files should preferably be that of
+  the time of extraction, otherwise code that depends on the extracted
+  contents might not be rebuilt if the URL changes.  The OLD behavior
+  preserves the timestamps from the archive instead, but this is usually not
+  what you want.  Update your project to the NEW behavior or specify the
+  DOWNLOAD_EXTRACT_TIMESTAMP option with a value of true to avoid this
+  robustness issue.
+Call Stack (most recent call first):
+  /usr/share/cmake/Modules/ExternalProject.cmake:4208 (_ep_add_download_command)
+  3rdparty/CMakeLists.txt:481 (externalproject_add)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at /usr/share/cmake/Modules/ExternalProject.cmake:3091 (message):
+  The DOWNLOAD_EXTRACT_TIMESTAMP option was not given and policy CMP0135 is
+  not set.  The policy's OLD behavior will be used.  When using a URL
+  download, the timestamps of extracted files should preferably be that of
+  the time of extraction, otherwise code that depends on the extracted
+  contents might not be rebuilt if the URL changes.  The OLD behavior
+  preserves the timestamps from the archive instead, but this is usually not
+  what you want.  Update your project to the NEW behavior or specify the
+  DOWNLOAD_EXTRACT_TIMESTAMP option with a value of true to avoid this
+  robustness issue.
+Call Stack (most recent call first):
+  /usr/share/cmake/Modules/ExternalProject.cmake:4208 (_ep_add_download_command)
+  3rdparty/CMakeLists.txt:522 (externalproject_add)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+-- Default install prefix: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc
+-- JAVA_HOME: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/vm/jdk8
+-- Found Java: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/vm/jdk8/bin/java
+-- Found JNI: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/vm/jdk8/include;/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/vm/jdk8/include/linux;/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/vm/jdk8/include
+-- ======== WITH_CCI ==========
+-- Get version information from /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/cubrid-cci/BUILD_NUMBER
+-- CCI_BUILD_NUMBER:[11.2.0.0043-2fb8d6d]
+-- Building CGW libraries.
+CMake Warning (dev) at cm_common/CMakeLists.txt:104 (install):
+  Target cmstat has PUBLIC_HEADER files but no PUBLIC_HEADER DESTINATION.
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at cm_common/CMakeLists.txt:104 (install):
+  Target cmdep has PUBLIC_HEADER files but no PUBLIC_HEADER DESTINATION.
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+-- .. timezone shared library
+-- .... gen_timezone executable
+-- ...... source files: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/src/executables/generate_timezone.cpp
+-- .... generate timezone command
+-- .... cubrid_timezones lib
+  unit_tests/...
+CMake Warning (dev) at /usr/share/cmake/Modules/FetchContent.cmake:1282 (message):
+  The DOWNLOAD_EXTRACT_TIMESTAMP option was not given and policy CMP0135 is
+  not set.  The policy's OLD behavior will be used.  When using a URL
+  download, the timestamps of extracted files should preferably be that of
+  the time of extraction, otherwise code that depends on the extracted
+  contents might not be rebuilt if the URL changes.  The OLD behavior
+  preserves the timestamps from the archive instead, but this is usually not
+  what you want.  Update your project to the NEW behavior or specify the
+  DOWNLOAD_EXTRACT_TIMESTAMP option with a value of true to avoid this
+  robustness issue.
+Call Stack (most recent call first):
+  unit_tests/CMakeLists.txt:65 (FetchContent_Declare)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+   common
+    oos
+    pgbuf_inspector
+-- Get version information CCI_VERSION: 11.2.0.0043-2fb8d6d
+-- Configuring done (0.5s)
+-- Generating done (0.2s)
+CMake Warning:
+  Manually-specified variables were not used by the project:
+
+    CUBVEC_TEAM_BUILD
+    ENABLE_CUBVEC_LOG
+    VIMKIM_BUILD
+
+
+-- Build files have been written to: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc

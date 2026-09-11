@@ -1,0 +1,9 @@
+PGBUF_INSPECTOR_READY: /home/vimkim/temp/pgbuf-native-sbt0ua3l/pgbuf-inspector/2e5aeef52d3f368e61e520a25188ddb5.sock
+PGFIXTURE {"state":"clean-held","volid":32766,"pageid":65}
+PGFIXTURE {"state":"held","volid":32766,"pageid":65}
+PGFIXTURE {"state":"held","volid":32766,"pageid":65}
+PGFIXTURE {"state":"dirty-held","volid":32766,"pageid":65}
+PGFIXTURE {"state":"held","volid":32766,"pageid":65}
+PGFIXTURE {"state":"populated","volid":32766,"pageid":65}
+PGFIXTURE {"state":"held","volid":32766,"pageid":65}
+PGFIXTURE {"state":"held","volid":32766,"pageid":65}

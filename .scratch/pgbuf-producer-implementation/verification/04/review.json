@@ -1,0 +1,16 @@
+{
+  "baseline": "3ae2404dc7832243ca9be7dc160768222d0594b4",
+  "reviewed_commit": "e5f3cdf86908b8d23d4e09d28d22265bf240f7ad",
+  "standards": {
+    "remaining": 0,
+    "resolved": [
+      "Scoped client descriptor ownership on fatal assertion failures."
+    ]
+  },
+  "spec": {
+    "remaining": 0,
+    "resolved": [
+      "Prove both current server send queues are saturated before and after SQL using kernel diagnostics."
+    ]
+  }
+}

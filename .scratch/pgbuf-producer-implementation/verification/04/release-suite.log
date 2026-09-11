@@ -1,0 +1,63 @@
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: release_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: release_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: release_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+Using JAVA_HOME JDK: /home/vimkim/.local/share/mise/installs/java/temurin-8.0.462+8
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: release_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+Logging build output to: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/build.log
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: release_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+[1/8] Running utility command for pl_install_jdk
+[INFO] Install JDK 8
+[2/8] Performing update step for 'catch2'
+[3/8] No patch step for 'catch2'
+[4/8] Performing configure step for 'catch2'
+loading initial cache file /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/unit_tests/catch2-prefix/tmp/catch2-cache-RelWithDebInfo.cmake
+-- Configuring done (0.1s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/unit_tests/catch2-prefix/src/catch2-build
+[5/8] Performing build step for 'catch2'
+ninja: no work to do.
+[6/8] No install step for 'catch2'
+[7/8] Completed 'catch2'
+[8/8] Running utility command for pl_build
+> Task :pl_server:generateGrammarSource UP-TO-DATE
+> Task :pl_server:compileJava UP-TO-DATE
+> Task :pl_server:processResources UP-TO-DATE
+> Task :pl_server:classes UP-TO-DATE
+> Task :pl_server:jar UP-TO-DATE
+> Task :pl_server:startScripts UP-TO-DATE
+> Task :pl_server:distTar UP-TO-DATE
+> Task :pl_server:distZip UP-TO-DATE
+> Task :pl_server:assemble UP-TO-DATE
+> Task :pl_server:check
+> Task :pl_server:build
+
+BUILD SUCCESSFUL in 2s
+7 actionable tasks: 7 up-to-date
+
+Installation deferred: the target CUBRID environment is busy.
+Environment: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc
+Active processes:
+  PID 2359212  cubrid               /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cubrid
+  PID 2359213  cub_master           /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_master
+No process was stopped. Retry with: just install
+error: recipe `build` failed with exit code 75

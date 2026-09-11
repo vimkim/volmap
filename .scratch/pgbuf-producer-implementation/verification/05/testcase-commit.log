@@ -1,0 +1,4 @@
+[CBRD-27398-pgbuf-inspector-fixtures a648d78f5] [CBRD-27398] Add native inspector observation shell testcase
+ 2 files changed, 92 insertions(+)
+ create mode 100644 shell/_06_issues/_26_2h/cbrd_27398/README.md
+ create mode 100755 shell/_06_issues/_26_2h/cbrd_27398/cases/cbrd_27398.sh

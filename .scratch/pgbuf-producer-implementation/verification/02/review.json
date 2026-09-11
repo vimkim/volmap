@@ -1,0 +1,17 @@
+{
+  "base": "51531be5898e7f0634c313cc5b33ab2c792d3642",
+  "standards": {
+    "reviewer": "wire_standards",
+    "remaining_findings": 0
+  },
+  "spec": {
+    "reviewer": "wire_spec",
+    "remaining_findings": 0,
+    "resolved": [
+      "Handshake deadline rechecked after identity preparation",
+      "Conservative metadata count guard and exact encoded-size limit",
+      "Filesystem identity reads outside disk extension mutex"
+    ]
+  },
+  "runtime_regression": "copydb negative utility volume ID excluded from cached database-volume indexing; real debug copy and copied-server handshake pass"
+}

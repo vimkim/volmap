@@ -1,0 +1,561 @@
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: release_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: release_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: release_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+Using JAVA_HOME JDK: /home/vimkim/.local/share/mise/installs/java/temurin-8.0.462+8
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: release_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+Logging build output to: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/build.log
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: release_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+[1/8] Performing update step for 'catch2'
+[2/8] Running utility command for pl_install_jdk
+[INFO] Install JDK 8
+[3/8] No patch step for 'catch2'
+[4/8] Performing configure step for 'catch2'
+loading initial cache file /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/unit_tests/catch2-prefix/tmp/catch2-cache-RelWithDebInfo.cmake
+-- Configuring done (0.0s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/unit_tests/catch2-prefix/src/catch2-build
+[5/8] Performing build step for 'catch2'
+ninja: no work to do.
+[6/8] No install step for 'catch2'
+[7/8] Completed 'catch2'
+[8/8] Running utility command for pl_build
+> Task :pl_server:generateGrammarSource UP-TO-DATE
+> Task :pl_server:compileJava UP-TO-DATE
+> Task :pl_server:processResources UP-TO-DATE
+> Task :pl_server:classes UP-TO-DATE
+> Task :pl_server:jar UP-TO-DATE
+> Task :pl_server:startScripts UP-TO-DATE
+> Task :pl_server:distTar UP-TO-DATE
+> Task :pl_server:distZip UP-TO-DATE
+> Task :pl_server:assemble UP-TO-DATE
+> Task :pl_server:check
+> Task :pl_server:build
+
+BUILD SUCCESSFUL in 621ms
+7 actionable tasks: 7 up-to-date
+-- Install configuration: "RelWithDebInfo"
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/vm/pl_server.jar
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/vm/logging.properties
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcubridsa.so.11.5
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcubridsa.so
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcubridcs.so.11.5
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcubridcs.so
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcubrid.so.11.5
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcubrid.so
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/dbi.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/dbtran_def.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/dbtype_def.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/db_set_function.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/dbtype_function.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/db_date.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/db_elo.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/cache_time.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/error_code.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/cubrid_log.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/cm_stat.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/csql
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_master
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_server
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cubrid
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_commdb
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cubrid_rel
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/loadjava
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_pl
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_admin
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/cci/lib/libcascci.so.11.2
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/cci/lib/libcascci.so
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/cci/include/cas_cci.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/cci/include/compat_dbtran_def.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/cci/include/broker_cas_error.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/cas_cci.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/broker_cas_error.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/compat_dbtran_def.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcascci.so
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcascci.so.11.2
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cci_applier
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/broker_log_converter
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/broker_log_runner
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/broker_tester
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cubrid_replay
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_broker
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_gateway
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/broker_monitor
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/gateway_monitor
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/broker_changer
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cubrid_broker
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cubrid_gateway
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_cas
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_cas_cgw
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_proxy
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/shard_key.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/broker_log_top
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libbrokeradmin.so.11.5
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libbrokeradmin.so
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcmstat.so.11.5
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcmstat.so
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcmdep.so.11.5
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcmdep.so
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_jobsa
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_sainfo
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/conf/cubrid.conf
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/conf/cubrid.conf.large
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/conf/cubrid.conf.small
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/conf/cubrid_broker.conf
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/conf/cubrid_broker.conf.shard
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/conf/cubrid_gateway.conf
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/conf/cubrid_ha.conf
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/conf/cubrid_hosts.conf
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/conf/shard_connection.txt
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/conf/shard_key.txt
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/conf/cubrid_locales.all.txt
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/conf/cubrid_locales.txt
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/conf/cas_ssl_cert.crt
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/conf/cas_ssl_cert.key
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US.utf8
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US.utf8/cubrid.msg
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US.utf8/csql.msg
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US.utf8/utils.msg
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US.utf8
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US.utf8/cubrid.cat
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US.utf8/csql.cat
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US.utf8/utils.cat
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US/cubrid.msg
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US/utils.msg
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US/csql.msg
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US/cubrid.cat
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US/utils.cat
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US/csql.cat
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.utf8
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.utf8/csql.msg
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.utf8/cubrid.msg
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.utf8/utils.msg
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.utf8
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.utf8/csql.cat
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.utf8/utils.cat
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.utf8/cubrid.cat
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.euckr
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.euckr/cubrid.msg
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.euckr/csql.msg
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.euckr/utils.msg
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.euckr
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.euckr/csql.cat
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.euckr/utils.cat
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.euckr/cubrid.cat
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/demo/demodb_objects
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/demo/demodb_schema
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/demo/make_cubrid_demo.sh
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/init.d/cubrid-ha
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/init.d/cubrid
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/check_reserved.sql
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/broker_log_top.py
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/brokerstatus_to_csv.py
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/statdump_to_csv.py
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/ha/ha_make_slavedb.sh
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/ha/VERSION
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/ha/README
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/ha/functions/ha_check_environment.sh
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/ha/functions/ha_check_script.sh
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/ha/expect/scp_from.exp
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/ha/expect/scp_to.exp
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/ha/expect/ssh.exp
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/ha/common/common.sh
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/systemtap/tapset/cubrid_func.stp
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/systemtap/tapset/scripts/buffer_access.stp
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/systemtap/tapset/scripts/global_time.stp
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/systemtap/tapset/scripts/io_stat.stp
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/systemtap/tapset/scripts/lock_time.stp
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/systemtap/tapset/scripts/obj_access.stp
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/systemtap/tapset/scripts/query_time.stp
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/systemtap/tapset/scripts/transaction.stp
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/systemtap/tapset/scripts/topcallstack_helper.stp
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/systemtap/tapset/scripts/get_file_line.sh
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/systemtap/tapset/scripts/topcallstack
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/setup.sh
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/cubrid.sh
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/cubrid.csh
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/unloaddb.sh
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/restore_to_newdb.sh
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/check_index_ovfps.sh
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/make_locale.sh
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/loclib/build_locale.sh
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/codepages
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/codepages/8859-1.TXT
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/codepages/8859-15.TXT
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/codepages/8859-9.TXT
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/codepages/CP1250.TXT
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/codepages/CP1258.TXT
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/codepages/CP932.TXT
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/codepages/CP936.TXT
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/codepages/CP949.TXT
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/ducet.txt
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/ldml
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/ldml/common_collations.xml
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/ldml/cubrid_de_DE.xml
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/ldml/cubrid_es_ES.xml
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/ldml/cubrid_fr_FR.xml
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/ldml/cubrid_it_IT.xml
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/ldml/cubrid_ja_JP.xml
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/ldml/cubrid_km_KH.xml
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/ldml/cubrid_ko_KR.xml
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/ldml/cubrid_ro_RO.xml
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/ldml/cubrid_tr_TR.xml
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/ldml/cubrid_vi_VN.xml
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/ldml/cubrid_zh_CN.xml
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/unicodedata.txt
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/loclib/locale_lib_common.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcubrid_timezones.so.11.5
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcubrid_timezones.so
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/make_tz.sh
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzlib/build_tz.sh
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzdata
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzdata/africa
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzdata/antarctica
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzdata/asia
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzdata/australasia
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzdata/backward
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzdata/etcetera
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzdata/europe
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzdata/iso3166.tab
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzdata/leapseconds
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzdata/northamerica
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzdata/pacificnew
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzdata/southamerica
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzdata/windowsZones.xml
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzdata/zone.tab
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzlib/timezone_lib_common.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/gmock-actions.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/gmock-cardinalities.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/gmock-function-mocker.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/gmock-matchers.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/gmock-more-actions.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/gmock-more-matchers.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/gmock-nice-strict.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/gmock-spec-builders.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/gmock.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/internal
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/internal/custom
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/internal/custom/README.md
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/internal/custom/gmock-generated-actions.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/internal/custom/gmock-matchers.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/internal/custom/gmock-port.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/internal/gmock-internal-utils.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/internal/gmock-port.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/internal/gmock-pp.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib64/libgmock.a
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib64/libgmock_main.a
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib64/pkgconfig/gmock.pc
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib64/pkgconfig/gmock_main.pc
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib64/cmake/GTest/GTestTargets.cmake
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib64/cmake/GTest/GTestTargets-relwithdebinfo.cmake
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib64/cmake/GTest/GTestConfigVersion.cmake
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib64/cmake/GTest/GTestConfig.cmake
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/gtest-assertion-result.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/gtest-death-test.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/gtest-matchers.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/gtest-message.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/gtest-param-test.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/gtest-printers.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/gtest-spi.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/gtest-test-part.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/gtest-typed-test.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/gtest.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/gtest_pred_impl.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/gtest_prod.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/internal
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/internal/custom
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/internal/custom/README.md
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/internal/custom/gtest-port.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/internal/custom/gtest-printers.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/internal/custom/gtest.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/internal/gtest-death-test-internal.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/internal/gtest-filepath.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/internal/gtest-internal.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/internal/gtest-param-util.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/internal/gtest-port-arch.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/internal/gtest-port.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/internal/gtest-string.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/internal/gtest-type-util.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib64/libgtest.a
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib64/libgtest_main.a
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib64/pkgconfig/gtest.pc
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib64/pkgconfig/gtest_main.pc
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/log
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/var
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/tmp
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/databases
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/var/CUBRID_SOCK
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/3rdparty
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/3rdparty/adoptium.temurin_license.txt
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/3rdparty/adoptium.temurin_license_assembly_exception.txt
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/3rdparty/libedit_license.txt
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/3rdparty/libexpat_license.txt
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/3rdparty/libjansson_license.txt
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/3rdparty/libodbc_license.txt
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/3rdparty/libopenssl_license.txt
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/3rdparty/libtbb_license.txt
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/3rdparty/lz4_license.txt
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/3rdparty/rapidjson_license.txt
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/3rdparty/re2_license.txt
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/./COPYING
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/./CREDITS
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/./README.md
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/./README_TAR_INSTALL
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/databases/databases.txt.sample
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/var/CUBRID_SOCK/README.txt
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/tmp/README.txt
+Build and install completed successfully!
+~/my-cubrid/bin/cubrid-build-coordinator.sh runtime 300 -- ctest --test-dir "$CUBRID_BUILD_DIR" --output-on-failure --verbose
+Internal ctest changing into directory: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+UpdateCTestConfiguration  from :/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/DartConfiguration.tcl
+UpdateCTestConfiguration  from :/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/DartConfiguration.tcl
+Test project /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 1
+      Start  1: oos_setup_db
+
+1: Test command: /usr/bin/cmake "-E" "env" "CUBRID=/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc" "CUBRID_DATABASES=/home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb" "PATH=/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/vm/jdk8/bin:/home/vimkim/gh/ctp/run-sql/CTP/bin:/home/vimkim/gh/ctp/run-sql/CTP/common/script:/home/vimkim/.local/opt/bison-3.0.5/bin:/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin:/home/vimkim/.local/bin:/home/linuxbrew/.linuxbrew/sbin:/home/vimkim/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/usr/share/Modules/bin:/usr/lib64/ccache:/home/vimkim/.local/share/mise/installs/node/25.8.0/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/codex-path:/home/vimkim/.codex/tmp/arg0/codex-arg0BEcEtb:/home/vimkim/.cargo/bin:/home/vimkim/.local/share/mise/installs/bun/latest/bin:/home/vimkim/.local/share/mise/installs/go/1.24.4/bin:/home/vimkim/.local/share/mise/installs/java/temurin-8.0.462+8/bin:/home/vimkim/.local/share/mise/installs/node/latest/bin:/home/vimkim/.local/share/mise/installs/python/latest/bin:/home/vimkim/.local/share/mise/shims:/home/vimkim/.cargo/bin/:/opt/bison-3.0.5/bin/:/home/vimkim/.local/bin/:/home/vimkim/mybin/:/home/vimkim/my-cubrid/bin/:/home/vimkim/.config/my-scripts/bin/:/home/linuxbrew/.linuxbrew/bin:/home/vimkim/.nix-profile/bin/:/nix/var/nix/profiles/default/bin/:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin" "bash" "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/oos/scripts/setup_unittestdb.sh"
+1: Working Directory: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/unit_tests/oos
+1: Test timeout computed to be: 10000000
+1: Creating database with 64.0M size using locale en_US.utf8. The total amount of disk space needed is 104.0M.
+1: 
+1: CUBRID 11.5.0
+1: 
+ 1/27 Test  #1: oos_setup_db .....................   Passed    4.51 sec
+test 3
+      Start  3: test_oos
+
+3: Test command: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/bin/test_oos
+3: Working Directory: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/unit_tests/oos
+3: Test timeout computed to be: 30
+3: [==========] Running 21 tests from 1 test suite.
+3: [----------] Global test environment set-up.
+3: ##### Starting Server For OOS Unit Testing #####
+3: will be written at ./test_oos_log
+3: [----------] 21 tests from OosTest
+3: [ RUN      ] OosTest.OosCreateAndDestroy
+3: [       OK ] OosTest.OosCreateAndDestroy (0 ms)
+3: [ RUN      ] OosTest.OosCreateAndCreateAgain
+3: [       OK ] OosTest.OosCreateAndCreateAgain (0 ms)
+3: [ RUN      ] OosTest.OosInsertAndRead
+3: [       OK ] OosTest.OosInsertAndRead (0 ms)
+3: [ RUN      ] OosTest.OosInsertRejectsInvalidSource
+3: [       OK ] OosTest.OosInsertRejectsInvalidSource (3014 ms)
+3: [ RUN      ] OosTest.OosInsertLargerThanPageSize
+3: [       OK ] OosTest.OosInsertLargerThanPageSize (0 ms)
+3: [ RUN      ] OosTest.OosInsertLarge160KBString
+3: [       OK ] OosTest.OosInsertLarge160KBString (1 ms)
+3: [ RUN      ] OosTest.OosInsertAndRead100LargeStringsAroundMaxOosChunkSize
+3: [       OK ] OosTest.OosInsertAndRead100LargeStringsAroundMaxOosChunkSize (14 ms)
+3: [ RUN      ] OosTest.OosFindBestSpace
+3: [       OK ] OosTest.OosFindBestSpace (0 ms)
+3: [ RUN      ] OosTest.OosFindBestSpaceReturnsExistingPage
+3: [       OK ] OosTest.OosFindBestSpaceReturnsExistingPage (0 ms)
+3: [ RUN      ] OosTest.OosFixAndUnfixPage
+3: [       OK ] OosTest.OosFixAndUnfixPage (0 ms)
+3: [ RUN      ] OosTest.OosManualSlottedPageInsertAndGet
+3: [       OK ] OosTest.OosManualSlottedPageInsertAndGet (0 ms)
+3: [ RUN      ] OosTest.ShouldInsertIntoSamePage
+3: [       OK ] OosTest.ShouldInsertIntoSamePage (0 ms)
+3: [ RUN      ] OosTest.OosGetLengthWithinPage
+3: [       OK ] OosTest.OosGetLengthWithinPage (0 ms)
+3: [ RUN      ] OosTest.OosGetLengthAcrossPages
+3: [       OK ] OosTest.OosGetLengthAcrossPages (1 ms)
+3: [ RUN      ] OosTest.OosGetLengthAroundMaxChunkSize
+3: [       OK ] OosTest.OosGetLengthAroundMaxChunkSize (1 ms)
+3: [ RUN      ] OosTest.ShouldInsertIntoDifferentPages
+3: [       OK ] OosTest.ShouldInsertIntoDifferentPages (0 ms)
+3: [ RUN      ] OosTest.OosInlineFormatWriteAndReadBack
+3: [       OK ] OosTest.OosInlineFormatWriteAndReadBack (0 ms)
+3: [ RUN      ] OosTest.OosInlineFormatWithRealOosInsert
+3: [       OK ] OosTest.OosInlineFormatWithRealOosInsert (0 ms)
+3: [ RUN      ] OosTest.OosInlineLengthMatchesAcrossPages
+3: [       OK ] OosTest.OosInlineLengthMatchesAcrossPages (2 ms)
+3: [ RUN      ] OosTest.OosReadRejectsCallerLengthDisagreeingWithHeader
+3: [       OK ] OosTest.OosReadRejectsCallerLengthDisagreeingWithHeader (6405 ms)
+3: [ RUN      ] OosTest.HeapAttrvalueReadOosInlineCorruptHeader
+3: [       OK ] OosTest.HeapAttrvalueReadOosInlineCorruptHeader (2629 ms)
+3: [----------] 21 tests from OosTest (12072 ms total)
+3: 
+3: [----------] Global test environment tear-down
+3: ##### Stopping Server For OOS Unit Testing #####
+3: [==========] 21 tests from 1 test suite ran. (12364 ms total)
+3: [  PASSED  ] 21 tests.
+ 2/27 Test  #3: test_oos .........................   Passed   12.38 sec
+test 4
+      Start  4: test_oos_delete
+
+4: Test command: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/bin/test_oos_delete
+4: Working Directory: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/unit_tests/oos
+4: Test timeout computed to be: 30
+4: [==========] Running 7 tests from 1 test suite.
+4: [----------] Global test environment set-up.
+4: ##### Starting Server For OOS Unit Testing #####
+4: will be written at ./test_oos_log
+4: [----------] 7 tests from OosDeleteTest
+4: [ RUN      ] OosDeleteTest.OosDeleteBasic
+4: [       OK ] OosDeleteTest.OosDeleteBasic (0 ms)
+4: [ RUN      ] OosDeleteTest.OosDeleteThenReadFails
+4: [       OK ] OosDeleteTest.OosDeleteThenReadFails (5482 ms)
+4: [ RUN      ] OosDeleteTest.OosDeleteMultiChunk
+4: [       OK ] OosDeleteTest.OosDeleteMultiChunk (0 ms)
+4: [ RUN      ] OosDeleteTest.OosUpdatePattern
+4: [       OK ] OosDeleteTest.OosUpdatePattern (24 ms)
+4: [ RUN      ] OosDeleteTest.OosDeleteRestoresFreeSpace
+4: [       OK ] OosDeleteTest.OosDeleteRestoresFreeSpace (0 ms)
+4: [ RUN      ] OosDeleteTest.OosDeleteLarge160KBMultiChunk
+4: [       OK ] OosDeleteTest.OosDeleteLarge160KBMultiChunk (26 ms)
+4: [ RUN      ] OosDeleteTest.OosDeleteSlotBecomesUnknown
+4: [       OK ] OosDeleteTest.OosDeleteSlotBecomesUnknown (0 ms)
+4: [----------] 7 tests from OosDeleteTest (5533 ms total)
+4: 
+4: [----------] Global test environment tear-down
+4: ##### Stopping Server For OOS Unit Testing #####
+4: [==========] 7 tests from 1 test suite ran. (5792 ms total)
+4: [  PASSED  ] 7 tests.
+ 3/27 Test  #4: test_oos_delete ..................   Passed    5.80 sec
+test 5
+      Start  5: test_oos_remove_file
+
+5: Test command: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/bin/test_oos_remove_file
+5: Working Directory: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/unit_tests/oos
+5: Test timeout computed to be: 30
+5: [==========] Running 6 tests from 1 test suite.
+5: [----------] Global test environment set-up.
+5: ##### Starting Server For OOS Unit Testing #####
+5: will be written at ./test_oos_log
+5: [----------] 6 tests from OosFileDestroyTest
+5: [ RUN      ] OosFileDestroyTest.OosFileDestroyBasic
+5: [       OK ] OosFileDestroyTest.OosFileDestroyBasic (0 ms)
+5: [ RUN      ] OosFileDestroyTest.OosFileDestroyWithData
+5: [       OK ] OosFileDestroyTest.OosFileDestroyWithData (0 ms)
+5: [ RUN      ] OosFileDestroyTest.OosFileDestroyWithMultiChunkData
+5: [       OK ] OosFileDestroyTest.OosFileDestroyWithMultiChunkData (0 ms)
+5: [ RUN      ] OosFileDestroyTest.OosFileDestroyCacheCleared
+5: [       OK ] OosFileDestroyTest.OosFileDestroyCacheCleared (0 ms)
+5: [ RUN      ] OosFileDestroyTest.OosPageDestroyBasic
+5: [       OK ] OosFileDestroyTest.OosPageDestroyBasic (0 ms)
+5: [ RUN      ] OosFileDestroyTest.OosFileDestroyMultipleFiles
+5: [       OK ] OosFileDestroyTest.OosFileDestroyMultipleFiles (0 ms)
+5: [----------] 6 tests from OosFileDestroyTest (0 ms total)
+5: 
+5: [----------] Global test environment tear-down
+5: ##### Stopping Server For OOS Unit Testing #####
+5: [==========] 6 tests from 1 test suite ran. (242 ms total)
+5: [  PASSED  ] 6 tests.
+ 4/27 Test  #5: test_oos_remove_file .............   Passed    0.25 sec
+test 6
+      Start  6: test_oos_bestspace
+
+6: Test command: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/bin/test_oos_bestspace
+6: Working Directory: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/unit_tests/oos
+6: Test timeout computed to be: 30
+6: [==========] Running 21 tests from 1 test suite.
+6: [----------] Global test environment set-up.
+6: ##### Starting Server For OOS Unit Testing #####
+6: will be written at ./test_oos_log
+6: [----------] 21 tests from OosBestspaceTest
+6: [ RUN      ] OosBestspaceTest.BestspaceReuseAfterDelete
+6: [       OK ] OosBestspaceTest.BestspaceReuseAfterDelete (0 ms)
+6: [ RUN      ] OosBestspaceTest.BestspaceFullPageAllocsNew
+6: [       OK ] OosBestspaceTest.BestspaceFullPageAllocsNew (0 ms)
+6: [ RUN      ] OosBestspaceTest.BestspaceMultipleFilesIsolation
+6: [       OK ] OosBestspaceTest.BestspaceMultipleFilesIsolation (0 ms)
+6: [ RUN      ] OosBestspaceTest.BestspaceManySmallInsertsConsolidate
+6: [       OK ] OosBestspaceTest.BestspaceManySmallInsertsConsolidate (0 ms)
+6: [ RUN      ] OosBestspaceTest.BestspaceInsertDeleteCycle
+6: [       OK ] OosBestspaceTest.BestspaceInsertDeleteCycle (0 ms)
+6: [ RUN      ] OosBestspaceTest.BestspaceFindBestPageBasic
+6: [       OK ] OosBestspaceTest.BestspaceFindBestPageBasic (0 ms)
+6: [ RUN      ] OosBestspaceTest.BestspaceFindBestPageConsecutiveCalls
+6: [       OK ] OosBestspaceTest.BestspaceFindBestPageConsecutiveCalls (0 ms)
+6: [ RUN      ] OosBestspaceTest.BestspaceDeleteThenFindReclaimsPage
+6: [       OK ] OosBestspaceTest.BestspaceDeleteThenFindReclaimsPage (0 ms)
+6: [ RUN      ] OosBestspaceTest.BestspaceMultiChunkDeleteReuse
+6: [       OK ] OosBestspaceTest.BestspaceMultiChunkDeleteReuse (0 ms)
+6: [ RUN      ] OosBestspaceTest.BestspaceCacheCleanedOnFileRemove
+6: [       OK ] OosBestspaceTest.BestspaceCacheCleanedOnFileRemove (0 ms)
+6: [ RUN      ] OosBestspaceTest.BestspaceBulkInsertDeleteReinsert
+6: [       OK ] OosBestspaceTest.BestspaceBulkInsertDeleteReinsert (1 ms)
+6: [ RUN      ] OosBestspaceTest.BestspaceArrayOverflowEviction
+6: [       OK ] OosBestspaceTest.BestspaceArrayOverflowEviction (4 ms)
+6: [ RUN      ] OosBestspaceTest.BestspaceStaleCacheEviction
+6: [       OK ] OosBestspaceTest.BestspaceStaleCacheEviction (0 ms)
+6: [ RUN      ] OosBestspaceTest.BestspaceHeaderPageNeverReturned
+6: [       OK ] OosBestspaceTest.BestspaceHeaderPageNeverReturned (0 ms)
+6: [ RUN      ] OosBestspaceTest.BestspaceSyncRefillsCache
+6: [       OK ] OosBestspaceTest.BestspaceSyncRefillsCache (0 ms)
+6: [ RUN      ] OosBestspaceTest.BestspaceSecondBestRingBuffer
+6: [       OK ] OosBestspaceTest.BestspaceSecondBestRingBuffer (0 ms)
+6: [ RUN      ] OosBestspaceTest.BestspaceFindPageIdxBadspace
+6: [       OK ] OosBestspaceTest.BestspaceFindPageIdxBadspace (0 ms)
+6: [ RUN      ] OosBestspaceTest.BestspaceExactMaxChunkBoundary
+6: [       OK ] OosBestspaceTest.BestspaceExactMaxChunkBoundary (0 ms)
+6: [ RUN      ] OosBestspaceTest.DeleteUpdatesBestspaceCacheDirectly
+6: [       OK ] OosBestspaceTest.DeleteUpdatesBestspaceCacheDirectly (0 ms)
+6: [ RUN      ] OosBestspaceTest.DeleteMultipleRecordsUpdatesAllPages
+6: [       OK ] OosBestspaceTest.DeleteMultipleRecordsUpdatesAllPages (1 ms)
+6: [ RUN      ] OosBestspaceTest.DeletePartialChainUpdatesBestspace
+6: [       OK ] OosBestspaceTest.DeletePartialChainUpdatesBestspace (0 ms)
+6: [----------] 21 tests from OosBestspaceTest (10 ms total)
+6: 
+6: [----------] Global test environment tear-down
+6: ##### Stopping Server For OOS Unit Testing #####
+6: [==========] 21 tests from 1 test suite ran. (263 ms total)
+6: [  PASSED  ] 21 tests.
+ 5/27 Test  #6: test_oos_bestspace ...............   Passed    0.27 sec
+test 10
+      Start 10: test_oos_server
+
+10: Test command: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/bin/test_oos_server
+10: Working Directory: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/unit_tests/oos
+10: Test timeout computed to be: 60
+10: [==========] Running 34 tests from 1 test suite.
+10: [----------] Global test environment set-up.
+10: PL server can not be started: Error occured while starting Java SP Server by CallStaticIntMethod().
+ 6/27 Test #10: test_oos_server ..................***Timeout  60.13 sec
+[==========] Running 34 tests from 1 test suite.
+[----------] Global test environment set-up.
+PL server can not be started: Error occured while starting Java SP Server by CallStaticIntMethod().
+
+test 11
+      Start 11: test_oos_delete_server
+
+11: Test command: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/bin/test_oos_delete_server
+11: Working Directory: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/unit_tests/oos
+11: Test timeout computed to be: 60
+11: [==========] Running 7 tests from 1 test suite.
+11: [----------] Global test environment set-up.
+11: PL server can not be started: Error occured while starting Java SP Server by CallStaticIntMethod().
+error: recipe `ctest` was terminated on line 178 by signal 2

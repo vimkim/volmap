@@ -1,0 +1,42 @@
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: debug_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/debug_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc
+Filters: Real slow draining reaches the whole exchange deadline despite write progress
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+test_pgbuf_inspector is a Catch v2.11.3 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Real slow draining reaches the whole exchange deadline despite write progress
+-------------------------------------------------------------------------------
+/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp:1007
+...............................................................................
+
+/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp:1072: FAILED:
+  CHECK( elapsed >= std::chrono::seconds (2) )
+with expansion:
+  {?} >= {?}
+with message:
+  elapsed us: 391014
+
+/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp:1074: FAILED:
+  CHECK( progress_events >= 10 )
+with expansion:
+  1 >= 10
+with message:
+  elapsed us: 391014
+
+/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp:1075: FAILED:
+  CHECK( endpoint::clock::now () - last_progress < std::chrono::milliseconds (250) )
+with expansion:
+  {?} < {?}
+with message:
+  elapsed us: 391014
+
+===============================================================================
+test cases:   1 |   0 passed | 1 failed
+assertions: 341 | 338 passed | 3 failed
+

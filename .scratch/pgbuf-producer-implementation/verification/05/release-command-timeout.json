@@ -1,0 +1,7 @@
+{
+  "case": "incomplete-controller-command",
+  "result": "PASS",
+  "exit_code": 1,
+  "elapsed": 10.109936226159334,
+  "evidence": "/home/vimkim/temp/pgbuf-timeout-aqzvb0se"
+}

@@ -1,0 +1,15 @@
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: release_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+Internal ctest changing into directory: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+Test project /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+    Start 27: test_pgbuf_inspector
+1/2 Test #27: test_pgbuf_inspector .............   Passed    7.29 sec
+    Start 28: test_pgbuf_inspector_native
+2/2 Test #28: test_pgbuf_inspector_native ......   Passed    3.91 sec
+
+100% tests passed, 0 tests failed out of 2
+
+Total Test time (real) =  11.20 sec

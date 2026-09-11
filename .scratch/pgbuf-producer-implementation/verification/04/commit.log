@@ -1,0 +1,14 @@
+╭──────────────────────────────────────╮
+│ 🥊 lefthook v2.1.1  hook: pre-commit │
+╰──────────────────────────────────────╯
+┃  codestyle ❯ 
+
+Unchanged  unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp
+
+                                      
+  ────────────────────────────────────
+summary: (done in 0.41 seconds)       
+✔️ codestyle (0.18 seconds)
+[CBRD-27398-pgbuf-inspector-contract 6fc7a982c] [CBRD-27398] Prove inspector overload and lifecycle isolation
+ 4 files changed, 656 insertions(+), 8 deletions(-)
+ create mode 100644 docs/pgbuf-inspector/isolation.md

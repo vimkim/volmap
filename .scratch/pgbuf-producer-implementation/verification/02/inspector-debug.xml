@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="test_pgbuf_inspector" errors="0" failures="0" tests="50747" hostname="tbd" time="21.039" timestamp="2026-09-09T07:08:32Z">
+    <testcase classname="test_pgbuf_inspector.global" name="A refusal without details encodes as the canonical error frame" time="0.00002"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Every stable refusal code encodes with exactly its own details/version-unsupported carries the producer's majors" time="0.000016"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Every stable refusal code encodes with exactly its own details/rate-limited carries the wait in milliseconds" time="0.000009"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Every stable refusal code encodes with exactly its own details/incarnation-changed and identity-oversized carry nothing else" time="0.000015"/>
+    <testcase classname="test_pgbuf_inspector.global" name="A detail that belongs to another code, or is missing for its own, is not encodable" time="0.000015"/>
+    <testcase classname="test_pgbuf_inspector.global" name="A detail that belongs to another code, or is missing for its own, is not encodable/version-unsupported must list at least one positive major" time="0.000007"/>
+    <testcase classname="test_pgbuf_inspector.global" name="A detail that belongs to another code, or is missing for its own, is not encodable/rate-limited must carry a positive wait" time="0.000006"/>
+    <testcase classname="test_pgbuf_inspector.global" name="A detail that belongs to another code, or is missing for its own, is not encodable/details never travel with a code they do not belong to" time="0.000007"/>
+    <testcase classname="test_pgbuf_inspector.global" name="A control frame may fill its 4,096-byte limit exactly but not exceed it/4,095 bytes are accepted" time="0.000307"/>
+    <testcase classname="test_pgbuf_inspector.global" name="A control frame may fill its 4,096-byte limit exactly but not exceed it/4,096 bytes are accepted" time="0.000306"/>
+    <testcase classname="test_pgbuf_inspector.global" name="A control frame may fill its 4,096-byte limit exactly but not exceed it/4,097 bytes are refused and nothing is appended" time="0.000304"/>
+    <testcase classname="test_pgbuf_inspector.global" name="The canonical writer follows the contract's canonical form/keys keep call order after type, with no whitespace anywhere" time="0.000008"/>
+    <testcase classname="test_pgbuf_inspector.global" name="The canonical writer follows the contract's canonical form/integers are base 10 with a sign only when negative, across the 64-bit range" time="0.000009"/>
+    <testcase classname="test_pgbuf_inspector.global" name="The canonical writer follows the contract's canonical form/booleans, null and an empty array are the bare literals" time="0.000008"/>
+    <testcase classname="test_pgbuf_inspector.global" name="The canonical writer follows the contract's canonical form/strings escape only the quote and the backslash" time="0.000007"/>
+    <testcase classname="test_pgbuf_inspector.global" name="The canonical writer follows the contract's canonical form/a string outside printable ASCII makes the frame unencodable and appends nothing" time="0.000009"/>
+    <testcase classname="test_pgbuf_inspector.global" name="The canonical writer follows the contract's canonical form/a frame over the requested limit appends nothing" time="0.000005"/>
+    <testcase classname="test_pgbuf_inspector.global" name="SHA-256 matches the FIPS 180 known answers" time="0.000033"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Every generated corpus stream is exactly what the serializer produces from its semantic input" time="0.000407"/>
+    <testcase classname="test_pgbuf_inspector.global" name="The checksum file lists every corpus file with its digest, and the manifest pins the checksum file" time="0.001183"/>
+    <testcase classname="test_pgbuf_inspector.global" name="The checksum file lists every corpus file with its digest, and the manifest pins the checksum file/every listed digest matches the file, in the format sha256sum reads" time="0.011987"/>
+    <testcase classname="test_pgbuf_inspector.global" name="The checksum file lists every corpus file with its digest, and the manifest pins the checksum file/the manifest carries the contract version, a positive revision and the aggregate hash" time="0.000398"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Refusal codes round-trip through their wire names" time="0.000031"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Every expected outcome agrees with the stream it describes" time="0.000665"/>
+    <testcase classname="test_pgbuf_inspector.global" name="A client hello has a bounded canonical encoding" time="0.000043"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Every v1 data frame preserves canonical semantic values" time="0.000303"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Only a validated footer publishes resident and absent observations" time="0.000394"/>
+    <testcase classname="test_pgbuf_inspector.global" name="An unterminated control frame is rejected before buffering beyond its bound" time="0.000031"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Invalid internal refusal values cannot emit an empty code" time="0.000007"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Independent exchange corpus agrees with canonical encoding and incremental validation" time="0.024178"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Native page kinds have one semantic vocabulary across the two source layouts" time="0.000026"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Frame and depth limits hold below at and above their boundaries" time="0.005161"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Scan record and declared visited-slot limits are independently bounded" time="13.998151"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Whole-scan accounting includes unknown frames and the footer" time="5.573415"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Invalid JSON and state values cannot enter a published capture" time="0.00011"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Both refusal encoders and the verifier preserve uint32 retry delays" time="0.000336"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Known LRU tuple consistency does not reject future enum evidence" time="0.000338"/>
+    <testcase classname="test_pgbuf_inspector.global" name="An embedded NUL cannot alias a producer refusal code" time="0.000016"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Both refusal encoders report the same frame-size boundary" time="0.005233"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Private attachment negotiates identity and removes its socket" time="0.000867"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Unavailable paths preserve entries and cannot be retried" time="0.00019"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Unavailable paths preserve entries and cannot be retried/symlink" time="0.000147"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Unavailable paths preserve entries and cannot be retried/regular file" time="0.000026"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Unavailable paths preserve entries and cannot be retried/unsafe directory permissions" time="0.000007"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Shutdown preserves a replacement socket" time="0.000246"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Negotiation refuses unsupported versions and previous incarnations" time="0.000276"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Negotiation refuses unsupported versions and previous incarnations/unsupported version" time="0.000062"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Negotiation refuses unsupported versions and previous incarnations/old incarnation" time="0.000056"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Two attachments bound admission and idle greetings expire" time="0.551616"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Controls cannot exceed their frame or nesting budgets" time="0.000278"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Controls cannot exceed their frame or nesting budgets/4 KiB without delimiter" time="0.000048"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Controls cannot exceed their frame or nesting budgets/depth 17" time="0.000034"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Controls cannot exceed their frame or nesting budgets/duplicate members" time="0.00004"/>
+    <testcase classname="test_pgbuf_inspector.global" name="A scan request cannot fabricate complete absence" time="0.000307"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Only refused stale sockets are reclaimed and active listeners survive" time="0.000462"/>
+    <testcase classname="test_pgbuf_inspector.global" name="A client that never drains a large handshake is disconnected after write stall" time="0.334994"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Metadata preparation cannot extend the attachment deadline" time="0.510689"/>
+    <testcase classname="test_pgbuf_inspector.global" name="Identity proof is complete or refused by encoded bytes" time="0.000726"/>
+    <system-out/>
+    <system-err/>
+  </testsuite>
+</testsuites>

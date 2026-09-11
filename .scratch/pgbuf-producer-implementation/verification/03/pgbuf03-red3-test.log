@@ -1,0 +1,51 @@
+Filters: [scan]
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+test_pgbuf_inspector is a Catch v2.11.3 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Resident observations preserve semantic fields and exact emitted counts
+-------------------------------------------------------------------------------
+/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_scan.cpp:37
+...............................................................................
+
+/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_scan.cpp:67: FAILED:
+  CHECK( out.find ("\"record_count\":2,\"visited_slots\":3,\"truncated\":false") != std::string::npos )
+with expansion:
+  18446744073709551615 (0xffffffffffffffff)
+  !=
+  18446744073709551615 (0xffffffffffffffff)
+
+/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_scan.cpp:68: FAILED:
+  CHECK( out.find ("\"latch_mode\":\"write\",\"waiter_present\":true,\"fix_count\":7") != std::string::npos )
+with expansion:
+  18446744073709551615 (0xffffffffffffffff)
+  !=
+  18446744073709551615 (0xffffffffffffffff)
+
+/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_scan.cpp:69: FAILED:
+  CHECK( out.find ("\"dirty\":true,\"flushing\":false,\"async_flush_requested\":true,\"to_vacuum\":true") != std::string::npos )
+with expansion:
+  18446744073709551615 (0xffffffffffffffff)
+  !=
+  18446744073709551615 (0xffffffffffffffff)
+
+/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_scan.cpp:70: FAILED:
+  CHECK( out.find ("\"lru_zone\":\"lru3\",\"lru_list_kind\":\"private\",\"lru_list_index\":2") != std::string::npos )
+with expansion:
+  18446744073709551615 (0xffffffffffffffff)
+  !=
+  18446744073709551615 (0xffffffffffffffff)
+
+/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_scan.cpp:71: FAILED:
+  CHECK( out.find ("\"page_lsa\":{\"pageid\":\"123456789\",\"offset\":123},\"oldest_unflush_lsa\":null,\"page_kind\":\"heap\"") != std::string::npos )
+with expansion:
+  18446744073709551615 (0xffffffffffffffff)
+  !=
+  18446744073709551615 (0xffffffffffffffff)
+
+===============================================================================
+test cases:  2 | 1 passed | 1 failed
+assertions: 14 | 9 passed | 5 failed
+

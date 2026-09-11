@@ -1,0 +1,10 @@
+1 row affected. (0.003000 sec) Committed. (0.006001 sec) 
+Execute OK. (0.000000 sec) 
+
+=== <Result of SELECT Command in Line 1> ===
+
+       314159
+=============
+       314159
+
+1 row selected. (0.002000 sec) Committed. (0.000000 sec) 

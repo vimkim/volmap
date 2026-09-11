@@ -1,0 +1,17 @@
+╭──────────────────────────────────────╮
+│ 🥊 lefthook v2.1.1  hook: pre-commit │
+╰──────────────────────────────────────╯
+┃  codestyle ❯ 
+
+Unchanged  unit_tests/pgbuf_inspector/pgbuf_inspector_fixture.cpp
+
+                                      
+  ────────────────────────────────────
+summary: (done in 0.28 seconds)       
+✔️ codestyle (0.16 seconds)
+[CBRD-27398-pgbuf-inspector-contract f8c068f77] [CBRD-27398] Prove native inspector residency dirty state and eviction
+ Date: Wed Sep 9 19:13:23 2026 +0900
+ 5 files changed, 709 insertions(+), 12 deletions(-)
+ create mode 100644 docs/pgbuf-inspector/controlled-observation.md
+ create mode 100644 unit_tests/pgbuf_inspector/controlled_observation.py
+ create mode 100644 unit_tests/pgbuf_inspector/pgbuf_inspector_fixture.cpp

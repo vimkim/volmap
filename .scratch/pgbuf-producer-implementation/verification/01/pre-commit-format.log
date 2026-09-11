@@ -1,0 +1,15 @@
+╭──────────────────────────────────────╮
+│ 🥊 lefthook v2.1.1  hook: pre-commit │
+╰──────────────────────────────────────╯
+┃  codestyle ❯ 
+
+Unchanged  src/storage/pgbuf_inspector_protocol.cpp
+Unchanged  src/storage/pgbuf_inspector_wire.cpp
+Unchanged  src/storage/pgbuf_inspector_wire.hpp
+Unchanged  unit_tests/pgbuf_inspector/pgbuf_inspector_corpus_generator.cpp
+Unchanged  unit_tests/pgbuf_inspector/test_pgbuf_inspector_wire.cpp
+
+                                      
+  ────────────────────────────────────
+summary: (done in 0.07 seconds)       
+✔️ codestyle (0.05 seconds)

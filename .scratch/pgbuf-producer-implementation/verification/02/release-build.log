@@ -1,0 +1,371 @@
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: release_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: release_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: release_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+Using JAVA_HOME JDK: /home/vimkim/.local/share/mise/installs/java/temurin-8.0.462+8
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: release_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+Logging build output to: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/build.log
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: release_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+[1/10] Performing update step for 'catch2'
+[2/10] Running utility command for pl_install_jdk
+[INFO] Install JDK 8
+[3/10] No patch step for 'catch2'
+[4/10] Performing configure step for 'catch2'
+loading initial cache file /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/unit_tests/catch2-prefix/tmp/catch2-cache-RelWithDebInfo.cmake
+-- Configuring done (0.0s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/unit_tests/catch2-prefix/src/catch2-build
+[5/10] Performing build step for 'catch2'
+ninja: no work to do.
+[6/10] No install step for 'catch2'
+[7/10] Completed 'catch2'
+[8/10] Running utility command for pl_build
+> Task :pl_server:generateGrammarSource UP-TO-DATE
+> Task :pl_server:compileJava UP-TO-DATE
+> Task :pl_server:processResources UP-TO-DATE
+> Task :pl_server:classes UP-TO-DATE
+> Task :pl_server:jar UP-TO-DATE
+> Task :pl_server:startScripts UP-TO-DATE
+> Task :pl_server:distTar UP-TO-DATE
+> Task :pl_server:distZip UP-TO-DATE
+> Task :pl_server:assemble UP-TO-DATE
+> Task :pl_server:check
+> Task :pl_server:build
+
+BUILD SUCCESSFUL in 611ms
+7 actionable tasks: 7 up-to-date
+[9/10] Building CXX object unit_tests/pgbuf_inspector/CMakeFiles/test_pgbuf_inspector.dir/test_pgbuf_inspector_socket.cpp.o
+[10/10] Linking CXX executable bin/test_pgbuf_inspector
+-- Install configuration: "RelWithDebInfo"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/vm/pl_server.jar
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/vm/logging.properties
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/vm/jdk8
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcubridsa.so.11.5
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcubridsa.so.11.5" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcubridsa.so
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcubridcs.so.11.5
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcubridcs.so.11.5" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcubridcs.so
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcubrid.so.11.5
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcubrid.so.11.5" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcubrid.so
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/dbi.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/dbtran_def.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/dbtype_def.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/db_set_function.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/dbtype_function.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/db_date.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/db_elo.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/cache_time.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/error_code.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/cubrid_log.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/cm_stat.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/csql
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/csql" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_master
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_master" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_server
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_server" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cubrid
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cubrid" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_commdb
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_commdb" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cubrid_rel
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cubrid_rel" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/loadjava
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/loadjava" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_pl
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_pl" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_admin
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_admin" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/cci/lib/libcascci.so.11.2
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/cci/lib/libcascci.so.11.2" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/cci/lib/libcascci.so
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/cci/include/cas_cci.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/cci/include/compat_dbtran_def.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/cci/include/broker_cas_error.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/cas_cci.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/broker_cas_error.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/compat_dbtran_def.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcascci.so
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcascci.so.11.2
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cci_applier
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cci_applier" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/broker_log_converter
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/broker_log_converter" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/broker_log_runner
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/broker_log_runner" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/broker_tester
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/broker_tester" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cubrid_replay
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cubrid_replay" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_broker
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_broker" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_gateway
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_gateway" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/broker_monitor
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/broker_monitor" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/gateway_monitor
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/gateway_monitor" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/broker_changer
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/broker_changer" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cubrid_broker
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cubrid_broker" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cubrid_gateway
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cubrid_gateway" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_cas
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_cas" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_cas_cgw
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_cas_cgw" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_proxy
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_proxy" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/shard_key.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/broker_log_top
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/broker_log_top" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libbrokeradmin.so.11.5
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libbrokeradmin.so.11.5" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libbrokeradmin.so
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcmstat.so.11.5
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcmstat.so.11.5" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcmstat.so
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcmdep.so.11.5
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcmdep.so.11.5" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcmdep.so
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_jobsa
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_jobsa" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_sainfo
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_sainfo" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/conf/cubrid.conf
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/conf/cubrid.conf.large
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/conf/cubrid.conf.small
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/conf/cubrid_broker.conf
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/conf/cubrid_broker.conf.shard
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/conf/cubrid_gateway.conf
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/conf/cubrid_ha.conf
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/conf/cubrid_hosts.conf
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/conf/shard_connection.txt
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/conf/shard_key.txt
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/conf/cubrid_locales.all.txt
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/conf/cubrid_locales.txt
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/conf/cas_ssl_cert.crt
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/conf/cas_ssl_cert.key
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US.utf8
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US.utf8/cubrid.msg
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US.utf8/csql.msg
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US.utf8/utils.msg
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US.utf8
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US.utf8/cubrid.cat
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US.utf8/csql.cat
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US.utf8/utils.cat
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US/cubrid.msg
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US/utils.msg
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US/csql.msg
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US/cubrid.cat
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US/utils.cat
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/en_US/csql.cat
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.utf8
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.utf8/csql.msg
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.utf8/cubrid.msg
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.utf8/utils.msg
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.utf8
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.utf8/csql.cat
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.utf8/utils.cat
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.utf8/cubrid.cat
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.euckr
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.euckr/cubrid.msg
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.euckr/csql.msg
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.euckr/utils.msg
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.euckr
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.euckr/csql.cat
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.euckr/utils.cat
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/msg/ko_KR.euckr/cubrid.cat
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/demo/demodb_objects
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/demo/demodb_schema
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/demo/make_cubrid_demo.sh
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/init.d/cubrid-ha
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/init.d/cubrid
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/check_reserved.sql
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/broker_log_top.py
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/brokerstatus_to_csv.py
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/statdump_to_csv.py
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/ha/ha_make_slavedb.sh
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/ha/VERSION
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/ha/README
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/ha/functions/ha_check_environment.sh
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/ha/functions/ha_check_script.sh
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/ha/expect/scp_from.exp
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/ha/expect/scp_to.exp
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/ha/expect/ssh.exp
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/ha/common/common.sh
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/systemtap/tapset/cubrid_func.stp
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/systemtap/tapset/scripts/buffer_access.stp
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/systemtap/tapset/scripts/global_time.stp
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/systemtap/tapset/scripts/io_stat.stp
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/systemtap/tapset/scripts/lock_time.stp
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/systemtap/tapset/scripts/obj_access.stp
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/systemtap/tapset/scripts/query_time.stp
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/systemtap/tapset/scripts/transaction.stp
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/systemtap/tapset/scripts/topcallstack_helper.stp
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/systemtap/tapset/scripts/get_file_line.sh
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/systemtap/tapset/scripts/topcallstack
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/setup.sh
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/cubrid.sh
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/cubrid.csh
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/unloaddb.sh
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/restore_to_newdb.sh
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/share/scripts/check_index_ovfps.sh
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/make_locale.sh
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/loclib/build_locale.sh
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/codepages
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/codepages/8859-1.TXT
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/codepages/8859-15.TXT
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/codepages/8859-9.TXT
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/codepages/CP1250.TXT
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/codepages/CP1258.TXT
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/codepages/CP932.TXT
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/codepages/CP936.TXT
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/codepages/CP949.TXT
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/ducet.txt
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/ldml
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/ldml/common_collations.xml
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/ldml/cubrid_de_DE.xml
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/ldml/cubrid_es_ES.xml
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/ldml/cubrid_fr_FR.xml
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/ldml/cubrid_it_IT.xml
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/ldml/cubrid_ja_JP.xml
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/ldml/cubrid_km_KH.xml
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/ldml/cubrid_ko_KR.xml
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/ldml/cubrid_ro_RO.xml
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/ldml/cubrid_tr_TR.xml
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/ldml/cubrid_vi_VN.xml
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/ldml/cubrid_zh_CN.xml
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/data/unicodedata.txt
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/locales/loclib/locale_lib_common.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcubrid_timezones.so.11.5
+-- Set runtime path of "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcubrid_timezones.so.11.5" to "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib"
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcubrid_timezones.so
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/make_tz.sh
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzlib/build_tz.sh
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzdata
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzdata/africa
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzdata/antarctica
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzdata/asia
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzdata/australasia
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzdata/backward
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzdata/etcetera
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzdata/europe
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzdata/iso3166.tab
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzdata/leapseconds
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzdata/northamerica
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzdata/pacificnew
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzdata/southamerica
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzdata/windowsZones.xml
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzdata/zone.tab
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/timezones/tzlib/timezone_lib_common.h
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/gmock-actions.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/gmock-cardinalities.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/gmock-function-mocker.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/gmock-matchers.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/gmock-more-actions.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/gmock-more-matchers.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/gmock-nice-strict.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/gmock-spec-builders.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/gmock.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/internal
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/internal/custom
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/internal/custom/README.md
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/internal/custom/gmock-generated-actions.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/internal/custom/gmock-matchers.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/internal/custom/gmock-port.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/internal/gmock-internal-utils.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/internal/gmock-port.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gmock/internal/gmock-pp.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib64/libgmock.a
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib64/libgmock_main.a
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib64/pkgconfig/gmock.pc
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib64/pkgconfig/gmock_main.pc
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib64/cmake/GTest/GTestTargets.cmake
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib64/cmake/GTest/GTestTargets-relwithdebinfo.cmake
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib64/cmake/GTest/GTestConfigVersion.cmake
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib64/cmake/GTest/GTestConfig.cmake
+-- Up-to-date: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/gtest-assertion-result.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/gtest-death-test.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/gtest-matchers.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/gtest-message.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/gtest-param-test.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/gtest-printers.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/gtest-spi.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/gtest-test-part.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/gtest-typed-test.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/gtest.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/gtest_pred_impl.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/gtest_prod.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/internal
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/internal/custom
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/internal/custom/README.md
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/internal/custom/gtest-port.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/internal/custom/gtest-printers.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/internal/custom/gtest.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/internal/gtest-death-test-internal.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/internal/gtest-filepath.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/internal/gtest-internal.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/internal/gtest-param-util.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/internal/gtest-port-arch.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/internal/gtest-port.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/internal/gtest-string.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/include/gtest/internal/gtest-type-util.h
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib64/libgtest.a
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib64/libgtest_main.a
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib64/pkgconfig/gtest.pc
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib64/pkgconfig/gtest_main.pc
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/log
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/var
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/tmp
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/databases
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/var/CUBRID_SOCK
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/3rdparty
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/3rdparty/adoptium.temurin_license.txt
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/3rdparty/adoptium.temurin_license_assembly_exception.txt
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/3rdparty/libedit_license.txt
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/3rdparty/libexpat_license.txt
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/3rdparty/libjansson_license.txt
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/3rdparty/libodbc_license.txt
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/3rdparty/libopenssl_license.txt
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/3rdparty/libtbb_license.txt
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/3rdparty/lz4_license.txt
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/3rdparty/rapidjson_license.txt
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/3rdparty/re2_license.txt
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/./COPYING
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/./CREDITS
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/./README.md
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/./README_TAR_INSTALL
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/databases/databases.txt.sample
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/var/CUBRID_SOCK/README.txt
+-- Installing: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/tmp/README.txt
+Build and install completed successfully!

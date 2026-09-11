@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Catch name="test_pgbuf_inspector" filters="[socket]~[.credential]">
+  <Group name="test_pgbuf_inspector">
+    <TestCase name="Private attachment negotiates identity and removes its socket" tags="[pgbuf_inspector][socket]" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="36">
+      <OverallResult success="true"/>
+    </TestCase>
+    <TestCase name="Unavailable paths preserve entries and cannot be retried" tags="[pgbuf_inspector][socket]" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="96">
+      <Section name="symlink" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="105">
+        <OverallResults successes="1" failures="0" expectedFailures="0"/>
+      </Section>
+      <Section name="regular file" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="109">
+        <OverallResults successes="1" failures="0" expectedFailures="0"/>
+      </Section>
+      <Section name="unsafe directory permissions" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="115">
+        <OverallResults successes="1" failures="0" expectedFailures="0"/>
+      </Section>
+      <OverallResult success="true"/>
+    </TestCase>
+    <TestCase name="Shutdown preserves a replacement socket" tags="[pgbuf_inspector][socket]" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="140">
+      <OverallResult success="true"/>
+    </TestCase>
+    <TestCase name="Negotiation refuses unsupported versions and previous incarnations" tags="[pgbuf_inspector][socket]" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="212">
+      <Section name="unsupported version" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="216">
+        <OverallResults successes="3" failures="0" expectedFailures="0"/>
+      </Section>
+      <Section name="old incarnation" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="221">
+        <OverallResults successes="3" failures="0" expectedFailures="0"/>
+      </Section>
+      <OverallResult success="true"/>
+    </TestCase>
+    <TestCase name="Two attachments bound admission and idle greetings expire" tags="[pgbuf_inspector][socket]" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="229">
+      <OverallResult success="true"/>
+    </TestCase>
+    <TestCase name="Controls cannot exceed their frame or nesting budgets" tags="[pgbuf_inspector][socket]" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="253">
+      <Section name="4 KiB without delimiter" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="257">
+        <OverallResults successes="3" failures="0" expectedFailures="0"/>
+      </Section>
+      <Section name="depth 17" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="261">
+        <OverallResults successes="3" failures="0" expectedFailures="0"/>
+      </Section>
+      <Section name="duplicate members" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="266">
+        <OverallResults successes="3" failures="0" expectedFailures="0"/>
+      </Section>
+      <OverallResult success="true"/>
+    </TestCase>
+    <TestCase name="A scan request cannot fabricate complete absence" tags="[pgbuf_inspector][socket]" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="272">
+      <OverallResult success="true"/>
+    </TestCase>
+    <TestCase name="Only refused stale sockets are reclaimed and active listeners survive" tags="[pgbuf_inspector][socket]" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="281">
+      <OverallResult success="true"/>
+    </TestCase>
+    <TestCase name="A client that never drains a large handshake is disconnected after write stall" tags="[pgbuf_inspector][socket]" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="350">
+      <OverallResult success="true"/>
+    </TestCase>
+    <TestCase name="Metadata preparation cannot extend the attachment deadline" tags="[pgbuf_inspector][socket]" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="380">
+      <OverallResult success="true"/>
+    </TestCase>
+    <TestCase name="Identity proof is complete or refused by encoded bytes" tags="[pgbuf_inspector][socket]" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="408">
+      <Section name="730 compact entries fit" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="414">
+        <OverallResults successes="0" failures="0" expectedFailures="0"/>
+      </Section>
+      <Section name="large proof never returns a subset" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="418">
+        <OverallResults successes="0" failures="0" expectedFailures="0"/>
+      </Section>
+      <OverallResult success="true"/>
+    </TestCase>
+    <TestCase name="The scan floor applies across both clients and preserves increasing sequences" tags="[pgbuf_inspector][socket]" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="501">
+      <OverallResult success="true"/>
+    </TestCase>
+    <TestCase name="Socket captures publish only after valid footer and preserve duplicate ambiguity" tags="[pgbuf_inspector][socket]" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="524">
+      <OverallResult success="true"/>
+    </TestCase>
+    <TestCase name="A scan cancels sampling on disconnect and shutdown" tags="[pgbuf_inspector][socket]" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="556">
+      <Section name="disconnect" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="576">
+        <OverallResults successes="0" failures="0" expectedFailures="0"/>
+      </Section>
+      <Section name="shutdown" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="580">
+        <OverallResults successes="0" failures="0" expectedFailures="0"/>
+      </Section>
+      <OverallResult success="true"/>
+    </TestCase>
+    <TestCase name="Stalled scan output is cancelled without a successful footer" tags="[pgbuf_inspector][socket]" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="592">
+      <OverallResult success="true"/>
+    </TestCase>
+    <TestCase name="The whole exchange deadline is rechecked before writing" tags="[pgbuf_inspector][socket]" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="620">
+      <OverallResult success="true"/>
+    </TestCase>
+    <TestCase name="Scan requests validate additive fields within frame and nesting limits" tags="[pgbuf_inspector][socket]" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="653">
+      <Section name="exactly 4096 bytes" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="659">
+        <OverallResults successes="1" failures="0" expectedFailures="0"/>
+      </Section>
+      <Section name="4097 bytes" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="665">
+        <OverallResults successes="0" failures="0" expectedFailures="0"/>
+      </Section>
+      <Section name="depth 16" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="671">
+        <OverallResults successes="0" failures="0" expectedFailures="0"/>
+      </Section>
+      <Section name="depth 17" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="675">
+        <OverallResults successes="0" failures="0" expectedFailures="0"/>
+      </Section>
+      <OverallResult success="true"/>
+    </TestCase>
+    <TestCase name="Premature requests are rejected while the completed traversal still drains" tags="[pgbuf_inspector][socket]" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="692">
+      <OverallResult success="true"/>
+    </TestCase>
+    <TestCase name="Fragmented controls and coalesced premature requests use production framing" tags="[pgbuf_inspector][socket]" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="735">
+      <Section name="one byte at a time, including the final delimiter" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="739">
+        <OverallResults successes="216" failures="0" expectedFailures="0"/>
+      </Section>
+      <Section name="two requests in one read never start a scan" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="757">
+        <OverallResults successes="6" failures="0" expectedFailures="0"/>
+      </Section>
+      <Section name="EOF in a fragmented greeting releases admission" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="762">
+        <OverallResults successes="3" failures="0" expectedFailures="0"/>
+      </Section>
+      <OverallResult success="true"/>
+    </TestCase>
+    <TestCase name="Hello controls enforce each framing boundary through real sockets" tags="[pgbuf_inspector][socket]" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="774">
+      <OverallResult success="true"/>
+    </TestCase>
+    <TestCase name="Handshake deadline is inclusive and fragmented input cannot renew it" tags="[pgbuf_inspector][socket]" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="807">
+      <OverallResult success="true"/>
+    </TestCase>
+    <TestCase name="Backpressure bounds queued bytes and reserves a truthful footer" tags="[pgbuf_inspector][socket]" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="838">
+      <OverallResult success="true"/>
+    </TestCase>
+    <TestCase name="Write stall deadline closes at 250 ms without manufacturing a footer" tags="[pgbuf_inspector][socket]" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="905">
+      <OverallResult success="true"/>
+    </TestCase>
+    <TestCase name="An indeterminate backlog-full probe preserves the active socket" tags="[pgbuf_inspector][socket]" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="953">
+      <OverallResult success="true"/>
+    </TestCase>
+    <TestCase name="Real slow draining reaches the whole exchange deadline despite write progress" tags="[pgbuf_inspector][socket]" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="988">
+      <OverallResult success="true"/>
+    </TestCase>
+    <TestCase name="Repeated shutdown closes descriptors and never retries activation" tags="[pgbuf_inspector][socket]" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="1089">
+      <OverallResult success="true"/>
+    </TestCase>
+    <TestCase name="Admission overload leaves both admitted clients usable" tags="[pgbuf_inspector][socket]" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="1117">
+      <OverallResult success="true"/>
+    </TestCase>
+    <TestCase name="Malformed scan controls close without protocol data or manufactured success" tags="[pgbuf_inspector][socket]" filename="/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp" line="1142">
+      <OverallResult success="true"/>
+    </TestCase>
+    <OverallResults successes="4247" failures="0" expectedFailures="0"/>
+  </Group>
+  <OverallResults successes="4247" failures="0" expectedFailures="0"/>
+</Catch>

@@ -1,0 +1,131 @@
+$ cubrid createdb --db-volume-size=20M --log-volume-size=20M -F /home/vimkim/temp/pgbuf-server-le1gktdd inspector02 en_US.utf8
+Creating database with 64.0M size using locale en_US.utf8. The total amount of disk space needed is 104.0M.
+
+CUBRID 11.5.0 (11.5.0.2545) (64 debug build)
+
+$ cubrid server start inspector02
+@ cubrid master start
+++ cubrid master start: success
+@ cubrid server start: inspector02
+
+This may take a long time depending on the amount of recovery works to do.
+
+CUBRID 11.5.0 (11.5.0.2545) (64 debug build)
+
+++ cubrid server start: success
+$ csql -u dba -c select 1; inspector02
+
+=== <Result of SELECT Command in Line 1> ===
+
+            1
+=============
+            1
+
+1 row selected. (0.002000 sec) Committed. (0.000000 sec) 
+$ cubrid server stop inspector02
+@ cubrid server stop: inspector02
+
+Server inspector02 notified of shutdown.
+This may take several minutes. Please wait.
+++ cubrid server stop: success
+$ cubrid server start inspector02
+@ cubrid server start: inspector02
+
+This may take a long time depending on the amount of recovery works to do.
+
+CUBRID 11.5.0 (11.5.0.2545) (64 debug build)
+
+++ cubrid server start: success
+PGBUF_INSPECTOR_READY: /home/vimkim/temp/pgbuf-server-le1gktdd/pgbuf-inspector/e431655c77a9578bcdb8c47eb9bd2705.sock
+$ csql -u dba -c select 1; inspector02
+
+=== <Result of SELECT Command in Line 1> ===
+
+            1
+=============
+            1
+
+1 row selected. (0.002000 sec) Committed. (0.000000 sec) 
+$ cubrid server stop inspector02
+@ cubrid server stop: inspector02
+
+Server inspector02 notified of shutdown.
+This may take several minutes. Please wait.
+++ cubrid server stop: success
+$ cubrid server start inspector02
+@ cubrid server start: inspector02
+
+This may take a long time depending on the amount of recovery works to do.
+
+CUBRID 11.5.0 (11.5.0.2545) (64 debug build)
+
+++ cubrid server start: success
+PGBUF_INSPECTOR_READY: /home/vimkim/temp/pgbuf-server-le1gktdd/pgbuf-inspector/e431655c77a9578bcdb8c47eb9bd2705.sock
+$ csql -u dba -c select 1; inspector02
+
+=== <Result of SELECT Command in Line 1> ===
+
+            1
+=============
+            1
+
+1 row selected. (0.002000 sec) Committed. (0.000000 sec) 
+$ cubrid server stop inspector02
+@ cubrid server stop: inspector02
+
+Server inspector02 notified of shutdown.
+This may take several minutes. Please wait.
+++ cubrid server stop: success
+$ cubrid copydb -F /home/vimkim/temp/pgbuf-server-le1gktdd/copied -E /home/vimkim/temp/pgbuf-server-le1gktdd/copied inspector02 inspector02copy
+$ cubrid server start inspector02copy
+@ cubrid server start: inspector02copy
+
+This may take a long time depending on the amount of recovery works to do.
+
+CUBRID 11.5.0 (11.5.0.2545) (64 debug build)
+
+++ cubrid server start: success
+PGBUF_INSPECTOR_READY: /home/vimkim/temp/pgbuf-server-le1gktdd/pgbuf-inspector/96da71c22553d7eb2b8fc66a771027df.sock
+$ csql -u dba -c select 1; inspector02copy
+
+=== <Result of SELECT Command in Line 1> ===
+
+            1
+=============
+            1
+
+1 row selected. (0.001000 sec) Committed. (0.000000 sec) 
+$ cubrid server stop inspector02copy
+@ cubrid server stop: inspector02copy
+
+Server inspector02copy notified of shutdown.
+This may take several minutes. Please wait.
+++ cubrid server stop: success
+$ cubrid server start inspector02
+@ cubrid server start: inspector02
+
+This may take a long time depending on the amount of recovery works to do.
+
+CUBRID 11.5.0 (11.5.0.2545) (64 debug build)
+
+++ cubrid server start: success
+PGBUF_INSPECTOR_UNAVAILABLE: startup activation failed; unavailable until server restart
+$ csql -u dba -c select 1; inspector02
+
+=== <Result of SELECT Command in Line 1> ===
+
+            1
+=============
+            1
+
+1 row selected. (0.002000 sec) Committed. (0.000000 sec) 
+$ cubrid server stop inspector02
+@ cubrid server stop: inspector02
+
+Server inspector02 notified of shutdown.
+This may take several minutes. Please wait.
+++ cubrid server stop: success
+$ cubrid server stop inspector02
+@ cubrid server stop: inspector02
+++ cubrid server 'inspector02' is not running.
+$ cub_commdb -A

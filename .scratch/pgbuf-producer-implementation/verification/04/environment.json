@@ -1,0 +1,13 @@
+{
+  "kernel": "Linux-5.14.0-570.30.1.el9_6.x86_64-x86_64-with-glibc2.34",
+  "gcc": "gcc (GCC) 11.5.0 20240719 (Red Hat 11.5.0-5)",
+  "cmake": "cmake version 3.26.5",
+  "ss": "ss utility, iproute2-6.11.0",
+  "credential_maps": "         0       1000          1\n         1     100000      65535\n         0       1000          1\n         1     100000      65535\n",
+  "build_types": {
+    "debug": "Debug",
+    "release": "RelWithDebInfo"
+  },
+  "full_suite_socket_root": "/tmp/pgbuf04-suite-fhv7k2t5",
+  "full_suite_mode_execution": "Sequential: existing OOS fixture registry is shared by both build modes."
+}

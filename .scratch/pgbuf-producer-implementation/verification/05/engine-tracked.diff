@@ -1,0 +1,60 @@
+diff --git a/unit_tests/pgbuf_inspector/CMakeLists.txt b/unit_tests/pgbuf_inspector/CMakeLists.txt
+index df83fdd08..a95cb10f7 100644
+--- a/unit_tests/pgbuf_inspector/CMakeLists.txt
++++ b/unit_tests/pgbuf_inspector/CMakeLists.txt
+@@ -69,4 +69,13 @@ pgbuf_inspector_add_executable (pgbuf_inspector_corpus_generator pgbuf_inspector
+ 
+ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+   target_sources(test_pgbuf_inspector PRIVATE test_pgbuf_inspector_socket.cpp test_pgbuf_inspector_scan.cpp ${STORAGE_DIR}/pgbuf_inspector_socket.cpp ${STORAGE_DIR}/pgbuf_inspector_scan.cpp)
++  add_executable(pgbuf_inspector_fixture pgbuf_inspector_fixture.cpp)
++  target_compile_definitions(pgbuf_inspector_fixture PRIVATE ${COMMON_DEFS} SERVER_MODE)
++  target_include_directories(pgbuf_inspector_fixture PRIVATE ${TEST_INCLUDES})
++  target_link_libraries(pgbuf_inspector_fixture PRIVATE ${EP_LIBS} cubrid)
++  find_package(Python3 REQUIRED COMPONENTS Interpreter)
++  add_test(NAME test_pgbuf_inspector_native
++    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/controlled_observation.py
++      --fixture $<TARGET_FILE:pgbuf_inspector_fixture>)
++  set_tests_properties(test_pgbuf_inspector_native PROPERTIES TIMEOUT 120)
+ endif()
+diff --git a/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp b/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp
+index 92aea3f73..b3716987e 100644
+--- a/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp
++++ b/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp
+@@ -1048,20 +1048,25 @@ TEST_CASE ("Real slow draining reaches the whole exchange deadline despite write
+ 	}
+       if (endpoint::clock::now () >= next_read)
+ 	{
+-	  char bytes[4096];
+-	  auto n = recv (fd, bytes, sizeof (bytes), MSG_DONTWAIT);
+-	  REQUIRE (n == sizeof (bytes));
+-	  capture.append (bytes, n);
+-	  int before = 0, after = 0;
+-	  REQUIRE (ioctl (fd, FIONREAD, &before) == 0);
+-	  f.server.poll ();
+-	  REQUIRE (ioctl (fd, FIONREAD, &after) == 0);
+-	  if (after > before)
++	  // Free a kernel send allocation, whose boundary need not match a 4 KiB
++	  // read. Stop at proven write progress so the capture still drains slowly.
++	  bool progressed = false;
++	  for (int reads = 0; reads < 64 && !progressed; ++reads)
+ 	    {
+-	      REQUIRE (endpoint::clock::now () - last_progress < std::chrono::milliseconds (250));
+-	      last_progress = endpoint::clock::now ();
+-	      ++progress_events;
++	      char bytes[256];
++	      auto n = recv (fd, bytes, sizeof (bytes), MSG_DONTWAIT);
++	      REQUIRE (n > 0);
++	      capture.append (bytes, n);
++	      int before = 0, after = 0;
++	      REQUIRE (ioctl (fd, FIONREAD, &before) == 0);
++	      f.server.poll ();
++	      REQUIRE (ioctl (fd, FIONREAD, &after) == 0);
++	      progressed = after > before;
+ 	    }
++	  REQUIRE (progressed);
++	  REQUIRE (endpoint::clock::now () - last_progress < std::chrono::milliseconds (250));
++	  last_progress = endpoint::clock::now ();
++	  ++progress_events;
+ 	  next_read += std::chrono::milliseconds (140);
+ 	}
+       std::this_thread::sleep_for (std::chrono::milliseconds (1));

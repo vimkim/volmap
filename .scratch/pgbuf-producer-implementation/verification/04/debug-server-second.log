@@ -1,0 +1,17 @@
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: debug_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/debug_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc
+Evidence directory: /home/vimkim/temp/pgbuf-server-gnqhm7zx
+PASS default-off server serves SQL without inspector directory
+PASS real resident scan {"type": "scan_footer", "incarnation": "01489a1a441f7ef3cc96236be8c9c572", "scan_seq": "1", "end_time_us": "1788945026180093", "record_count": 58, "visited_slots": 4096, "truncated": false} framed_bytes 22786
+PASS enabled identity matches physical persistent volume {"type": "server_hello", "protocol_major": 1, "protocol_minor": 0, "incarnation": "01489a1a441f7ef3cc96236be8c9c572", "database_creation": "1788945017", "volumes": [{"volid": 0, "volume_creation": "1788945017", "device": "64770", "inode": "3241132825"}, {"volid": 1, "volume_creation": "1788945018", "device": "64770", "inode": "3241132827"}], "shared_lru_count": 4, "private_lru_count": 152}
+PASS committed SQL while stalled scan and two-client admission overload {"baseline_bytes": 137713, "baseline_records": 378, "busy_refusals": 13, "committed_workers": 1, "overlap_seconds": 0.06955984397791326}
+PASS real resident scan {"type": "scan_footer", "incarnation": "0b7ceae63dee6daa0876ed3ca39f2cbc", "scan_seq": "1", "end_time_us": "1788945030088046", "record_count": 58, "visited_slots": 4096, "truncated": false} framed_bytes 22786
+PASS restart changes incarnation and preserves persistent identity
+PASS shutdown preserves socket pathname replacement
+PASS real resident scan {"type": "scan_footer", "incarnation": "5e81029b6e3c744a75914979a15ac1be", "scan_seq": "1", "end_time_us": "1788945034455966", "record_count": 58, "visited_slots": 4096, "truncated": false} framed_bytes 21300
+PASS copied database has distinct physical identity
+PASS activation failure preserves conflicting entry and SQL service
+PASS removed conflict does not trigger a background activation retry

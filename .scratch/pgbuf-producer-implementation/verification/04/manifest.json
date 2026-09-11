@@ -1,0 +1,398 @@
+{
+  "ticket": "04-prove-overload-and-lifecycle-isolation",
+  "source_commit": "e5f3cdf86908b8d23d4e09d28d22265bf240f7ad",
+  "tested_tree": "7d37bcca5b7df5bb43805d3c0d49b05a3b277bb3",
+  "reviewed_tree": "7d37bcca5b7df5bb43805d3c0d49b05a3b277bb3",
+  "baseline": "3ae2404dc7832243ca9be7dc160768222d0594b4",
+  "contract": {
+    "contract_version": "1.0",
+    "corpus_revision": 2,
+    "corpus_sha256": "11dbecc72e4b9dd78e22080f138c801c189c7e047c0db23af8233f44a804d5ce"
+  },
+  "environment": {
+    "kernel": "Linux-5.14.0-570.30.1.el9_6.x86_64-x86_64-with-glibc2.34",
+    "gcc": "gcc (GCC) 11.5.0 20240719 (Red Hat 11.5.0-5)",
+    "cmake": "cmake version 3.26.5",
+    "ss": "ss utility, iproute2-6.11.0",
+    "credential_maps": "         0       1000          1\n         1     100000      65535\n         0       1000          1\n         1     100000      65535\n",
+    "build_types": {
+      "debug": "Debug",
+      "release": "RelWithDebInfo"
+    },
+    "full_suite_socket_root": "/tmp/pgbuf04-suite-fhv7k2t5",
+    "full_suite_mode_execution": "Sequential: existing OOS fixture registry is shared by both build modes."
+  },
+  "modes": {
+    "debug": {
+      "ctest_passed": 27,
+      "ctest_failed": 0,
+      "inspector_cases": 61,
+      "inspector_assertions": 382651,
+      "credential_cases": 4,
+      "credential_assertions": 41,
+      "socket_cases": 28,
+      "socket_case_names": [
+        "Private attachment negotiates identity and removes its socket",
+        "Unavailable paths preserve entries and cannot be retried",
+        "Shutdown preserves a replacement socket",
+        "Negotiation refuses unsupported versions and previous incarnations",
+        "Two attachments bound admission and idle greetings expire",
+        "Controls cannot exceed their frame or nesting budgets",
+        "A scan request cannot fabricate complete absence",
+        "Only refused stale sockets are reclaimed and active listeners survive",
+        "A client that never drains a large handshake is disconnected after write stall",
+        "Metadata preparation cannot extend the attachment deadline",
+        "Identity proof is complete or refused by encoded bytes",
+        "The scan floor applies across both clients and preserves increasing sequences",
+        "Socket captures publish only after valid footer and preserve duplicate ambiguity",
+        "A scan cancels sampling on disconnect and shutdown",
+        "Stalled scan output is cancelled without a successful footer",
+        "The whole exchange deadline is rechecked before writing",
+        "Scan requests validate additive fields within frame and nesting limits",
+        "Premature requests are rejected while the completed traversal still drains",
+        "Fragmented controls and coalesced premature requests use production framing",
+        "Hello controls enforce each framing boundary through real sockets",
+        "Handshake deadline is inclusive and fragmented input cannot renew it",
+        "Backpressure bounds queued bytes and reserves a truthful footer",
+        "Write stall deadline closes at 250 ms without manufacturing a footer",
+        "An indeterminate backlog-full probe preserves the active socket",
+        "Real slow draining reaches the whole exchange deadline despite write progress",
+        "Repeated shutdown closes descriptors and never retries activation",
+        "Admission overload leaves both admitted clients usable",
+        "Malformed scan controls close without protocol data or manufactured success"
+      ],
+      "server_checks": 11,
+      "isolation": {
+        "baseline_bytes": 138423,
+        "baseline_records": 380,
+        "stalled_clients": 2,
+        "busy_refusals": 14,
+        "committed_workers": 1,
+        "overlap_seconds": 0.2005960289388895,
+        "saturation_before": [
+          {
+            "send_queue": 9728,
+            "charged": 9728,
+            "budget": 8192
+          },
+          {
+            "send_queue": 9216,
+            "charged": 9216,
+            "budget": 8192
+          }
+        ],
+        "saturation_after": [
+          {
+            "send_queue": 9728,
+            "charged": 9728,
+            "budget": 8192
+          },
+          {
+            "send_queue": 9216,
+            "charged": 9216,
+            "budget": 8192
+          }
+        ]
+      },
+      "logs": {
+        "suite": "/home/vimkim/temp/volmap/.scratch/pgbuf-producer-implementation/verification/04/debug-suite-verified.log",
+        "credentials": "/home/vimkim/temp/volmap/.scratch/pgbuf-producer-implementation/verification/04/debug-credentials-final.log",
+        "sockets": "/home/vimkim/temp/volmap/.scratch/pgbuf-producer-implementation/verification/04/debug-sockets-final.xml",
+        "server": "/home/vimkim/temp/volmap/.scratch/pgbuf-producer-implementation/verification/04/debug-server-verified.log"
+      },
+      "binary_sha256": {
+        "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc/bin/cub_server": "6200ee9f63f9bd86a2702496ae7f927c2283f85c8c2b8204592c6b737a973890",
+        "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc/bin/test_pgbuf_inspector": "3e3120975549db818c7892c69aefc4a6e4a1e495182e34808944b54376b65666"
+      },
+      "commands": [
+        "CUBRID_TMP=/tmp/pgbuf04-suite-fhv7k2t5 ctest --test-dir build_preset_debug_gcc --output-on-failure --verbose",
+        "build_preset_debug_gcc/bin/test_pgbuf_inspector \"[socket]~[.credential]\" -r xml --durations yes",
+        "unshare --map-auto --map-root-user build_preset_debug_gcc/bin/test_pgbuf_inspector \"[.credential]\"",
+        "TMPDIR=/home/vimkim/temp python3 unit_tests/pgbuf_inspector/server_attachment.py --scan --isolation (selected installed build environment)"
+      ]
+    },
+    "release": {
+      "ctest_passed": 27,
+      "ctest_failed": 0,
+      "inspector_cases": 61,
+      "inspector_assertions": 382667,
+      "credential_cases": 4,
+      "credential_assertions": 41,
+      "socket_cases": 28,
+      "socket_case_names": [
+        "Private attachment negotiates identity and removes its socket",
+        "Unavailable paths preserve entries and cannot be retried",
+        "Shutdown preserves a replacement socket",
+        "Negotiation refuses unsupported versions and previous incarnations",
+        "Two attachments bound admission and idle greetings expire",
+        "Controls cannot exceed their frame or nesting budgets",
+        "A scan request cannot fabricate complete absence",
+        "Only refused stale sockets are reclaimed and active listeners survive",
+        "A client that never drains a large handshake is disconnected after write stall",
+        "Metadata preparation cannot extend the attachment deadline",
+        "Identity proof is complete or refused by encoded bytes",
+        "The scan floor applies across both clients and preserves increasing sequences",
+        "Socket captures publish only after valid footer and preserve duplicate ambiguity",
+        "A scan cancels sampling on disconnect and shutdown",
+        "Stalled scan output is cancelled without a successful footer",
+        "The whole exchange deadline is rechecked before writing",
+        "Scan requests validate additive fields within frame and nesting limits",
+        "Premature requests are rejected while the completed traversal still drains",
+        "Fragmented controls and coalesced premature requests use production framing",
+        "Hello controls enforce each framing boundary through real sockets",
+        "Handshake deadline is inclusive and fragmented input cannot renew it",
+        "Backpressure bounds queued bytes and reserves a truthful footer",
+        "Write stall deadline closes at 250 ms without manufacturing a footer",
+        "An indeterminate backlog-full probe preserves the active socket",
+        "Real slow draining reaches the whole exchange deadline despite write progress",
+        "Repeated shutdown closes descriptors and never retries activation",
+        "Admission overload leaves both admitted clients usable",
+        "Malformed scan controls close without protocol data or manufactured success"
+      ],
+      "server_checks": 11,
+      "isolation": {
+        "baseline_bytes": 215078,
+        "baseline_records": 596,
+        "stalled_clients": 2,
+        "busy_refusals": 6,
+        "committed_workers": 1,
+        "overlap_seconds": 0.15878839301876724,
+        "saturation_before": [
+          {
+            "send_queue": 9728,
+            "charged": 9728,
+            "budget": 8192
+          },
+          {
+            "send_queue": 9728,
+            "charged": 9728,
+            "budget": 8192
+          }
+        ],
+        "saturation_after": [
+          {
+            "send_queue": 9728,
+            "charged": 9728,
+            "budget": 8192
+          },
+          {
+            "send_queue": 9728,
+            "charged": 9728,
+            "budget": 8192
+          }
+        ]
+      },
+      "logs": {
+        "suite": "/home/vimkim/temp/volmap/.scratch/pgbuf-producer-implementation/verification/04/release-suite-verified.log",
+        "credentials": "/home/vimkim/temp/volmap/.scratch/pgbuf-producer-implementation/verification/04/release-credentials.log",
+        "sockets": "/home/vimkim/temp/volmap/.scratch/pgbuf-producer-implementation/verification/04/release-sockets.xml",
+        "server": "/home/vimkim/temp/volmap/.scratch/pgbuf-producer-implementation/verification/04/release-server-final.log"
+      },
+      "binary_sha256": {
+        "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/bin/cub_server": "281cba8ab6d16431adff6a87918bf7bd9fb00d7ebc84c09ad9228095be4eca26",
+        "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/bin/test_pgbuf_inspector": "73825dd5ab82aa64177c0a3d6846b1655b90877628fe92bce4075715a3113ad0"
+      },
+      "commands": [
+        "CUBRID_TMP=/tmp/pgbuf04-suite-fhv7k2t5 ctest --test-dir build_preset_release_gcc --output-on-failure --verbose",
+        "build_preset_release_gcc/bin/test_pgbuf_inspector \"[socket]~[.credential]\" -r xml --durations yes",
+        "unshare --map-auto --map-root-user build_preset_release_gcc/bin/test_pgbuf_inspector \"[.credential]\"",
+        "TMPDIR=/home/vimkim/temp python3 unit_tests/pgbuf_inspector/server_attachment.py --scan --isolation (selected installed build environment)"
+      ]
+    }
+  },
+  "consumer_commit": null,
+  "external_testcase_revision": null,
+  "scope": "Producer ticket 04 on the format-aligned branch; no engine source changes in this ticket.",
+  "reviews": {
+    "baseline": "3ae2404dc7832243ca9be7dc160768222d0594b4",
+    "reviewed_commit": "e5f3cdf86908b8d23d4e09d28d22265bf240f7ad",
+    "standards": {
+      "remaining": 0,
+      "resolved": [
+        "Scoped client descriptor ownership on fatal assertion failures."
+      ]
+    },
+    "spec": {
+      "remaining": 0,
+      "resolved": [
+        "Prove both current server send queues are saturated before and after SQL using kernel diagnostics."
+      ]
+    }
+  },
+  "earlier_attempts": [
+    {
+      "log": "socket-first.log",
+      "status": "failed-precondition",
+      "reason": "Broad [socket] filter included hidden credential case without UID isolation; corrected filter and separate isolated run."
+    },
+    {
+      "log": "debug-server-first.log",
+      "status": "inconclusive",
+      "reason": "String-compressed SQL fixture did not saturate output; explicit uncompressed disposable fixture established large capture."
+    },
+    {
+      "log": "release-server-first.log",
+      "status": "inconclusive",
+      "reason": "Socket-diagnostic output column parsing did not identify two sockets; corrected from actual ss output."
+    },
+    {
+      "log": "release-suite.log",
+      "status": "build-not-started",
+      "reason": "Local installer refused replacement while this task real-server harness was running; retried after harness cleanup."
+    },
+    {
+      "log": "release-suite-final.log",
+      "status": "failed-and-terminated",
+      "reason": "Long default PL socket path caused Java startup failure; terminated this task CTest and child, reran with short CUBRID_TMP."
+    },
+    {
+      "log": "debug-suite-final.log",
+      "status": "failed-environment",
+      "reason": "Concurrent mode suites share the OOS unittestdb fixture; serialized reruns avoid DB contention."
+    }
+  ],
+  "limitations": [
+    "Native no-wait argument is source audit of trylock/unlock plus sampling/cancellation tests and real SQL/shutdown; no controlled native held-mutex experiment claimed.",
+    "Queue test accounts pending wire bytes separately from kernel send memory; it is not allocator/RSS/performance evidence.",
+    "External shell repository, develop port, consumer integration, controlled dirty/eviction and dedicated-host release performance remain their owning later gates.",
+    "Binaries were built before the final commit amendment; final source content matches the tested/reviewed tree. Binary hashes are recorded independently."
+  ],
+  "requirements": [
+    {
+      "requirement": "Two admitted clients and excess demand",
+      "evidence": "`Admission overload leaves both admitted clients usable` checks 128 refusals and subsequent scans on both clients; installed-server isolation records refusals during committed SQL",
+      "owner": "CUBRID producer",
+      "result": "passed-debug-and-release"
+    },
+    {
+      "requirement": "Global 100 ms floor",
+      "evidence": "`The scan floor applies across both clients and preserves increasing sequences`: 99,999 / 100,000 / 100,001 microseconds; installed server also uses sequential accepted scans",
+      "owner": "CUBRID producer",
+      "result": "passed-debug-and-release"
+    },
+    {
+      "requirement": "Fragmentation, coalescing, malformed requests and EOF",
+      "evidence": "`Fragmented controls...`, `Malformed scan controls...`, `Controls cannot exceed...`, negotiation and premature-request cases; coalesced requests violate the sequential request contract and close without starting a scan",
+      "owner": "CUBRID producer",
+      "result": "passed-debug-and-release"
+    },
+    {
+      "requirement": "4 KiB frames, 64 KiB handshake, depth 16",
+      "evidence": "Socket hello and scan boundary cases plus `Frame and depth limits hold below at and above their boundaries`; complete identity or explicit refusal is exercised over real I/O",
+      "owner": "CUBRID producer",
+      "result": "passed-debug-and-release"
+    },
+    {
+      "requirement": "65,536 records/slots, 64 MiB scan and 100 ms traversal",
+      "evidence": "Deterministic scan and wire boundary cases at limit minus one, limit, limit plus one; lower scan-byte budgets isolate footer reservation since ordinary scalar frames do not reach 64 MiB before the record cap",
+      "owner": "CUBRID producer",
+      "result": "passed-debug-and-release"
+    },
+    {
+      "requirement": "64 KiB output and footer under backpressure",
+      "evidence": "`Backpressure bounds queued bytes and reserves a truthful footer` establishes sampling saturation, accounts generated wire bytes minus bytes in the kernel, then drains a validated partial footer without additional samples",
+      "owner": "CUBRID producer",
+      "result": "passed-debug-and-release"
+    },
+    {
+      "requirement": "250 ms write stall",
+      "evidence": "Real stalled handshake/scan tests plus `Write stall deadline...` at 249,999 / 250,000 / 250,001 microseconds; incomplete bytes never publish a capture",
+      "owner": "CUBRID producer",
+      "result": "passed-debug-and-release"
+    },
+    {
+      "requirement": "500 ms handshake",
+      "evidence": "Real idle greeting expiration and delayed metadata tests, plus `Handshake deadline...` at 499,999 / 500,000 / 500,001 microseconds; incoming fragments cannot reset the deadline",
+      "owner": "CUBRID producer",
+      "result": "passed-debug-and-release"
+    },
+    {
+      "requirement": "2 s whole exchange",
+      "evidence": "Deterministic before-write checks at 1,999,999 / 2,000,000 / 2,000,001 microseconds; `Real slow draining...` establishes saturation before 100 ms and observes at least ten real write-progress events with gaps below 250 ms, then closure at 2 s without publication",
+      "owner": "CUBRID producer",
+      "result": "passed-debug-and-release"
+    },
+    {
+      "requirement": "Disconnect and shutdown cancellation",
+      "evidence": "Sampling stops after disconnect/shutdown; repeated lifecycle tests check peer EOF, bounded stop and unchanged descriptor count; real shutdown closes both stalled exchanges and removes its own socket",
+      "owner": "CUBRID producer",
+      "result": "passed-debug-and-release"
+    },
+    {
+      "requirement": "Exact UID, no root/group exceptions",
+      "evidence": "Explicit credential suite requires two mapped UIDs; the different-UID child retains the server group; root connecting to a non-root endpoint is refused before data exchange",
+      "owner": "CUBRID producer",
+      "result": "passed-debug-and-release"
+    },
+    {
+      "requirement": "Filesystem safety",
+      "evidence": "Unsafe directory modes, symlinks, regular files, wrong-owner sockets/directories, active sockets, confirmed stale sockets and backlog-full `EAGAIN` probes; checked identities remain preserved",
+      "owner": "CUBRID producer",
+      "result": "passed-debug-and-release"
+    },
+    {
+      "requirement": "Replacement, failed activation, restart",
+      "evidence": "Endpoint and installed-server pathname replacement; SQL remains usable after failed activation and after removing the conflict without rebinding; restart changes incarnation, retains persistent identity and refuses an old expectation",
+      "owner": "CUBRID producer",
+      "result": "passed-debug-and-release"
+    },
+    {
+      "requirement": "Sanitization and capture validity",
+      "evidence": "Canonical wire corpus rejects malformed/count/sequence/incarnation/EOF captures; actual scan framing is validated before publication; stable refusals carry no paths or OS error text",
+      "owner": "CUBRID producer",
+      "result": "passed-debug-and-release"
+    }
+  ],
+  "artifact_sha256": {
+    "case-names.txt": "4fd2308ec05470276942628f3bb256f11c973fc7e48bb4298c15200df01b1548",
+    "collect_evidence.py": "c5ffc4e67a8bdcd65bb118947568dc33aa2b599636a98d0434f93704c347cdd7",
+    "commit-final.log": "ed814816eb49bb087c243048a0b301a318a42949ff73d13e7fcca03c179c5a82",
+    "commit.log": "31be8b13e16931321582eaec5fb1ff5778a57784b075f662242e0a7af0a87d35",
+    "debug-build.log": "642cc4cccfc9d13d38a2415a93a540f988fbf3db7920cc2c84fb49734c41a9a5",
+    "debug-build2.log": "03ce2b08f7de8e9d47a3930f15460ec2000edcd3262bb0a8eaf89c8a693b57e6",
+    "debug-credentials-final.log": "422904d1c2880cf7a4e9ee0c41a37da3e85705b49b3d90f8e7b5374594e0832c",
+    "debug-credentials-first.log": "d5d8d51c25f999211beea05826ebc1636710722b21f84df109712d5f050ad714",
+    "debug-credentials.log": "422904d1c2880cf7a4e9ee0c41a37da3e85705b49b3d90f8e7b5374594e0832c",
+    "debug-final-build.log": "ea2c4fbbe6e62423a8fdcb17f61037903b7be4749b91c8e70ca7848569b7b590",
+    "debug-review-bootstrap.log": "7a4a6dfedbdae48190ea881d326a9d30a69d76eb0ee850c94061c92da3659fb4",
+    "debug-server-artifacts/02935ab83ca7b2fb34d0682bb0c5c998-scan.json": "18dfec7509ea47dffec5901405f760c0df37809468043afb2a3cf715d27a8a21",
+    "debug-server-artifacts/27f7ee6530cbc7a508feffbc9159da5d-scan.json": "27add36a8d701261a16c832f9c671f4bfe5d96ce91ef2b9c41dc2ec214d6aa0c",
+    "debug-server-artifacts/beddc244e2cc0d02f4cc1031d487ed83-scan.json": "5de7973696298e45a548190535a175640d716afacedea51c8564b5d41214bf2a",
+    "debug-server-artifacts/commands.log": "6572f98fc71daa7c465bc8b69633f2cc3f52dc9d72eccc35b0fe7756ca22f8ca",
+    "debug-server-artifacts/cubrid.conf": "88fdc76df64dd2cdcb27534373ec2e47d83482bf3f01a7f6fbd2296083089434",
+    "debug-server-artifacts/isolation-worker.log": "c3493a1cff29214a04888be65a9804296ef1c37a1b832442e68994912b7fb1d9",
+    "debug-server-artifacts/isolation.json": "3647f5b65cde5fd0d317d26cea278e0d33535cf57fc7bb8e60e6024756d83a0c",
+    "debug-server-final.log": "832ce330872d1bc0203f724fb90930ca0edf7dc6976056ffd518ca326066d630",
+    "debug-server-first.log": "1d7b2439c9ed5d5b7df8a4f5cab4646d2b0186876abf0cb1cb7a801f978a186b",
+    "debug-server-second.log": "61ca0a711cb3a5a6fef68bd7124bc2e769dc525702aa875756f75a24b0615299",
+    "debug-server-verified.log": "0575d24ab9bd9c32e38db69ffdb0c6acde5b47b79ccb1ab091eb9a19dc614a87",
+    "debug-server.log": "6742cfa3f6d76dd22f6e6682409846914b915225537afed7e7ec425bcc8f34b4",
+    "debug-sockets-final.xml": "28ac2e0ec180ad7e60460a5fdbd6b94da5e209cb7f9e93cecba9252eb52da875",
+    "debug-sockets.xml": "4e65216ab0d3c00b36ae42be15ec0acac1c80092d697c2da66aaaf55cf9d04f4",
+    "debug-suite-final.log": "df906dcad8f718f6cd098c02314f2efe00362fda9d96a3e902ad4d655fbf7b68",
+    "debug-suite-verified.log": "12c1e2404b322da870f634c39bdfa96b3c8831a315c2d82b410586770f8c7a9a",
+    "debug-suite.log": "728a32d4dfc3eb53966b9d078cff32734ebafd93b9318612656e3d6ce663283b",
+    "environment.json": "6002c96b0cb0128513bf51987eb8792c23813df521523f7c9da47402a8dc2f5c",
+    "release-bootstrap.log": "b8ce37945fedf50881a2b62bcd543193035a4d4f7c028c29e3b93a5f419991f0",
+    "release-credentials.log": "422904d1c2880cf7a4e9ee0c41a37da3e85705b49b3d90f8e7b5374594e0832c",
+    "release-review-build.log": "d8138df7e8bc4ac03e4a2016a8abe48ca01397620c9717af0ffc087cd3141a52",
+    "release-server-artifacts/25081f1c72bd11b2fe9d4f5a89495f4b-scan.json": "accf1886c64e995d3039bbfbd4807657f9b5eb6bd23ce1243fc9cdaf1f97d66a",
+    "release-server-artifacts/36f85144812053c92b5f182646f151f8-scan.json": "41d5cd4b3cd299012bbf03f60345b91630f1cb3c4e057f84885aa40a4deb020b",
+    "release-server-artifacts/commands.log": "f3b5208b153d3906ad2b33541b07e539499f73e5ca535f2a949988b8a5a2bb54",
+    "release-server-artifacts/cubrid.conf": "b33b76a31b2cef01f58559e736f260c0e89d90e17db9c83ad1e6da484b25ed12",
+    "release-server-artifacts/d385c43246e4bd8566314c04b3cbfe94-scan.json": "0ee9093083502b850c132bea2b708950472d67255754592357dbfdd580fa3749",
+    "release-server-artifacts/isolation-worker.log": "01d444ee5f0805571eb48e549c3aee2f1c2828dedadd54d10a32cb2124a71d57",
+    "release-server-artifacts/isolation.json": "130d6feec87d92eb531319327f0d22e1071a20ec0e55ad96b79486d0fa3e9aaf",
+    "release-server-final.log": "20906f6e61352aab563272a50319a7142c3c1abb9c3d0dc5111ecedeeda28ceb",
+    "release-server-first.log": "b88ff270933eed9683f4e1c9230b2c7c3573e2250700d457efe9e4a837dd2ac4",
+    "release-sockets.log": "e0a8f5d2c4ebb8e2d7b5d0f2453445633a4796b656a601c9e2f3f93ffbd439e8",
+    "release-sockets.xml": "9fed1a621c69464bba86217fb5f295b74c8c20bb3cfb4ccba597249b32040149",
+    "release-suite-final.log": "2aa51cf5af839554a0d032de71d033bbff912736fabdbef88753206a3bf6f5ac",
+    "release-suite-verified.log": "7fb8ce130b1e160682e3048313c4a959a7cc827660ce1dba24bbf1c57e00f603",
+    "release-suite.log": "2dfc7346f8854b9898b8153d00d5df917faf7c58d47d8033802da2756924316a",
+    "review.json": "415681eeea561df86b1a3ab34339b810f0ecdc5783c18ba5df49c152fa8af60a",
+    "socket-first.log": "8e2b135be9cd4b6bab18bdb3c9efd5a4182a0883aad9793ff5eff01e48debf3d",
+    "socket-second.log": "ac20166cae7f81a3b003f235c3fd36c5ff354b09d02e6a177af91b5a25111d01",
+    "suite-socket-root.txt": "8e8a1ee63e77d4bfc4b5572e9434effc8aa67c78f35d7d2f0efe22a556f51c0a"
+  }
+}

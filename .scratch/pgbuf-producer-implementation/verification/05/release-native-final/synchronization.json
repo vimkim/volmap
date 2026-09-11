@@ -1,0 +1,142 @@
+[
+  {
+    "command": "boot",
+    "ack": {
+      "state": "clean-held",
+      "volid": 32766,
+      "pageid": 65
+    },
+    "monotonic": 1673115.430682856,
+    "elapsed": 1.0381535519845784
+  },
+  {
+    "command": "held",
+    "ack": {
+      "state": "held",
+      "volid": 32766,
+      "pageid": 65
+    },
+    "monotonic": 1673115.434329535,
+    "elapsed": 6.522610783576965e-05
+  },
+  {
+    "command": "held",
+    "ack": {
+      "state": "held",
+      "volid": 32766,
+      "pageid": 65
+    },
+    "monotonic": 1673115.449898454,
+    "elapsed": 3.588991239666939e-05
+  },
+  {
+    "command": "dirty",
+    "ack": {
+      "state": "dirty-held",
+      "volid": 32766,
+      "pageid": 65
+    },
+    "monotonic": 1673115.450113675,
+    "elapsed": 3.452319651842117e-05
+  },
+  {
+    "command": "held",
+    "ack": {
+      "state": "held",
+      "volid": 32766,
+      "pageid": 65
+    },
+    "monotonic": 1673115.556160402,
+    "elapsed": 0.0001235229428857565
+  },
+  {
+    "command": "populate",
+    "ack": {
+      "state": "populated",
+      "volid": 32766,
+      "pageid": 65
+    },
+    "monotonic": 1673115.556853507,
+    "elapsed": 0.000415898859500885
+  },
+  {
+    "command": "held",
+    "ack": {
+      "state": "held",
+      "volid": 32766,
+      "pageid": 65
+    },
+    "monotonic": 1673115.557057051,
+    "elapsed": 6.001000292599201e-05
+  },
+  {
+    "command": "held",
+    "ack": {
+      "state": "held",
+      "volid": 32766,
+      "pageid": 65
+    },
+    "monotonic": 1673115.844519077,
+    "elapsed": 5.425186827778816e-05
+  },
+  {
+    "command": "evict",
+    "ack": {
+      "state": "evicted",
+      "volid": 32766,
+      "pageid": 65
+    },
+    "monotonic": 1673115.894774901,
+    "elapsed": 0.05001362692564726
+  },
+  {
+    "command": "absent",
+    "ack": {
+      "state": "absent",
+      "volid": 32766,
+      "pageid": 65
+    },
+    "monotonic": 1673115.895180861,
+    "elapsed": 6.77681528031826e-05
+  },
+  {
+    "command": "absent",
+    "ack": {
+      "state": "absent",
+      "volid": 32766,
+      "pageid": 65
+    },
+    "monotonic": 1673115.901459343,
+    "elapsed": 0.00010358612053096294
+  },
+  {
+    "command": "populate",
+    "ack": {
+      "state": "populated",
+      "volid": 32766,
+      "pageid": 65
+    },
+    "monotonic": 1673115.901994011,
+    "elapsed": 0.000261557986959815
+  },
+  {
+    "command": "absent",
+    "ack": {
+      "state": "absent",
+      "volid": 32766,
+      "pageid": 65
+    },
+    "monotonic": 1673115.902176631,
+    "elapsed": 4.5130960643291473e-05
+  },
+  {
+    "command": "absent",
+    "ack": {
+      "state": "absent",
+      "volid": 32766,
+      "pageid": 65
+    },
+    "monotonic": 1673116.198698737,
+    "elapsed": 6.39711506664753e-05
+  }
+]

@@ -1,0 +1,32 @@
+{
+  "baseline_bytes": 215078,
+  "baseline_records": 596,
+  "stalled_clients": 2,
+  "busy_refusals": 6,
+  "committed_workers": 1,
+  "overlap_seconds": 0.15878839301876724,
+  "saturation_before": [
+    {
+      "send_queue": 9728,
+      "charged": 9728,
+      "budget": 8192
+    },
+    {
+      "send_queue": 9728,
+      "charged": 9728,
+      "budget": 8192
+    }
+  ],
+  "saturation_after": [
+    {
+      "send_queue": 9728,
+      "charged": 9728,
+      "budget": 8192
+    },
+    {
+      "send_queue": 9728,
+      "charged": 9728,
+      "budget": 8192
+    }
+  ]
+}

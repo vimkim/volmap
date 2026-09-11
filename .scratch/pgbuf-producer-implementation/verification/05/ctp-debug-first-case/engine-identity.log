@@ -1,0 +1,21 @@
++ printf 'CUBRID=%s\nfixture=%s\nhelpers=%s\n' /mnt/install /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc/bin/pgbuf_inspector_fixture /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector
+CUBRID=/mnt/install
+fixture=/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc/bin/pgbuf_inspector_fixture
+helpers=/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector
++ command -v cubrid
+/mnt/CTP/shell/init_path/cubrid
++ cubrid_rel
+
+CUBRID 11.5.0 (11.5.0.2545-e5f3cdf) (64bit debug build for Linux) (Sep  9 2026 18:38:21)
+
++ sha256sum /mnt/install/bin/cub_server /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc/bin/pgbuf_inspector_fixture
+2baa59f72cea19ac6fae73a3fe92eb8d5c61eea01129790aa56856b244ef4b81  /mnt/install/bin/cub_server
+7a54a92e9dd04cafe1d59eadcbfecd7c20314db9dbb6e7af8399edf01403e808  /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc/bin/pgbuf_inspector_fixture
++ ldd /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc/bin/pgbuf_inspector_fixture
+	linux-vdso.so.1 (0x00007ffd86fbc000)
+	libcubrid.so.11.5 => /mnt/install/lib/libcubrid.so.11.5 (0x00007f07d1a00000)
+	libcascci.so.11.2 => /mnt/install/lib/libcascci.so.11.2 (0x00007f07d1400000)
+	libm.so.6 => /lib64/libm.so.6 (0x00007f07d32ac000)
+	libgcc_s.so.1 => /lib64/libgcc_s.so.1 (0x00007f07d3292000)
+	libc.so.6 => /lib64/libc.so.6 (0x00007f07d1000000)
+	/lib64/ld-linux-x86-64.so.2 (0x00007f07d33a1000)

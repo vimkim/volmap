@@ -1,0 +1,14 @@
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: debug_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/debug_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc
+Evidence directory: /home/vimkim/temp/pgbuf-server-lwphjnsn
+PASS default-off server serves SQL without inspector directory
+PASS real resident scan {"type": "scan_footer", "incarnation": "c0f8a55a29681ad319ecf1d4f19ae4e1", "scan_seq": "1", "end_time_us": "1788943859855440", "record_count": 58, "visited_slots": 4096, "truncated": false} framed_bytes 22786
+PASS enabled identity matches physical persistent volume {"type": "server_hello", "protocol_major": 1, "protocol_minor": 0, "incarnation": "c0f8a55a29681ad319ecf1d4f19ae4e1", "database_creation": "1788943851", "volumes": [{"volid": 0, "volume_creation": "1788943851", "device": "64770", "inode": "4301799021"}, {"volid": 1, "volume_creation": "1788943852", "device": "64770", "inode": "4301799022"}], "shared_lru_count": 4, "private_lru_count": 152}
+PASS real resident scan {"type": "scan_footer", "incarnation": "9b437c943d5c2309adaa98b5bd7530d4", "scan_seq": "1", "end_time_us": "1788943863101847", "record_count": 58, "visited_slots": 4096, "truncated": false} framed_bytes 22786
+PASS restart changes incarnation and preserves persistent identity
+PASS real resident scan {"type": "scan_footer", "incarnation": "3ec6f35d26917856128a9f0e53131d95", "scan_seq": "1", "end_time_us": "1788943867464123", "record_count": 58, "visited_slots": 4096, "truncated": false} framed_bytes 21300
+PASS copied database has distinct physical identity
+PASS activation failure preserves conflicting entry and SQL service

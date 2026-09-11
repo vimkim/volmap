@@ -1,0 +1,16 @@
+PGBUF_INSPECTOR_READY: /home/vimkim/temp/pgbuf-native-nd_59lvt/pgbuf-inspector/92e26cddb761eb2603aee792f9237f4f.sock
+PGFIXTURE {"state":"clean-held","volid":32766,"pageid":65}
+PGFIXTURE {"state":"held","volid":32766,"pageid":65}
+PGFIXTURE {"state":"held","volid":32766,"pageid":65}
+PGFIXTURE {"state":"dirty-held","volid":32766,"pageid":65}
+PGFIXTURE {"state":"held","volid":32766,"pageid":65}
+PGFIXTURE {"state":"populated","volid":32766,"pageid":65}
+PGFIXTURE {"state":"held","volid":32766,"pageid":65}
+PGFIXTURE {"state":"held","volid":32766,"pageid":65}
+native replacement: allocated=4096, cache-only target miss before workload cleanup
+PGFIXTURE {"state":"evicted","volid":32766,"pageid":65}
+PGFIXTURE {"state":"absent","volid":32766,"pageid":65}
+PGFIXTURE {"state":"absent","volid":32766,"pageid":65}
+PGFIXTURE {"state":"populated","volid":32766,"pageid":65}
+PGFIXTURE {"state":"absent","volid":32766,"pageid":65}
+PGFIXTURE {"state":"absent","volid":32766,"pageid":65}

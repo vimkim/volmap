@@ -1,0 +1,11 @@
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: release_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+Evidence directory: /tmp/pgbuf-server-zexwlc24
+PASS default-off server serves SQL without inspector directory
+PASS enabled identity matches physical persistent volume {"type": "server_hello", "protocol_major": 1, "protocol_minor": 0, "incarnation": "e43cb033f1455af2bd82f1bc8ca3c1e4", "database_creation": "1788937421", "volumes": [{"volid": 0, "volume_creation": "1788937422", "device": "64768", "inode": "68653946"}, {"volid": 1, "volume_creation": "1788937423", "device": "64768", "inode": "68653948"}], "shared_lru_count": 4, "private_lru_count": 152}
+PASS restart changes incarnation and preserves persistent identity
+PASS copied database has distinct physical identity
+PASS activation failure preserves conflicting entry and SQL service

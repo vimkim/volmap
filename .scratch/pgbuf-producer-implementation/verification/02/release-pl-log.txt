@@ -1,0 +1,54 @@
+Sep 09, 2026 4:04:04 PM com.cubrid.jsp.LoggingThread run
+SEVERE: java.net.SocketException: sockname too long
+	at org.newsclub.net.unix.NativeUnixSocket.sockname(Native Method)
+	at org.newsclub.net.unix.AFSocketAddress.getSocketAddress(AFSocketAddress.java:375)
+	at org.newsclub.net.unix.AFSocketImpl.getLocalSocketAddress(AFSocketImpl.java:939)
+	at org.newsclub.net.unix.AFServerSocket.bind(AFServerSocket.java:276)
+	at org.newsclub.net.unix.AFServerSocket.bind(AFServerSocket.java:551)
+	at org.newsclub.net.unix.AFServerSocket.bindOn(AFServerSocket.java:186)
+	at org.newsclub.net.unix.AFUNIXServerSocket.bindOn(AFUNIXServerSocket.java:87)
+	at com.cubrid.jsp.Server.initializeSocket(Server.java:132)
+	at com.cubrid.jsp.Server.<init>(Server.java:86)
+	at com.cubrid.jsp.Server.startWithConfig(Server.java:237)
+	at com.cubrid.jsp.Server.start(Server.java:218)
+	at com.cubrid.jsp.Server.main(Server.java:264)
+
+Sep 09, 2026 4:05:05 PM com.cubrid.jsp.LoggingThread run
+SEVERE: java.net.SocketException: sockname too long
+	at org.newsclub.net.unix.NativeUnixSocket.sockname(Native Method)
+	at org.newsclub.net.unix.AFSocketAddress.getSocketAddress(AFSocketAddress.java:375)
+	at org.newsclub.net.unix.AFSocketImpl.getLocalSocketAddress(AFSocketImpl.java:939)
+	at org.newsclub.net.unix.AFServerSocket.bind(AFServerSocket.java:276)
+	at org.newsclub.net.unix.AFServerSocket.bind(AFServerSocket.java:551)
+	at org.newsclub.net.unix.AFServerSocket.bindOn(AFServerSocket.java:186)
+	at org.newsclub.net.unix.AFUNIXServerSocket.bindOn(AFUNIXServerSocket.java:87)
+	at com.cubrid.jsp.Server.initializeSocket(Server.java:132)
+	at com.cubrid.jsp.Server.<init>(Server.java:86)
+	at com.cubrid.jsp.Server.startWithConfig(Server.java:237)
+	at com.cubrid.jsp.Server.start(Server.java:218)
+	at com.cubrid.jsp.Server.main(Server.java:264)
+
+Sep 09, 2026 4:06:10 PM com.cubrid.jsp.Server <init>
+INFO: JVM arguments: [-Djava.awt.headless=true, -Dfile.encoding=UTF-8, -Dsun.zip.disableMemoryMapping=true, -Djava.util.logging.config.file=/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/vm/logging.properties]
+Sep 09, 2026 4:06:10 PM com.cubrid.jsp.Server <init>
+INFO: max heap size: 28631367680 B (27305 MB)
+Sep 09, 2026 4:06:34 PM com.cubrid.jsp.Server <init>
+INFO: JVM arguments: [-Djava.awt.headless=true, -Dfile.encoding=UTF-8, -Dsun.zip.disableMemoryMapping=true, -Djava.util.logging.config.file=/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/vm/logging.properties]
+Sep 09, 2026 4:06:34 PM com.cubrid.jsp.Server <init>
+INFO: max heap size: 28631367680 B (27305 MB)
+Sep 09, 2026 4:06:41 PM com.cubrid.jsp.Server <init>
+INFO: JVM arguments: [-Djava.awt.headless=true, -Dfile.encoding=UTF-8, -Dsun.zip.disableMemoryMapping=true, -Djava.util.logging.config.file=/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/vm/logging.properties]
+Sep 09, 2026 4:06:41 PM com.cubrid.jsp.Server <init>
+INFO: max heap size: 28631367680 B (27305 MB)
+Sep 09, 2026 4:06:43 PM com.cubrid.jsp.Server <init>
+INFO: JVM arguments: [-Djava.awt.headless=true, -Dfile.encoding=UTF-8, -Dsun.zip.disableMemoryMapping=true, -Djava.util.logging.config.file=/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/vm/logging.properties]
+Sep 09, 2026 4:06:43 PM com.cubrid.jsp.Server <init>
+INFO: max heap size: 28631367680 B (27305 MB)
+Sep 09, 2026 4:06:50 PM com.cubrid.jsp.Server <init>
+INFO: JVM arguments: [-Djava.awt.headless=true, -Dfile.encoding=UTF-8, -Dsun.zip.disableMemoryMapping=true, -Djava.util.logging.config.file=/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/vm/logging.properties]
+Sep 09, 2026 4:06:50 PM com.cubrid.jsp.Server <init>
+INFO: max heap size: 28631367680 B (27305 MB)
+Sep 09, 2026 4:06:57 PM com.cubrid.jsp.Server <init>
+INFO: JVM arguments: [-Djava.awt.headless=true, -Dfile.encoding=UTF-8, -Dsun.zip.disableMemoryMapping=true, -Djava.util.logging.config.file=/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/vm/logging.properties]
+Sep 09, 2026 4:06:57 PM com.cubrid.jsp.Server <init>
+INFO: max heap size: 28631367680 B (27305 MB)

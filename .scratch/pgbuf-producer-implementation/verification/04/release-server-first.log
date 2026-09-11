@@ -1,0 +1,18 @@
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: release_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+Evidence directory: /home/vimkim/temp/pgbuf-server-mtmh8vm1
+PASS default-off server serves SQL without inspector directory
+PASS real resident scan {"type": "scan_footer", "incarnation": "82000d891b70d21701b5a08fb0355afd", "scan_seq": "1", "end_time_us": "1788945517604390", "record_count": 58, "visited_slots": 4096, "truncated": false} framed_bytes 22772
+PASS enabled identity matches physical persistent volume {"type": "server_hello", "protocol_major": 1, "protocol_minor": 0, "incarnation": "82000d891b70d21701b5a08fb0355afd", "database_creation": "1788945504", "volumes": [{"volid": 0, "volume_creation": "1788945506", "device": "64770", "inode": "9681498773"}, {"volid": 1, "volume_creation": "1788945507", "device": "64770", "inode": "9681498775"}], "shared_lru_count": 4, "private_lru_count": 152}
+Traceback (most recent call last):
+  File "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/server_attachment.py", line 272, in <module>
+    pending_clients = stalled_worker_check(path)
+  File "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/server_attachment.py", line 215, in stalled_worker_check
+    saturated_before = saturated_outputs()
+  File "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/server_attachment.py", line 211, in saturated_outputs
+    assert len(result) == 2, "inconclusive: two server sockets not identified"
+           ^^^^^^^^^^^^^^^^
+AssertionError: inconclusive: two server sockets not identified

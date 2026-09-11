@@ -1,0 +1,761 @@
+diff --git a/docs/pgbuf-inspector/controlled-observation.md b/docs/pgbuf-inspector/controlled-observation.md
+new file mode 100644
+index 000000000..71893ca31
+--- /dev/null
++++ b/docs/pgbuf-inspector/controlled-observation.md
+@@ -0,0 +1,106 @@
++# Controlled native page observations
++
++`unit_tests/pgbuf_inspector/pgbuf_inspector_fixture.cpp` is a test-only executable
++linked to the normal server engine. Normal server boot starts the production
++inspector daemon. The fixture adds no installed command, protocol message,
++production endpoint, per-fix accounting or engine instrumentation.
++
++The Python controller reads the shipped Unix socket. Its separate stdin/stdout
++channel controls the workload and records native acknowledgements; inspector
++responses never establish the fixture preconditions.
++
++## Preconditions and checks
++
++The fixture creates a private temporary file and allocates a known VPID with a
++WRITE fix. Only the fixture thread knows and accesses this page. The page is not
++unfixed during the resident-state observations.
++
++| Case | Independent native condition | Required socket observation |
++| --- | --- | --- |
++| clean-held | Successful `pgbuf_flush_with_wal`, retained WRITE fix | Complete scan contains exactly one matching VPID, `dirty=false` |
++| dirty-held | `pgbuf_set_dirty(DONT_FREE)` after writing a private canary, retained WRITE fix | Complete scan contains exactly one matching VPID, `dirty=true` |
++| partial-held | Same retained fix, 512 additional private pages create output pressure | Valid partial footer; target remains independently held |
++| evicted-complete | Target flushed/unfixed, capacity-driven replacement, native cache-only miss before and after scan | Complete omission supports observed nonresidency |
++| evicted-partial | Same private allocated target remains absent, no workload can refix it | Partial omission remains unknown to an observer |
++| shutdown | Controller sends stop and waits for successful native cleanup | Process exits successfully and socket pathname disappears |
++
++Before and after each held observation, native `pgbuf_get_fix_count`,
++`pgbuf_get_latch_mode` and `pgbuf_get_vpid_ptr` checks confirm the same page and
++single WRITE fix. These checks execute in Debug and Release builds. A held WRITE
++latch prevents replacement and another thread's page modification/flush during
++the observation. The socket record must report that latch/fix state, omit unsafe
++page-header fields, and never contain the private page-byte canary.
++
++The controller bounds native acknowledgements to eight seconds (twenty-five seconds
++for the replacement workload). The fixture
++bounds the entire next stdin command, including incomplete input, to ten seconds.
++A missing acknowledgement or failed precondition is a failed/inconclusive test;
++it does not count as producer semantic evidence. Native cleanup retires the
++temporary file using the normal temporary-file lifecycle.
++
++The deliberate 150 ms read pause follows a received scan header and consumes the
++producer's traversal budget under output pressure. It establishes no page-state
++precondition. The testcase requires an actual `truncated=true` footer and fails
++if that condition cannot be produced. Complete state assertions require an actual
++complete footer. All captures check framing, sequence/incarnation, counts and
++wire budgets before semantic assertions.
++
++Eviction uses actual capacity-driven buffer replacement. The owner flushes and
++unfixes the target, then allocates and flushes private temporary pages in batches
++of 4096 (the configured buffer count). It checks for removal between batches,
++with a 32768-page cap and a fifteen-second workload deadline checked between
++allocations. No explicit invalidation or file deallocation removes the target. After the
++native target miss, the owner removes only the other workload pages from cache,
++with a separate five-second cleanup deadline. Native invalidation may decline a
++protected victim; cleanup retries within that same deadline and succeeds only
++when a cache-only native miss is observed. It rejects the target VPID from
++that cleanup list. This reduces scan output enough for the complete capture to
++finish within the unchanged producer budget. The cleanup uses native cache-only
++fix/invalidate operations valid for these private temporary pages; it cannot
++serve as the target eviction proof.
++Failure to establish removal fails the testcase.
++
++`pgbuf_fix(OLD_PAGE_IF_IN_BUFFER, READ, CONDITIONAL)` is the independent native
++probe. A hit is unfixed; a null result counts only with `er_errid()==NO_ERROR`.
++In `page_buffer.c`, this fetch mode returns immediately on a hash miss without
++claiming a buffer or reading the page. The target remains allocated in the
++fixture's private file, so deallocation cannot masquerade as eviction. A probe
++hit may promote the target; checking only between whole-pool batches avoids
++continually refreshing it during the workload.
++
++Across the complete capture the single owner performs no allocations or loading
++fixes. Before the subsequent partial capture it allocates 512 fresh private
++pages solely to establish output pressure; none uses the still-allocated target
++VPID. No SQL/session has access to this private page. Native misses
++before and after each scan confirm the held absence condition. Complete and
++partial captures both omit the target; the recorded wire conclusions are
++`observed-nonresident` and `unknown`, respectively. The partial capture cannot
++inherit the fixture's independent knowledge. This proves producer observation
++semantics and does not implement or validate an external consumer's state model.
++
++## Reproduction
++
++Configure a Linux build with `UNIT_TEST_PGBUF_INSPECTOR=ON`, build it and install
++its matching server libraries/utilities. With that installation's usual `CUBRID`,
++`PATH` and `LD_LIBRARY_PATH` environment loaded, run:
++
++```sh
++python3 unit_tests/pgbuf_inspector/controlled_observation.py \
++  --fixture BUILD/bin/pgbuf_inspector_fixture
++ctest --test-dir BUILD -R '^test_pgbuf_inspector_native$' --output-on-failure
++```
++
++`BUILD` is the chosen CMake build directory. Python optimization must be disabled.
++The controller creates a fresh database/temporary/configuration directory and
++prints its evidence path. `synchronization.json`, each scan's JSONL, `native.log`
++and `commands.log` remain there after the run. Keep the directory with the build
++mode, source revision and binary hashes. Use a short temporary root with enough
++space for a test database; `TMPDIR` selects that root.
++
++The companion case lives in the actual external testcase repository at
++`shell/_06_issues/_26_2h/cbrd_27398/cases/cbrd_27398.sh`. It runs this controller,
++then independently runs `server_attachment.py --scan` against an unmodified
++`cub_server` to check default-off absence, normal socket observations and restart.
++Its README documents the standard CTP configuration and required matching-helper
++environment. Ticket 05 requires both Debug and Release evidence, plus that
++separate unmodified Release server run, before it can be completed.
+diff --git a/unit_tests/pgbuf_inspector/CMakeLists.txt b/unit_tests/pgbuf_inspector/CMakeLists.txt
+index df83fdd08..a95cb10f7 100644
+--- a/unit_tests/pgbuf_inspector/CMakeLists.txt
++++ b/unit_tests/pgbuf_inspector/CMakeLists.txt
+@@ -69,4 +69,13 @@ pgbuf_inspector_add_executable (pgbuf_inspector_corpus_generator pgbuf_inspector
+ 
+ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+   target_sources(test_pgbuf_inspector PRIVATE test_pgbuf_inspector_socket.cpp test_pgbuf_inspector_scan.cpp ${STORAGE_DIR}/pgbuf_inspector_socket.cpp ${STORAGE_DIR}/pgbuf_inspector_scan.cpp)
++  add_executable(pgbuf_inspector_fixture pgbuf_inspector_fixture.cpp)
++  target_compile_definitions(pgbuf_inspector_fixture PRIVATE ${COMMON_DEFS} SERVER_MODE)
++  target_include_directories(pgbuf_inspector_fixture PRIVATE ${TEST_INCLUDES})
++  target_link_libraries(pgbuf_inspector_fixture PRIVATE ${EP_LIBS} cubrid)
++  find_package(Python3 REQUIRED COMPONENTS Interpreter)
++  add_test(NAME test_pgbuf_inspector_native
++    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/controlled_observation.py
++      --fixture $<TARGET_FILE:pgbuf_inspector_fixture>)
++  set_tests_properties(test_pgbuf_inspector_native PROPERTIES TIMEOUT 120)
+ endif()
+diff --git a/unit_tests/pgbuf_inspector/controlled_observation.py b/unit_tests/pgbuf_inspector/controlled_observation.py
+new file mode 100644
+index 000000000..fcf153ea0
+--- /dev/null
++++ b/unit_tests/pgbuf_inspector/controlled_observation.py
+@@ -0,0 +1,208 @@
++#!/usr/bin/env python3
++#
++#
++#  Copyright 2016 CUBRID Corporation
++#
++#   Licensed under the Apache License, Version 2.0 (the "License");
++#   you may not use this file except in compliance with the License.
++#   You may obtain a copy of the License at
++#
++#       http://www.apache.org/licenses/LICENSE-2.0
++#
++#   Unless required by applicable law or agreed to in writing, software
++#   distributed under the License is distributed on an "AS IS" BASIS,
++#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++#   See the License for the specific language governing permissions and
++#   limitations under the License.
++#
++
++"""Verify held native page states through the production inspector socket.
++
++Requires the test-only pgbuf_inspector_fixture executable and the matching
++installed CUBRID environment. Retains independent synchronization evidence.
++"""
++import argparse
++import json
++import os
++from pathlib import Path
++import select
++import socket
++import subprocess
++import tempfile
++import time
++
++if not __debug__:
++    raise RuntimeError("This assertion-based testcase requires Python without optimization")
++
++parser = argparse.ArgumentParser(description=__doc__)
++parser.add_argument("--fixture", type=Path, required=True)
++args = parser.parse_args()
++fixture = args.fixture.resolve(strict=True)
++root = Path(tempfile.mkdtemp(prefix="pgbuf-native-"))
++env = os.environ.copy()
++env.update(CUBRID_DATABASES=str(root), CUBRID_TMP=str(root), CUBRID_CONF_FILE=str(root / "cubrid.conf"))
++(root / "databases.txt").touch()
++(root / "cubrid.conf").write_text("[common]\ndata_buffer_size=64M\nlog_buffer_size=4M\n"
++                                  "vacuum_log_block_pages=4\nenable_pgbuf_inspector=yes\n")
++name = "pgbuffixture"
++print("Evidence directory:", root, flush=True)
++commands = (root / "commands.log").open("w")
++native_log = (root / "native.log").open("wb")
++child = None
++pending = b""
++evidence = []
++
++def acknowledgement(command=None):
++    global pending
++    started = time.monotonic()
++    if command:
++        child.stdin.write(command.encode() + b"\n")
++        child.stdin.flush()
++    deadline = started + (25 if command == "evict" else 8)
++    while True:
++        while b"\n" in pending:
++            line, pending = pending.split(b"\n", 1)
++            if line.startswith(b"PGFIXTURE "):
++                reply = json.loads(line[len(b"PGFIXTURE "):])
++                expected = {None: "clean-held", "held": "held", "dirty": "dirty-held", "populate": "populated",
++                            "evict": "evicted", "absent": "absent"}
++                assert reply["state"] == expected[command], "inconclusive: unexpected native acknowledgement"
++                evidence.append({"command": command or "boot", "ack": reply,
++                                 "monotonic": time.monotonic(), "elapsed": time.monotonic() - started})
++                (root / "synchronization.json").write_text(json.dumps(evidence, indent=2))
++                return reply
++        remaining = deadline - time.monotonic()
++        assert remaining > 0, "inconclusive: native fixture synchronization deadline"
++        assert select.select([child.stdout], [], [], remaining)[0], "inconclusive: no native acknowledgement"
++        chunk = os.read(child.stdout.fileno(), 65536)
++        assert chunk, f"native fixture exited; see {root / 'native.log'}"
++        native_log.write(chunk)
++        native_log.flush()
++        pending += chunk
++        assert len(pending) <= 65536
++
++class Observation:
++    def __init__(self, path):
++        self.client = socket.socket(socket.AF_UNIX)
++        self.client.settimeout(.5)
++        started = time.monotonic()
++        self.client.connect(str(path))
++        self.stream = self.client.makefile("rb")
++        self.client.sendall(b'{"type":"client_hello","supported_majors":[1]}\n')
++        self.hello, _ = self.frame(65536, started + .5)
++        assert self.hello["type"] == "server_hello"
++        self.sequence = 0
++
++    def frame(self, limit, deadline):
++        remaining = deadline - time.monotonic()
++        assert remaining > 0, "exchange deadline"
++        self.client.settimeout(remaining)
++        line = self.stream.readline(limit + 1)
++        assert line.endswith(b"\n") and len(line) <= limit, "broken or oversized frame"
++        return json.loads(line), line
++
++    def scan(self, label, pause_after_header=False):
++        request = (json.dumps({"type": "scan_request", "incarnation": self.hello["incarnation"]}) + "\n").encode()
++        for attempt in range(3):
++            started = time.monotonic()
++            self.client.sendall(request)
++            header, line = self.frame(4096, started + 2)
++            if header.get("code") != "rate-limited":
++                break
++            time.sleep(header["retry_after_ms"] / 1000 + .005)
++        assert header["type"] == "scan_header"
++        if pause_after_header:
++            # This deliberately consumes traversal time under output pressure;
++            # it is not an oracle for residency/dirty state. Those are held by
++            # the native fixture across the exchange and acknowledged separately.
++            time.sleep(.15)
++        sequence = int(header["scan_seq"])
++        assert sequence > self.sequence
++        frames = [header]
++        raw = bytearray(line)
++        while True:
++            frame, line = self.frame(4096, started + 2)
++            raw.extend(line)
++            assert len(raw) <= 67108864
++            assert frame["incarnation"] == self.hello["incarnation"]
++            assert frame["scan_seq"] == header["scan_seq"]
++            frames.append(frame)
++            if frame["type"] == "scan_footer":
++                break
++            assert frame["type"] == "page"
++            assert len(frames) <= 65537
++        assert header["incarnation"] == self.hello["incarnation"]
++        footer = frames[-1]
++        assert type(footer["record_count"]) is int and footer["record_count"] == len(frames) - 2
++        assert type(footer["visited_slots"]) is int and footer["record_count"] <= footer["visited_slots"] <= 65536
++        assert type(footer["truncated"]) is bool
++        assert b"pgbuf-fixture-private-page-bytes" not in raw
++        (root / (label + ".jsonl")).write_bytes(raw)
++        self.sequence = sequence
++        return frames[1:-1], footer
++
++    def close(self):
++        self.stream.close()
++        self.client.close()
++
++observer = None
++try:
++    subprocess.run(["cubrid", "createdb", "--db-volume-size=20M", "--log-volume-size=20M", "-F", str(root), name,
++                    "en_US.utf8"], cwd=root, env=env, stdout=commands, stderr=subprocess.STDOUT, timeout=60, check=True)
++    child = subprocess.Popen([str(fixture), name], cwd=root, env=env,
++                             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=native_log)
++    ready = acknowledgement()
++    assert ready["state"] == "clean-held"
++    target = ready["volid"], ready["pageid"]
++    paths = list((root / "pgbuf-inspector").glob("*.sock"))
++    assert len(paths) == 1
++    observer = Observation(paths[0])
++    for phase, dirty in [("clean", False), ("dirty", True)]:
++        before = acknowledgement("dirty" if dirty else "held")
++        pages, footer = observer.scan(phase)
++        after = acknowledgement("held")
++        assert (before["volid"], before["pageid"]) == target == (after["volid"], after["pageid"])
++        assert not footer["truncated"], "inconclusive: complete traversal required"
++        matches = [page for page in pages if (page["volid"], page["pageid"]) == target]
++        assert len(matches) == 1
++        page = matches[0]
++        assert page["dirty"] is dirty and page["latch_mode"] == "write" and page["fix_count"] == 1
++        assert "page_lsa" not in page and "oldest_unflush_lsa" not in page and "page_kind" not in page
++        print("PASS", phase, "held native VPID", target, "complete records", len(pages), flush=True)
++    assert acknowledgement("populate")["state"] == "populated"
++    assert acknowledgement("held")["state"] == "held"
++    pages, footer = observer.scan("partial", pause_after_header=True)
++    assert footer["truncated"], "inconclusive: fixture failed to establish a partial scan"
++    assert acknowledgement("held")["state"] == "held"
++    print("PASS partial scan with independently held native page", target, "records", len(pages), flush=True)
++    removed = acknowledgement("evict")
++    assert (removed["volid"], removed["pageid"]) == target
++    for label, partial in [("evicted-complete", False), ("evicted-partial", True)]:
++        if partial:
++            acknowledgement("populate")
++        before = acknowledgement("absent")
++        pages, footer = observer.scan(label, pause_after_header=partial)
++        after = acknowledgement("absent")
++        assert (before["volid"], before["pageid"]) == target == (after["volid"], after["pageid"])
++        assert footer["truncated"] is partial, "inconclusive: required scan coverage not established"
++        assert not any((page["volid"], page["pageid"]) == target for page in pages)
++        # The independently proven native state does not upgrade partial wire
++        # coverage: an observer can infer nonresidency only from a complete scan.
++        conclusion = "unknown" if footer["truncated"] else "observed-nonresident"
++        (root / (label + "-conclusion.json")).write_text(json.dumps({"target": target, "state": conclusion}))
++        print("PASS", label, target, conclusion, "records", len(pages), flush=True)
++    observer.close()
++    observer = None
++    child.stdin.write(b"stop\n")
++    child.stdin.flush()
++    assert child.wait(timeout=10) == 0
++    assert not paths[0].exists()
++    print("PASS native fixture shutdown", flush=True)
++finally:
++    if observer:
++        observer.close()
++    if child is not None and child.poll() is None:
++        child.kill()
++        child.wait()
++    commands.close()
++    native_log.close()
+diff --git a/unit_tests/pgbuf_inspector/pgbuf_inspector_fixture.cpp b/unit_tests/pgbuf_inspector/pgbuf_inspector_fixture.cpp
+new file mode 100644
+index 000000000..8e0c77f5e
+--- /dev/null
++++ b/unit_tests/pgbuf_inspector/pgbuf_inspector_fixture.cpp
+@@ -0,0 +1,369 @@
++/*
++ * Copyright 2008 Search Solution Corporation
++ * Copyright 2016 CUBRID Corporation
++ *
++ *  Licensed under the Apache License, Version 2.0 (the "License");
++ *  you may not use this file except in compliance with the License.
++ *  You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ *  Unless required by applicable law or agreed to in writing, software
++ *  distributed under the License is distributed on an "AS IS" BASIS,
++ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ *  See the License for the specific language governing permissions and
++ *  limitations under the License.
++ *
++ */
++
++#include "config.h"
++#include "boot_sr.h"
++#include "critical_section.h"
++#include "error_manager.h"
++#include "file_manager.h"
++#include "log_impl.h"
++#include "log_manager.h"
++#include "message_catalog.h"
++#include "page_buffer.h"
++#include "system_parameter.h"
++#include "thread_manager.hpp"
++#include "tz_support.h"
++
++#include <cstdio>
++#include <cstring>
++#include <cerrno>
++#include <chrono>
++#include <poll.h>
++#include <unistd.h>
++#include <vector>
++#include <thread>
++
++// XXX: SHOULD BE THE LAST INCLUDE HEADER
++#include "memory_wrapper.hpp"
++
++namespace
++{
++  THREAD_ENTRY *fixture_thread = nullptr;
++
++  bool boot (const char *database)
++  {
++    if (er_init (nullptr, ER_NEVER_EXIT) != NO_ERROR)
++      {
++	return false;
++      }
++    cubthread::initialize (fixture_thread);
++    if (!fixture_thread || msgcat_init () != NO_ERROR || tz_load () != NO_ERROR)
++      {
++	return false;
++      }
++    if (sysprm_load_and_init (database, nullptr, SYSPRM_LOAD_ALL) != NO_ERROR)
++      {
++	return false;
++      }
++    if (sync_initialize_sync_stats () != NO_ERROR || csect_initialize_static_critical_sections () != NO_ERROR)
++      {
++	return false;
++      }
++    CHECK_ARGS checks = {true, true};
++    if (boot_restart_server (fixture_thread, false, database, false, &checks, nullptr, true) != NO_ERROR)
++      {
++	return false;
++      }
++    TRAN_STATE state;
++    return logtb_assign_tran_index (fixture_thread, NULL_TRANID, TRAN_ACTIVE, nullptr, &state,
++				    TRAN_LOCK_INFINITE_WAIT, TRAN_READ_COMMITTED) != NULL_TRAN_INDEX;
++  }
++
++  void reply (const char *state, const VPID &vpid)
++  {
++    std::printf ("PGFIXTURE {\"state\":\"%s\",\"volid\":%d,\"pageid\":%d}\n", state, vpid.volid, vpid.pageid);
++    std::fflush (stdout);
++  }
++
++  bool owns_write_fix (PAGE_PTR page, const VPID &vpid)
++  {
++    // Allocation gave this single-threaded owner a WRITE fix, which has not
++    // been released. These native checks also exist in release builds.
++    return page && pgbuf_get_fix_count (page) == 1
++	   && pgbuf_get_latch_mode (page) == PGBUF_LATCH_WRITE
++	   && VPID_EQ (pgbuf_get_vpid_ptr (page), &vpid);
++  }
++
++  bool absent_without_loading (const VPID &vpid)
++  {
++    er_clear ();
++    PAGE_PTR page = pgbuf_fix (fixture_thread, &vpid, OLD_PAGE_IF_IN_BUFFER,
++			       PGBUF_LATCH_READ, PGBUF_CONDITIONAL_LATCH);
++    if (page)
++      {
++	pgbuf_unfix (fixture_thread, page);
++	return false;
++      }
++    // A latch/validation error is not evidence of a hash miss.
++    return er_errid () == NO_ERROR;
++  }
++
++  bool replace_page (const VFID &file, const VPID &target, int &allocated, std::vector<VPID> &workload)
++  {
++    const auto deadline = std::chrono::steady_clock::now () + std::chrono::seconds (15);
++    PAGE_TYPE kind = PAGE_QRESULT;
++    // The controller configures 4096 buffers. Check only between whole-pool
++    // batches: a successful cache-only hit can promote the target in the LRU.
++    for (allocated = 0; allocated < 32768;)
++      {
++	for (int i = 0; i < 4096; ++i)
++	  {
++	    if (std::chrono::steady_clock::now () >= deadline)
++	      {
++		return false;
++	      }
++	    VPID vpid;
++	    PAGE_PTR page = nullptr;
++	    if (file_alloc (fixture_thread, &file, file_init_temp_page_type, &kind, &vpid, &page) != NO_ERROR)
++	      {
++		return false;
++	      }
++	    bool flushed = pgbuf_flush_with_wal (fixture_thread, page) != nullptr;
++	    workload.push_back (vpid);
++	    pgbuf_unfix (fixture_thread, page);
++	    if (!flushed)
++	      {
++		return false;
++	      }
++	    ++allocated;
++	  }
++	if (absent_without_loading (target))
++	  {
++	    return true;
++	  }
++      }
++    return false;
++  }
++
++  bool remove_workload (const VPID &target, const std::vector<VPID> &workload)
++  {
++    // Only after target eviction is independently proven, remove the other
++    // private temporary pages so a complete bounded scan can finish in time.
++    const auto deadline = std::chrono::steady_clock::now () + std::chrono::seconds (5);
++    for (const auto &vpid : workload)
++      {
++	if (VPID_EQ (&vpid, &target))
++	  {
++	    return false;
++	  }
++	bool reported_retry = false;
++	for (;;)
++	  {
++	    if (std::chrono::steady_clock::now () >= deadline)
++	      {
++		return false;
++	      }
++	    er_clear ();
++	    PAGE_PTR page = pgbuf_fix (fixture_thread, &vpid, OLD_PAGE_IF_IN_BUFFER,
++				       PGBUF_LATCH_WRITE, PGBUF_CONDITIONAL_LATCH);
++	    if (page)
++	      {
++		if (pgbuf_invalidate (fixture_thread, page) != NO_ERROR)
++		  {
++		    return false;
++		  }
++	      }
++	    else if (er_errid () != NO_ERROR)
++	      {
++		return false;
++	      }
++	    if (absent_without_loading (vpid))
++	      {
++		break;
++	      }
++	    // Invalidation may legally decline a currently protected victim.
++	    // Retry within the same cleanup deadline; only a native miss wins.
++	    if (!reported_retry)
++	      {
++		std::fprintf (stderr, "cleanup retry: VPID=%d|%d still cached after invalidation\n", vpid.volid, vpid.pageid);
++		reported_retry = true;
++	      }
++	    std::this_thread::yield ();
++	  }
++      }
++    return true;
++  }
++
++  bool read_command (char (&command)[32])
++  {
++    // Bound the whole command, including a controller that sends only a prefix.
++    const auto deadline = std::chrono::steady_clock::now () + std::chrono::seconds (10);
++    for (std::size_t length = 0; length + 1 < sizeof (command);)
++      {
++	auto remaining = std::chrono::duration_cast<std::chrono::milliseconds> (
++				 deadline - std::chrono::steady_clock::now ()).count ();
++	if (remaining <= 0)
++	  {
++	    return false;
++	  }
++	pollfd input {STDIN_FILENO, POLLIN, 0};
++	int ready = poll (&input, 1, static_cast<int> (remaining));
++	if (ready < 0 && errno == EINTR)
++	  {
++	    continue;
++	  }
++	if (ready <= 0)
++	  {
++	    return false;
++	  }
++	ssize_t count = read (STDIN_FILENO, &command[length], 1);
++	if (count < 0 && errno == EINTR)
++	  {
++	    continue;
++	  }
++	if (count != 1)
++	  {
++	    return false;
++	  }
++	if (command[length++] == '\n')
++	  {
++	    command[length] = '\0';
++	    return true;
++	  }
++      }
++    return false;
++  }
++}
++
++// Test-only executable: normal engine boot and producer daemon, private stdin
++// synchronization. It is neither installed nor exposed as a production command.
++int main (int argc, char **argv)
++{
++  if (argc != 2 || !boot (argv[1]))
++    {
++      std::fprintf (stderr, "fixture boot failed: %d\n", er_errid ());
++      return 1;
++    }
++  VFID file;
++  VFID_SET_NULL (&file);
++  VPID target;
++  VPID_SET_NULL (&target);
++  PAGE_PTR held = nullptr;
++  PAGE_TYPE kind = PAGE_QRESULT;
++  int result = 1;
++  std::vector<VPID> workload;
++  if (file_create_temp (fixture_thread, 1, &file) != NO_ERROR
++      || file_alloc (fixture_thread, &file, file_init_temp_page_type, &kind, &target, &held) != NO_ERROR
++      || !held || !pgbuf_flush_with_wal (fixture_thread, held) || !owns_write_fix (held, target))
++    {
++      std::fprintf (stderr, "fixture allocation/clean flush failed: %d\n", er_errid ());
++    }
++  else
++    {
++      reply ("clean-held", target);
++      for (;;)
++	{
++	  char command[32];
++	  if (!read_command (command))
++	    {
++	      break;
++	    }
++	  if (std::strcmp (command, "dirty\n") == 0 && held)
++	    {
++	      const char canary[] = "pgbuf-fixture-private-page-bytes";
++	      std::memcpy (held, canary, sizeof (canary));
++	      pgbuf_set_dirty (fixture_thread, held, DONT_FREE);
++	      if (!owns_write_fix (held, target))
++		{
++		  break;
++		}
++	      reply ("dirty-held", target);
++	    }
++	  else if (std::strcmp (command, "held\n") == 0 && held)
++	    {
++	      if (!owns_write_fix (held, target))
++		{
++		  break;
++		}
++	      reply ("held", target);
++	    }
++	  else if (std::strcmp (command, "populate\n") == 0)
++	    {
++	      bool populated = true;
++	      for (int i = 0; i < 512; ++i)
++		{
++		  VPID page_id;
++		  PAGE_PTR page = nullptr;
++		  if (file_alloc (fixture_thread, &file, file_init_temp_page_type, &kind, &page_id, &page) != NO_ERROR)
++		    {
++		      populated = false;
++		      break;
++		    }
++		  workload.push_back (page_id);
++		  pgbuf_unfix (fixture_thread, page);
++		}
++	      if (!populated)
++		{
++		  break;
++		}
++	      reply ("populated", target);
++	    }
++
++	  else if (std::strcmp (command, "evict\n") == 0 && held)
++	    {
++	      if (!pgbuf_flush_with_wal (fixture_thread, held))
++		{
++		  break;
++		}
++	      pgbuf_unfix (fixture_thread, held);
++	      held = nullptr;
++	      int allocated = 0;
++	      if (!replace_page (file, target, allocated, workload))
++		{
++		  break;
++		}
++	      std::fprintf (stderr, "native replacement: allocated=%d, cache-only target miss before workload cleanup\n", allocated);
++	      if (!remove_workload (target, workload) || !absent_without_loading (target))
++		{
++		  break;
++		}
++	      workload.clear ();
++	      reply ("evicted", target);
++	    }
++	  else if (std::strcmp (command, "absent\n") == 0 && !held)
++	    {
++	      // No workload runs while waiting for commands. This private
++	      // page has no other owner that could refix it during a scan.
++	      if (!absent_without_loading (target))
++		{
++		  break;
++		}
++	      reply ("absent", target);
++	    }
++	  else if (std::strcmp (command, "stop\n") == 0)
++	    {
++	      result = 0;
++	      break;
++	    }
++	  else
++	    {
++	      break;
++	    }
++	}
++    }
++  if (held)
++    {
++      pgbuf_unfix (fixture_thread, held);
++    }
++  if (!VFID_ISNULL (&file) && file_temp_retire (fixture_thread, &file) != NO_ERROR)
++    {
++      result = 1;
++    }
++  int transaction = LOG_FIND_THREAD_TRAN_INDEX (fixture_thread);
++  if (transaction > LOG_SYSTEM_TRAN_INDEX)
++    {
++      log_abort (fixture_thread, transaction);
++      logtb_release_tran_index (fixture_thread, transaction);
++    }
++  xboot_shutdown_server (fixture_thread, ER_THREAD_FINAL);
++  if (result != 0)
++    {
++      std::fprintf (stderr, "fixture precondition/synchronization failed: %d\n", er_errid ());
++    }
++  return result;
++}
+diff --git a/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp b/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp
+index 92aea3f73..b3716987e 100644
+--- a/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp
++++ b/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp
+@@ -1048,20 +1048,25 @@ TEST_CASE ("Real slow draining reaches the whole exchange deadline despite write
+ 	}
+       if (endpoint::clock::now () >= next_read)
+ 	{
+-	  char bytes[4096];
+-	  auto n = recv (fd, bytes, sizeof (bytes), MSG_DONTWAIT);
+-	  REQUIRE (n == sizeof (bytes));
+-	  capture.append (bytes, n);
+-	  int before = 0, after = 0;
+-	  REQUIRE (ioctl (fd, FIONREAD, &before) == 0);
+-	  f.server.poll ();
+-	  REQUIRE (ioctl (fd, FIONREAD, &after) == 0);
+-	  if (after > before)
++	  // Free a kernel send allocation, whose boundary need not match a 4 KiB
++	  // read. Stop at proven write progress so the capture still drains slowly.
++	  bool progressed = false;
++	  for (int reads = 0; reads < 64 && !progressed; ++reads)
+ 	    {
+-	      REQUIRE (endpoint::clock::now () - last_progress < std::chrono::milliseconds (250));
+-	      last_progress = endpoint::clock::now ();
+-	      ++progress_events;
++	      char bytes[256];
++	      auto n = recv (fd, bytes, sizeof (bytes), MSG_DONTWAIT);
++	      REQUIRE (n > 0);
++	      capture.append (bytes, n);
++	      int before = 0, after = 0;
++	      REQUIRE (ioctl (fd, FIONREAD, &before) == 0);
++	      f.server.poll ();
++	      REQUIRE (ioctl (fd, FIONREAD, &after) == 0);
++	      progressed = after > before;
+ 	    }
++	  REQUIRE (progressed);
++	  REQUIRE (endpoint::clock::now () - last_progress < std::chrono::milliseconds (250));
++	  last_progress = endpoint::clock::now ();
++	  ++progress_events;
+ 	  next_read += std::chrono::milliseconds (140);
+ 	}
+       std::this_thread::sleep_for (std::chrono::milliseconds (1));

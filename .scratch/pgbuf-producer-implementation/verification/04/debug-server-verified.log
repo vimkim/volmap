@@ -1,0 +1,17 @@
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: debug_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/debug_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc
+Evidence directory: /home/vimkim/temp/pgbuf-server-u72d6ksi
+PASS default-off server serves SQL without inspector directory
+PASS real resident scan {"type": "scan_footer", "incarnation": "27f7ee6530cbc7a508feffbc9159da5d", "scan_seq": "1", "end_time_us": "1788945842132270", "record_count": 58, "visited_slots": 4096, "truncated": false} framed_bytes 22786
+PASS enabled identity matches physical persistent volume {"type": "server_hello", "protocol_major": 1, "protocol_minor": 0, "incarnation": "27f7ee6530cbc7a508feffbc9159da5d", "database_creation": "1788945832", "volumes": [{"volid": 0, "volume_creation": "1788945832", "device": "64770", "inode": "8605880390"}, {"volid": 1, "volume_creation": "1788945834", "device": "64770", "inode": "8605880391"}], "shared_lru_count": 4, "private_lru_count": 152}
+PASS committed SQL while stalled scan and two-client admission overload {"baseline_bytes": 138423, "baseline_records": 380, "stalled_clients": 2, "busy_refusals": 14, "committed_workers": 1, "overlap_seconds": 0.2005960289388895, "saturation_before": [{"send_queue": 9728, "charged": 9728, "budget": 8192}, {"send_queue": 9216, "charged": 9216, "budget": 8192}], "saturation_after": [{"send_queue": 9728, "charged": 9728, "budget": 8192}, {"send_queue": 9216, "charged": 9216, "budget": 8192}]}
+PASS real resident scan {"type": "scan_footer", "incarnation": "beddc244e2cc0d02f4cc1031d487ed83", "scan_seq": "1", "end_time_us": "1788945846273244", "record_count": 58, "visited_slots": 4096, "truncated": false} framed_bytes 22786
+PASS restart changes incarnation and preserves persistent identity
+PASS shutdown preserves socket pathname replacement
+PASS real resident scan {"type": "scan_footer", "incarnation": "02935ab83ca7b2fb34d0682bb0c5c998", "scan_seq": "1", "end_time_us": "1788945850539227", "record_count": 58, "visited_slots": 4096, "truncated": false} framed_bytes 21300
+PASS copied database has distinct physical identity
+PASS activation failure preserves conflicting entry and SQL service
+PASS removed conflict does not trigger a background activation retry

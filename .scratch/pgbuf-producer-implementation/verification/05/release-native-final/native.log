@@ -1,0 +1,24 @@
+PGBUF_INSPECTOR_READY: /home/vimkim/temp/pgbuf-native-gelzx26r/pgbuf-inspector/30c83a3cd23ee9e5e6055215a2b6c008.sock
+PGFIXTURE {"state":"clean-held","volid":32766,"pageid":65}
+PGFIXTURE {"state":"held","volid":32766,"pageid":65}
+PGFIXTURE {"state":"held","volid":32766,"pageid":65}
+PGFIXTURE {"state":"dirty-held","volid":32766,"pageid":65}
+PGFIXTURE {"state":"held","volid":32766,"pageid":65}
+PGFIXTURE {"state":"populated","volid":32766,"pageid":65}
+PGFIXTURE {"state":"held","volid":32766,"pageid":65}
+PGFIXTURE {"state":"held","volid":32766,"pageid":65}
+native replacement: allocated=4096, cache-only target miss before workload cleanup
+cleanup retry: VPID=32766|569 still cached after invalidation
+cleanup retry: VPID=32766|571 still cached after invalidation
+cleanup retry: VPID=32766|572 still cached after invalidation
+cleanup retry: VPID=32766|573 still cached after invalidation
+cleanup retry: VPID=32766|574 still cached after invalidation
+cleanup retry: VPID=32766|575 still cached after invalidation
+cleanup retry: VPID=32766|576 still cached after invalidation
+cleanup retry: VPID=32766|577 still cached after invalidation
+PGFIXTURE {"state":"evicted","volid":32766,"pageid":65}
+PGFIXTURE {"state":"absent","volid":32766,"pageid":65}
+PGFIXTURE {"state":"absent","volid":32766,"pageid":65}
+PGFIXTURE {"state":"populated","volid":32766,"pageid":65}
+PGFIXTURE {"state":"absent","volid":32766,"pageid":65}
+PGFIXTURE {"state":"absent","volid":32766,"pageid":65}

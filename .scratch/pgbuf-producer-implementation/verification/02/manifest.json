@@ -1,0 +1,81 @@
+{
+  "ticket": "02-attach-securely-to-the-correct-server",
+  "status": "passed",
+  "producer_commit": "9e942a812f1451cf81308886c5bb8e17a0b44b98",
+  "tested_tree": "55b0c00e2238ea883f742604de06659fa976fe36",
+  "base_commit": "51531be5898e7f0634c313cc5b33ab2c792d3642",
+  "branch": "CBRD-27398-pgbuf-inspector-contract",
+  "builds": {
+    "debug_gcc": "Debug",
+    "release_gcc": "RelWithDebInfo (-O2, -DNDEBUG)"
+  },
+  "environment": {
+    "kernel": "Linux-5.14.0-570.30.1.el9_6.x86_64-x86_64-with-glibc2.34",
+    "compiler": "g++ (GCC) 11.5.0 20240719 (Red Hat 11.5.0-5)",
+    "release_suite_CUBRID_TMP": "/tmp/pgbuf-02-suite-F0OGz6"
+  },
+  "commands": {
+    "build": "direnv exec . just build",
+    "suite": "direnv exec . just build-test",
+    "credentials": "unshare --map-auto --map-root-user build_preset_MODE/bin/test_pgbuf_inspector '[.credential]'",
+    "server": "python3 unit_tests/pgbuf_inspector/server_attachment.py"
+  },
+  "checks": {
+    "debug_ctest": {
+      "passed": 27,
+      "failed": 0
+    },
+    "release_ctest": {
+      "passed": 27,
+      "failed": 0
+    },
+    "inspector_each_mode": {
+      "catch_cases": 36,
+      "assertions": 50747,
+      "debug_junit_section_outcomes": 58
+    },
+    "credential_each_mode": {
+      "cases": 3,
+      "assertions": 32
+    },
+    "real_server_each_mode": {
+      "scenarios": 5,
+      "coverage": [
+        "default-off absence and SQL service",
+        "complete persistent file identities and private permissions",
+        "restart incarnation plus accepted-client cancellation and exact cleanup",
+        "copydb and distinct copied-file identities",
+        "preserved conflicting path with startup diagnostic and continuing SQL service"
+      ]
+    },
+    "reviews": {
+      "standards_remaining": 0,
+      "spec_remaining": 0
+    },
+    "pre_commit": "passed"
+  },
+  "dependency": {
+    "Catch2_commit": "255aa5f2afe1a622c97422f65ace6ca915be0d8d",
+    "release_download": "Build-local URL rewrite reused exact pinned debug checkout after remote clone stalled; no global Git configuration changed."
+  },
+  "resolved_failures": [
+    "copydb negative system volume ID incorrectly indexed new metadata cache; ID guard added and real copy regression passed",
+    "late metadata preparation could bypass 500 ms deadline; recheck plus delayed-refresh regression",
+    "early volume-count refusal replaced with conservative bound and exact encoded-size limit",
+    "release test signed-size comparisons corrected",
+    "release PL fixture default socket path too long; full suite rerun with short private CUBRID_TMP; original failure retained"
+  ],
+  "binary_sha256": {
+    "debug_gcc/cub_server": "2c0050764ac07260ab79c2394780c6ca9f260abe569e3d0292affb5dc8bc5099",
+    "debug_gcc/test_pgbuf_inspector": "19c67adf2becb19c33728134ebd8ecd4cf038f194d91385e272d527553d4daec",
+    "release_gcc/cub_server": "15fd7b7dd3220827a95170bb51dce2b1ab5f9aeb22b6514f972058ea159a1d70",
+    "release_gcc/test_pgbuf_inspector": "382485dd0606e92f46417b80f4876b67e3f5084360ccd4ab9d2269004e2e40b0"
+  },
+  "corpus_manifest": {
+    "contract_version": "1.0",
+    "corpus_revision": 2,
+    "corpus_sha256": "11dbecc72e4b9dd78e22080f138c801c189c7e047c0db23af8233f44a804d5ce"
+  },
+  "unchanged_unrelated_work": "Pre-existing cubrid-cci/win/cci_version.h changes preserved and excluded from commit.",
+  "scope": "Attachment only; no BCB scans. Tickets03\u201308 and cross-repository release evidence remain outside this completion."
+}

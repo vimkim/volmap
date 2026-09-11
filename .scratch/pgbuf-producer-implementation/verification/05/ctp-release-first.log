@@ -1,0 +1,213 @@
+[0mdirenv: loading ~/gh/cb/CBRD-27398-pgbuf-inspector-contract/.envrc
+Preset Mode: release_gcc
+Install Dir: /home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc
+DB Dir: /home/vimkim/.cub/db/CBRD-27398-pgbuf-inspector-contract/commondb
+Build Dir: /home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc
+namespace pid=pid:[4026535284] net=net:[4026535285] ipc=ipc:[4026535283]
+[shell-debug] scenario=/home/vimkim/gh/tc/CBRD-27398-pgbuf-inspector-fixtures/shell/_06_issues/_26_2h/cbrd_27398
+[shell-debug] conf=/tmp/shell_single.2pt888.conf
+[shell-debug] transcript=/tmp/shell_single.wKCUIb.log
+
+====================================== SHELL ==========================================
+[SHELL] TEST STARTED (Wed Sep 09 18:55:17 KST 2026)
+
+[SHELL] CONFIG FILE: /tmp/shell_single.2pt888.conf
+
+testcase_git_branch=develop
+enable_check_disk_space_yn=false
+default.broker2.BROKER_PORT=33001
+default.cubrid.cubrid_port_id=1523
+test_category=shell
+testcase_retry_num=0
+feedback_type=file
+test_continue_yn=false
+default.broker1.APPL_SERVER_SHM_ID=33000
+default.broker1.BROKER_PORT=33000
+scenario=/home/vimkim/gh/tc/CBRD-27398-pgbuf-inspector-fixtures/shell/_06_issues/_26_2h/cbrd_27398
+test_platform=linux
+testcase_exclude_by_macro=LINUX_NOT_SUPPORTED
+delete_testcase_after_each_execution_yn=false
+default.broker2.APPL_SERVER_SHM_ID=33001
+default.ha.ha_port_id=33002
+testcase_update_yn=false
+testcase_timeout_in_secs=720
+
+
+----------END OF FILE----------
+Available Env: [local]
+Continue Mode: false
+Build Number: 11.5.0.2545-e5f3cdf
+java.runtime.name=OpenJDK Runtime Environment
+sun.boot.library.path=/mnt/original-home/.local/share/mise/installs/java/temurin-8.0.462+8/jre/lib/amd64
+default.broker2.APPL_SERVER_SHM_ID=33001
+java.vm.version=25.462-b08
+java.vm.vendor=Temurin
+java.vendor.url=https://adoptium.net/
+path.separator=:
+java.vm.name=OpenJDK 64-Bit Server VM
+file.encoding.pkg=sun.io
+sun.java.launcher=SUN_STANDARD
+sun.os.patch.level=unknown
+default.broker1.APPL_SERVER_SHM_ID=33000
+java.vm.specification.name=Java Virtual Machine Specification
+user.dir=/mnt/original-home/gh/cb/CBRD-27398-pgbuf-inspector-contract
+java.runtime.version=1.8.0_462-b08
+java.awt.graphicsenv=sun.awt.X11GraphicsEnvironment
+java.endorsed.dirs=/mnt/original-home/.local/share/mise/installs/java/temurin-8.0.462+8/jre/lib/endorsed
+os.arch=amd64
+line.separator=
+
+java.io.tmpdir=/tmp
+testcase_retry_num=0
+testcase_timeout_in_secs=720
+java.vm.specification.vendor=Oracle Corporation
+os.name=Linux
+sun.jnu.encoding=UTF-8
+java.library.path=/mnt/install/lib:/mnt/install/cci/lib:/usr/java/packages/lib/amd64:/usr/lib64:/lib64:/lib:/usr/lib
+scenario=/home/vimkim/gh/tc/CBRD-27398-pgbuf-inspector-fixtures/shell/_06_issues/_26_2h/cbrd_27398
+java.class.version=52.0
+java.specification.name=Java Platform API Specification
+sun.management.compiler=HotSpot 64-Bit Tiered Compilers
+delete_testcase_after_each_execution_yn=false
+os.version=5.14.0-570.30.1.el9_6.x86_64
+test_platform=linux
+enable_check_disk_space_yn=false
+user.home=/root
+user.timezone=Asia/Seoul
+java.awt.printerjob=sun.print.PSPrinterJob
+java.specification.version=1.8
+file.encoding=UTF-8
+testcase_git_branch=develop
+feedback_type=file
+default.broker2.BROKER_PORT=33001
+user.name=root
+java.class.path=/mnt/CTP/common/lib/cubridqa-common.jar
+test_continue_yn=false
+test_category=shell
+testcase_exclude_by_macro=LINUX_NOT_SUPPORTED
+java.vm.specification.version=1.8
+sun.arch.data.model=64
+java.home=/mnt/original-home/.local/share/mise/installs/java/temurin-8.0.462+8/jre
+sun.java.command=com.navercorp.cubridqa.ctp.CTP shell -c /tmp/shell_single.2pt888.conf
+java.specification.vendor=Oracle Corporation
+user.language=en
+awt.toolkit=sun.awt.X11.XToolkit
+java.vm.info=mixed mode
+java.version=1.8.0_462
+java.ext.dirs=/mnt/original-home/.local/share/mise/installs/java/temurin-8.0.462+8/jre/lib/ext:/usr/java/packages/lib/ext
+sun.boot.class.path=/mnt/original-home/.local/share/mise/installs/java/temurin-8.0.462+8/jre/lib/resources.jar:/mnt/original-home/.local/share/mise/installs/java/temurin-8.0.462+8/jre/lib/rt.jar:/mnt/original-home/.local/share/mise/installs/java/temurin-8.0.462+8/jre/lib/sunrsasign.jar:/mnt/original-home/.local/share/mise/installs/java/temurin-8.0.462+8/jre/lib/jsse.jar:/mnt/original-home/.local/share/mise/installs/java/temurin-8.0.462+8/jre/lib/jce.jar:/mnt/original-home/.local/share/mise/installs/java/temurin-8.0.462+8/jre/lib/charsets.jar:/mnt/original-home/.local/share/mise/installs/java/temurin-8.0.462+8/jre/lib/jfr.jar:/mnt/original-home/.local/share/mise/installs/java/temurin-8.0.462+8/jre/classes
+java.vendor=Temurin
+java.specification.maintenance.version=6
+default.cubrid.cubrid_port_id=1523
+file.separator=/
+java.vendor.url.bug=https://github.com/adoptium/adoptium-support/issues
+testcase_update_yn=false
+sun.cpu.endian=little
+sun.io.unicode.encoding=UnicodeLittle
+sun.rmi.transport.connectionTimeout=10000000
+default.broker1.BROKER_PORT=33000
+default.ha.ha_port_id=33002
+sun.cpu.isalist=
+AUTO_TEST_VERSION=11.5.0.2545-e5f3cdf
+AUTO_TEST_BITS=64bits
+BEGIN TO CHECK: 
+=================== Check local============================
+==> Skip common properties initialization
+==> Check connection(ssh) ...... PASS
+==> Check variable 'HOME' ...... PASS
+==> Check variable 'USER' ...... PASS
+==> Check variable 'JAVA_HOME' ...... PASS
+==> Check variable 'CTP_HOME' ...... PASS
+==> Check variable 'init_path' ...... PASS
+==> Check variable 'CUBRID' ...... PASS
+==> Check command 'java' ...... PASS
+==> Check command 'javac' ...... PASS
+==> Check command 'diff' ...... PASS
+==> Check command 'wget' ...... PASS
+==> Check command 'find' ...... PASS
+==> Check command 'cat' ...... PASS
+==> Check command 'kill' ...... PASS
+==> Check command 'dos2unix' ...... PASS
+==> Check command 'tar' ...... PASS
+==> Check directory '${CTP_HOME}/bin' ...... PASS
+==> Check directory '${CTP_HOME}/common/script' ...... PASS
+==> Check directory 'gh/tc/CBRD-27398-pgbuf-inspector-fixtures/shell/_06_issues/_26_2h/cbrd_27398' ...... PASS
+
+CHECK RESULT: PASS
+============= UPDATE TEST CASES ==================
+CLEAN PROCESSES:
+@ cubrid broker stop
+++ cubrid broker is not running.
+@ cubrid manager server stop
+@ cubrid master stop
+++ cubrid master is not running.
+UID          PID    PPID  C STIME TTY          TIME CMD
+root          13       1  0 18:55 ?        00:00:00 bash /home/vimkim/my-cubrid/bin/cubrid-shell-debug.sh /home/vimkim/gh/tc/CBRD-27398-pgbuf-inspector-fixtures/shell/_06_issues/_26_2h/cbrd_27398
+root          30      24 80 18:55 pts/0    00:00:00 /home/vimkim/.local/share/mise/installs/java/temurin-8.0.462+8/bin/java -cp /mnt/CTP/common/lib/cubridqa-common.jar com.navercorp.cubridqa.ctp.CTP shell -c /tmp/shell_single.2pt888.conf
+root         427     240  0 18:55 pts/0    00:00:00 grep cub
+Active Internet connections (servers and established)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       User       Inode      PID/Program name    
+Active UNIX domain sockets (servers and established)
+Proto RefCnt Flags       Type       State         I-Node   PID/Program name     Path
+Active Bluetooth connections (servers and established)
+Proto  Destination       Source            State         PSM DCID   SCID      IMTU    OMTU Security
+Proto  Destination       Source            State     Channel
+
+------ Message Queues --------
+key        msqid      owner      perms      used-bytes   messages    
+
+------ Shared Memory Segments --------
+key        shmid      owner      perms      bytes      nattch     status      
+
+------ Semaphore Arrays --------
+key        semid      owner      perms      nsems
+SKIP TEST CASES UPDATE
+DONE
+============= FETCH TEST CASES ==================
+Test Category:shell
+The Number of Test Cases: 1 (macro skipped: 0, bug skipped: 0)
+The Number of Test Case : 1
+============= DEPLOY ==================
+CLEAN PROCESSES:
+@ cubrid broker stop
+++ cubrid broker is not running.
+@ cubrid manager server stop
+@ cubrid master stop
+++ cubrid master is not running.
+UID          PID    PPID  C STIME TTY          TIME CMD
+root          13       1  0 18:55 ?        00:00:00 bash /home/vimkim/my-cubrid/bin/cubrid-shell-debug.sh /home/vimkim/gh/tc/CBRD-27398-pgbuf-inspector-fixtures/shell/_06_issues/_26_2h/cbrd_27398
+root          30      24 54 18:55 pts/0    00:00:00 /home/vimkim/.local/share/mise/installs/java/temurin-8.0.462+8/bin/java -cp /mnt/CTP/common/lib/cubridqa-common.jar com.navercorp.cubridqa.ctp.CTP shell -c /tmp/shell_single.2pt888.conf
+root         742     555  0 18:55 pts/0    00:00:00 grep cub
+Active Internet connections (servers and established)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       User       Inode      PID/Program name    
+Active UNIX domain sockets (servers and established)
+Proto RefCnt Flags       Type       State         I-Node   PID/Program name     Path
+Active Bluetooth connections (servers and established)
+Proto  Destination       Source            State         PSM DCID   SCID      IMTU    OMTU Security
+Proto  Destination       Source            State     Channel
+
+------ Message Queues --------
+key        msqid      owner      perms      used-bytes   messages    
+
+------ Shared Memory Segments --------
+key        shmid      owner      perms      bytes      nattch     status      
+
+------ Semaphore Arrays --------
+key        semid      owner      perms      nsems
+DONE
+============= TEST ==================
+[ENV START] local
+STARTED
+[TESTCASE] gh/tc/CBRD-27398-pgbuf-inspector-fixtures/shell/_06_issues/_26_2h/cbrd_27398/cases/cbrd_27398.sh EnvId=local [OK]
+[ENV STOP] local
+============= PRINT SUMMARY ==================
+Test Category:shell
+Total Case:1
+Total Execution Case:1
+Total Success Case:1
+Total Fail Case:0
+Total Skip Case:0
+
+TEST COMPLETE
+[SHELL] TEST END (Wed Sep 09 18:55:44 KST 2026)
+[SHELL] ELAPSE TIME: 27 seconds

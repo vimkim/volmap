@@ -1,0 +1,61 @@
+A refusal without details encodes as the canonical error frame
+Every stable refusal code encodes with exactly its own details
+A detail that belongs to another code, or is missing for its own, is not encodable
+A control frame may fill its 4,096-byte limit exactly but not exceed it
+The canonical writer follows the contract's canonical form
+SHA-256 matches the FIPS 180 known answers
+Every generated corpus stream is exactly what the serializer produces from its semantic input
+The checksum file lists every corpus file with its digest, and the manifest pins the checksum file
+Refusal codes round-trip through their wire names
+Every expected outcome agrees with the stream it describes
+A client hello has a bounded canonical encoding
+Every v1 data frame preserves canonical semantic values
+Only a validated footer publishes resident and absent observations
+An unterminated control frame is rejected before buffering beyond its bound
+Invalid internal refusal values cannot emit an empty code
+Independent exchange corpus agrees with canonical encoding and incremental validation
+Native page kinds have one semantic vocabulary across the two source layouts
+Frame and depth limits hold below at and above their boundaries
+Scan record and declared visited-slot limits are independently bounded
+Whole-scan accounting includes unknown frames and the footer
+Invalid JSON and state values cannot enter a published capture
+Both refusal encoders and the verifier preserve uint32 retry delays
+Known LRU tuple consistency does not reject future enum evidence
+An embedded NUL cannot alias a producer refusal code
+Both refusal encoders report the same frame-size boundary
+Private attachment negotiates identity and removes its socket
+Unavailable paths preserve entries and cannot be retried
+Shutdown preserves a replacement socket
+Negotiation refuses unsupported versions and previous incarnations
+Two attachments bound admission and idle greetings expire
+Controls cannot exceed their frame or nesting budgets
+A scan request cannot fabricate complete absence
+Only refused stale sockets are reclaimed and active listeners survive
+A client that never drains a large handshake is disconnected after write stall
+Metadata preparation cannot extend the attachment deadline
+Identity proof is complete or refused by encoded bytes
+The scan floor applies across both clients and preserves increasing sequences
+Socket captures publish only after valid footer and preserve duplicate ambiguity
+A scan cancels sampling on disconnect and shutdown
+Stalled scan output is cancelled without a successful footer
+The whole exchange deadline is rechecked before writing
+Scan requests validate additive fields within frame and nesting limits
+Premature requests are rejected while the completed traversal still drains
+Fragmented controls and coalesced premature requests use production framing
+Hello controls enforce each framing boundary through real sockets
+Handshake deadline is inclusive and fragmented input cannot renew it
+Backpressure bounds queued bytes and reserves a truthful footer
+Write stall deadline closes at 250 ms without manufacturing a footer
+An indeterminate backlog-full probe preserves the active socket
+Real slow draining reaches the whole exchange deadline despite write progress
+Repeated shutdown closes descriptors and never retries activation
+Admission overload leaves both admitted clients usable
+Malformed scan controls close without protocol data or manufactured success
+Empty traversal produces a complete bounded capture
+Resident observations preserve semantic fields and exact emitted counts
+A bounded scan rotates beyond each visited span
+Slot and record caps distinguish exact completion from early stopping
+Footer reservation is charged before another record
+Elapsed traversal includes pauses and never fabricates completion
+Unavailable samples make omissions unknown even after full traversal
+Semantic samples validate topology boundaries and safe unknown values

@@ -1,0 +1,15 @@
+{
+  "base": "9e942a812f1451cf81308886c5bb8e17a0b44b98",
+  "reviewed_tree": "98cc8b8ed1982cd31c0d5bf2f7a069d211f7d801",
+  "standards": {
+    "initial_nonblocking": 1,
+    "resolved": "Centralized duplicate budget constants",
+    "remaining": 0
+  },
+  "spec": {
+    "initial_findings": 1,
+    "resolved": "Keep checking unexpected client input through footer drain; socket regression failed with a second traversal before fix and passes afterward",
+    "remaining": 0
+  },
+  "validation": "Final debug/release checks tracked separately"
+}

@@ -1,0 +1,131 @@
+$ cubrid createdb --db-volume-size=20M --log-volume-size=20M -F /tmp/pgbuf-server-zexwlc24 inspector02 en_US.utf8
+Creating database with 64.0M size using locale en_US.utf8. The total amount of disk space needed is 104.0M.
+
+CUBRID 11.5.0
+
+$ cubrid server start inspector02
+@ cubrid master start
+++ cubrid master start: success
+@ cubrid server start: inspector02
+
+This may take a long time depending on the amount of recovery works to do.
+
+CUBRID 11.5.0
+
+++ cubrid server start: success
+$ csql -u dba -c select 1; inspector02
+
+=== <Result of SELECT Command in Line 1> ===
+
+            1
+=============
+            1
+
+1 row selected. (0.000000 sec) Committed. (0.000000 sec) 
+$ cubrid server stop inspector02
+@ cubrid server stop: inspector02
+
+Server inspector02 notified of shutdown.
+This may take several minutes. Please wait.
+++ cubrid server stop: success
+$ cubrid server start inspector02
+@ cubrid server start: inspector02
+
+This may take a long time depending on the amount of recovery works to do.
+
+CUBRID 11.5.0
+
+PGBUF_INSPECTOR_READY: /tmp/pgbuf-server-zexwlc24/pgbuf-inspector/e9fa37cb2016ecfdfc949f8eba43b31d.sock
+++ cubrid server start: success
+$ csql -u dba -c select 1; inspector02
+
+=== <Result of SELECT Command in Line 1> ===
+
+            1
+=============
+            1
+
+1 row selected. (0.000000 sec) Committed. (0.000000 sec) 
+$ cubrid server stop inspector02
+@ cubrid server stop: inspector02
+
+Server inspector02 notified of shutdown.
+This may take several minutes. Please wait.
+++ cubrid server stop: success
+$ cubrid server start inspector02
+@ cubrid server start: inspector02
+
+This may take a long time depending on the amount of recovery works to do.
+
+CUBRID 11.5.0
+
+PGBUF_INSPECTOR_READY: /tmp/pgbuf-server-zexwlc24/pgbuf-inspector/e9fa37cb2016ecfdfc949f8eba43b31d.sock
+++ cubrid server start: success
+$ csql -u dba -c select 1; inspector02
+
+=== <Result of SELECT Command in Line 1> ===
+
+            1
+=============
+            1
+
+1 row selected. (0.001000 sec) Committed. (0.000000 sec) 
+$ cubrid server stop inspector02
+@ cubrid server stop: inspector02
+
+Server inspector02 notified of shutdown.
+This may take several minutes. Please wait.
+++ cubrid server stop: success
+$ cubrid copydb -F /tmp/pgbuf-server-zexwlc24/copied -E /tmp/pgbuf-server-zexwlc24/copied inspector02 inspector02copy
+$ cubrid server start inspector02copy
+@ cubrid server start: inspector02copy
+
+This may take a long time depending on the amount of recovery works to do.
+
+CUBRID 11.5.0
+
+PGBUF_INSPECTOR_READY: /tmp/pgbuf-server-zexwlc24/pgbuf-inspector/c6f5c99288f662c688eef6013cf4adb4.sock
+++ cubrid server start: success
+$ csql -u dba -c select 1; inspector02copy
+
+=== <Result of SELECT Command in Line 1> ===
+
+            1
+=============
+            1
+
+1 row selected. (0.001000 sec) Committed. (0.000000 sec) 
+$ cubrid server stop inspector02copy
+@ cubrid server stop: inspector02copy
+
+Server inspector02copy notified of shutdown.
+This may take several minutes. Please wait.
+++ cubrid server stop: success
+$ cubrid server start inspector02
+@ cubrid server start: inspector02
+
+This may take a long time depending on the amount of recovery works to do.
+
+CUBRID 11.5.0
+
+PGBUF_INSPECTOR_UNAVAILABLE: startup activation failed; unavailable until server restart
+++ cubrid server start: success
+$ csql -u dba -c select 1; inspector02
+
+=== <Result of SELECT Command in Line 1> ===
+
+            1
+=============
+            1
+
+1 row selected. (0.001000 sec) Committed. (0.000000 sec) 
+$ cubrid server stop inspector02
+@ cubrid server stop: inspector02
+
+Server inspector02 notified of shutdown.
+This may take several minutes. Please wait.
+++ cubrid server stop: success
+$ cubrid server stop inspector02
+@ cubrid server stop: inspector02
+++ cubrid server 'inspector02' is not running.
+$ cub_commdb -A

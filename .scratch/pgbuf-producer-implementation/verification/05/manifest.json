@@ -1,0 +1,171 @@
+{
+  "ticket": "05",
+  "status": "complete",
+  "engine_commit": "f8c068f771ccd141a3c2f08541fe75c84e41ce53",
+  "engine_tree": "890d5c4c6e505ef93f55abb86d66bfe72e136420",
+  "engine_base": "e5f3cdf86908b8d23d4e09d28d22265bf240f7ad",
+  "testcase_commit": "a648d78f599504fe0c916628ea51ea3f2b5f7ca7",
+  "testcase_tree": "5b1f7792534f65b85b09fd4de21afe9a9badd5ea",
+  "testcase_base": "a8d61f27443e3c8b56bcaf94b23a8b88dff9069a",
+  "testcase_worktree": "/home/vimkim/gh/tc/CBRD-27398-pgbuf-inspector-fixtures",
+  "testcase_path": "shell/_06_issues/_26_2h/cbrd_27398/cases/cbrd_27398.sh",
+  "results": {
+    "debug": {
+      "ctest_entries": 28,
+      "ctest_failed": 0,
+      "inspector_cases": 61,
+      "native_cases": [
+        "PASS clean held native VPID (32766, 65) complete records 53",
+        "PASS dirty held native VPID (32766, 65) complete records 53",
+        "PASS partial scan with independently held native page (32766, 65) records 216",
+        "PASS evicted-complete (32766, 65) observed-nonresident records 11",
+        "PASS evicted-partial (32766, 65) unknown records 219",
+        "PASS native fixture shutdown"
+      ],
+      "external_ctp": {
+        "executed": 1,
+        "success": 1,
+        "failed": 0,
+        "skipped": 0
+      },
+      "known_vpid": [
+        32766,
+        65
+      ],
+      "replacement_allocations": 4096,
+      "cleanup_retry_pages": 0,
+      "build_type": "Debug",
+      "binaries": {
+        "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/debug_gcc/bin/cub_server": "0bc4b40f07e058d86005998591f3eb960e9cf93a8eac3e1614435b0207adc2a8",
+        "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/debug_gcc/lib/libcubrid.so": "02d5d1c49e6ac00331f980a7e77cf7022900dc4cc302096947a0be3445691bef",
+        "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc/bin/pgbuf_inspector_fixture": "44480675bd97f72deabfa8e156282b55edb0c96b157ef6a5d26aac16bfaf33fe"
+      },
+      "reported_version": "CUBRID 11.5.0 (11.5.0.2546-f8c068f) (64bit debug build for Linux) (Sep  9 2026 19:22:46)"
+    },
+    "release": {
+      "ctest_entries": 28,
+      "ctest_failed": 0,
+      "inspector_cases": 61,
+      "native_cases": [
+        "PASS clean held native VPID (32766, 65) complete records 53",
+        "PASS dirty held native VPID (32766, 65) complete records 53",
+        "PASS partial scan with independently held native page (32766, 65) records 216",
+        "PASS evicted-complete (32766, 65) observed-nonresident records 8",
+        "PASS evicted-partial (32766, 65) unknown records 220",
+        "PASS native fixture shutdown"
+      ],
+      "external_ctp": {
+        "executed": 1,
+        "success": 1,
+        "failed": 0,
+        "skipped": 0
+      },
+      "known_vpid": [
+        32766,
+        65
+      ],
+      "replacement_allocations": 4096,
+      "cleanup_retry_pages": 8,
+      "build_type": "RelWithDebInfo",
+      "binaries": {
+        "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_server": "3e65212cdd338f29a84aa9de6d5e1a53d158ad1ba9a8eb2336d074a9d0cc6cec",
+        "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcubrid.so": "0aeaeee76c0d977f85eb8d8adf014bb9f9a4a9ffb6714b08cbd4cde789ba27c0",
+        "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/bin/pgbuf_inspector_fixture": "bb1fa1f8a6a273194b55a839a1ad87fa0a63ee904aefa6b12f769ba34009d769"
+      },
+      "reported_version": "CUBRID 11.5.0 (11.5.0.2546-481d26c) (64bit release build for Linux) (Sep  9 2026 19:13:53)"
+    }
+  },
+  "artifacts": {
+    "debug-native-final": {
+      "original": "/home/vimkim/temp/pgbuf-native-nd_59lvt",
+      "retained": "/home/vimkim/temp/volmap/.scratch/pgbuf-producer-implementation/verification/05/debug-native-final",
+      "sha256": {
+        "cubrid.conf": "b79e31a86a5c7193c2b7f51d957333f4682446ddb9b68ec42cc4fc57341a9c9e",
+        "commands.log": "62c216bcc850b023c99014a382eb203be58a330f061c1f6fdf5fb8f8ee39d46b",
+        "native.log": "ed7a7c4c456c54daab6c57ca0104d182ddb46d9a4285372718ed6fcb90ec4b54",
+        "synchronization.json": "6489f601276db741b28557762004236a8328f88b80ae151c50ee7d2fb03dc7d2",
+        "clean.jsonl": "be79c462c81d16d17bad7579963c8973f45187f8266d8e4efd71eec5e5ef7e2e",
+        "dirty.jsonl": "8fdc045d16a8d19eccd210f1a879c4a43fac5aa5d48c650a3762135d8152245c",
+        "partial.jsonl": "17d8628e0dbbae6cbc9ed6c6df70744bed2df47561a8852563e73184441ba368",
+        "evicted-complete.jsonl": "7ed2dac1fdc3857ed55cc40b9da8ea81ca7a1b260a5a87a2098bef86f2d6b950",
+        "evicted-complete-conclusion.json": "e631ec89281084be3e28e0d6b2c642d0d90fa82adb04b53753da0bdc6e40acd7",
+        "evicted-partial.jsonl": "dc5384df5c224c1f1970575ef3857f82529b9ba99308ca1b321d696dfcb60784",
+        "evicted-partial-conclusion.json": "f7ef7834f6d756782a674c80debc50905abafd73a987444073bd904903663d6d"
+      }
+    },
+    "debug-attachment-final": {
+      "original": "/home/vimkim/temp/pgbuf-server-0fjm1ccd",
+      "retained": "/home/vimkim/temp/volmap/.scratch/pgbuf-producer-implementation/verification/05/debug-attachment-final",
+      "sha256": {
+        "cubrid.conf": "06eae1b7753f4bdbbd8b9e6e1101a7545a347df68543b718233f358ef509556d",
+        "commands.log": "15568e6c82696319d8606cf4e9ed63d6cea20b0c501bc23fc037e208cb116622",
+        "2ee02db8a1d656cacbedf941317b746d-scan.json": "19753366c43b08818e131b244bb99aa0d9f8817af548e3149880374e88ea7778",
+        "703fd3a5f07a0c98211e4f526a8cc85d-scan.json": "79b83775d3cb3c35ec75a4025bd8de8d8670e3770ad1111e0f97626730a7ecf8",
+        "339a960f983d560a17b6d15257e71cc4-scan.json": "70c3a6f68f107bcfe25ceccf589b38778a49241153dd501ae2214b6283419060"
+      }
+    },
+    "release-native-final": {
+      "original": "/home/vimkim/temp/pgbuf-native-gelzx26r",
+      "retained": "/home/vimkim/temp/volmap/.scratch/pgbuf-producer-implementation/verification/05/release-native-final",
+      "sha256": {
+        "cubrid.conf": "b79e31a86a5c7193c2b7f51d957333f4682446ddb9b68ec42cc4fc57341a9c9e",
+        "commands.log": "6bc15aa41660cf785014b7f85f5e87892ac06199a6c61cf120d5438433c8b1c7",
+        "native.log": "856d0bc22b14c7b1cbd50acf135e40c4357d934c04de58d8d9e5a706d895d2f4",
+        "synchronization.json": "821873a2254077bd3f8412d9a2aae519b4f90173a5d1d7da26009acebfc0097b",
+        "clean.jsonl": "f44082de3c8628bcf0f4dfcd78a6fef21877df1d142f5b3aa4fb0c637fe57100",
+        "dirty.jsonl": "2ced43f762db8409a040ba081b2c4d135c8c16b491c11da2100ca252bf438610",
+        "partial.jsonl": "a548bdeeb99ec5221cf74b6b0ca96469591484e8981b6101fcc824e6a0d9eaa1",
+        "evicted-complete.jsonl": "ee26411c7a5bc4a99e1c822403624a3b7e74caf5c43cd370726967c2d6fa60e4",
+        "evicted-complete-conclusion.json": "e631ec89281084be3e28e0d6b2c642d0d90fa82adb04b53753da0bdc6e40acd7",
+        "evicted-partial.jsonl": "a1405c36e41429b440dbf9d9d4afcd2f12d4619d074d39e43ddd3033ae8522ea",
+        "evicted-partial-conclusion.json": "f7ef7834f6d756782a674c80debc50905abafd73a987444073bd904903663d6d"
+      }
+    },
+    "release-attachment-final": {
+      "original": "/home/vimkim/temp/pgbuf-server-uugjckmp",
+      "retained": "/home/vimkim/temp/volmap/.scratch/pgbuf-producer-implementation/verification/05/release-attachment-final",
+      "sha256": {
+        "cubrid.conf": "357b45feeafe4bd4897b50f507e53e597f9c588a3e5967cb20924173f19862fc",
+        "commands.log": "f9e69d8f079d225308c6a64459c88e483d7bdd1a9980dcb1e08479c981ed1f79",
+        "9fbad75fad573c4ef7dde001a24be789-scan.json": "ef74b71d3c17e7239b6439298506e1538cd988ebef0129c9e8d0e5fba8eb9475",
+        "33466b53161a5c55274241f443e035be-scan.json": "79bc053dbd7b900dfe6146fa36584f01f8544cc57d4fde81dc03f76c3d45c73b",
+        "c6a799c0a34ee6d46a65d98a5d8f02f0-scan.json": "026f4f22b1799dfa00dff29c6bab62c943218291eb4ddb952a37c587325fbcb9"
+      }
+    }
+  },
+  "review": {
+    "path": "review.md",
+    "standards_findings": 0,
+    "spec_findings": 0
+  },
+  "commands": {
+    "native": "python3 unit_tests/pgbuf_inspector/controlled_observation.py --fixture BUILD/bin/pgbuf_inspector_fixture",
+    "ctest": "ctest --test-dir BUILD --output-on-failure",
+    "external": "$CTP_HOME/bin/ctp.sh shell -c RUN_SPECIFIC_CONF",
+    "local_build": "direnv exec . env CUBRID_TMP=/tmp/pgbuf05-MODE-suite just build-test",
+    "local_ctp": "direnv exec . timeout -s KILL 360 unshare -r --mount-proc -i -p -f -n --kill-child=SIGKILL -- bash verification/05/ctp-MODE_gcc/inside.sh"
+  },
+  "bounds": {
+    "ack_seconds": 8,
+    "eviction_ack_seconds": 25,
+    "command_seconds": 10,
+    "replacement_seconds": 15,
+    "replacement_max_pages": 32768,
+    "cleanup_seconds": 5
+  },
+  "failed_attempts": [
+    "release-full-before-cleanup-fix.log: successful invalidation left protected workload pages cached; cleanup now retries within the same total5s bound and requires native cache miss",
+    "debug-controlled-first.log: direct temporary-file destruction caused shutdown assertion; use file_temp_retire",
+    "release-bootstrap.log: Debug-only holder API replaced with public native fix-count/latch/VPID checks",
+    "debug-focused.log and debug-deadline-recheck.log: fixed-size drain failed to free a kernel send allocation; corrected real-progress drain passed both modes",
+    "debug-eviction-first.log: replacement succeeded but full buffer pool made scan partial; remove only non-target workload after independently proving target eviction"
+  ],
+  "limitations": [
+    "No consumer implementation or integration is claimed; ticket06 owns that gate",
+    "No native replacement-policy telemetry is added; proof is actual capacity workload followed by cache-only native miss",
+    "Test-only owner boots production engine/daemon; unmodified installed server is independently exercised",
+    "Existing dirty CCI submodule preserved; production source unchanged since engine_base",
+    "Local CTP uses isolated user/PID/mount/IPC/network namespaces and copied install/configuration; broad suite service cleanup stays inside that namespace",
+    "Binary embedded version can name the build-time base; exact reviewed source trees and binary hashes identify executed code"
+  ]
+}

@@ -1,0 +1,177 @@
+{
+  "ticket": "05",
+  "status": "incomplete: eviction method clarification pending",
+  "engine_base": "e5f3cdf86908b8d23d4e09d28d22265bf240f7ad",
+  "testcase_base": "a8d61f27443e3c8b56bcaf94b23a8b88dff9069a",
+  "testcase_worktree": "/home/vimkim/gh/tc/CBRD-27398-pgbuf-inspector-fixtures",
+  "testcase_branch": "CBRD-27398-pgbuf-inspector-fixtures",
+  "source_snapshot_sha256": {
+    "engine/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp": "050e02da0040d8d9d970a29fff4f1e6328a1fba4e419893c81a18a82a4c3e72d",
+    "engine/unit_tests/pgbuf_inspector/CMakeLists.txt": "cf64a3314306d6afb3ba14b1ac10e12440691d571b91ea6ccf6e22860d5d7014",
+    "engine/unit_tests/pgbuf_inspector/pgbuf_inspector_fixture.cpp": "6e8825387205819bd51b165a6f955e032cf986bfb2b7e865b21a618e87990e0a",
+    "engine/unit_tests/pgbuf_inspector/controlled_observation.py": "3b983bd627938aa488620ca470483fc4d975c9daa5c48840bd0fa52e5e08ad86",
+    "engine/docs/pgbuf-inspector/controlled-observation.md": "c130257d5b9a71a1bd98eba61e77cbe350bf2f9f34e76ad99eebd8783bc7c365",
+    "testcases/shell/_06_issues/_26_2h/cbrd_27398/cases/cbrd_27398.sh": "1234ebe71d1db4719db078dd5f91c7201ab0f374f7b714cb42e595000b3eac03",
+    "testcases/shell/_06_issues/_26_2h/cbrd_27398/README.md": "d2bf425428b9995ffe63aad4b6835ef141964c6cd102fa970f31344c4eb0bafd"
+  },
+  "provenance": {
+    "debug_gcc": {
+      "build_type": "Debug",
+      "sha256": {
+        "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/debug_gcc/bin/cub_server": "2baa59f72cea19ac6fae73a3fe92eb8d5c61eea01129790aa56856b244ef4b81",
+        "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/debug_gcc/lib/libcubrid.so": "f169f822d0db97474476970a437e1ef0cb0fdde176abcb8efccf135c029fb54d",
+        "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_debug_gcc/bin/pgbuf_inspector_fixture": "9f76d7fde0635d374a4f12e859d7e07075b9c6ecff54d339ab35d89995bcffc1"
+      }
+    },
+    "release_gcc": {
+      "build_type": "RelWithDebInfo",
+      "sha256": {
+        "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_server": "ce4fc95c0345f99514ad4132cb7ca59e568151f5c26a4535aeb76e5fcd833207",
+        "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcubrid.so": "ded6a859e1d8ad8db70de8a08aac40083f9b8e01ae62c84034bfb8bfab7d1685",
+        "/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/build_preset_release_gcc/bin/pgbuf_inspector_fixture": "da6a8b92951d401f07b37aad7253c8835c46c8d96c412b33ba006d47704528dd"
+      }
+    }
+  },
+  "artifacts": {
+    "debug-ctp-native": {
+      "original": "/home/vimkim/temp/pgbuf-native-5ctfk2rk",
+      "retained": "/home/vimkim/temp/volmap/.scratch/pgbuf-producer-implementation/verification/05/debug-ctp-native",
+      "files": {
+        "cubrid.conf": "b79e31a86a5c7193c2b7f51d957333f4682446ddb9b68ec42cc4fc57341a9c9e",
+        "commands.log": "09434d01538f0b04fb95a7e63737f187a69ace769569440a1b500fc27b79e2b4",
+        "native.log": "9560a9b22c24185229b67344b797d64a7d16a0a66dd0522264b66d11fe9fb636",
+        "synchronization.json": "d5b4945f65c3c78f03cf7d264f4f9ea3585dc6d9a9b1753a5c7699933d6c5a77",
+        "clean.jsonl": "b052430d9f8dfb5503bc40be9fdc514787097ba42f9c1c9b1956d466578f93b1",
+        "dirty.jsonl": "0845c637f1d44653175f20752263dd60059b185ef6cc56c7fb637fc0bb81f4e2",
+        "partial.jsonl": "37df372cc1b87fd754021ed8fbc72a7ff3a9b8b89cc2850988fd6360bde7e995"
+      }
+    },
+    "debug-ctp-attachment": {
+      "original": "/home/vimkim/temp/pgbuf-server-le1gktdd",
+      "retained": "/home/vimkim/temp/volmap/.scratch/pgbuf-producer-implementation/verification/05/debug-ctp-attachment",
+      "files": {
+        "cubrid.conf": "b566ba25c7e349607f2ed35f87e242277c3f3dd1b44c3847baaea7e9f6dddfbb",
+        "commands.log": "682a023d3d54ee838685d7e7fb456b2a946204516f4b16d495a665a13c0b143c",
+        "52f5df35095a37672e9bd5f6d392713a-scan.json": "ebcceea100f90ef8aef0d238552e9ccac5ecf8cb5a08ffb36f183542d95f43ac",
+        "85b83872862f5f263917cc5ff5342274-scan.json": "529615092003b042cbd6b47aad6cfe02d320f1d7e29da57a8f3130fbdab352e2",
+        "3679f795cbd4a3db00531b093a7e328f-scan.json": "9080bba5572bff4b9870d03ae02d2b9d1baa660ec3b00dba56f5a695e1632b37"
+      }
+    },
+    "release-ctp-native": {
+      "original": "/home/vimkim/temp/pgbuf-native-ygqq4gac",
+      "retained": "/home/vimkim/temp/volmap/.scratch/pgbuf-producer-implementation/verification/05/release-ctp-native",
+      "files": {
+        "cubrid.conf": "b79e31a86a5c7193c2b7f51d957333f4682446ddb9b68ec42cc4fc57341a9c9e",
+        "commands.log": "6bc15aa41660cf785014b7f85f5e87892ac06199a6c61cf120d5438433c8b1c7",
+        "native.log": "412b3cdf914aaaf0f66439aacf75ba90649acb0a5b5609dcca4d041c9766b996",
+        "synchronization.json": "9bcc898f5b5b1a58a9d6a9c9850d97e340aaed518f1301a7965efc1ab7a479f7",
+        "clean.jsonl": "5196b09f9358f729633fada9ca8ec4800a0de1253142be22a446f84a88f51c6d",
+        "dirty.jsonl": "7b3e00a749c6edbcf74da92a93578314661f5c055d3f6794f5d542bab0e3f469",
+        "partial.jsonl": "c409d69a5763a548b281339725b7eba9c6e5080f4581cfaa8e4d319d69716134"
+      }
+    },
+    "release-ctp-attachment": {
+      "original": "/home/vimkim/temp/pgbuf-server-foqfh3r2",
+      "retained": "/home/vimkim/temp/volmap/.scratch/pgbuf-producer-implementation/verification/05/release-ctp-attachment",
+      "files": {
+        "cubrid.conf": "62ac7994b656351c4331aab7bf54bac04e4bcfb3ea2aff5081d478539ba9819a",
+        "commands.log": "52bd835396da2b2998303974006580ab811fb616817dfe819024d9a99de9d0aa",
+        "7e7dbf4edeab35f720439f7263b80d02-scan.json": "378afcdc01f8d0a311b1feba2af4d5a8d65a615813fcf78bde12a9416b23efb4",
+        "0886766a4551eb17311fbfaf4d22edd5-scan.json": "0256e945209197dc6296d60273b8c255d297ed43a79aec296c7f822127278265",
+        "c1d535bd440b190a9c4e5f19aaa824f5-scan.json": "31c76d337d63968c70e93249006e7c8dbc9f639d434b4db36ebf1fb1003cb9a4"
+      }
+    },
+    "release-native": {
+      "original": "/home/vimkim/temp/pgbuf-native-euyniv2b",
+      "retained": "/home/vimkim/temp/volmap/.scratch/pgbuf-producer-implementation/verification/05/release-native",
+      "files": {
+        "cubrid.conf": "b79e31a86a5c7193c2b7f51d957333f4682446ddb9b68ec42cc4fc57341a9c9e",
+        "commands.log": "6bc15aa41660cf785014b7f85f5e87892ac06199a6c61cf120d5438433c8b1c7",
+        "native.log": "31a23ac553a2833c5a317bb8cfd4fd84e80171896a5fd6b1e7df93ce3785e783",
+        "synchronization.json": "7736dd9b18c99fb0fe13eb5a53a71c9443a1c760628ca515d0c5cb4850aeb10c",
+        "clean.jsonl": "be757694196ffa4147ce72241bccd83a3a4be866094b3565cff123e1d2104467",
+        "dirty.jsonl": "5012b62c10b623129d349386fbb969e30660c1c0e64ff961bef4509435e0c01e",
+        "partial.jsonl": "224a61e221550805748bef7677c2e45b1e454606a156cad58b7a3ecd938ef0ef"
+      }
+    },
+    "debug-current-native": {
+      "original": "/home/vimkim/temp/pgbuf-native-sbt0ua3l",
+      "retained": "/home/vimkim/temp/volmap/.scratch/pgbuf-producer-implementation/verification/05/debug-current-native",
+      "files": {
+        "cubrid.conf": "b79e31a86a5c7193c2b7f51d957333f4682446ddb9b68ec42cc4fc57341a9c9e",
+        "commands.log": "09434d01538f0b04fb95a7e63737f187a69ace769569440a1b500fc27b79e2b4",
+        "native.log": "a187bbe4abe5498dad2b46316a40a5dc578c36ce5feb20b102e173b88678f6d3",
+        "synchronization.json": "d702da2a8e9ba95e13b75ed005490537bffd4c4a6cbc03db1fde7603cbb7ab5f",
+        "clean.jsonl": "44b954bc5aa68b9fee948a95556cab0bda8089ff8b05d53d96e3830dbf912848",
+        "dirty.jsonl": "add60f1d582107a550abab2697a8fffdf9c4d58b3267451667d4693ea39c36e3",
+        "partial.jsonl": "f193cffcbfd95c97f55bd1b5e3efe4fcd45c3bef9d9fd90fab6f4f799ec805d7"
+      }
+    }
+  },
+  "checks": {
+    "native": [
+      "clean-held",
+      "dirty-held",
+      "partial-held",
+      "shutdown"
+    ],
+    "release_partial_command_timeout": {
+      "case": "incomplete-controller-command",
+      "result": "PASS",
+      "exit_code": 1,
+      "elapsed": 10.109936226159334,
+      "evidence": "/home/vimkim/temp/pgbuf-timeout-aqzvb0se"
+    },
+    "external_ctp": {
+      "debug": {
+        "executed": 1,
+        "success": 1,
+        "failed": 0,
+        "skipped": 0
+      },
+      "release": {
+        "executed": 1,
+        "success": 1,
+        "failed": 0,
+        "skipped": 0
+      }
+    },
+    "focused_ctest": {
+      "debug": {
+        "executed": 2,
+        "failed": 0,
+        "log": "debug-focused-corrected.log"
+      },
+      "release": {
+        "executed": 2,
+        "failed": 0
+      }
+    },
+    "unmodified_release_attachment": "passed in external CTP companion"
+  },
+  "pending": [
+    "Eviction choice: explicit native invalidation or actual LRU replacement",
+    "Independent absence and no-refix proof across complete scan",
+    "Complete omission versus partial unknown assertions",
+    "Final debug/release full suites",
+    "Two-axis code review",
+    "Engine and external testcase commits/exact final revisions"
+  ],
+  "failed_attempts": [
+    "debug-focused.log and debug-deadline-recheck.log: fixed-size draining did not free a kernel send allocation; corrected test to drain minimally until actual write progress; debug-focused-corrected.log passed",
+    "debug-controlled-first.log: wrong temporary-file destruction caused shutdown assertion; repaired with file_temp_retire",
+    "release-bootstrap.log: debug-only holder API unavailable in release; replaced with public fix-count/latch/VPID checks"
+  ],
+  "limitations": [
+    "Debug first CTP run predates bounded command reader and release-compatible native checks; debug-focused.log verifies current source separately",
+    "No completed ticket05 gate is claimed; source remains uncommitted",
+    "Existing dirty cubrid-cci submodule preserved"
+  ],
+  "ctp_isolation": "User/PID/mount/IPC/network namespaces; private CTP/install/home mount view; HOME environment unchanged; broad suite cleanup confined to namespace",
+  "commands": [
+    "python3 unit_tests/pgbuf_inspector/controlled_observation.py --fixture BUILD/bin/pgbuf_inspector_fixture",
+    "ctest --test-dir BUILD -R ^test_pgbuf_inspector --output-on-failure",
+    "$CTP_HOME/bin/ctp.sh shell -c RUN_SPECIFIC_CONF (standard entrypoint; personal helper and namespace invocation retained in inside.sh / CTP transcripts)"
+  ],
+  "superseded_by": "manifest.json (completed final gate); this file preserves the earlier incomplete checkpoint"
+}

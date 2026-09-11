@@ -1,0 +1,21 @@
+Filters: [socket]
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+test_pgbuf_inspector is a Catch v2.11.3 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Peer credentials reject another effective UID before any reply
+-------------------------------------------------------------------------------
+/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp:290
+...............................................................................
+
+/home/vimkim/gh/cb/CBRD-27398-pgbuf-inspector-contract/unit_tests/pgbuf_inspector/test_pgbuf_inspector_socket.cpp:293: FAILED:
+  REQUIRE( geteuid () == 0 )
+with expansion:
+  1000 (0x3e8) == 0
+
+===============================================================================
+test cases:   25 |   24 passed | 1 failed
+assertions: 1431 | 1430 passed | 1 failed
+

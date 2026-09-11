@@ -1,0 +1,6 @@
+Evidence directory: /tmp/pgbuf-server-c2tcdopz
+PASS default-off server serves SQL without inspector directory
+PASS enabled identity matches physical persistent volume {"type": "server_hello", "protocol_major": 1, "protocol_minor": 0, "incarnation": "1ee13cae1153966b2f4110108ec50b8e", "database_creation": "1788937551", "volumes": [{"volid": 0, "volume_creation": "1788937551", "device": "64768", "inode": "68654475"}, {"volid": 1, "volume_creation": "1788937552", "device": "64768", "inode": "68654477"}], "shared_lru_count": 4, "private_lru_count": 152}
+PASS restart changes incarnation and preserves persistent identity
+PASS copied database has distinct physical identity
+PASS activation failure preserves conflicting entry and SQL service
