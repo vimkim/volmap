@@ -381,7 +381,7 @@
     },
     "candidate_density": {
       "manifest": ".scratch/pgbuf-overlay-implementation/verification/08-candidate-density/manifest.json",
-      "sha256": "3fd001ab12e9e34a946a08e2b3c55bc88d82721d7b9a336127b7b805c7b3fc75",
+      "sha256": "47856f49bab0843aa180bb2566dec906086d72bf737cfb93a83fc37f5047e8e1",
       "consumer_commit": "cab4a9bc6542453df61831c5d3b24441d789fe96",
       "result": "non-passing: Chromium RSS verdict varies across unchanged-source executions; initial failure retained",
       "executed_count": 4,

@@ -67,11 +67,47 @@ reproduction. The planned first probe—two unchanged-source repetitions—shows
 variability. The next discriminating probe is a controlled old/current bundle
 comparison with otherwise identical harness/server/browser inputs. If that does
 not explain the difference, the existing native raster/allocation diagnostics
-provide the next starting point. Neither comparison nor new allocation profiling
-has run here. No production fix, threshold relaxation, forced GC or inflated
+provide the next starting point. The bundle comparison has now run, as recorded below; new allocation profiling
+has not run here. No production fix, threshold relaxation, forced GC or inflated
 baseline was introduced.
 
 Current-commit density repair/qualification, named manual review and the full
 dedicated-host performance campaign remain open. The ordinary `just verify` run
 at the preparation checkpoint remains applicable to unchanged runtime/test
 sources; it is not rerun or relabelled as a density acceptance pass.
+
+## Bundle-only comparison
+
+A temporary copy of the density test intercepts only `/app.js` and serves either
+the `4f129d8` or `cab4a9b` committed generated bundle. Both variants use the same
+routing hook, current release server, CSS, browser, workload and thresholds.
+The order is current, old, old, current. This is a diagnostic intervention, not
+an unmodified-harness acceptance run or a full old-consumer baseline.
+
+| Probe | Bundle | State / LRU RSS increment | Worst enabled p95 | Result |
+| --- | --- | ---: | ---: | --- |
+| current-01 | cab4a9b | 28.34 / 33.43 MiB | 59.7 ms | Memory failure |
+| old-01 | 4f129d8 | 31.82 / 18.19 MiB | 338.4 ms | Timing failure |
+| old-02 | 4f129d8 | 26.67 / 36.11 MiB | 57.9 ms | Memory failure |
+| current-02 | cab4a9b | 19.27 / 25.54 MiB | 61.5 ms | Diagnostic pass |
+
+The unchanged 12,288-cell / 40-input workload executes in every arm. Both bundles
+can exceed the memory ceiling with the same current server: the JavaScript
+change is not necessary for this failure. This does not exclude a server-side
+change or identify a specific native allocation cause. One older-bundle run also
+fails timing. A contemporaneous host snapshot shows other compiler/test processes
+and nonzero load; it does not prove that contention caused any measured failure.
+A stable isolated measurement environment is needed to improve causal confidence.
+
+[Summary](bundle-probe-summary.json) retains bundle hashes, commands and results;
+[bundle-probe.tar.gz](bundle-probe.tar.gz) retains the temporary test/config,
+both exact bundles, raw reports, logs and host snapshot. To reproduce, extract
+the archive into this directory, copy its test to `web/e2e/` and config to `web/`,
+then execute the summary's commands from the repository root. Remove those two
+temporary files afterwards. The diagnostic copies were removed after execution;
+no production files or normal test configuration changed.
+
+The gate remains non-passing. The failed original run is still the release
+candidate's density evidence. Neither a diagnostic pass nor an old-bundle failure
+waives the original failure. Further isolated native-allocation investigation,
+manual review and dedicated-host release measurements remain outstanding.

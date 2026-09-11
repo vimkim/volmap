@@ -1,0 +1,118 @@
+{
+  "purpose": "Diagnostic bundle-only comparison; not original-harness or release acceptance",
+  "consumer_server_commit": "cab4a9bc6542453df61831c5d3b24441d789fe96",
+  "execution_commit": "e797ccda8e667b738c5776e404dbd4e8f42ad2b5",
+  "bundles": {
+    "old": {
+      "commit": "4f129d82274a71a19370d944939eb50069ada51d",
+      "sha256": "dc6e7edc50f6c3f6bd4e9b7871cb4637a739eafce3a1666e76f1f5b16a626c75"
+    },
+    "current": {
+      "commit": "cab4a9bc6542453df61831c5d3b24441d789fe96",
+      "sha256": "8c3e4256bc0e5430014b5280d5f546fe3e287a9adb7b0a0441dc0452596cf77a"
+    }
+  },
+  "harness_sha256": {
+    "density-bundle-probe.spec.ts": "08838e27a862afe1e736721633579cc7e16288511530ad23691b1dcf82a06474",
+    "playwright.bundle-probe.config.ts": "0053c77da727a4d8cfe74d3b52a90595ab5f25057ada5ab1f782378d0d1bb41f"
+  },
+  "run_order": [
+    "current-01",
+    "old-01",
+    "old-02",
+    "current-02"
+  ],
+  "runs": [
+    {
+      "diagnosticBundleSha256": "8c3e4256bc0e5430014b5280d5f546fe3e287a9adb7b0a0441dc0452596cf77a",
+      "consumerCommit": "e797ccda8e667b738c5776e404dbd4e8f42ad2b5",
+      "host": {
+        "name": "dev2",
+        "kernel": "5.14.0-570.30.1.el9_6.x86_64",
+        "cpu": "Intel(R) Xeon(R) Gold 5218R CPU @ 2.10GHz",
+        "logicalCpus": 80,
+        "memoryBytes": 134261731328
+      },
+      "p95Ms": 59.70000000298023,
+      "incrementalPeakRssBytes": [
+        29716480,
+        35057664
+      ],
+      "timingPass": true,
+      "memoryPass": false,
+      "id": "current-01",
+      "exit_code": 1,
+      "raw_report": "current-01/results/density-bundle-probe-12288-d121f-ible-latency-and-paired-RSS-chromium/density-chromium.json",
+      "command": "VOLMAP_DENSITY_PORT=41744 VOLMAP_DENSITY_BUNDLE=/home/vimkim/temp/volmap/.scratch/pgbuf-overlay-implementation/verification/08-candidate-density/bundle-probe/current.js VOLMAP_DENSITY_OUTPUT=/home/vimkim/temp/volmap/.scratch/pgbuf-overlay-implementation/verification/08-candidate-density/bundle-probe/current-01/results mise x node@24.19.0 -- corepack pnpm --dir web exec playwright test --config playwright.bundle-probe.config.ts --project chromium"
+    },
+    {
+      "diagnosticBundleSha256": "dc6e7edc50f6c3f6bd4e9b7871cb4637a739eafce3a1666e76f1f5b16a626c75",
+      "consumerCommit": "e797ccda8e667b738c5776e404dbd4e8f42ad2b5",
+      "host": {
+        "name": "dev2",
+        "kernel": "5.14.0-570.30.1.el9_6.x86_64",
+        "cpu": "Intel(R) Xeon(R) Gold 5218R CPU @ 2.10GHz",
+        "logicalCpus": 80,
+        "memoryBytes": 134261731328
+      },
+      "p95Ms": 338.3999999910593,
+      "incrementalPeakRssBytes": [
+        33370112,
+        19075072
+      ],
+      "timingPass": false,
+      "memoryPass": true,
+      "id": "old-01",
+      "exit_code": 1,
+      "raw_report": "old-01/results/density-bundle-probe-12288-d121f-ible-latency-and-paired-RSS-chromium/density-chromium.json",
+      "command": "VOLMAP_DENSITY_PORT=41744 VOLMAP_DENSITY_BUNDLE=/home/vimkim/temp/volmap/.scratch/pgbuf-overlay-implementation/verification/08-candidate-density/bundle-probe/old.js VOLMAP_DENSITY_OUTPUT=/home/vimkim/temp/volmap/.scratch/pgbuf-overlay-implementation/verification/08-candidate-density/bundle-probe/old-01/results mise x node@24.19.0 -- corepack pnpm --dir web exec playwright test --config playwright.bundle-probe.config.ts --project chromium"
+    },
+    {
+      "diagnosticBundleSha256": "dc6e7edc50f6c3f6bd4e9b7871cb4637a739eafce3a1666e76f1f5b16a626c75",
+      "consumerCommit": "e797ccda8e667b738c5776e404dbd4e8f42ad2b5",
+      "host": {
+        "name": "dev2",
+        "kernel": "5.14.0-570.30.1.el9_6.x86_64",
+        "cpu": "Intel(R) Xeon(R) Gold 5218R CPU @ 2.10GHz",
+        "logicalCpus": 80,
+        "memoryBytes": 134261731328
+      },
+      "p95Ms": 57.8999999910593,
+      "incrementalPeakRssBytes": [
+        27967488,
+        37867520
+      ],
+      "timingPass": true,
+      "memoryPass": false,
+      "id": "old-02",
+      "exit_code": 1,
+      "raw_report": "old-02/results/density-bundle-probe-12288-d121f-ible-latency-and-paired-RSS-chromium/density-chromium.json",
+      "command": "VOLMAP_DENSITY_PORT=41744 VOLMAP_DENSITY_BUNDLE=/home/vimkim/temp/volmap/.scratch/pgbuf-overlay-implementation/verification/08-candidate-density/bundle-probe/old.js VOLMAP_DENSITY_OUTPUT=/home/vimkim/temp/volmap/.scratch/pgbuf-overlay-implementation/verification/08-candidate-density/bundle-probe/old-02/results mise x node@24.19.0 -- corepack pnpm --dir web exec playwright test --config playwright.bundle-probe.config.ts --project chromium"
+    },
+    {
+      "diagnosticBundleSha256": "8c3e4256bc0e5430014b5280d5f546fe3e287a9adb7b0a0441dc0452596cf77a",
+      "consumerCommit": "e797ccda8e667b738c5776e404dbd4e8f42ad2b5",
+      "host": {
+        "name": "dev2",
+        "kernel": "5.14.0-570.30.1.el9_6.x86_64",
+        "cpu": "Intel(R) Xeon(R) Gold 5218R CPU @ 2.10GHz",
+        "logicalCpus": 80,
+        "memoryBytes": 134261731328
+      },
+      "p95Ms": 61.5,
+      "incrementalPeakRssBytes": [
+        20205568,
+        26783744
+      ],
+      "timingPass": true,
+      "memoryPass": true,
+      "id": "current-02",
+      "exit_code": 0,
+      "raw_report": "current-02/results/density-bundle-probe-12288-d121f-ible-latency-and-paired-RSS-chromium/density-chromium.json",
+      "command": "VOLMAP_DENSITY_PORT=41744 VOLMAP_DENSITY_BUNDLE=/home/vimkim/temp/volmap/.scratch/pgbuf-overlay-implementation/verification/08-candidate-density/bundle-probe/current.js VOLMAP_DENSITY_OUTPUT=/home/vimkim/temp/volmap/.scratch/pgbuf-overlay-implementation/verification/08-candidate-density/bundle-probe/current-02/results mise x node@24.19.0 -- corepack pnpm --dir web exec playwright test --config playwright.bundle-probe.config.ts --project chromium"
+    }
+  ],
+  "conclusion": "Both bundles can exceed the RSS ceiling under the identical current server/harness. Current JavaScript change is not a necessary condition for this failure. This is not an old-server baseline, a causal attribution to host contention, or a repair.",
+  "raw_archive": "bundle-probe.tar.gz",
+  "archive_sha256": "aef99ec0f47022b995aa9382e71e8c027712f4128eb8401ea099ba06f117e8a6"
+}

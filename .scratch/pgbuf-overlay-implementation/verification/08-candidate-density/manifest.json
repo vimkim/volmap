@@ -493,5 +493,11 @@
   ],
   "scope": "Existing local sampled density gate; not dedicated-host matrix; synthetic producer",
   "conclusion": "One Chromium failure followed by two passes establishes variability, not a specific regression cause or repaired gate. Firefox passed the original complete run. No averaging or rerun-until-green acceptance.",
-  "source_dirty_state": "No changes under src, web, release, tools or Cargo.lock at execution; unrelated pre-existing producer07 Markdown change accounts for dirtyDiffSha256. This is a committed-source run, not a wholly clean worktree."
+  "source_dirty_state": "No changes under src, web, release, tools or Cargo.lock at execution; unrelated pre-existing producer07 Markdown change accounts for dirtyDiffSha256. This is a committed-source run, not a wholly clean worktree.",
+  "bundle_probe": {
+    "summary": ".scratch/pgbuf-overlay-implementation/verification/08-candidate-density/bundle-probe-summary.json",
+    "archive": "bundle-probe.tar.gz",
+    "status": "inconclusive-cause; both old/current bundles show memory failure",
+    "acceptance_evidence": false
+  }
 }
