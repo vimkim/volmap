@@ -1,5 +1,9 @@
 # Develop disk verification and actual producer integration
 
+Ticket 07 and work item 126 are **complete** for the required functional
+verification, following independent Standards and Spec review. Whole-feature
+release readiness remains separate.
+
 This continues work item 126 after `15acca5`. The earlier scope question was
 unnecessary: the requested verification already includes the prerequisites for
 validating the delivered develop producer. This directory records the new disk
@@ -110,4 +114,6 @@ browser cases plus one intentional Chromium-owned parity skip in Firefox.
 
 The [requirement audit](completion-audit.md) maps all eleven ticket criteria to
 evidence and distinguishes them from broader release-readiness obligations.
-Completion remains subject to independent Spec review of that boundary.
+Independent Spec review confirms that all eleven requirements are satisfied
+within the documented Linux matrix. Standards and Spec each report zero
+findings; see [review.md](review.md).

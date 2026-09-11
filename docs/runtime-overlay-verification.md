@@ -117,3 +117,10 @@ The delivered producer06 evidence also supplies a controlled permanent VPID
 clean/dirty/eviction acknowledgements. This supplements the temporary VPID
 qualification above; it does not turn this browser suite's startup-page and
 LRU smoke checks into controlled-state browser evidence.
+
+Ticket 07's final matrix passes all 48 browser cases across both source profiles
+and Debug/RelWithDebInfo. CUBRID's project `release` mode selects RelWithDebInfo.
+The [final requirement audit](../.scratch/pgbuf-overlay-implementation/verification/07-develop-disk/completion-audit.md)
+and independent reviews support functional verification completion. This does
+not establish ticket 08 performance, manual accessibility or overall release
+readiness, and it does not claim execution on Windows or every Unix platform.

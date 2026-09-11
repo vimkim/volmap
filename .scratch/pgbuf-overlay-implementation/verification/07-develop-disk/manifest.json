@@ -1,5 +1,5 @@
 {
-  "status": "completion-audit-pending",
+  "status": "complete",
   "consumer_base": "15acca5",
   "producer_develop": "48a3e87e3d56d3b0c998d286f17fc6674bb5e547",
   "disk_corpus": "fixtures/8cb558b3/manifest.json",
@@ -108,5 +108,18 @@
     "src/format/file_table.rs": "b248ac301548e94ac23a9c92bea59e6599189ea6af2af08e31d7f98706149caa",
     "tools/serve-real-producer.py": "04e1f234dbff76928e3ad73ed5e4a0fa07ac807339ee222855026ddfe3fc5a73",
     "tests/develop_fixture_corpus.rs": "e386f96542c6115db87b281c402e0b8a52f8b1145db4610d6dfb7cea385c854e"
-  }
+  },
+  "implementation_commit": "e7fa074",
+  "artifact_preservation_commit": "2a8979b",
+  "completion_audit": "completion-audit.md",
+  "review": {
+    "fixed_point": "15acca5",
+    "reviewed_commit": "2a8979b",
+    "standards_hard": 0,
+    "standards_optional": 0,
+    "spec_actionable": 0,
+    "ticket_completion_supported": true,
+    "report": "review.md"
+  },
+  "release_readiness": "separate ticket08; performance/manual accessibility not claimed"
 }

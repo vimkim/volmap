@@ -22,7 +22,13 @@ the preceding checkpoint remains applicable.
 
 ## Completion boundary
 
-The ticket asks for separate real producer debug/optimized verification and
+CUBRID `build.sh:296-297` and `CMakePresets.json:21-25` explicitly map the
+project's `release` mode to `RelWithDebInfo`; `producer-build-selection.txt.gz`
+retains those exact source lines and file hashes. The executed optimized mode
+therefore satisfies the requested release build rather than substituting a
+different gate.
+
+The ticket asks for separate real producer debug/release verification and
 source/build exclusion of Windows/non-server endpoints. It does not require a
 Windows execution matrix, all-project CUBRID unit build, dedicated-host p95
 measurements or manual accessibility review. Earlier checkpoint notes listed
@@ -35,5 +41,5 @@ execution remain outside the empirically verified matrix.
 Producer08/Volmap08 keep the broader release gates: performance, manual
 accessibility and any additional delivery requirements. This audit does not
 publish, approve upstream integration or declare whole-feature release readiness.
-Independent Spec review must validate this completion boundary before the
-work item is closed.
+Independent Spec review validated all eleven criteria and this completion
+boundary with zero actionable findings; see [review.md](review.md).

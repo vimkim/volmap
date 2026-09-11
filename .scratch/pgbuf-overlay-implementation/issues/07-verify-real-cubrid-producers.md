@@ -6,17 +6,19 @@
 
 **Status:** ready-for-agent
 
-- [ ] Record exact producer/consumer commits and canonical corpus revision/hash. Both repositories independently run the pinned corpus offline, covering valid/partial/malformed/additive-field cases, identity/sequence/count violations, duplicate ambiguity and depth/size limits. Prove named cases executed with nonzero counts; compilation or an empty test runner is not a pass.
-- [ ] Establish known-VPID residency, dirty and eviction preconditions with independent bounded synchronization, not sleeps or workload timing guesses. Failed preconditions are inconclusive. Keep the observer non-invasive: no page load/copy/hash/disk-read operation, production control endpoint, or page-protection wait is added to the observation source.
-- [ ] Test the full attachment-to-HTTP-to-browser journey on the agreed format-aligned baseline e1e651d and the resulting producer implementation commits in both debug and release. Separately verify the develop producer port in debug and release; semantic wire compatibility does not establish Volmap develop disk-format support.
-- [ ] Exercise shipped, unmodified release attachment/lifecycle behavior in addition to test-only synchronization. Verify exact-UID peer authentication without root/group exceptions, directory/socket ownership, complete permanent-volume identity and copied-volume mismatch, identity-proof overflow refusal, protocol refusal, no-store and sanitized HTTP/UI output.
-- [ ] Obtain producer-side evidence for a private 0700 directory and 0600 socket; preservation of symlinks, wrong owners, non-sockets and active sockets; reclamation only of confirmed stale same-owner sockets; and shutdown unlinking only the exact socket created. Activation failure must not prevent database startup and must leave inspection unavailable for that incarnation without background bind retry.
-- [ ] Obtain producer evidence that the hidden startup-only server Boolean enable_pgbuf_inspector defaults false, creates neither daemon nor socket when disabled, has no reload/user-change/client-synchronization flags, and supports Unix server debug/release without a new v1 compile option. Windows and non-server binaries provide no endpoint. Missing sockets do not disclose the remote parameter value.
-- [ ] Verify producer limits below/at/above boundaries: at most 65,536 visited slots and emitted records, 64 MiB whole framed scan with footer space reserved, 4 KiB record/control frames, 64 KiB handshake, depth 16, 64 KiB output buffering, two clients and a 100 ms scan floor. Traversal/serialization checks 100 ms elapsed between slots including backpressure; stalled output disconnects after 250 ms without progress. These are not licenses to hold workers/latches for a deadline or claims of hard real-time execution.
-- [ ] Verify consumer 500 ms connect/handshake and two-second exchange deadlines, bounded assembly and admission, partial/full footer semantics, exact-cap full traversal, next-start rotation beyond visited span, at-most-once slot visits and larger-pool honest partial coverage. Never merge rotating captures into absence proof. Check semantic page-kind mappings and coherent latch/LRU tuples independently of raw native encodings.
-- [ ] Exercise simultaneous tabs, cancellation/overload, broken streams retaining only original-age evidence, refusal/explicit retry, pause/hidden/resume, restart while paused, and unaffected disk inspection. Scripted cases remain required alongside real-engine checks, not replaced by them.
-- [ ] Record the actual companion CUBRID external shell testcase revision and execution evidence using project-supported test concepts. Private-suite or credential-isolation access missing from the environment is missing evidence, never an implicit pass. Do not present personal convenience tooling as organization workflow.
-- [ ] Produce reproducible commands, preconditions, named case counts, build/environment details, status and raw artifacts for each cross-repo invariant. Missing, skipped, failed or inconclusive checks leave integration open, and code/corpus changes require affected checks to rerun.
+**Implementation:** complete — see the final requirement audit and accepted evidence below.
+
+- [x] Record exact producer/consumer commits and canonical corpus revision/hash. Both repositories independently run the pinned corpus offline, covering valid/partial/malformed/additive-field cases, identity/sequence/count violations, duplicate ambiguity and depth/size limits. Prove named cases executed with nonzero counts; compilation or an empty test runner is not a pass.
+- [x] Establish known-VPID residency, dirty and eviction preconditions with independent bounded synchronization, not sleeps or workload timing guesses. Failed preconditions are inconclusive. Keep the observer non-invasive: no page load/copy/hash/disk-read operation, production control endpoint, or page-protection wait is added to the observation source.
+- [x] Test the full attachment-to-HTTP-to-browser journey on the agreed format-aligned baseline e1e651d and the resulting producer implementation commits in both debug and release. Separately verify the develop producer port in debug and release; semantic wire compatibility does not establish Volmap develop disk-format support.
+- [x] Exercise shipped, unmodified release attachment/lifecycle behavior in addition to test-only synchronization. Verify exact-UID peer authentication without root/group exceptions, directory/socket ownership, complete permanent-volume identity and copied-volume mismatch, identity-proof overflow refusal, protocol refusal, no-store and sanitized HTTP/UI output.
+- [x] Obtain producer-side evidence for a private 0700 directory and 0600 socket; preservation of symlinks, wrong owners, non-sockets and active sockets; reclamation only of confirmed stale same-owner sockets; and shutdown unlinking only the exact socket created. Activation failure must not prevent database startup and must leave inspection unavailable for that incarnation without background bind retry.
+- [x] Obtain producer evidence that the hidden startup-only server Boolean enable_pgbuf_inspector defaults false, creates neither daemon nor socket when disabled, has no reload/user-change/client-synchronization flags, and supports Unix server debug/release without a new v1 compile option. Windows and non-server binaries provide no endpoint. Missing sockets do not disclose the remote parameter value.
+- [x] Verify producer limits below/at/above boundaries: at most 65,536 visited slots and emitted records, 64 MiB whole framed scan with footer space reserved, 4 KiB record/control frames, 64 KiB handshake, depth 16, 64 KiB output buffering, two clients and a 100 ms scan floor. Traversal/serialization checks 100 ms elapsed between slots including backpressure; stalled output disconnects after 250 ms without progress. These are not licenses to hold workers/latches for a deadline or claims of hard real-time execution.
+- [x] Verify consumer 500 ms connect/handshake and two-second exchange deadlines, bounded assembly and admission, partial/full footer semantics, exact-cap full traversal, next-start rotation beyond visited span, at-most-once slot visits and larger-pool honest partial coverage. Never merge rotating captures into absence proof. Check semantic page-kind mappings and coherent latch/LRU tuples independently of raw native encodings.
+- [x] Exercise simultaneous tabs, cancellation/overload, broken streams retaining only original-age evidence, refusal/explicit retry, pause/hidden/resume, restart while paused, and unaffected disk inspection. Scripted cases remain required alongside real-engine checks, not replaced by them.
+- [x] Record the actual companion CUBRID external shell testcase revision and execution evidence using project-supported test concepts. Private-suite or credential-isolation access missing from the environment is missing evidence, never an implicit pass. Do not present personal convenience tooling as organization workflow.
+- [x] Produce reproducible commands, preconditions, named case counts, build/environment details, status and raw artifacts for each cross-repo invariant. Missing, skipped, failed or inconclusive checks leave integration open, and code/corpus changes require affected checks to rerun.
 
 ## Comments
 
@@ -59,3 +61,19 @@ producer note. Independent develop disk corpus and source-layout compatibility
 remain unproven, so develop browser integration and ticket completion stay open.
 See [the resumed ledger](../verification/07-develop/README.md) for exact inputs,
 counts, raw evidence, failed attempt and remaining platform qualifications.
+
+2026-09-11 — Completed work item 126. Independent develop disk fixtures exposed
+and now guard the 1152/1160-byte heap layout and 200/216-byte file-header
+boundary. Six new public-decoder cases and the existing aligned corpus pass.
+Final real browser verification passes all 48 cases across develop/aligned and
+Debug/RelWithDebInfo; controlled permanent native-to-HTTP checks pass 11 lines
+per mode. The full local gate passes, including the preserved exact-UID check.
+
+[The final requirement audit](../verification/07-develop-disk/completion-audit.md)
+maps all eleven criteria to named evidence. Independent Standards and Spec
+reviews report zero findings and support ticket completion. CUBRID's official
+release mode maps to RelWithDebInfo. Windows exclusion is proven at the source
+and build-selection boundary, with no claim of Windows execution. Prior
+missing-develop and missing-disk-corpus notes are superseded; failed attempts
+remain retained. Performance, manual accessibility and whole-feature release
+readiness remain the separate ticket 08 gates. No publication was performed.
