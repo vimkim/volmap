@@ -1,0 +1,510 @@
+{
+  "recorded_at_consumer": "08ed9477bd7414c6a320a2c06ee7b439e8685ba5",
+  "meaning": "current file-integrity inventory, not new execution or original-run attestation",
+  "files": [
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/README.md",
+      "sha256": "67edbb379e4502fa53c3eb9a49c948fd7205f0b4d535c1f0f4a02c022d61bf67"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/SHA256SUMS",
+      "sha256": "c5ec6f478b3e68d3faa272288744b415fa987d6fa7874118500fcafad60e1909"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/acceptance-manifest.json",
+      "sha256": "e2e38a183ee6947e120cbdd1a76a4cbbdf1f442207d398e227fcadef6d476b98"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/circle.css",
+      "sha256": "4bcd8afb927aed42a59721fcb2e37e5ad6a8ea95e656e638f206bebcd9107cc3"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/committed-density.tar.gz",
+      "sha256": "46706048f08561e7766cc4fcd7d260c56df9ab294d072af1fbfc1bf7a4562024"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/diagnostic-density.tar.gz",
+      "sha256": "c2fa3fc4bd84717119bb4c971a1d028e6d17ec8f75535abb9aaa81faeec069b0"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/final-regression-green.tar.gz",
+      "sha256": "a8ea6a682d29e957333ffe9f6cf2b3ebdf93e22c667361094b5d4f6e57bfb3ca"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/forced-sector-chromium.png",
+      "sha256": "842a35c44d4e96a49bcad0f88d8b6e212e7bd92f5f44e05739371450004f3db3"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/forced-sector-firefox.png",
+      "sha256": "e20081d317fb41a3ec2752fadf816b2e49accb36c38a7b4fc01ff50dc4b0883f"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/manual-review.md",
+      "sha256": "de2b53781ad2dff88897843879dea3ed11c3b35c300f2873e69abf0c9ff4ded1"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/native-profile.tar.gz",
+      "sha256": "ec91edf5ee7de4f42663efa0afc52b97d585062bbad036622ee8acc5e2d21481"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/native-summary.json",
+      "sha256": "30ddda37335948549f487915a423ba4c9eef490b798d65740875e8e91e0debc6"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/normal-sector-chromium.png",
+      "sha256": "03c2a3da92375434ac29da66bc74a4fa1a16b426c91dc79affda087116d86c4d"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/normal-sector-firefox.png",
+      "sha256": "c76d48b02630a7f0dd81f723c082d4539021a925a604ddce5dd11238eb6df3fd"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/occupancy-lru-red.tar.gz",
+      "sha256": "86d22cf025c8a30e5db7cf38773960a1500553d31f0885d3b194a736ec4a1b3c"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/occupancy-red.tar.gz",
+      "sha256": "2c530a66173334e8c20b7904081031912aee3ad6f72000ccea66f68f4f86eb50"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/production-density.tar.gz",
+      "sha256": "4050e10f6698acfb9b0268a0e38ad65a942245d8aded418ce1ce743e0cbac54c"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/regression-green.tar.gz",
+      "sha256": "5a236979015924a2bc76a795264ab1466e45604f399ada6edb5cc8d7914879f9"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/regression-red.tar.gz",
+      "sha256": "c286adc98e301a8bd54850726c78bcce03d02acd744c80f1d9e27171233fbd17"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/repair.patch.gz",
+      "sha256": "a07a2792bf18e15889ce20f5e35911741e94eaf2a9730536bbb4930b4a00a2aa"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/source-manifest.json",
+      "sha256": "bff3abafeef4675482cf45e79833c2922d122cfc0b1244c6c84a233b85c2edd3"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/unlayered-density-rejected.tar.gz",
+      "sha256": "14077a756c2988391727ea80fdfa52c2d66b334a2778e2f99c9e0980374d832e"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/verify.tar.gz",
+      "sha256": "0f9de4da3072ac090536b43ad3fbc0c2b7a6b2d412c1d94a844cc9285e7cbdce"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/README.md",
+      "sha256": "b982fc68a8ce00d65b3c93370d889a8306fededadf5f5dbdd147efc4c8869228"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/SHA256SUMS",
+      "sha256": "8bde72f064cc3f8dbecf841902544e61c447e7eda4f3816759e60cdb6f6b54b0"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/aligned-debug-browser-results.json.gz",
+      "sha256": "1607b4c85544755d63ee3a9235546cc5ec813645629de6c250b13323c50b0f52"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/aligned-debug-browser.log.gz",
+      "sha256": "35c51d57ee6004e50208c285bb5a1d4f63df7cf25de3806f637c789c31f68af6"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/aligned-debug-commands.log.gz",
+      "sha256": "90a184a616e58915f7852ccbb3c0e44f2bb986bcd09074872fd8df1efa55a62c"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/aligned-debug-run.json",
+      "sha256": "69ef1528f01de020119b3d1904b156f9d2c0eae6f3bc2d5acf0448959e708fcf"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/aligned-debug-runtime.json",
+      "sha256": "a40cdcf0d4042de83b2d0396a26194561e6454d1f5a9d3b9b15b5bb033a72651"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/aligned-provenance-recheck.json",
+      "sha256": "3fa06b7ff3a39accd65e6beba6cc03520a44a831cd5de1a120f22cc955b9dc17"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/aligned-release-browser-results.json.gz",
+      "sha256": "6ba0fc8466cf4d9f1bd8bea462059ba704bd2951714fef8921ceb6f241204fc8"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/aligned-release-browser.log.gz",
+      "sha256": "ad83af7dd03dd201e9bbf0db3eb5a8ab22cad326d2137fe72c4bf2c3f1eac4f2"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/aligned-release-commands.log.gz",
+      "sha256": "f6b507645d327d9af25964ed087caaba61fc12856aff1010b72b00d5198c1f2c"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/aligned-release-failed-browser-results.json.gz",
+      "sha256": "6fcfec55cfe8e9a76357d4b6c98d678a9edad8511bb54ffadaf76df72bd5f715"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/aligned-release-failed-commands.log.gz",
+      "sha256": "ea7cf6b026db26b37480ca4f98cd68452c8edadd35914bfca6f33626d301771e"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/aligned-release-failed-runtime.json",
+      "sha256": "ac9f92505517437197e3dbf6ac30d440c89902bd32db91c5dc6fd3a51ee3ae7d"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/aligned-release-retry-browser.log.gz",
+      "sha256": "657c75fc40e0a58e7b7dfa51276a932b8ea2a2de8ad2768fce7c4b9b595455a0"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/aligned-release-retry-run.json",
+      "sha256": "d098d9e4b1450e7cee2673277dba76ed20c09dabf6080799f5524504898d458d"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/aligned-release-run.json",
+      "sha256": "674dfefaa83f6153b22e18e6b8c357a170eb9130352fd0df062f63bafca24103"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/aligned-release-runtime.json",
+      "sha256": "c1e74911f8adad4664190e40767415354791e6cef7481c649cf9b6dac52eabd2"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/build-debug.log.gz",
+      "sha256": "5894dc1f107a4eafefbe70da66d1a5a0c23c121d42909f31bb623d62f89397e3"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/consumer-corpus.log.gz",
+      "sha256": "acee6211aa7bbb4b8192e8cca9b65194793c2c225991b38cf548be31e1dae319"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/consumer-observations.log.gz",
+      "sha256": "a265242e9f4b2f7ac6c8c030f8f79e3ecd3dd93eadb5280f09d64067affe91a2"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/manifest.json",
+      "sha256": "1e402600e3231e7e84674b587d94e65af8a4c2f02af8a42eeec55ac8824ef98c"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/producer-artifact-checks.log.gz",
+      "sha256": "07bc6718fc2b30dbc0d884d8e4335bf253676b1cb627353dd4a900750dcc74d2"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/producer-debug-corpus.xml",
+      "sha256": "3ee98e690d78bacb5ea1131af4d54a73f23b2ec921dd084130aae71f031e0001"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/producer-release-corpus.xml",
+      "sha256": "114f38ef874c9e796b18d241d3847ceabcc70a305205eeb56c2ab9e86159aea7"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/producer06-artifact-checks.log.gz",
+      "sha256": "d04882d6adc4fffec0e6a223cae3ee174825d6c98514e4c189edd00a839564cc"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/provenance-recheck.json",
+      "sha256": "481284184ab5108e8a3b2071a19ea2381945151239851a84d7dedf92596c36a3"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/review.md",
+      "sha256": "999bb539f3c4233385589b9c9e08591171f62214adafb8fb623a918593142287"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/typecheck.log.gz",
+      "sha256": "2f3e75e2f2acc5c9afcfb5a58c274f97f20a0eefd7d50740e4fcf782bb9a0e89"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/verify-screenshots.tar.gz",
+      "sha256": "8037f6d4afcdca4a95ff3be338b21027c0e213bef12565511f61adb58fa850a2"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop/verify.log.gz",
+      "sha256": "b9a2141801fdb7fc248cd0f46f3c63748dde540998e0d9903723a7800d4c1b77"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/README.md",
+      "sha256": "70872b71144f5acb244d8e128c1e2e43af7f177a911a9d3df2c4997b4ea86ff5"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/SHA256SUMS",
+      "sha256": "86e4e5caa6a88cfcfc06163759f16e8d4f59e09439bf762dc07f2eb36df6d74e"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/aligned-debug-accepted-browser-lifecycle.log.gz",
+      "sha256": "dfc6c56378be8296c08be2f008e79006c1c64cece139b5222d996b99392b5b8f"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/aligned-debug-accepted-browser-results.json.gz",
+      "sha256": "b6948183e4fadaa5b57107afabdcf72a0cffbc59c61de2b931bce59884f9de35"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/aligned-debug-accepted-commands.log.gz",
+      "sha256": "393d37071beb1015bfa5eb6a2d0a77a058c28b46bf3512640770ab90ae51a05b"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/aligned-debug-accepted-runtime.json",
+      "sha256": "11551fcd0265c1a40eaa6d7a8beb372310750f02b05fe6de1855b1b3630f00d8"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/aligned-debug-browser.log.gz",
+      "sha256": "8b84fef8a522ce8885a38493ef3056d5ed68b646783d2182fff188c4d09b28b6"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/aligned-debug-failed-browser-results.json.gz",
+      "sha256": "a494f93d654e5415201b522948018c0f5be9ac788a1b28c663952f6b9aa6f4ba"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/aligned-debug-failed-commands.log.gz",
+      "sha256": "5819453e3ea0be84ddb4cb15ea26bcd41166d4d1683743e7f0516439cbd49888"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/aligned-debug-home-browser.log.gz",
+      "sha256": "901a54dcf2b12232280cc6e5905c2ace4c57c36158a9554434093f71fdc8faa1"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/aligned-debug-home-run.json",
+      "sha256": "a5ce3a4a8c92495de77b698e45d5c4e4ac3faa7d2acfb561de0d7cf0ceec1a19"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/aligned-debug-run.json",
+      "sha256": "d03cc3d50dee80b1f53bacf1333e26d2e5b0f77566428efddbea70f49de46c02"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/aligned-release-accepted-browser-lifecycle.log.gz",
+      "sha256": "425cffe792c97d44f9e0350c40009b9cacd6e13a3338e8936c5eafbbe93005fb"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/aligned-release-accepted-browser-results.json.gz",
+      "sha256": "361da01364a323c40e8035a60b3b94c59a8abb401fd5d40de4af0e16c73ea086"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/aligned-release-accepted-commands.log.gz",
+      "sha256": "90ce71fb1d394442dd27484791bafcc97f65f1f151b937c184473fbfafb62ed2"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/aligned-release-accepted-runtime.json",
+      "sha256": "70dcdc989e567dfff3d511ca4af336ca9e514a577d84585789f5b5c20eed74b8"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/aligned-release-home-browser.log.gz",
+      "sha256": "0e3c7d8745fb51590e7125719aacb4e7de9f7bb00ee31b0bc524ba947cdf8070"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/aligned-release-home-run.json",
+      "sha256": "68e739af870f6e5b1281952bf1328166be4660a89df1d0d104172f9246aa2311"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/aligned-release-run.json",
+      "sha256": "1f8fe32d990a3917c358bd57b74b3a6fff7c12d2122ca7f07d1003316a4e73c2"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/binary-gating-recheck.json",
+      "sha256": "a711b01cbc70b987dc5b59e8754cbaa3df852904e8fe1ddb8067349a17d84b49"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/build-debug.log.gz",
+      "sha256": "9463b3a950523d41fafe145933ed63b0915d71ed576e56d0f5d8539113e8a886"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/completion-audit.md",
+      "sha256": "b1790a96261eecf418e2d6db732c4147172b03a4eedf9d03c9ccfd0187c1356c"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/database-relocations.json",
+      "sha256": "3be44b864807c0a06e1de5af52a5fe558dd853dc3465252e53187fe4567dc29c"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/debug-accepted-browser-lifecycle.log.gz",
+      "sha256": "3efa543d181e01e4f4736b39c57d7453f40441522a3ce3feb8e29b3e5ff5aa81"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/debug-accepted-browser-results.json.gz",
+      "sha256": "c46fccc2baf126a41190528583d300787a4e357bde1dcf9a0e029b5c3145156b"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/debug-accepted-commands.log.gz",
+      "sha256": "b5dff38554efcee6880a3679d135cc10a2c35e446e5f2778fe91f3c6975c848e"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/debug-accepted-runtime.json",
+      "sha256": "afa5781b73dc3623c8824b96ed88b2e12566f8f357db4d1447006abffb830db7"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/debug-browser.log.gz",
+      "sha256": "09d9240dcfaed2183294eb4742c1c5cae7e2f547e779cac769f5aaf4981527e9"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/debug-home-browser.log.gz",
+      "sha256": "9682fa429e7defad237cca29d408b98f1a859119cd5cabfd9604a702fbd19a70"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/debug-home-run.json",
+      "sha256": "eec1efd4a53ee5bcb377cb11774ecf4f5bd4d6b03892f6d3af0a1013aaab97ef"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/debug-run.json",
+      "sha256": "723af48047220d118fd3f66c608d6e9e5cf25e5bbe01c7846d409e91787dfcef"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/disk-corpus-01.log.gz",
+      "sha256": "2cfce71308e2d8396b71767930dcf0aabba1002f38500c786fcb87d0033f4c88"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/disk-corpus-02.log.gz",
+      "sha256": "a2dd025d8b1e3bd31c878e1f017156afbfff3afefdd8f664b22d8e9e8c93291a"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/disk-corpus-green.log.gz",
+      "sha256": "9fd5072bbe2aa858b59010df0b6c2ef865883b021f22a316dfb620850b5e75b3"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/disk-crosscheck.json",
+      "sha256": "686c77f5bfec700c1048b00dbc9f141182af6d3c339f6cfb84deed5066f94c85"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/disk-summary.json",
+      "sha256": "b8bac8b40d29a4ded5b4edb6306ca75fb3dfaa46504555f2d8628566e20ec845"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/generation-01-rejected.tar.gz",
+      "sha256": "c59dcb823becd88b3d88c4e11950823d3c11b187d569653cfd2c3fca808574ed"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/heap-green.log.gz",
+      "sha256": "25f33c595e9b0c41e9bab36c8dad133dbe6fa7eae09f66556cc429988341ff20"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/heap-red.log.gz",
+      "sha256": "a58eacd8f1019a83d9acdaebda80c4450f4939eba09ac1daa7cf905cf4d69c1c"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/inspect-0-129.json",
+      "sha256": "4d2bc5f3e97c640d187db7de1365a0dab424492533124a17f4e707831050177c"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/inspect-0-577.json",
+      "sha256": "25f1878558725111aa648189d8ed9d9d8c79de2b33b6371e73eb068e90919e22"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/inspect-0-64.json",
+      "sha256": "4a8416247599437d483c24f3e60f48d738fc176544b125dc065caa90023c5d7b"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/inspect-1-769.json",
+      "sha256": "ffe10877574e78f8eefd42281928db06c3c2c30861cc998af3588ecd827bca05"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json",
+      "sha256": "28af2fccb4212f86a7bb3dc3cef6c4b779bb2b7eb7a2d247c2a185d6149054f1"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/native-debug-http.tar.gz",
+      "sha256": "88e3916ddd011dac761b50b40b9b1bed8eff3c525543c534749635827a556a3a"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/native-debug-raw.tar.gz",
+      "sha256": "8fa87e00a3c6f58220915daf45efddf9ef55e68a1f4b077697c41975c377001d"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/native-debug-run.json",
+      "sha256": "f8694554a5f2e770beeb40316a9bd2a04ee1aef5636a3b87afea81073a948406"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/native-debug.log.gz",
+      "sha256": "1094637941161cd186939e231c8e36067271289147e6730d0ae72d8ee487f5cc"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/native-file-layout.log.gz",
+      "sha256": "801fda3f2c5dbbd1fc9645967c35c7cf8944018ba7cfc0e201d3b6bf90a7d4aa"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/native-heap-layout.log.gz",
+      "sha256": "470d573ab73d45116058079657a661b4dabb21a65bf13bf0d8215d7395ef6792"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/native-release-http.tar.gz",
+      "sha256": "5cc793a347a9240baf6f40d32eefb7cb9d1adb6ae49f8dd8a1dd6df276b8f3f0"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/native-release-raw.tar.gz",
+      "sha256": "2027829df40bd37f113d8c2900aeb962d912f9c2e724b74c5ba9c273fac734c5"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/native-release-run.json",
+      "sha256": "7980ba2385f2b5a1256f4489dc2555ef3b791e3ba29ea216425c1109b7e081bc"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/native-release.log.gz",
+      "sha256": "8f3e575cea72e7e68097d64895a1896bacd5113a4b9f4294185355d1a8323245"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/producer-build-selection.txt.gz",
+      "sha256": "8ffb7fef04d876d6e6d0087c9477ef6666da69b5663a6b3551e49c37f8046426"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/release-accepted-browser-lifecycle.log.gz",
+      "sha256": "7f78d835193e1f2d258652abb27b7d39dbb0dd9f0c25ae4f7e207b2c49564569"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/release-accepted-browser-results.json.gz",
+      "sha256": "e8ab8959ed9a822a6a4e0831cc5ae583087edc61f609c165bc66cb97177adbc1"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/release-accepted-commands.log.gz",
+      "sha256": "0dcfc443d34b7d40e7066a7e470afb042cd3942af290b7ed3c496258a9edc7bf"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/release-accepted-runtime.json",
+      "sha256": "e5ebd8345a9683553b2516dee2f1c7399740220e06efcacabc287913bcdac470"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/release-browser.log.gz",
+      "sha256": "642adb1910eb19f42994a5bc09a488362ec0b9485fc2e0bd06544df5aab2cc67"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/release-failed-browser-results.json.gz",
+      "sha256": "73f0cf1cd6b956f7af058852d6fb6eca875e521e8d157e89215f1b1cc2e5bac6"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/release-failed-commands.log.gz",
+      "sha256": "bf5631afa1d5bc211f3aee8b103165125c6b211de66a8c7db615908e87eeabf6"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/release-home-browser.log.gz",
+      "sha256": "b1ced3e6e9cc0c750e18c4dc785b0102ecb9f0b8d6b8d90c0e99174b6a5e21d8"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/release-home-run.json",
+      "sha256": "7cd62721bf7d2a31a71eedcb7076189b14a6119d6403da0bb182348dd9e7c0fc"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/release-run.json",
+      "sha256": "373ca1fb74cbf8edb8b383e60c9aaeef33a1073c39b47b811fe6d0acb1b196d3"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/review.md",
+      "sha256": "0d08fb1fb49c50ca337bd0f31a614ff835e3489e717327ea5aedb4cf66e6531d"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/source-layout-audit.json",
+      "sha256": "72da801bd3a6ebee2bcc9925dee87cdd82ccddbd772ebb841e6cb94c2280b7e7"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/verify-accepted-screenshots.tar.gz",
+      "sha256": "66107ff6adf21d5606eed77f040113a1f0ebc96ed2952cab45b90bd29fd51ac1"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/verify-accepted.log.gz",
+      "sha256": "650b7e4205b7ce333d836b43be1eb10f40dbb24f883405c23deac32a5b1c2037"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/verify-final.log.gz",
+      "sha256": "67afe4811d3fde144d885d0002b359157454135e3c3889cfd0e9c9d6d72ef3f7"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/verify-screenshots.tar.gz",
+      "sha256": "d74ce7f23f1820aa6fa721f673cda4c151d1e3b290fdc94679a4f5f69784ffc0"
+    },
+    {
+      "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/verify.log.gz",
+      "sha256": "73ebb1f93691c2a2b8ce427c4456397fb2bb8b8399d90c7fdaad8b8be2b68756"
+    }
+  ]
+}

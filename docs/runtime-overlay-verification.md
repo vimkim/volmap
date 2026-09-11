@@ -124,3 +124,6 @@ The [final requirement audit](../.scratch/pgbuf-overlay-implementation/verificat
 and independent reviews support functional verification completion. This does
 not establish ticket 08 performance, manual accessibility or overall release
 readiness, and it does not claim execution on Windows or every Unix platform.
+
+For dedicated-host performance, manual review and exact-commit delivery, use the
+[release evidence protocol and gate manifest](runtime-overlay-release.md).

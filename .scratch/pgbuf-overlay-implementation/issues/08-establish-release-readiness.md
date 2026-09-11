@@ -2,7 +2,7 @@
 
 **What to build:** A release reviewer can decide whether the complete overlay is safe and responsive from exact-commit evidence, and an operator can understand how to enable it and interpret its limitations. Simulated or partial success cannot stand in for required release gates.
 
-**Blocked by:** 06 — Meet accessibility and dense-view interaction gates; 07 — Verify the complete overlay against real CUBRID producers.
+**Blocked by:** 06 — named manual screen-reader and visual reviews; dedicated-host performance campaign and final delivery evidence. Ticket 07 functional verification is complete; see 07-develop-disk/completion-audit.md.
 
 **Status:** ready-for-agent
 
@@ -17,3 +17,22 @@
 - [ ] Complete operator and maintainer documentation using the accepted glossary and loopback/web-only ADR: explicit enablement/socket configuration, SSH forwarding, verification/refusal, coverage versus completeness, conservative age/expiry, pause/resume, resource limits and producer/corpus compatibility. Preserve existing domain decisions rather than silently redefining them.
 - [ ] Explain that observed disk state and page-buffer observation are independent; neither VPID matching, sequence, recency nor sampled flushing proves currentness, image correspondence, commits or durability. Preserve all exclusions: no resident-page inspection prerequisite, AOUT history, transition events, TUI/export/inspection-graph runtime state, new kernel-cache features, discovery/public transport, engine writes or hot-path instrumentation.
 - [ ] Hand off the manifest and documentation without treating the ready-for-agent ticket status as release approval. External JIRA upload, commits/pushes or PR publication require their own authorized workflow; do not alter the parent specification or completed planning map to imply delivery.
+
+
+## Comments
+
+2026-09-11 — Preparation started from consumer `08ed947`, after reading 06's
+unfilled named manual-review record and 07-develop-disk's completion audit.
+Ticket 07 remains functionally complete. Ticket 06's local density pass is
+historical evidence; two of its six source fingerprints have changed, so affected
+candidate evidence requires reruns. The 07 runtime records retain dirty-base,
+source and binary provenance rather than being relabelled clean-commit runs.
+
+Prepared the [delivery index and handoff](../verification/08-release-readiness/README.md),
+[measurement protocol](../../../docs/runtime-overlay-release.md), and expanded
+[operator documentation](../../../docs/runtime-overlay.md). The manifest lists
+unexecuted gates and missing inputs explicitly; final per-invariant delivery
+acceptance is still open. No manual review or performance case ran, no threshold
+changed, and no readiness approval is claimed. The accepted ADR 0006 now permits
+explicit IPv4 listeners as well as loopback; the parent specification and planning
+map are preserved. Work item 140 tracks the remaining campaign.

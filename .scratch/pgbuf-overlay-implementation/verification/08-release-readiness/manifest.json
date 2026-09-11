@@ -1,0 +1,1258 @@
+{
+  "schema_version": 1,
+  "ticket": "08",
+  "release_ready": false,
+  "status": "preparation-only",
+  "recorded_at_consumer": "08ed9477bd7414c6a320a2c06ee7b439e8685ba5",
+  "candidate_commit": null,
+  "prepared_changes": "Documentation and evidence index only; no performance or manual review executed",
+  "prerequisites": {
+    "06": "open: named manual reviews missing",
+    "07": "functional verification complete; historical evidence retained"
+  },
+  "missing_inputs": [
+    "Dedicated host/environment and workload driver",
+    "Release candidate configuration and clean exact-commit reruns",
+    "Metric collectors and pre-registered confidence method",
+    "Named manual screen-reader and visual reviews",
+    "Per-invariant final delivery audit"
+  ],
+  "path_base": "repository root; paths inside inherited manifests use their original bases",
+  "sources": {
+    "density": {
+      "manifest": ".scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/acceptance-manifest.json",
+      "sha256": "e2e38a183ee6947e120cbdd1a76a4cbbdf1f442207d398e227fcadef6d476b98",
+      "source_check": [
+        {
+          "path": "src/web/assets/app.css",
+          "recorded_sha256": "3a259dcada1ff41a528173e3999460510e10c9e284a61268855118d629008990",
+          "current_sha256": "3a259dcada1ff41a528173e3999460510e10c9e284a61268855118d629008990",
+          "matches": true
+        },
+        {
+          "path": "web/src/view.tsx",
+          "recorded_sha256": "61229a9dd01765f8250eb4ea49206e50b03a1a319cb6befbaf0bee20869f5d20",
+          "current_sha256": "61229a9dd01765f8250eb4ea49206e50b03a1a319cb6befbaf0bee20869f5d20",
+          "matches": true
+        },
+        {
+          "path": "web/src/observations.css",
+          "recorded_sha256": "89e75b58a1d51066b7b9a2afa7de4bd9c42b8523e8bb678c124029a87b79118d",
+          "current_sha256": "89e75b58a1d51066b7b9a2afa7de4bd9c42b8523e8bb678c124029a87b79118d",
+          "matches": true
+        },
+        {
+          "path": "web/e2e/observations.spec.ts",
+          "recorded_sha256": "814c895513e5a789930ddfbf77ff3821cde9bde0a882bd710d150298fa10f45e",
+          "current_sha256": "ed0ff081aefce3bf9171981bd90359d63583e8374be3ae16ba4034739da1f50e",
+          "matches": false
+        },
+        {
+          "path": "src/web/generated/frontend.css",
+          "recorded_sha256": "381f919cf14c0b515b4532a09db3ebdd069c5677f530012e3d246da21c37994b",
+          "current_sha256": "381f919cf14c0b515b4532a09db3ebdd069c5677f530012e3d246da21c37994b",
+          "matches": true
+        },
+        {
+          "path": "src/web/generated/frontend.js",
+          "recorded_sha256": "dc6e7edc50f6c3f6bd4e9b7871cb4637a739eafce3a1666e76f1f5b16a626c75",
+          "current_sha256": "8c3e4256bc0e5430014b5280d5f546fe3e287a9adb7b0a0441dc0452596cf77a",
+          "matches": false
+        }
+      ],
+      "result": "historical evidence only; not a new execution",
+      "current_candidate_acceptance": "rerun-required",
+      "consumer_commit": "4f129d82274a71a19370d944939eb50069ada51d",
+      "producer": {
+        "kind": "synthetic protocol fixture",
+        "file": "web/e2e/producer-fixture.py",
+        "source_commit": "4f129d82274a71a19370d944939eb50069ada51d",
+        "source_sha256": "575efddca7d90cafe477f7f3b8b6b64e751bd6d0350d677aac3fdabeca9c58f3",
+        "real_engine_validation": "ticket 07; not claimed here"
+      },
+      "corpus": {
+        "sha256": "39e8c6b0f102be1abe919059269d097c6a6a19e9ec82a14fedb265b8caf0a96f"
+      },
+      "build": "release",
+      "testcase_revision": "4f129d82274a71a19370d944939eb50069ada51d",
+      "commands": {
+        "density": "VOLMAP_DENSITY_PORT=41744 just vite::frontend-density",
+        "verification": "just verify"
+      },
+      "executed_count": 2,
+      "browser_cases": [
+        {
+          "browser": "chromium",
+          "versions": [
+            "151.0.7922.34"
+          ],
+          "corpus_sha256": "39e8c6b0f102be1abe919059269d097c6a6a19e9ec82a14fedb265b8caf0a96f",
+          "host": {
+            "name": "dev2",
+            "kernel": "5.14.0-570.30.1.el9_6.x86_64",
+            "cpu": "Intel(R) Xeon(R) Gold 5218R CPU @ 2.10GHz",
+            "logicalCpus": 80,
+            "memoryBytes": 134261731328
+          },
+          "viewport": {
+            "width": 1920,
+            "height": 1080
+          },
+          "actual_laid_out_cells": 12288,
+          "initial_cells_in_viewport": 1984,
+          "executed_arms": 4,
+          "executed_inputs": 160,
+          "state_lru_incremental_peak_rss_bytes": [
+            24170496,
+            26402816
+          ],
+          "p95_ms": 51.599999994039536,
+          "state_lru_p95_ms": {
+            "state": 51.599999994039536,
+            "lru": 49.899999998509884
+          },
+          "timing_status": "local-pass",
+          "memory_status": "local-sampled-pass",
+          "raw_archive": "committed-density.tar.gz",
+          "raw_member": "web/test-results/overlay-density-12288-rend-3d09e-ible-latency-and-paired-RSS-chromium/density-chromium.json"
+        },
+        {
+          "browser": "firefox",
+          "versions": [
+            "153.0"
+          ],
+          "corpus_sha256": "39e8c6b0f102be1abe919059269d097c6a6a19e9ec82a14fedb265b8caf0a96f",
+          "host": {
+            "name": "dev2",
+            "kernel": "5.14.0-570.30.1.el9_6.x86_64",
+            "cpu": "Intel(R) Xeon(R) Gold 5218R CPU @ 2.10GHz",
+            "logicalCpus": 80,
+            "memoryBytes": 134261731328
+          },
+          "viewport": {
+            "width": 1920,
+            "height": 1080
+          },
+          "actual_laid_out_cells": 12288,
+          "initial_cells_in_viewport": 1984,
+          "executed_arms": 4,
+          "executed_inputs": 160,
+          "state_lru_incremental_peak_rss_bytes": [
+            15667200,
+            10964992
+          ],
+          "p95_ms": 61,
+          "state_lru_p95_ms": {
+            "state": 61,
+            "lru": 53
+          },
+          "timing_status": "local-pass",
+          "memory_status": "local-sampled-pass",
+          "raw_archive": "committed-density.tar.gz",
+          "raw_member": "web/test-results/overlay-density-12288-rend-3d09e-ible-latency-and-paired-RSS-firefox/density-firefox.json"
+        }
+      ],
+      "raw_artifacts": [
+        {
+          "path": ".scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/committed-density.tar.gz",
+          "sha256": "46706048f08561e7766cc4fcd7d260c56df9ab294d072af1fbfc1bf7a4562024",
+          "matches_recorded": true
+        },
+        {
+          "path": ".scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/verify.tar.gz",
+          "sha256": "0f9de4da3072ac090536b43ad3fbc0c2b7a6b2d412c1d94a844cc9285e7cbdce",
+          "matches_recorded": true
+        },
+        {
+          "path": ".scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/production-density.tar.gz",
+          "sha256": "4050e10f6698acfb9b0268a0e38ad65a942245d8aded418ce1ce743e0cbac54c",
+          "matches_recorded": true
+        },
+        {
+          "path": ".scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/final-regression-green.tar.gz",
+          "sha256": "a8ea6a682d29e957333ffe9f6cf2b3ebdf93e22c667361094b5d4f6e57bfb3ca",
+          "matches_recorded": true
+        }
+      ],
+      "manual_review": ".scratch/pgbuf-overlay-implementation/verification/06-shared-glyph/manual-review.md"
+    },
+    "integration": {
+      "manifest": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json",
+      "sha256": "28af2fccb4212f86a7bb3dc3cef6c4b779bb2b7eb7a2d247c2a185d6149054f1",
+      "source_check": [
+        {
+          "path": "src/format/heap.rs",
+          "recorded_sha256": "52cc1e2da961b6ad843ed68f90a26608b652346c8dfceeea1223518a0cf63d66",
+          "current_sha256": "52cc1e2da961b6ad843ed68f90a26608b652346c8dfceeea1223518a0cf63d66",
+          "matches": true
+        },
+        {
+          "path": "src/format/file_table.rs",
+          "recorded_sha256": "b248ac301548e94ac23a9c92bea59e6599189ea6af2af08e31d7f98706149caa",
+          "current_sha256": "b248ac301548e94ac23a9c92bea59e6599189ea6af2af08e31d7f98706149caa",
+          "matches": true
+        },
+        {
+          "path": "tools/serve-real-producer.py",
+          "recorded_sha256": "04e1f234dbff76928e3ad73ed5e4a0fa07ac807339ee222855026ddfe3fc5a73",
+          "current_sha256": "04e1f234dbff76928e3ad73ed5e4a0fa07ac807339ee222855026ddfe3fc5a73",
+          "matches": true
+        },
+        {
+          "path": "tests/develop_fixture_corpus.rs",
+          "recorded_sha256": "e386f96542c6115db87b281c402e0b8a52f8b1145db4610d6dfb7cea385c854e",
+          "current_sha256": "e386f96542c6115db87b281c402e0b8a52f8b1145db4610d6dfb7cea385c854e",
+          "matches": true
+        }
+      ],
+      "result": "historical evidence only; not a new execution",
+      "current_candidate_acceptance": "exact-commit-qualification-open",
+      "implementation_commit": "e7fa074c82f78dbffa45464153e489895825806d",
+      "audit": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/completion-audit.md",
+      "corpus": {
+        "contract_version": "1.0",
+        "corpus_revision": 2,
+        "corpus_sha256": "11dbecc72e4b9dd78e22080f138c801c189c7e047c0db23af8233f44a804d5ce"
+      },
+      "disk_corpus": "fixtures/8cb558b3/manifest.json",
+      "disk_corpus_sha256": "92afef7a5d325ed11daf0cbf28a8ac06363f2a04767ee4790256db339f8d69f0",
+      "runs": [
+        {
+          "case": "debug",
+          "producer_commit": "48a3e87e3d56d3b0c998d286f17fc6674bb5e547",
+          "consumer_recorded_base": "15acca53dee39d70b347d4ae4e82b3866cf51fd5",
+          "consumer_dirty_at_execution": true,
+          "binary_sha256": {
+            "/home/vimkim/temp/volmap/target/x86_64-unknown-linux-musl/debug/volmap": "2850e7074461fcec82432ecd36a1ecad49b3a1a282655e2fff16a03613eb3ef4",
+            "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-develop/debug_gcc/bin/cub_server": "645d61b08509438948b67aea60393fa1ce79adeef099e190166fd95e9dbcd11b",
+            "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-develop/debug_gcc/lib/libcubrid.so": "b1061a74545dba0dea1e8481fb5b0f6000de3dd0d4d1b2c1abde4b0a04d8d1aa"
+          },
+          "build": [
+            "CMAKE_BUILD_TYPE:STRING=Debug"
+          ],
+          "environment": {
+            "TMPDIR": "/home/vimkim/tmp"
+          },
+          "testcase_sha256": {
+            "web/../tools/serve-real-producer.py": "04e1f234dbff76928e3ad73ed5e4a0fa07ac807339ee222855026ddfe3fc5a73",
+            "web/e2e/real-producer.spec.ts": "23e9a59c4b44cd598db44430f1fa440c3bbfa4703af5515bd679a1f4417e022f",
+            "web/playwright.producer.config.ts": "446f4797555520dffe741d4c0a8ae0b8e97ba6c587ecb47932aaa4404e4bf5ca"
+          },
+          "command": "VOLMAP_PRODUCER_RUN=/home/vimkim/temp/volmap/.scratch/pgbuf-overlay-implementation/verification/07-develop-disk/debug-home-run.json mise x node@24.19.0 -- corepack pnpm --dir web exec playwright test --config playwright.producer.config.ts",
+          "preconditions": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/debug-accepted-runtime.json",
+          "executed_count": 12,
+          "result": "historical-pass",
+          "raw_artifacts": [
+            {
+              "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/debug-accepted-runtime.json",
+              "sha256": "afa5781b73dc3623c8824b96ed88b2e12566f8f357db4d1447006abffb830db7"
+            },
+            {
+              "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/debug-accepted-browser-results.json.gz",
+              "sha256": "c46fccc2baf126a41190528583d300787a4e357bde1dcf9a0e029b5c3145156b"
+            },
+            {
+              "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/debug-home-run.json",
+              "sha256": "eec1efd4a53ee5bcb377cb11774ecf4f5bd4d6b03892f6d3af0a1013aaab97ef"
+            }
+          ]
+        },
+        {
+          "case": "release",
+          "producer_commit": "48a3e87e3d56d3b0c998d286f17fc6674bb5e547",
+          "consumer_recorded_base": "15acca53dee39d70b347d4ae4e82b3866cf51fd5",
+          "consumer_dirty_at_execution": true,
+          "binary_sha256": {
+            "/home/vimkim/temp/volmap/target/x86_64-unknown-linux-musl/release/volmap": "3c7efe1e66c067f2f691c91f535884b6aa210495a628ce6ef1c2eea10bff4b8a",
+            "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-develop/release_gcc/bin/cub_server": "ae7fbf565a979b68cc529bc8c8a80e7f7f58b6726e9b64330cb37ecdb5a7d168",
+            "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-develop/release_gcc/lib/libcubrid.so": "4f776c4f858741dc004770184fe2d01760462d3ef7b32635348a12d6246e7176"
+          },
+          "build": [
+            "CMAKE_BUILD_TYPE:STRING=RelWithDebInfo"
+          ],
+          "environment": {
+            "TMPDIR": "/home/vimkim/tmp"
+          },
+          "testcase_sha256": {
+            "web/../tools/serve-real-producer.py": "04e1f234dbff76928e3ad73ed5e4a0fa07ac807339ee222855026ddfe3fc5a73",
+            "web/e2e/real-producer.spec.ts": "23e9a59c4b44cd598db44430f1fa440c3bbfa4703af5515bd679a1f4417e022f",
+            "web/playwright.producer.config.ts": "446f4797555520dffe741d4c0a8ae0b8e97ba6c587ecb47932aaa4404e4bf5ca"
+          },
+          "command": "VOLMAP_PRODUCER_RUN=/home/vimkim/temp/volmap/.scratch/pgbuf-overlay-implementation/verification/07-develop-disk/release-home-run.json mise x node@24.19.0 -- corepack pnpm --dir web exec playwright test --config playwright.producer.config.ts",
+          "preconditions": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/release-accepted-runtime.json",
+          "executed_count": 12,
+          "result": "historical-pass",
+          "raw_artifacts": [
+            {
+              "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/release-accepted-runtime.json",
+              "sha256": "e5ebd8345a9683553b2516dee2f1c7399740220e06efcacabc287913bcdac470"
+            },
+            {
+              "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/release-accepted-browser-results.json.gz",
+              "sha256": "e8ab8959ed9a822a6a4e0831cc5ae583087edc61f609c165bc66cb97177adbc1"
+            },
+            {
+              "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/release-home-run.json",
+              "sha256": "7cd62721bf7d2a31a71eedcb7076189b14a6119d6403da0bb182348dd9e7c0fc"
+            }
+          ]
+        },
+        {
+          "case": "aligned-debug",
+          "producer_commit": "3a5eb54f0282b74687b4f08684df7d0bfe9f6a0e",
+          "consumer_recorded_base": "15acca53dee39d70b347d4ae4e82b3866cf51fd5",
+          "consumer_dirty_at_execution": true,
+          "binary_sha256": {
+            "/home/vimkim/temp/volmap/target/x86_64-unknown-linux-musl/debug/volmap": "2850e7074461fcec82432ecd36a1ecad49b3a1a282655e2fff16a03613eb3ef4",
+            "/tmp/producer06-install/debug/bin/cub_server": "0bc4b40f07e058d86005998591f3eb960e9cf93a8eac3e1614435b0207adc2a8",
+            "/tmp/producer06-install/debug/lib/libcubrid.so": "02d5d1c49e6ac00331f980a7e77cf7022900dc4cc302096947a0be3445691bef"
+          },
+          "build": [
+            "CMAKE_BUILD_TYPE:STRING=Debug"
+          ],
+          "environment": {
+            "TMPDIR": "/home/vimkim/tmp"
+          },
+          "testcase_sha256": {
+            "web/../tools/serve-real-producer.py": "04e1f234dbff76928e3ad73ed5e4a0fa07ac807339ee222855026ddfe3fc5a73",
+            "web/e2e/real-producer.spec.ts": "23e9a59c4b44cd598db44430f1fa440c3bbfa4703af5515bd679a1f4417e022f",
+            "web/playwright.producer.config.ts": "446f4797555520dffe741d4c0a8ae0b8e97ba6c587ecb47932aaa4404e4bf5ca"
+          },
+          "command": "VOLMAP_PRODUCER_RUN=/home/vimkim/temp/volmap/.scratch/pgbuf-overlay-implementation/verification/07-develop-disk/aligned-debug-home-run.json mise x node@24.19.0 -- corepack pnpm --dir web exec playwright test --config playwright.producer.config.ts",
+          "preconditions": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/aligned-debug-accepted-runtime.json",
+          "executed_count": 12,
+          "result": "historical-pass",
+          "raw_artifacts": [
+            {
+              "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/aligned-debug-accepted-runtime.json",
+              "sha256": "11551fcd0265c1a40eaa6d7a8beb372310750f02b05fe6de1855b1b3630f00d8"
+            },
+            {
+              "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/aligned-debug-accepted-browser-results.json.gz",
+              "sha256": "b6948183e4fadaa5b57107afabdcf72a0cffbc59c61de2b931bce59884f9de35"
+            },
+            {
+              "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/aligned-debug-home-run.json",
+              "sha256": "a5ce3a4a8c92495de77b698e45d5c4e4ac3faa7d2acfb561de0d7cf0ceec1a19"
+            }
+          ]
+        },
+        {
+          "case": "aligned-release",
+          "producer_commit": "3a5eb54f0282b74687b4f08684df7d0bfe9f6a0e",
+          "consumer_recorded_base": "15acca53dee39d70b347d4ae4e82b3866cf51fd5",
+          "consumer_dirty_at_execution": true,
+          "binary_sha256": {
+            "/home/vimkim/temp/volmap/target/x86_64-unknown-linux-musl/release/volmap": "3c7efe1e66c067f2f691c91f535884b6aa210495a628ce6ef1c2eea10bff4b8a",
+            "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/bin/cub_server": "3e65212cdd338f29a84aa9de6d5e1a53d158ad1ba9a8eb2336d074a9d0cc6cec",
+            "/home/vimkim/.cub/install/CBRD-27398-pgbuf-inspector-contract/release_gcc/lib/libcubrid.so": "0aeaeee76c0d977f85eb8d8adf014bb9f9a4a9ffb6714b08cbd4cde789ba27c0"
+          },
+          "build": [
+            "CMAKE_BUILD_TYPE:STRING=RelWithDebInfo"
+          ],
+          "environment": {
+            "TMPDIR": "/home/vimkim/tmp"
+          },
+          "testcase_sha256": {
+            "web/../tools/serve-real-producer.py": "04e1f234dbff76928e3ad73ed5e4a0fa07ac807339ee222855026ddfe3fc5a73",
+            "web/e2e/real-producer.spec.ts": "23e9a59c4b44cd598db44430f1fa440c3bbfa4703af5515bd679a1f4417e022f",
+            "web/playwright.producer.config.ts": "446f4797555520dffe741d4c0a8ae0b8e97ba6c587ecb47932aaa4404e4bf5ca"
+          },
+          "command": "VOLMAP_PRODUCER_RUN=/home/vimkim/temp/volmap/.scratch/pgbuf-overlay-implementation/verification/07-develop-disk/aligned-release-home-run.json mise x node@24.19.0 -- corepack pnpm --dir web exec playwright test --config playwright.producer.config.ts",
+          "preconditions": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/aligned-release-accepted-runtime.json",
+          "executed_count": 12,
+          "result": "historical-pass",
+          "raw_artifacts": [
+            {
+              "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/aligned-release-accepted-runtime.json",
+              "sha256": "70dcdc989e567dfff3d511ca4af336ca9e514a577d84585789f5b5c20eed74b8"
+            },
+            {
+              "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/aligned-release-accepted-browser-results.json.gz",
+              "sha256": "361da01364a323c40e8035a60b3b94c59a8abb401fd5d40de4af0e16c73ea086"
+            },
+            {
+              "path": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/aligned-release-home-run.json",
+              "sha256": "68e739af870f6e5b1281952bf1328166be4660a89df1d0d104172f9246aa2311"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "evidence_inventory": ".scratch/pgbuf-overlay-implementation/verification/08-release-readiness/evidence-inventory.json",
+  "gates": [
+    {
+      "id": "integration-01",
+      "required": true,
+      "owner": "CUBRID + Volmap",
+      "test": "07 completion-audit.md requirement row 1",
+      "requirement": "Record exact producer/consumer commits and canonical corpus revision/hash. Both repositories independently run the pinned corpus offline, covering valid/partial/malformed/additive-field cases, identity/sequence/count violations, duplicate ambiguity and depth/size limits. Prove named cases executed with nonzero counts; compilation or an empty test runner is not a pass.",
+      "status": "historical-functional-pass",
+      "evidence": [
+        "integration",
+        ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/completion-audit.md"
+      ],
+      "executed_here": 0
+    },
+    {
+      "id": "integration-02",
+      "required": true,
+      "owner": "CUBRID + Volmap",
+      "test": "07 completion-audit.md requirement row 2",
+      "requirement": "Establish known-VPID residency, dirty and eviction preconditions with independent bounded synchronization, not sleeps or workload timing guesses. Failed preconditions are inconclusive. Keep the observer non-invasive: no page load/copy/hash/disk-read operation, production control endpoint, or page-protection wait is added to the observation source.",
+      "status": "historical-functional-pass",
+      "evidence": [
+        "integration",
+        ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/completion-audit.md"
+      ],
+      "executed_here": 0
+    },
+    {
+      "id": "integration-03",
+      "required": true,
+      "owner": "CUBRID + Volmap",
+      "test": "07 completion-audit.md requirement row 3",
+      "requirement": "Test the full attachment-to-HTTP-to-browser journey on the agreed format-aligned baseline e1e651d and the resulting producer implementation commits in both debug and release. Separately verify the develop producer port in debug and release; semantic wire compatibility does not establish Volmap develop disk-format support.",
+      "status": "historical-functional-pass",
+      "evidence": [
+        "integration",
+        ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/completion-audit.md"
+      ],
+      "executed_here": 0
+    },
+    {
+      "id": "integration-04",
+      "required": true,
+      "owner": "CUBRID + Volmap",
+      "test": "07 completion-audit.md requirement row 4",
+      "requirement": "Exercise shipped, unmodified release attachment/lifecycle behavior in addition to test-only synchronization. Verify exact-UID peer authentication without root/group exceptions, directory/socket ownership, complete permanent-volume identity and copied-volume mismatch, identity-proof overflow refusal, protocol refusal, no-store and sanitized HTTP/UI output.",
+      "status": "historical-functional-pass",
+      "evidence": [
+        "integration",
+        ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/completion-audit.md"
+      ],
+      "executed_here": 0
+    },
+    {
+      "id": "integration-05",
+      "required": true,
+      "owner": "CUBRID + Volmap",
+      "test": "07 completion-audit.md requirement row 5",
+      "requirement": "Obtain producer-side evidence for a private 0700 directory and 0600 socket; preservation of symlinks, wrong owners, non-sockets and active sockets; reclamation only of confirmed stale same-owner sockets; and shutdown unlinking only the exact socket created. Activation failure must not prevent database startup and must leave inspection unavailable for that incarnation without background bind retry.",
+      "status": "historical-functional-pass",
+      "evidence": [
+        "integration",
+        ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/completion-audit.md"
+      ],
+      "executed_here": 0
+    },
+    {
+      "id": "integration-06",
+      "required": true,
+      "owner": "CUBRID + Volmap",
+      "test": "07 completion-audit.md requirement row 6",
+      "requirement": "Obtain producer evidence that the hidden startup-only server Boolean enable_pgbuf_inspector defaults false, creates neither daemon nor socket when disabled, has no reload/user-change/client-synchronization flags, and supports Unix server debug/release without a new v1 compile option. Windows and non-server binaries provide no endpoint. Missing sockets do not disclose the remote parameter value.",
+      "status": "historical-functional-pass",
+      "evidence": [
+        "integration",
+        ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/completion-audit.md"
+      ],
+      "executed_here": 0
+    },
+    {
+      "id": "integration-07",
+      "required": true,
+      "owner": "CUBRID + Volmap",
+      "test": "07 completion-audit.md requirement row 7",
+      "requirement": "Verify producer limits below/at/above boundaries: at most 65,536 visited slots and emitted records, 64 MiB whole framed scan with footer space reserved, 4 KiB record/control frames, 64 KiB handshake, depth 16, 64 KiB output buffering, two clients and a 100 ms scan floor. Traversal/serialization checks 100 ms elapsed between slots including backpressure; stalled output disconnects after 250 ms without progress. These are not licenses to hold workers/latches for a deadline or claims of hard real-time execution.",
+      "status": "historical-functional-pass",
+      "evidence": [
+        "integration",
+        ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/completion-audit.md"
+      ],
+      "executed_here": 0
+    },
+    {
+      "id": "integration-08",
+      "required": true,
+      "owner": "CUBRID + Volmap",
+      "test": "07 completion-audit.md requirement row 8",
+      "requirement": "Verify consumer 500 ms connect/handshake and two-second exchange deadlines, bounded assembly and admission, partial/full footer semantics, exact-cap full traversal, next-start rotation beyond visited span, at-most-once slot visits and larger-pool honest partial coverage. Never merge rotating captures into absence proof. Check semantic page-kind mappings and coherent latch/LRU tuples independently of raw native encodings.",
+      "status": "historical-functional-pass",
+      "evidence": [
+        "integration",
+        ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/completion-audit.md"
+      ],
+      "executed_here": 0
+    },
+    {
+      "id": "integration-09",
+      "required": true,
+      "owner": "CUBRID + Volmap",
+      "test": "07 completion-audit.md requirement row 9",
+      "requirement": "Exercise simultaneous tabs, cancellation/overload, broken streams retaining only original-age evidence, refusal/explicit retry, pause/hidden/resume, restart while paused, and unaffected disk inspection. Scripted cases remain required alongside real-engine checks, not replaced by them.",
+      "status": "historical-functional-pass",
+      "evidence": [
+        "integration",
+        ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/completion-audit.md"
+      ],
+      "executed_here": 0
+    },
+    {
+      "id": "integration-10",
+      "required": true,
+      "owner": "CUBRID + Volmap",
+      "test": "07 completion-audit.md requirement row 10",
+      "requirement": "Record the actual companion CUBRID external shell testcase revision and execution evidence using project-supported test concepts. Private-suite or credential-isolation access missing from the environment is missing evidence, never an implicit pass. Do not present personal convenience tooling as organization workflow.",
+      "status": "historical-functional-pass",
+      "evidence": [
+        "integration",
+        ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/completion-audit.md"
+      ],
+      "executed_here": 0
+    },
+    {
+      "id": "integration-11",
+      "required": true,
+      "owner": "CUBRID + Volmap",
+      "test": "07 completion-audit.md requirement row 11",
+      "requirement": "Produce reproducible commands, preconditions, named case counts, build/environment details, status and raw artifacts for each cross-repo invariant. Missing, skipped, failed or inconclusive checks leave integration open, and code/corpus changes require affected checks to rerun.",
+      "status": "historical-functional-pass",
+      "evidence": [
+        "integration",
+        ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/completion-audit.md"
+      ],
+      "executed_here": 0
+    },
+    {
+      "id": "manual-screen-reader",
+      "required": true,
+      "owner": "Human reviewer",
+      "test": "docs/runtime-overlay-release.md",
+      "requirement": "Named reviewer, assistive technology/version, keyboard/focus, lifecycle, coverage and quiet age/poll updates",
+      "status": "missing",
+      "evidence": [
+        "density"
+      ],
+      "executed_here": 0
+    },
+    {
+      "id": "manual-visual",
+      "required": true,
+      "owner": "Human reviewer",
+      "test": "docs/runtime-overlay-release.md",
+      "requirement": "Named reviewer; non-color marks, high contrast, zoom, reduced motion and visible focus",
+      "status": "missing",
+      "evidence": [
+        "density"
+      ],
+      "executed_here": 0
+    },
+    {
+      "id": "candidate-density",
+      "required": true,
+      "owner": "Release maintainer + CUBRID/Volmap measurement owners",
+      "test": "docs/runtime-overlay-release.md",
+      "requirement": "At least 10000 actual laid-out cells; Chromium and Firefox each p95 <=100 ms and incremental peak browser RSS <=32 MiB/tab",
+      "status": "rerun-required",
+      "evidence": [
+        "density"
+      ],
+      "executed_here": 0
+    },
+    {
+      "id": "candidate-exact-commit",
+      "required": true,
+      "owner": "Release maintainer + CUBRID/Volmap measurement owners",
+      "test": "docs/runtime-overlay-release.md",
+      "requirement": "Select clean producer/consumer release commits and rerun affected evidence; preserve dirty-base execution provenance",
+      "status": "rerun-required",
+      "evidence": [
+        "integration"
+      ],
+      "executed_here": 0
+    },
+    {
+      "id": "dedicated-host",
+      "required": true,
+      "owner": "Release maintainer + CUBRID/Volmap measurement owners",
+      "test": "docs/runtime-overlay-release.md",
+      "requirement": "Record dedicated host and real workloads; release builds and browser/producer/consumer collection",
+      "status": "not-run",
+      "evidence": [],
+      "executed_here": 0
+    },
+    {
+      "id": "paired-runs",
+      "required": true,
+      "owner": "Release maintainer + CUBRID/Volmap measurement owners",
+      "test": "docs/runtime-overlay-release.md",
+      "requirement": "10 pairs per case; 60 s warmup and >=300 s measurement per arm; >=100000 transactions where applicable",
+      "status": "not-run",
+      "evidence": [],
+      "executed_here": 0
+    },
+    {
+      "id": "throughput",
+      "required": true,
+      "owner": "Release maintainer + CUBRID/Volmap measurement owners",
+      "test": "docs/runtime-overlay-release.md",
+      "requirement": "95% confidence upper bound of throughput loss <=2% per case",
+      "status": "not-run",
+      "evidence": [],
+      "executed_here": 0
+    },
+    {
+      "id": "transaction-p99",
+      "required": true,
+      "owner": "Release maintainer + CUBRID/Volmap measurement owners",
+      "test": "docs/runtime-overlay-release.md",
+      "requirement": "95% confidence upper bound of transaction p99 increase <=5% per case",
+      "status": "not-run",
+      "evidence": [],
+      "executed_here": 0
+    },
+    {
+      "id": "comparison-isolation",
+      "required": true,
+      "owner": "Release maintainer + CUBRID/Volmap measurement owners",
+      "test": "docs/runtime-overlay-release.md",
+      "requirement": "Separate unmodified vs parameter-off, parameter-off vs enabled-no-demand, parameter-off vs demand",
+      "status": "not-run",
+      "evidence": [],
+      "executed_here": 0
+    },
+    {
+      "id": "complete-reference",
+      "required": true,
+      "owner": "Release maintainer + CUBRID/Volmap measurement owners",
+      "test": "docs/runtime-overlay-release.md",
+      "requirement": "Idle/read-heavy 1 GiB >=99% complete scans; separately record completeness and occupancy",
+      "status": "not-run",
+      "evidence": [],
+      "executed_here": 0
+    },
+    {
+      "id": "refresh-latency",
+      "required": true,
+      "owner": "Release maintainer + CUBRID/Volmap measurement owners",
+      "test": "docs/runtime-overlay-release.md",
+      "requirement": "Refresh demand-to-validated-publication p95 <=250 ms",
+      "status": "not-run",
+      "evidence": [],
+      "executed_here": 0
+    },
+    {
+      "id": "cached-http",
+      "required": true,
+      "owner": "Release maintainer + CUBRID/Volmap measurement owners",
+      "test": "docs/runtime-overlay-release.md",
+      "requirement": "Cached HTTP request-to-completed-response p95 <=25 ms",
+      "status": "not-run",
+      "evidence": [],
+      "executed_here": 0
+    },
+    {
+      "id": "disk-concurrency",
+      "required": true,
+      "owner": "Release maintainer + CUBRID/Volmap measurement owners",
+      "test": "docs/runtime-overlay-release.md",
+      "requirement": "Concurrent disk inspection p95 regression <=5%",
+      "status": "not-run",
+      "evidence": [],
+      "executed_here": 0
+    },
+    {
+      "id": "cpu",
+      "required": true,
+      "owner": "Release maintainer + CUBRID/Volmap measurement owners",
+      "test": "docs/runtime-overlay-release.md",
+      "requirement": "At default cadence producer <=20%, broker <=50% of one logical core; CPU-time/wall-time",
+      "status": "not-run",
+      "evidence": [],
+      "executed_here": 0
+    },
+    {
+      "id": "rss",
+      "required": true,
+      "owner": "Release maintainer + CUBRID/Volmap measurement owners",
+      "test": "docs/runtime-overlay-release.md",
+      "requirement": "Incremental peak producer <=16 MiB; broker <=192 MiB; browser <=32 MiB/tab against matched disabled arms",
+      "status": "not-run",
+      "evidence": [],
+      "executed_here": 0
+    },
+    {
+      "id": "allocation",
+      "required": true,
+      "owner": "Release maintainer + CUBRID/Volmap measurement owners",
+      "test": "docs/runtime-overlay-release.md",
+      "requirement": "Decoded scan <=48 MiB and total broker <=128 MiB; allocator accounting separate from RSS",
+      "status": "not-run",
+      "evidence": [],
+      "executed_here": 0
+    },
+    {
+      "id": "fault-coverage",
+      "required": true,
+      "owner": "Release maintainer + CUBRID/Volmap measurement owners",
+      "test": "docs/runtime-overlay-release.md",
+      "requirement": "Stall, rotation, pause/hidden, clock-change and restart; larger-pool omissions unknown, no cross-capture absence proof",
+      "status": "not-run",
+      "evidence": [],
+      "executed_here": 0
+    },
+    {
+      "id": "delivery-audit",
+      "required": true,
+      "owner": "Release maintainer + CUBRID/Volmap measurement owners",
+      "test": "docs/runtime-overlay-release.md",
+      "requirement": "Every required missing/skipped/inconclusive/failing result keeps readiness open; rerun affected evidence after changes",
+      "status": "not-run",
+      "evidence": [],
+      "executed_here": 0
+    }
+  ],
+  "functional_contract_inventory": [
+    {
+      "id": "01-01",
+      "requirement": "Runtime attachment requires both explicit enablement and an explicit socket path; no discovery or environment fallback occurs. Requested attachment with a non-loopback HTTP listener fails startup. Unattached serving retains its existing listener behavior.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/01-configure-optional-runtime-attachment.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "01-02",
+      "requirement": "Introduce the smallest private runtime broker boundary needed by this behavior, independently owned per live inspection session. Its interface exposes capability metadata and bounded observations for validated scopes; producer protocol, identity, retry, cache and resource details stay private. Any necessary ownership prefactor happens first within this slice, with disk behavior unchanged.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/01-configure-optional-runtime-attachment.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "01-03",
+      "requirement": "Use private real/simulated adapter and injected clock/scheduling seams without a new runtime dependency. Simulations are test fixtures, never a production trust bypass. Until ticket 02 provides verified attachment, no observations or active/verified capability are fabricated.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/01-configure-optional-runtime-attachment.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "01-04",
+      "requirement": "GET /api/v1/runtime/capabilities returns Cache-Control: no-store and a sanitized runtime envelope. Reserve disabled, connecting, active, stale, unavailable, refused and incompatible as capability states; pause, expiry and observation coverage are separate dimensions. Missing sockets mean unavailable, not proof of the producer's parameter setting.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/01-configure-optional-runtime-attachment.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "01-05",
+      "requirement": "Capability requests have four independent admission slots, no queue and a one-second deadline. Runtime admission and errors cannot consume the ordinary inspection resource queue or change inspection outcomes or diagnostics.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/01-configure-optional-runtime-attachment.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "01-06",
+      "requirement": "The browser identifies the source as CUBRID page-buffer observation and presents disabled/unavailable states with accessible text. Paths, UID/GID/PID, raw OS errors, pointers, private structures and application bytes are absent from HTTP and UI disclosures.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/01-configure-optional-runtime-attachment.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "01-07",
+      "requirement": "Runtime capability publication never advances snapshot generations, inspection revisions or cursors, or wakes disk-watch clients. The inspection graph, TUI, exports and standalone executable contract remain unchanged.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/01-configure-optional-runtime-attachment.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "01-08",
+      "requirement": "Tests exercise actual configuration parsing, the real HTTP boundary and rendered capability presentation, including invalid listener/configuration combinations, no-store, sanitization, independent admission below/at/above capacity and unaffected disk inspection without CUBRID installed.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/01-configure-optional-runtime-attachment.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "01-09",
+      "requirement": "Document explicit opt-in and loopback/SSH use using the accepted domain vocabulary. This ticket adds neither public authentication/TLS nor engine discovery, resident-page inspection, AOUT, event history or engine implementation.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/01-configure-optional-runtime-attachment.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "02-01",
+      "requirement": "Vendor an exact revision/hash-pinned producer-owned corpus and verify it offline. Resolve semantic conflicts explicitly with the producer owner rather than adding browser exceptions. CUBRID producer implementation remains external.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "02-02",
+      "requirement": "Authenticate Linux AF_UNIX SOCK_STREAM peers with SO_PEERCRED and exact effective-UID equality, with no root/group exception. Check private-directory and socket ownership before trusting observations. Verify database-creation identity and the complete permanent-volume set of volid, volume-creation identity, device and inode, excluding temporary volumes. Names or paths alone and subset identity proof are insufficient; oversized identity proof refuses attachment.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "02-03",
+      "requirement": "Bind observations to the producer's unpredictable incarnation and negotiated protocol. The handshake supplies shared/private LRU topology counts. Identity mismatch produces refused with stable identity-mismatch; refusal or protocol incompatibility clears evidence and requires explicit retry. Sanitize verification, protocol, database fingerprint and abbreviated incarnation; never disclose raw peer identity or socket details.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "02-04",
+      "requirement": "Decode versioned JSON-lines with snake_case fields and lowercase semantic enums. Ignore unknown optional same-major fields within limits; reject missing mandatory identity, framing or count fields. Consume semantic page kind rather than native ordinals, including branch-dependent mappings, and never expose packed flags.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "02-05",
+      "requirement": "Present VPID, semantic page kind, latch mode none/read/write/flush, waiter presence, fix count, dirty, flushing, async_flush_requested, to_vacuum, page LSA and oldest-unflush LSA. Preserve the coherent latch-word tuple and coherent LRU flags tuple without claiming record-wide or pool-wide atomicity. Present LRU zone lru1/lru2/lru3/void/invalid, list kind shared/private/none/invalid and exact kind-local index or null when not applicable; indices are incarnation-local.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "02-06",
+      "requirement": "Validate scan sequence/start header, records and explicit end/count/truncation footer, including raw counts before deduplication and increasing incarnation-local sequence. Sequence is not an event sequence; use capture intervals, not invented per-page timestamps. Duplicate VPIDs are ambiguous/unknown, never last-write-wins.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "02-07",
+      "requirement": "An evaluated requested Page omitted from a complete scan is observed not-resident, not guaranteed currently absent. Partial omissions and unevaluated Pages are unknown. Valid truncated scans publish partial evidence; malformed streams, missing footers or assembly overflow discard the whole unfinished assembly and retain only prior usable, unexpired evidence with its original age. Never synthesize a footer or merge scans into apparent completeness.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "02-08",
+      "requirement": "Enforce binary-byte limits before unbounded allocation: 65,536 records, 64 MiB framed scan, 4 KiB record/control frame including newline, 64 KiB handshake and nesting depth 16; connect plus handshake within 500 ms and whole scan exchange including drain/footer within two seconds. Parse incrementally without buffering the whole wire stream.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "02-09",
+      "requirement": "Account at most 48 MiB per decoded scan and 128 MiB total broker memory, including allocated capacities, indexes, duplicate tracking, parser buffers, retained/in-flight captures, response-held older captures and serialization. No spill or history; aggregate admission can stop below an individual object limit. Replacement does not uncharge still-referenced memory. RSS is a separate measurement.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "02-10",
+      "requirement": "POST /api/v1/runtime/page-buffer/observe returns Cache-Control: no-store and echoes accepted ordered VPIDs and scope/request epoch, normalized states, capture identity/interval, limitations, producer completeness and separate requested/evaluated counts. Enforce at most 512 VPIDs, 64 KiB request body and 1 MiB response, eight admitted requests including waiters with no extra queue, a 2.5-second deadline and HTTP 429 overload. A requested scope never changes the producer's bulk-scan cap.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "02-11",
+      "requirement": "Maintain one connection, one latest capture and at most one in-flight scan per session from the first working attachment, with a 500 ms scan-start floor. This slice supports explicit selected-Page refresh; automated lifecycle and viewport scheduling follow in tickets 03 and 04 without temporarily removing safety limits.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "02-12",
+      "requirement": "From the first observation, enforce monotonic conservative age from broker scan-request start through serialization, adding browser full HTTP round trip and elapsed time. Cache reads never renew capture age; source wall time is display-only. Fresh means known upper age within two caller intervals; uncertain evidence is not fresh. Evict browser and broker evidence after 30 seconds even while paused. Revoke incompatible late adoption on route, scope, generation, overlay, pause or incarnation changes, checking echoed scope/epoch independently of cancellation.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "02-13",
+      "requirement": "Selected-Page detail and an initial residency mark distinguish observed residency, observed nonresidency, partial/ambiguous unknown, unavailable and expired evidence with non-color labels. Storage facts remain intact; nothing claims page-image correspondence, commit visibility, durability or event causality.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "02-14",
+      "requirement": "Test the production decoder using scripted socket chunking/coalescing, EOF, stalls, malformed framing, additive fields, count/sequence/identity errors, duplicate ambiguity and valid partial scans. Exercise the real HTTP and browser boundaries, plus deterministic highest-interface broker tests and actual I/O timeout checks. Cover below/at/above applicable caps, including retained plus in-flight plus response-held memory; report named executed cases and nonzero counts. Peer-credential isolation requires a suitable environment, not a silent skip.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/02-observe-selected-page-securely.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "03-01",
+      "requirement": "Add default selected-Page polling at 500 ms through the shared broker. Respect the independent 500 ms broker scan-start floor rather than confusing it with the producer's 100 ms floor. Reuse a capture only within the requesting caller's cadence or join refresh demand; never accumulate missed ticks or historical captures.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/03-handle-observation-lifecycle.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "03-02",
+      "requirement": "Transient retry uses nominal delays 0.5, 1, 2, 4 and 8 seconds, then eight seconds, with +/-20% jitter and an actual maximum of 9.6 seconds. Reset after a valid scan. Connectivity status and retained, aged evidence remain separate.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/03-handle-observation-lifecycle.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "03-03",
+      "requirement": "Interpret version-unsupported, busy, rate-limited and incarnation-changed through stable normalized capability/reason behavior. Parameter-off is only defensive compatibility; socket absence does not prove that setting. Peer/identity refusal and protocol incompatibility clear evidence and stop automatic retry until an explicit operator retry.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/03-handle-observation-lifecycle.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "03-04",
+      "requirement": "Hidden tabs send no runtime requests. Paused tabs stop adoption of disk generations and runtime observations and check capability metadata only every five seconds; these checks cause neither scans nor adoption. Another tab's newer capture is only an availability indication while paused.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/03-handle-observation-lifecycle.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "03-05",
+      "requirement": "Resume requires a scan started after resume, respecting the shared scan-start floor; an older cache hit or pre-resume in-flight scan cannot fulfill it. Route, scope, overlay and pause changes revoke incompatible late responses even if cancellation races.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/03-handle-observation-lifecycle.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "03-06",
+      "requirement": "Producer incarnation changes clear retained evidence and adoption authority even while paused. Disk-generation changes prevent incompatible generation-scoped late adoption but do not alone erase retained state for the same proven database/volume identity; matching generations/VPIDs never imply image correspondence.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/03-handle-observation-lifecycle.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "03-07",
+      "requirement": "Maintain conservative monotonic age across cache reuse and failed requests. Freshness is relative to each caller's expected cadence and requires known age within two intervals. Wall-clock steps never renew age; uncertain elapsed time after suspension revokes freshness. Enforce 30-second broker/browser eviction while paused and display an expired explanation rather than a history.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/03-handle-observation-lifecycle.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "03-08",
+      "requirement": "Preserve all authentication, framing, memory, timeout and HTTP limits from ticket 02. Polling or reconnecting cannot bypass them, change inspection outcomes/diagnostics or disturb ordinary disk navigation.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/03-handle-observation-lifecycle.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "03-09",
+      "requirement": "Demonstrate the complete flow with deterministic clock/scheduler broker and browser-effect tests, real HTTP coverage and Chromium/Firefox lifecycle scenarios: retries, refusal/explicit retry, differing cadences, hidden/pause/resume, another-tab newer offers, late responses, clock steps/suspension, expiry and restart while paused. Keep actual socket timeout checks separate from virtual-time tests.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/03-handle-observation-lifecycle.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "04-01",
+      "requirement": "Extend normalized requests and browser presentation to selected-first ordered scopes, followed by nearest visible-sector pages and physical order. At the 512-VPID limit, rotate the non-selected remainder explicitly and show reduced admission/rotation; do not silently exclude the selected Page or claim full viewport evaluation.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/04-observe-visible-pages-with-shared-demand.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "04-02",
+      "requirement": "Use a two-second visible-page cadence and a 500 ms selected-page cadence, with one connection, latest-scan cache and in-flight refresh per attached session. Cache eligibility is per caller's own cadence, and scan starts remain at least 500 ms apart. No per-tab scan, connection, missed-tick backlog or history is introduced.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/04-observe-visible-pages-with-shared-demand.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "04-03",
+      "requirement": "Return requested/evaluated counts and accepted scope/epoch per waiter independently of producer completeness. Fully evaluated browser scope does not imply a complete producer scan; partial or unevaluated omissions remain unknown. Duplicate ambiguity and complete-scan omission semantics survive batching unchanged.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/04-observe-visible-pages-with-shared-demand.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "04-04",
+      "requirement": "Coalesce admitted requests without replacing their scope authority. One caller cancelling cannot cancel another's demand; stop unnecessary work when the last observer leaves. No claim of starvation-free service for arbitrarily many clients is made.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/04-observe-visible-pages-with-shared-demand.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "04-05",
+      "requirement": "Enforce eight observation slots including waiters, no queue, 2.5-second deadline and HTTP 429 overload; capabilities retain four independent slots and a one-second deadline. Keep body/response caps at 64 KiB/1 MiB and runtime admission independent of disk requests.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/04-observe-visible-pages-with-shared-demand.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "04-06",
+      "requirement": "Under concurrent demand, remain within 48 MiB per decoded scan and 128 MiB total accounted broker allocation, including retained, in-flight, old response-held captures and serialization. Prove that object caps cannot collectively exceed total admission and that no whole-wire buffering or spill is introduced.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/04-observe-visible-pages-with-shared-demand.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "04-07",
+      "requirement": "Show coverage/overload and useful available observations at both Volume and Sector scopes using existing semantic presentation; the full visual encoding follows in ticket 05. Existing selected-Page age, expiry and late-response safeguards apply throughout.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/04-observe-visible-pages-with-shared-demand.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "04-08",
+      "requirement": "Verify via scripted producer plus real HTTP and browser tests: simultaneous tabs, different cadences, viewport churn, selected priority, overflow rotation, independently validated waiters, cancellation isolation, no-demand shutdown, overload and unaffected concurrent disk requests. Exercise below/at/above scope, response, admission and memory caps, including retained/in-flight/response peaks.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/04-observe-visible-pages-with-shared-demand.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "04-09",
+      "requirement": "Test valid truncated rotating captures, exact-cap complete captures and stable-pool rotation progress. Never union partial scans into completeness or absence evidence. Consumer tests recognize the producer contract of at most one visit per slot and rotation beyond the visited span; engine traversal implementation remains owned by CBRD-27398.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/04-observe-visible-pages-with-shared-demand.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "04-10",
+      "requirement": "This slice can be developed and verified independently of ticket 03 using explicit requests and controlled visibility/cadence fixtures. It must use the same shared broker scheduling contract so later lifecycle integration preserves all admission and adoption invariants.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/04-observe-visible-pages-with-shared-demand.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "05-01",
+      "requirement": "Preserve existing storage colors beneath cyan residency outlines, amber dirty corners and static magenta flushing edges. Use the accepted visual prototype as design evidence, not production code or proof of performance.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/05-render-heatmap-and-lru-topology.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "05-02",
+      "requirement": "Provide an alternative LRU-topology color mode rather than mixing LRU colors into storage allocation colors. Consume normalized shared/private topology counts and coherent zone/list-kind/kind-local-index observations; show exact indices in selected-Page detail, including none/invalid/null meanings and incarnation-local scope.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/05-render-heatmap-and-lru-topology.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "05-03",
+      "requirement": "Derive only observed per-list summaries from validated capture records and explicitly label them partial when the source is partial. Do not present native counters/quotas or combine captures into an apparent pool snapshot.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/05-render-heatmap-and-lru-topology.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "05-04",
+      "requirement": "Keep latch/waiter/fix and other detailed state in selected-Page detail rather than dense-grid animation. Retain semantic page kind, dirty/flushing/async-flush-requested/to-vacuum and log-position detail without inventing transition start/end, duration, counts, cause or durability.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/05-render-heatmap-and-lru-topology.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "05-05",
+      "requirement": "At both Volume and Sector scales, distinguish capability, freshness, pause, expiry and observation coverage independently. Source-unavailable, unevaluated/partial unknown, duplicate ambiguity and observed nonresidency must not share a misleading absence mark. Prefer no overlay to fabricated evidence.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/05-render-heatmap-and-lru-topology.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "05-06",
+      "requirement": "Provide keyboard-operable controls, stable compatible focus and non-color glyphs/text/accessible names for runtime states. Respect reduced motion and high contrast; polling and age ticks do not create repeated announcements. Initial semantics must be accessible before the final gate in ticket 06.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/05-render-heatmap-and-lru-topology.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "05-07",
+      "requirement": "Test the complete normalized HTTP-to-render path with real frontend state/effects and Chromium/Firefox semantic assertions at both scales. Cover state-mark/LRU switching, exact membership, partial summaries, identity changes, unknowns and expired/unavailable evidence; use a small screenshot set only as supporting visual evidence.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/05-render-heatmap-and-lru-topology.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    },
+    {
+      "id": "05-08",
+      "requirement": "Runtime rendering never mutates inspection facts, revisions, generations, diagnostics, outcomes, export content or TUI behavior. No AOUT history, protected resident-page inspection, image correspondence or unrelated kernel-cache/attribute-selection feature is introduced.",
+      "owner": "Volmap",
+      "test_evidence": ".scratch/pgbuf-overlay-implementation/verification/07-develop-disk/manifest.json#/full_verify",
+      "source_ticket": ".scratch/pgbuf-overlay-implementation/issues/05-render-heatmap-and-lru-topology.md",
+      "candidate_result": "not-revalidated",
+      "note": "Aggregate full-suite evidence only; named per-invariant delivery audit remains open."
+    }
+  ],
+  "performance_matrix": {
+    "pool_mib": [
+      512,
+      1024,
+      4096
+    ],
+    "page_bytes": 16384,
+    "workloads": [
+      "idle",
+      "read-heavy",
+      "write-flush-heavy",
+      "churn"
+    ],
+    "tabs": [
+      1,
+      8,
+      32
+    ],
+    "scenarios": [
+      "steady",
+      "stall",
+      "rotation",
+      "pause-resume",
+      "hidden-resume",
+      "clock-change",
+      "restart"
+    ],
+    "browsers": [
+      "chromium",
+      "firefox"
+    ],
+    "comparisons": [
+      "unmodified-to-parameter-off",
+      "parameter-off-to-enabled-no-demand",
+      "parameter-off-to-enabled-demand"
+    ],
+    "release_configurations": null,
+    "pairs_per_case": 10,
+    "warmup_seconds_per_arm": 60,
+    "minimum_measurement_seconds_per_arm": 300,
+    "minimum_transactions_when_applicable": 100000,
+    "executed_count": 0,
+    "result": "not-run"
+  },
+  "run_record_template": {
+    "case_id": null,
+    "owner": null,
+    "test": null,
+    "producer_base_commit": null,
+    "producer_commit": null,
+    "consumer_commit": null,
+    "source_dirty_state": null,
+    "source_sha256": {},
+    "binary_sha256": {},
+    "corpus_revision": null,
+    "corpus_sha256": null,
+    "build_mode": null,
+    "build_command": null,
+    "environment": null,
+    "testcase_revision": null,
+    "preconditions": null,
+    "command": null,
+    "expected_count": null,
+    "executed_count": 0,
+    "result": "not-run",
+    "pairs": [],
+    "confidence_method": null,
+    "raw_artifacts": [],
+    "reviewer": null,
+    "assistive_technology": null,
+    "failed_attempts": []
+  },
+  "decision_references": [
+    "docs/adr/0006-runtime-observations-are-loopback-web-capabilities.md",
+    "docs/adr/0008-scope-runtime-projections-to-view-level.md"
+  ],
+  "acceptance_rule": "All required gates and final per-invariant audit must pass for the selected candidate; historical-functional-pass, missing, not-run, rerun-required, skipped, inconclusive and failed are not final release passes.",
+  "preparation_verification": {
+    "command": "just verify",
+    "exit_code": 0,
+    "consumer_base": "08ed9477bd7414c6a320a2c06ee7b439e8685ba5",
+    "runtime_sources_changed_in_preparation": false,
+    "frontend_unit_passed": 74,
+    "browser_passed": 65,
+    "browser_existing_skipped": 1,
+    "result": "local-regression-pass; not release-performance/manual evidence",
+    "raw_artifact": ".scratch/pgbuf-overlay-implementation/verification/08-release-readiness/local-verify.log.gz",
+    "sha256": "d1592cb152c89e55bfdc052b799458a5d57e81f9fbd69f0e450170d130997429"
+  }
+}
